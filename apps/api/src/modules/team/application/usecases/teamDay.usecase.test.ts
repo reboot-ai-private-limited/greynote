@@ -1,0 +1,93 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+import { TeamClock } from '../teamClock.js';
+import { FakeTeam } from './teamKit.js';
+import { TeamDayUseCase } from './teamDay.usecase.js';
+
+const config = { get: async (key: string) => ({ BUSINESS_TIMEZONE: 'Asia/Kolkata', DAY_START_TIME: '00:00', TEAM_NOT_STARTED_AFTER: '11:00' })[key] ?? '' };
+const NOW = new Date('2026-11-17T08:00:00Z');
+const base = { scope: 'all' as const, page: 1, pageSize: 50 };
+
+describe('the team board for a day', () => {
+  let kit: FakeTeam;
+  let board: TeamDayUseCase;
+  beforeEach(() => {
+    kit = new FakeTeam();
+    board = new TeamDayUseCase(kit, kit, kit, kit, kit, kit, kit, new TeamClock(config, () => NOW));
+    kit.plans.set('mr1|2026-11-17', { status: 'APPROVED', workingType: 'FIELD_WORK', routeIds: ['r1'], doctorIds: ['d1', 'd2', 'd3'], remarks: 'Camp day' });
+    kit.plans.set('mr2|2026-11-17', { status: 'SUBMITTED', workingType: 'FIELD_WORK', routeIds: ['r2'], doctorIds: ['d4'] });
+    kit.day.set('mr1|2026-11-17', {
+      userId: 'mr1',
+      date: '2026-11-17',
+      reportStatus: 'SUBMITTED',
+      doctorCalls: [
+        { doctorId: 'd1', recordedAt: new Date('2026-11-17T05:00:00Z'), remarks: 'Samples asked', geofence: 'PASS' },
+        { doctorId: 'd9', recordedAt: new Date('2026-11-17T06:00:00Z'), remarks: null, geofence: 'PASS' },
+      ],
+      chemistCalls: [{ chemistId: 'c1', recordedAt: new Date('2026-11-17T06:30:00Z') }],
+      followups: 1,
+    });
+  });
+
+  it('puts the routes and the doctors by name, marks which doctors were called, and lists the others under also visited', async () => {
+    const out = await board.execute('rsm', { ...base, date: '2026-11-17', userId: 'mr1' });
+    const row = out.items[0]!;
+    expect(row.plan).toMatchObject({ status: 'APPROVED', remarks: 'Camp day', routes: [{ id: 'r1', name: 'Route r1' }] });
+    expect(row.doctors.planned.map((d) => [d.name, d.visited])).toEqual([['Dr d1', true], ['Dr d2', false], ['Dr d3', false]]);
+    expect(row.doctors.planned[0]).toMatchObject({ remarks: 'Samples asked', geofence: 'PASS' });
+    expect(row.doctors.alsoVisited.map((d) => d.name)).toEqual(['Dr d9']);
+    expect(row).toMatchObject({ chemistCalls: 1, followups: 1, report: { status: 'SUBMITTED' }, summary: { planned: 3, visited: 1, missed: 0 } });
+  });
+
+  it('today a doctor not yet called is not missed; on a past day it is', async () => {
+    const todayRow = (await board.execute('rsm', { ...base, date: '2026-11-17', userId: 'mr1' })).items[0]!;
+    expect(todayRow.summary.missed).toBe(0);
+    kit.plans.set('mr1|2026-11-16', { status: 'APPROVED', workingType: 'FIELD_WORK', routeIds: ['r1'], doctorIds: ['d1', 'd2'] });
+    const past = await board.execute('rsm', { ...base, date: '2026-11-16', userId: 'mr1' });
+    expect(past.past).toBe(true);
+    expect(past.items[0]?.summary).toEqual({ planned: 2, visited: 0, missed: 2 });
+  });
+
+  it('counts the level and filters: plan not approved, and report not sent', async () => {
+    const all = await board.execute('rsm', { ...base, date: '2026-11-17' });
+    expect(all.totals).toMatchObject({ people: 4, plannedDoctors: 4, visitedDoctors: 1, reportsIn: 1 });
+    const unapproved = await board.execute('rsm', { ...base, date: '2026-11-17', filter: 'PLAN_NOT_APPROVED' });
+    expect(unapproved.items.map((r) => r.user.id).sort()).toEqual(['asm1', 'asm2', 'mr2']);
+    const noReport = await board.execute('rsm', { ...base, date: '2026-11-17', filter: 'REPORT_NOT_SENT' });
+    expect(noReport.items.map((r) => r.user.id)).not.toContain('mr1');
+  });
+
+  it('shows only the downline: a person outside it is a 403', async () => {
+    await expect(board.execute('rsm', { ...base, date: '2026-11-17', userId: 'stranger' })).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it('a person on leave is not counted against the plan or the report', async () => {
+    kit.leaves = [{ leaveId: 'l1', userId: 'mr2', leaveType: 'Casual', startDate: '2026-11-17', endDate: '2026-11-17', half: null, daysCount: 1, status: 'APPROVED' }];
+    const out = await board.execute('rsm', { ...base, date: '2026-11-17' });
+    expect(out.items.find((r) => r.user.id === 'mr2')?.onLeave).toBe(true);
+    expect(out.totals.onLeave).toBe(1);
+    expect((await board.execute('rsm', { ...base, date: '2026-11-17', filter: 'PLAN_NOT_APPROVED' })).items.map((r) => r.user.id)).not.toContain('mr2');
+  });
+});
+
+import { TeamMemberDaysUseCase } from './teamMemberDays.usecase.js';
+
+describe('one person’s month, day by day', () => {
+  it('lists the plan and what happened, newest first, up to tomorrow, and refuses someone outside the downline', async () => {
+    const kit = new FakeTeam();
+    const planning = Object.assign(Object.create(kit) as FakeTeam, { listDailyPlanDays: async () => [
+      { date: '2026-11-16', status: 'APPROVED', workingType: 'FIELD_WORK', routeIds: ['r1'], workWith: [], doctorIds: ['d1', 'd2'], remarks: 'Camp', changedFromMonthly: false },
+      { date: '2026-11-17', status: 'SUBMITTED', workingType: 'FIELD_WORK', routeIds: ['r1'], workWith: [], doctorIds: ['d3'], remarks: null, changedFromMonthly: true },
+    ] });
+    const days = new TeamMemberDaysUseCase(kit, planning, kit, kit, kit, new TeamClock(config, () => NOW));
+    kit.day.set('mr1|2026-11-16', { userId: 'mr1', date: '2026-11-16', reportStatus: 'APPROVED', doctorCalls: [{ doctorId: 'd1', recordedAt: new Date('2026-11-16T05:00:00Z'), remarks: 'ok', geofence: 'PASS' }], chemistCalls: [], followups: 0 });
+    const out = await days.execute('rsm', 'mr1', '2026-11');
+    expect(out.items.map((d) => d.date)).toEqual(['2026-11-17', '2026-11-16']);
+    const yesterday = out.items[1]!;
+    expect(yesterday.plan).toMatchObject({ status: 'APPROVED', remarks: 'Camp', routes: [{ name: 'Route r1' }] });
+    expect(yesterday.doctors.planned.map((d) => [d.name, d.visited])).toEqual([['Dr d1', true], ['Dr d2', false]]);
+    expect(yesterday.summary).toEqual({ planned: 2, visited: 1, missed: 1 });
+    expect(yesterday.report).toMatchObject({ status: 'APPROVED', doctorCalls: 1 });
+    expect(out.items[0]?.summary.missed).toBe(0);
+    await expect(days.execute('rsm', 'stranger', '2026-11')).rejects.toMatchObject({ statusCode: 403 });
+  });
+});

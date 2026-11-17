@@ -96,3 +96,26 @@ export class ListTeamChemistsUseCase {
     return { ...result, items: result.items.map((c) => ({ ...c, assignedTo: holders(c.id) })) };
   }
 }
+
+/**
+ * A manager reads one Chemist's record to decide a new-chemist request (name, address, phone and the location the phone captured). Allowed when
+ * the Chemist was added by someone below them, or is held by someone below them (an active assignment). Anyone else gets the same 404 as an id
+ * that does not exist. (The plain `GET /chemists/:id` stays Admin and Accounts only.)
+ */
+export class ReviewChemistUseCase {
+  constructor(
+    private readonly chemists: ChemistRepositoryPort,
+    private readonly assignments: ChemistAssignmentRepositoryPort,
+    private readonly users: UserDirectoryPort,
+  ) {}
+
+  async execute(actor: Actor, id: string): Promise<Chemist> {
+    const chemist = await this.chemists.findById(id);
+    if (!chemist) throw AppError.notFound('No such chemist.');
+    const below = new Set((await this.users.getDownline(actor.id)).map((u) => u.id));
+    const addedBelow = chemist.addedBy !== null && below.has(chemist.addedBy);
+    const heldBelow = addedBelow || (await this.assignments.listActiveForChemist(id)).some((a) => below.has(a.userId));
+    if (!addedBelow && !heldBelow) throw AppError.notFound('No such chemist.');
+    return chemist;
+  }
+}

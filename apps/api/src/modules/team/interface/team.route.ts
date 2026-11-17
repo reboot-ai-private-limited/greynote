@@ -11,6 +11,9 @@ import {
   membersQuerySchema,
   ordersQuerySchema,
   stockQuerySchema,
+  dayQuerySchema,
+  doctorParamsSchema,
+  daysQuerySchema,
   plansQuerySchema,
   summaryQuerySchema,
   todayQuerySchema,
@@ -45,6 +48,35 @@ doc(
   todayQuerySchema,
 );
 doc(
+  '/members/{id}/days',
+  'Manager: one team member’s month day by day, newest first: the plan (routes and doctors by name, remarks, status) and what happened (the report, which doctors were called)',
+  daysQuerySchema,
+  memberParamsSchema,
+);
+doc(
+  '/members/{id}/attendance',
+  'Manager: one team member’s month, one status per day, for the attendance calendar',
+  daysQuerySchema,
+  memberParamsSchema,
+);
+doc(
+  '/members/{id}/doctors',
+  'Manager: one team member’s doctors with visits this month, the last visit and the services asked for each (amount and stage)',
+  daysQuerySchema,
+  memberParamsSchema,
+);
+doc(
+  '/doctors/{id}',
+  'Manager: one doctor held by someone below me, with how he is visited and every service asked for him',
+  daysQuerySchema,
+  doctorParamsSchema,
+);
+doc(
+  '/day',
+  'Manager: the board for a day (including tomorrow): each member’s routes by name, the doctors the plan lists by name and which were called, other calls, orders and the report',
+  dayQuerySchema,
+);
+doc(
   '/plans',
   'Manager: each active team member’s Daily Plan for a day (including tomorrow) and their Monthly Plan status',
   plansQuerySchema,
@@ -65,6 +97,11 @@ export function buildTeamRouter(c: TeamHandlers): Router {
     c.summary,
   );
   router.get('/today', validate({ query: todayQuerySchema }), c.today);
+  router.get('/members/:id/days', validate({ params: memberParamsSchema, query: daysQuerySchema }), c.memberDays);
+  router.get('/members/:id/attendance', validate({ params: memberParamsSchema, query: daysQuerySchema }), c.memberAttendance);
+  router.get('/members/:id/doctors', validate({ params: memberParamsSchema, query: daysQuerySchema }), c.memberDoctors);
+  router.get('/doctors/:id', validate({ params: doctorParamsSchema, query: daysQuerySchema }), c.doctor);
+  router.get('/day', validate({ query: dayQuerySchema }), c.day);
   router.get('/plans', validate({ query: plansQuerySchema }), c.plans);
   router.get('/orders', validate({ query: ordersQuerySchema }), c.orders);
   router.get('/stock', validate({ query: stockQuerySchema }), c.stock);

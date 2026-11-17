@@ -178,7 +178,7 @@ export interface DoctorServiceRepositoryPort {
   create(input: Omit<DoctorService, 'id'>, ctx?: TransactionContext): Promise<DoctorService>;
   findById(id: string): Promise<DoctorService | null>;
   /** Newest first, at most `limit`; every filter is optional. */
-  list(filter: { userId?: string; userIds?: string[]; doctorId?: string }, limit: number): Promise<DoctorService[]>;
+  list(filter: { userId?: string; userIds?: string[]; doctorId?: string; doctorIds?: string[] }, limit: number): Promise<DoctorService[]>;
   /** One conditional update (only while not done); false if it was already done or is gone. */
   markDone(id: string, by: string, at: Date): Promise<boolean>;
 }

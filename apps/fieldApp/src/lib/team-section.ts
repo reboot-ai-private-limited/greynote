@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AppState } from 'react-native';
 
+import type { Accent } from '@/constants/theme';
 import { useOnline } from '@/offline';
 
 import { apiGet } from './api';
@@ -111,6 +112,100 @@ async function allPages<T, P extends Paged<T>>(read: (page: number) => Promise<P
 }
 
 export const getAllTeamToday = (p: { date?: string; scope?: TeamScopeFilter } = {}) => allPages((page) => getTeamToday({ ...p, page }));
+
+/* ── the board for a day, and one person's month ── */
+
+export type DoctorLine = { id: string; name: string; visited: boolean; visitedAt: string | null; remarks: string | null; geofence: string | null };
+export type PlanPerson = { id: string; name: string; designation: string | null; label: string };
+
+/** One person on a day: where they go, which doctors by name and which were called, what else they did, where the report stands. */
+export type BoardRow = {
+  user: TeamUser;
+  plan: { status: string; workingType: string; routes: NamedRoute[]; workWith: PlanPerson[]; remarks: string | null } | null;
+  doctors: { planned: DoctorLine[]; alsoVisited: DoctorLine[] };
+  chemistCalls: number;
+  followups: number;
+  orders: { count: number; amountPaise: number };
+  report: { status: string } | null;
+  onLeave: boolean;
+  summary: { planned: number; visited: number; missed: number };
+};
+export type TeamBoard = Paged<BoardRow> & {
+  date: string;
+  past: boolean;
+  totals: { people: number; plannedDoctors: number; visitedDoctors: number; planNotApproved: number; reportsIn: number; onLeave: number };
+};
+export type DayFilter = 'PLAN_NOT_APPROVED' | 'NO_CALLS' | 'REPORT_NOT_SENT';
+
+export const getTeamDay = (p: { date: string; scope?: TeamScopeFilter; userId?: string; filter?: DayFilter; page?: number }) =>
+  apiGet<TeamBoard>(`/team/day${query({ pageSize: 100, ...p })}`, { auth: true, fy: true });
+export const getAllTeamDay = (p: { date: string; scope?: TeamScopeFilter; filter?: DayFilter }) => allPages((page) => getTeamDay({ ...p, page }));
+
+export type TeamMemberDay = {
+  date: string;
+  plan: { status: string; workingType: string; routes: NamedRoute[]; workWith: PlanPerson[]; remarks: string | null; changedFromMonthly: boolean } | null;
+  doctors: { planned: DoctorLine[]; alsoVisited: DoctorLine[] };
+  report: { status: string; doctorCalls: number; chemistCalls: number; followups: number } | null;
+  summary: { planned: number; visited: number; missed: number };
+};
+export type TeamMemberDays = { month: string; monthlyPlanStatus: string | null; items: TeamMemberDay[] };
+export const getTeamMemberDays = (userId: string, month: string) => apiGet<TeamMemberDays>(`/team/members/${userId}/days${query({ month })}`, { auth: true, fy: true });
+
+/* ── one person's attendance, doctors; one doctor ── */
+
+export type AttendanceStatus = 'NOT_YET' | 'BEFORE_JOINING' | 'NOT_EMPLOYED' | 'HOLIDAY' | 'WEEKLY_OFF' | 'LEAVE' | 'STRIKE' | 'PRESENT' | 'ABSENT' | 'UNKNOWN';
+export type AttendanceMonth = { userId: string; month: string; days: { date: string; status: AttendanceStatus }[]; counts: Record<string, number> };
+export const getMemberAttendance = (userId: string, month: string) => apiGet<AttendanceMonth>(`/team/members/${userId}/attendance${query({ month })}`, { auth: true, fy: true });
+
+export type ServiceTotals = { count: number; totalPaise: number; waiting: number; toDo: number; done: number; rejected: number };
+export type MemberDoctor = {
+  id: string;
+  name: string;
+  specialty: string;
+  clinicName: string | null;
+  routeName: string | null;
+  visitFrequency: number | null;
+  visitsThisMonth: number;
+  lastVisit: string | null;
+  services: ServiceTotals;
+};
+export const getMemberDoctors = (userId: string, month: string) => apiGet<{ month: string; items: MemberDoctor[] }>(`/team/members/${userId}/doctors${query({ month })}`, { auth: true, fy: true });
+
+export type TeamDoctorDetail = {
+  doctor: { id: string; name: string; specialty: string; clinicName: string | null; phone: string | null; address: string; visitFrequency: number | null; routeName: string | null };
+  heldBy: { id: string; name: string; employeeCode: string };
+  month: string;
+  visitsThisMonth: number;
+  calls: { date: string; at: string; remarks: string | null; geofence: string }[];
+  services: { totals: ServiceTotals; items: { id: string; serviceType: string; amountPaise: number; remarks: string | null; status: string; doneAt: string | null; askedBy: string; createdAt: string }[] };
+};
+export const getTeamDoctor = (doctorId: string, month: string) => apiGet<TeamDoctorDetail>(`/team/doctors/${doctorId}${query({ month })}`, { auth: true, fy: true });
+
+/** A service's stage in words, from its approval status and whether it was carried out. */
+export const serviceStageText = (status: string, doneAt: string | null): { text: string; accent: Accent } =>
+  doneAt ? { text: 'Done', accent: 'green' } : status === 'REJECTED' ? { text: 'Rejected', accent: 'red' } : status === 'APPROVED' || status === 'MANAGER_APPROVED' ? { text: 'Approved, to do', accent: 'blue' } : status === 'SUBMITTED' ? { text: 'Waiting for approval', accent: 'amber' } : { text: status.toLowerCase(), accent: 'slate' };
+
+/** The plan chip's words and colour, from a Daily Plan status (`null` = no plan). */
+export const PLAN_CHIP: Record<string, { text: string; accent: Accent }> = {
+  APPROVED: { text: 'Plan approved', accent: 'green' },
+  MANAGER_APPROVED: { text: 'Plan approved', accent: 'green' },
+  SUBMITTED: { text: 'Plan waiting', accent: 'amber' },
+  DRAFT: { text: 'Plan not sent', accent: 'red' },
+  REJECTED: { text: 'Plan sent back', accent: 'red' },
+  WITHDRAWN: { text: 'Plan withdrawn', accent: 'red' },
+  REOPENED: { text: 'Plan reopened', accent: 'amber' },
+};
+export const planChip = (status: string | null | undefined) => (status ? (PLAN_CHIP[status] ?? { text: status, accent: 'slate' as const }) : { text: 'No plan', accent: 'slate' as const });
+
+/** The report chip's words and colour. A report is approved on its own, so APPROVED reads "Auto-approved" when nobody decided it. */
+export const REPORT_CHIP: Record<string, { text: string; accent: Accent }> = {
+  APPROVED: { text: 'Report approved', accent: 'green' },
+  MANAGER_APPROVED: { text: 'Report approved', accent: 'green' },
+  SUBMITTED: { text: 'Report sent', accent: 'blue' },
+  DRAFT: { text: 'Report not sent', accent: 'amber' },
+  REJECTED: { text: 'Report sent back', accent: 'red' },
+};
+export const reportChip = (status: string | null | undefined) => (status ? (REPORT_CHIP[status] ?? { text: status, accent: 'slate' as const }) : { text: 'No report', accent: 'slate' as const });
 
 /* ── plans ── */
 

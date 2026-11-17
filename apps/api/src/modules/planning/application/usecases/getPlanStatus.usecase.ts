@@ -24,13 +24,28 @@ export class GetPlanStatusUseCase {
   async day(userId: string, planDate: string) {
     const plan = await this.dailyPlans.findByUserAndDate(userId, planDate);
     if (!plan) return null;
-    return { status: planStatus(await this.approvals.getForRecord('DAILY_PLAN', plan.id)), workingType: plan.workingType, dayKind: plan.dayKind, routeIds: [...plan.routeIds], workWith: [...plan.workWith], doctorIds: plan.doctors.map((d) => d.doctorId), changedFromMonthly: plan.plannedFrom !== null };
+    return { status: planStatus(await this.approvals.getForRecord('DAILY_PLAN', plan.id)), workingType: plan.workingType, dayKind: plan.dayKind, routeIds: [...plan.routeIds], workWith: [...plan.workWith], doctorIds: plan.doctors.map((d) => d.doctorId), changedFromMonthly: plan.plannedFrom !== null, remarks: plan.remarks };
   }
 
   /** A user's daily plans in a range (both ends inclusive), oldest first, each with its status and working type — a calendar's read. */
-  async days(userId: string, from: string, to: string): Promise<Array<{ date: string; status: PlanApprovalStatus; workingType: WorkingType; routeIds: string[] }>> {
+  async days(
+    userId: string,
+    from: string,
+    to: string,
+  ): Promise<Array<{ date: string; status: PlanApprovalStatus; workingType: WorkingType; routeIds: string[]; workWith: string[]; doctorIds: string[]; remarks: string | null; changedFromMonthly: boolean }>> {
     const plans = await this.dailyPlans.listForUser(userId, from, to);
-    return Promise.all(plans.map(async (p) => ({ date: p.planDate, status: planStatus(await this.approvals.getForRecord('DAILY_PLAN', p.id)), workingType: p.workingType, routeIds: p.routeIds })));
+    return Promise.all(
+      plans.map(async (p) => ({
+        date: p.planDate,
+        status: planStatus(await this.approvals.getForRecord('DAILY_PLAN', p.id)),
+        workingType: p.workingType,
+        routeIds: p.routeIds,
+        workWith: [...p.workWith],
+        doctorIds: p.doctors.map((d) => d.doctorId),
+        remarks: p.remarks,
+        changedFromMonthly: p.plannedFrom !== null,
+      })),
+    );
   }
 
   async monthly(userId: string, planMonth: string): Promise<PlanApprovalStatus | null> {

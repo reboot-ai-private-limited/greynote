@@ -12,6 +12,8 @@ import { VisualViewer } from '@/components/visual-viewer';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useCurrentUser } from '@/hooks/use-current-user';
+import { useDoctorPicker } from '@/hooks/use-doctor-picker';
 import { LARGE_TABLET_MIN_WIDTH, TABLET_MIN_WIDTH, useResponsive } from '@/hooks/use-responsive';
 import { useTheme } from '@/hooks/use-theme';
 import { ApiError, NetworkError } from '@/lib/api';
@@ -58,13 +60,18 @@ export default function VisualsScreen() {
   const doctorList = useCachedFetch(`doctorVisuals:${doctorId ?? 'none'}`, () => (doctorId ? listDoctorVisuals(doctorId) : Promise.resolve(null)));
 
   const doctors = master.data?.doctors ?? [];
+  // A manager holds no doctors of their own: the doctors to show visuals to are the ones below them (searched on the server, 20 at a time), and they can
+  // add to and take off those doctors' lists (the server checks they are above the doctor's MR). An MR sees their own.
+  const { isManager } = useCurrentUser();
+  const cachedOptions = [...doctors].sort((a, b) => a.name.localeCompare(b.name)).map((d) => ({ id: d.id, name: d.name, subtitle: `${d.specialty} · ${d.address}`, photoUrl: d.photoUrl }));
+  const picker = useDoctorPicker(isManager, cachedOptions);
   const productName = (id: string | null) => (id ? (master.data?.products.find((p) => p.id === id)?.name ?? 'Product') : 'General');
   const all = (list.data ?? []).filter((v) => v.status === 'active');
   const productIds = [...new Set(all.map((v) => v.productId).filter((x): x is string => !!x))];
   const shown = productId === 'all' ? all : productId === 'general' ? all.filter((v) => !v.productId) : all.filter((v) => v.productId === productId);
   const already = useMemo(() => new Set((doctorList.data?.items ?? []).map((i) => i.visual.id)), [doctorList.data]);
   const forDoctor = (doctorList.data?.items ?? []).map((i) => i.visual).filter((v) => v.status === 'active');
-  const doctor = doctors.find((d) => d.id === doctorId);
+  const doctor = picker.find(doctorId);
 
   const chooseDoctor = (id: string | null) => {
     setDoctorId(id);
@@ -149,12 +156,16 @@ export default function VisualsScreen() {
       {list.stale && list.fetchedAt ? <Notice tone="info">{`Showing the list from ${formatWhen(list.fetchedAt)}. Files and submitting need a connection.`}</Notice> : null}
 
       <OutletPicker
-        label="Show to doctor"
-        options={[...doctors].sort((a, b) => a.name.localeCompare(b.name)).map((d) => ({ id: d.id, name: d.name, subtitle: `${d.specialty} · ${d.address}`, photoUrl: d.photoUrl }))}
+        label={isManager ? 'Show to doctor (yours and your team’s)' : 'Show to doctor'}
+        options={picker.options}
+        onSearch={picker.search}
+        onEndReached={picker.more}
+        loading={picker.loading}
+        selectedOption={picker.find(doctorId)}
+        searchPlaceholder={isManager ? 'Search a doctor or an MR' : 'Search a doctor'}
         value={doctorId}
         onChange={chooseDoctor}
-        emptyText="No doctors yet. Connect to the internet once so your list can load."
-        searchable
+        emptyText={isManager ? 'No doctors are assigned to you or your team yet.' : 'No doctors yet. Connect to the internet once so your list can load.'}
         avatars
       />
       {doctorId ? (

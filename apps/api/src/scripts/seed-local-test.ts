@@ -10,6 +10,7 @@ import { DoctorAssignmentModel } from '@/modules/field-master-data/infrastructur
 import { DoctorModel } from '@/modules/field-master-data/infrastructure/doctor.schema.js';
 import { DesignationModel } from '@/modules/identity/infrastructure/designation.schema.js';
 import { EmployeeProfileModel } from '@/modules/identity/infrastructure/employeeProfile.schema.js';
+import { PayBandModel } from '@/modules/identity/infrastructure/payBand.schema.js';
 import { RoleModel } from '@/modules/identity/infrastructure/role.schema.js';
 import { UserModel } from '@/modules/identity/infrastructure/user.schema.js';
 import { DailyPlanModel } from '@/modules/planning/infrastructure/dailyPlan.schema.js';
@@ -65,6 +66,13 @@ async function seed(apply: boolean): Promise<void> {
   const passwordHash = await bcrypt.hash(LOCAL_TEST_PASSWORD, 10);
   const reset = await UserModel.updateMany({ status: 'active' }, { $set: { passwordHash } });
   logger.info({ modified: reset.modifiedCount }, 'passwords set');
+  // The demo people get the Pay Band of their designation, so paid leave, TA/DA and daily-report submit work for them (without one the server refuses: "no pay band assigned").
+  const bands = new Map((await PayBandModel.find({}).lean()).map((b) => [b.name, b._id]));
+  for (const p of PEOPLE) {
+    const u = await UserModel.findOne({ employeeCode: p.code, isDemo: true }).lean();
+    const band = bands.get(p.designation) ?? (p.designation === 'MR' ? (bands.get('MR DISTRIC') ?? bands.get('MR METRO CITY')) : undefined);
+    if (u && band) await EmployeeProfileModel.updateOne({ userId: u._id, payBandId: null }, { $set: { payBandId: band } });
+  }
   if (there) {
     logger.info('the test world is already there; only the passwords were set. Use --remove to start again.');
     return;

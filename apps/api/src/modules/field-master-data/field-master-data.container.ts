@@ -61,7 +61,7 @@ import type { FieldMasterDataPublicContract } from './field-master-data.public.j
 import { MongoChemistAdapter } from './infrastructure/mongoChemist.adapter.js';
 import { MongoChemistAssignmentAdapter } from './infrastructure/mongoChemistAssignment.adapter.js';
 import { ListTeamDistributorsUseCase } from './application/usecases/listTeamDistributors.usecase.js';
-import { AssignChemistUseCase, ListChemistAssignmentsUseCase, ListTeamChemistsUseCase, UnassignChemistUseCase } from './application/usecases/chemistAssignments.usecase.js';
+import { AssignChemistUseCase, ListChemistAssignmentsUseCase, ListTeamChemistsUseCase, ReviewChemistUseCase, UnassignChemistUseCase } from './application/usecases/chemistAssignments.usecase.js';
 import { MongoDistributorAdapter } from './infrastructure/mongoDistributor.adapter.js';
 import { MongoDoctorAdapter } from './infrastructure/mongoDoctor.adapter.js';
 import { MongoDoctorAssignmentAdapter } from './infrastructure/mongoDoctorAssignment.adapter.js';
@@ -146,6 +146,7 @@ export function buildFieldMasterDataContainer(
     unassign: new UnassignChemistUseCase(chemistAssignments),
     listAssignments: new ListChemistAssignmentsUseCase(chemistAssignments, users),
     team: new ListTeamChemistsUseCase(chemists, chemistAssignments, users),
+    review: new ReviewChemistUseCase(chemists, chemistAssignments, users),
   };
 
   const visibility = new DoctorVisibility(assignments, territory, users, config);
@@ -243,6 +244,7 @@ export function buildFieldMasterDataContainer(
         const [ds, cs] = await Promise.all([distributors.listAllActive(), chemists.listAllActive()]);
         return { distributors: ds.map((d) => ({ id: d.id, name: d.name })), chemists: cs.map((c) => ({ id: c.id, name: c.name })) };
       },
+      getDoctorNames: async (ids) => (await doctors.findByIds(ids)).map((d) => ({ id: d.id, name: d.name })),
       listNames: async (q) => {
         const [ds, cs, ps] = await Promise.all([distributors.findByIds(q.distributorIds ?? []), chemists.findByIds(q.chemistIds ?? []), products.findByIds(q.productIds ?? [])]);
         return {
@@ -291,7 +293,7 @@ export function buildFieldMasterDataContainer(
         specialties: makeSpecialtyControllers(specialtyUseCases),
         chemists: makeChemistControllers(chemistUseCases),
         addedChemists: makeAddedChemistControllers(addedChemists),
-        chemistAssignments: makeChemistAssignmentControllers({ team: chemistUseCases.team, listAssignments: chemistUseCases.listAssignments, assign: chemistUseCases.assign, unassign: chemistUseCases.unassign }),
+        chemistAssignments: makeChemistAssignmentControllers({ team: chemistUseCases.team, review: chemistUseCases.review, listAssignments: chemistUseCases.listAssignments, assign: chemistUseCases.assign, unassign: chemistUseCases.unassign }),
         doctors: makeDoctorControllers(doctorUseCases),
         distributors: makeDistributorControllers(distributorUseCases),
       }),

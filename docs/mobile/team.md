@@ -155,3 +155,31 @@ Suggested shape, not ours to build. Visible only when `GET /auth/me` shows the p
 - **Q3** Notifications (F8): **blocked and overdue always; new-request messages only for leave, monthly expenses and new doctors**; plans and daily reports stay with the badge. In-app Inbox only for now.
 - **Q4** Salary or CTC for a manager? **No, never** (HR/Accounts only). Nothing in the Team routes returns pay.
 - **Q5** Approve on behalf of an absent peer? **Admin only**, as today.
+
+
+**Approvals date filter (2026-11-18).** On both lists the date sent is a main filter (Any time, Last 7 days, This month, Last month, **Pick dates** with a From and a To, either alone is fine). The server's `from` and `to` (inclusive) are used as they are.
+
+
+## Team tab, redesigned (2026-11-18, phase 1)
+
+- **"Not started" is gone** (tag, tile, filter). It only meant "no call logged by 11:00" and contradicted an approved plan. Each person now shows: name and HQ; **today's plan** (chip: Plan approved / waiting / not sent / no plan, On leave) with the **route names**; "**3 of 5 doctors visited**" and the report chip. Tiles: Pending approvals, Plan not approved, Reports in, On leave, Blocked.
+- **Today's board** (`app/team-board.tsx`, from a button at the top of the Team section): any day up to tomorrow, per person the routes by name, work with, remarks, the **doctors by name** with ✓ called (time, remarks) / – not yet / ✗ missed (past days), "also visited", chemists, follow-ups, orders, report chip; filters Everyone / Plan not approved / No calls yet / Report not sent. `GET /team/day?date&scope&userId&filter&page` (new; `totals` for the level, `past`).
+- **Person page as tabs:** Overview, Plans, Reports, More; a month stepper; an Actions menu (Unblock, late exception, downloads). `GET /team/members/:id/days?month` (new): one row per day, newest first, the plan (routes and doctors by name, remarks, status, changed from the Tour Plan) and the report (status, calls) with the doctors called; read up to tomorrow. The Tour Plan card says Approved / Waiting / Draft.
+- `GET /team/plans` rows now also carry `doctors[{ id, name }]` and `remarks`. `/team/today` still sends `NOT_STARTED` (older phones); the phone ignores it.
+- Opening **Team doctors** from a person (`userId`) is about that person only: no employee dropdown.
+- Phase 2: Expenses, Leave and attendance calendar, Doctors tab and doctor page (services ₹), orders filter. Phase 3: Daily report in Approvals' All team requests.
+
+
+## Team tab, phase 2 (2026-11-18): the person page's other tabs, the doctor page
+
+The person page tabs are now **Overview · Plans · Reports · Expenses · Leave · Doctors · Orders**, all following the financial year and the month stepper.
+
+| Tab | Source | Shows |
+|---|---|---|
+| Expenses | `GET /field-activity/expense-months?month&userId` (existing, read for a team member) | the month's status, TA / DA / Other / Total, and each day |
+| Leave | `GET /team/members/:id/attendance?month` (new) and `GET /team/leaves?userId` | a **calendar grid** (Monday first, one coloured cell per day: present, leave, absent, strike, weekly off, holiday) with a legend and counts, then the month's leaves |
+| Doctors | `GET /team/members/:id/doctors?month` (new) | that person's doctors only: visits this month against target, the last visit, **services asked ₹** (count, total, waiting / to do / done / rejected; rejected is not summed); the chemists and distributors they hold, first five with "See all" (`/team-chemists?userId`) |
+| Orders | `GET /team/orders?userId&from&to` | the month's orders, filter All / Placed / Done / Cancelled (chemist orders read "Info only") |
+| Doctor page | `GET /team/doctors/:id?month` (new; 404 unless the holder is below you) | who holds the doctor, visits this month, recent visits, every service asked for him with amount, asker and stage |
+
+A doctor's visits come from the reports logged (a draft report's calls count too). "Last visit" looks back about two months.

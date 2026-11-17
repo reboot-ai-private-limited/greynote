@@ -2806,3 +2806,22 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 - Achievement stays **final only when approved all the way up** (MR by their manager, a manager's team report by their own manager, the top by Admin); a live sum would let a manager show a figure their own manager never signed off. The server's final numbers are unchanged.
 - The Targets screen now says so: the old "distributors' stock" text and the Done-orders-as-primary block are corrected; a manager sees **what is waiting** (approved MR reports below, live) with the team-report status and the next action; the team is a tree whose lines load when shown.
 - `employee-sales` gains `team.approvedMrCount`, `waitingPaise`, `waitingPrimaryPaise`, `reportStatus` (additive). The web Sales dashboard and breakdown are unchanged.
+
+
+## 2026-11-18: First test round fixes (Demo RSM)
+
+- A manager above the MR can read the doctor service (Approvals review and Services Details were "No such doctor service"); a manager can read a pending or team chemist's record to decide it (address, phone, location, Open in Maps); the other roles' rules are unchanged.
+- Services has **My requests / Team requests** tabs for a manager (supersedes the merged list for this page only).
+- The Approvals date filter is on the main row with custom From / To dates.
+
+
+## 2026-11-18: Team tab phase 1: no "Not started"; the board; the person page as tabs
+
+- "Not started" removed: it was a clock rule (no call by 11:00) shown next to an approved plan. The plan chip, route names, doctors visited and the report chip replace it.
+- Today's board and the person page's Plans and Reports tabs read two new team endpoints (`/team/day`, `/team/members/:id/days`); `/team/plans` gains doctor names and remarks. Contracts gained `getDoctorNames`, `getDayActivity`, `getActivityRange` and richer `listDailyPlanDays`.
+
+
+## 2026-11-18: Team tab phase 2: the person's Expenses, Leave and attendance calendar, Doctors and Orders tabs; the doctor page
+
+- Services are the doctor's "how much service": asked services with ₹ and stage (rejected not summed). Field Activity's contract gained `listServicesForDoctors`; Team gained attendance, doctors and doctor reads (downline only).
+- The web Doctors list column for services is not built yet.

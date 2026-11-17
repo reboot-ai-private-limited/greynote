@@ -8,9 +8,14 @@ import { TeamMemberSummaryUseCase } from './application/usecases/teamMemberSumma
 import { TeamOrdersUseCase } from './application/usecases/teamOrders.usecase.js';
 import { TeamStockUseCase } from './application/usecases/teamStock.usecase.js';
 import { TeamPlansUseCase } from './application/usecases/teamPlans.usecase.js';
+import { TeamDoctorUseCase, TeamMemberDoctorsUseCase } from './application/usecases/teamDoctors.usecase.js';
+import { TeamMemberAttendanceUseCase } from './application/usecases/teamMemberAttendance.usecase.js';
+import { TeamMemberDaysUseCase } from './application/usecases/teamMemberDays.usecase.js';
+import { TeamDayUseCase } from './application/usecases/teamDay.usecase.js';
 import { TeamTodayUseCase } from './application/usecases/teamToday.usecase.js';
 import type {
   TeamApprovalPort,
+  TeamAttendancePort,
   TeamBlockPort,
   TeamConfigPort,
   TeamDirectoryPort,
@@ -53,11 +58,17 @@ export function buildTeamContainer(
   approvals: TeamApprovalPort,
   inbox: TeamInboxPort,
   people: TeamPeoplePort,
+  attendance: TeamAttendancePort,
 ): TeamContainer {
   const clock = new TeamClock(config);
   const members = new ListTeamMembersUseCase(identity, territory);
   const today = new TeamTodayUseCase(identity, identity, planning, territory, fieldActivity, hr, clock);
-  const plans = new TeamPlansUseCase(identity, planning, territory);
+  const plans = new TeamPlansUseCase(identity, planning, territory, master);
+  const memberDays = new TeamMemberDaysUseCase(identity, planning, territory, fieldActivity, master, clock);
+  const memberAttendance = new TeamMemberAttendanceUseCase(identity, attendance);
+  const memberDoctors = new TeamMemberDoctorsUseCase(identity, master, fieldActivity, territory);
+  const doctor = new TeamDoctorUseCase(identity, master, fieldActivity, territory);
+  const day = new TeamDayUseCase(identity, planning, territory, fieldActivity, hr, sales, master, clock);
   const leaves = new TeamLeavesUseCase(identity, hr);
   const orders = new TeamOrdersUseCase(identity, sales, master);
   const stock = new TeamStockUseCase(identity, sales);
@@ -66,7 +77,7 @@ export function buildTeamContainer(
   return {
     buildRouter: () =>
       buildTeamRouter(
-        makeTeamControllers({ members, today, plans, leaves, summary, orders, stock }),
+        makeTeamControllers({ members, today, plans, day, memberDays, memberAttendance, memberDoctors, doctor, leaves, summary, orders, stock }),
       ),
     runAlerts: () => alerts.runWaiting(),
     notifyBlocked: (blocked) => alerts.notifyBlocked(blocked),

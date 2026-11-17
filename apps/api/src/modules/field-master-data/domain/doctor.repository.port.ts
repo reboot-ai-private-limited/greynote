@@ -31,6 +31,8 @@ export type AssignedDoctor = Doctor & { assignedUserId: string };
 export interface DoctorRepositoryPort {
   list(filter: DoctorFilter): Promise<PaginatedResult<Doctor>>;
   findById(id: string): Promise<Doctor | null>;
+  /** Several at once; an id that is not there is left out. */
+  findByIds(ids: string[]): Promise<Doctor[]>;
   create(input: Omit<Doctor, 'id'>): Promise<Doctor>;
   /** An MR-added Doctor. Throws `DuplicateRecordError` if this MR already created one with the same `clientRequestId`. */
   createProposed(input: Omit<Doctor, 'id'>, ctx: TransactionContext): Promise<Doctor>;

@@ -69,18 +69,66 @@ export interface TeamPlanningPort {
     workWith?: string[];
     doctorIds: string[];
     changedFromMonthly?: boolean;
+    remarks?: string | null;
   } | null>;
   getMonthlyPlanStatus(userId: string, planMonth: string): Promise<string | null>;
+  /** A person's daily plans in a range, oldest first, each with its status, routes, doctors, work with and remarks. */
+  listDailyPlanDays?(
+    userId: string,
+    from: string,
+    to: string,
+  ): Promise<Array<{ date: string; status: string; workingType: string; routeIds: string[]; workWith: string[]; doctorIds: string[]; remarks: string | null; changedFromMonthly: boolean }>>;
 }
 
 /** Team's narrow view of Field Activity; `fieldActivity.contract` satisfies it structurally. */
 export interface TeamFieldActivityPort {
+  listServicesForDoctors(doctorIds: string[]): Promise<TeamDoctorService[]>;
+  getDayActivity(userIds: string[], date: string): Promise<TeamDayActivity[]>;
+  getActivityRange(userId: string, range: { from: string; to: string }): Promise<TeamDayActivity[]>;
   getDcrSummary(
     userId: string,
     range: { from: string; to: string },
   ): Promise<
     Array<{ status: string; doctorCalls: number; chemistCalls: number; followups: number }>
   >;
+}
+
+/** A doctor a manager reads: who holds him and how he is visited. */
+export interface TeamDoctorInfo {
+  id: string;
+  name: string;
+  specialty: string;
+  clinicName: string | null;
+  phone: string | null;
+  address: string;
+  routeId: string;
+  visitFrequency: number | null;
+  status: string;
+}
+
+/** A service asked for a doctor, with its stage (Field Activity's `listServicesForDoctors`). */
+export interface TeamDoctorService {
+  id: string;
+  doctorId: string;
+  userId: string;
+  userName?: string;
+  serviceType: string;
+  amountPaise: number;
+  remarks: string | null;
+  /** The approval status; `APPROVED` and not done = to do. */
+  status: string;
+  doneAt: Date | null;
+  createdAt: Date;
+}
+
+/** What one person did on one day: the report's status and each call with its time (Field Activity's `getDayActivity`). */
+export interface TeamDayActivity {
+  userId: string;
+  date: string;
+  reportStatus: string | null;
+  doctorCalls: Array<{ doctorId: string; recordedAt: Date; remarks: string | null; geofence: string }>;
+  chemistCalls: Array<{ chemistId: string; recordedAt: Date }>;
+  followups: number;
 }
 
 export interface TeamLeaveEntry {
@@ -149,6 +197,13 @@ export interface TeamSalesPort {
 
 /** Team's narrow view of Field Master Data: outlet names. */
 export interface TeamMasterPort {
+  /** The doctors a person holds. */
+  listAssignedDoctors(userId: string): Promise<TeamDoctorInfo[]>;
+  getDoctor(doctorId: string): Promise<TeamDoctorInfo | null>;
+  /** The MR who holds a doctor, or `null`. */
+  getAssignedUserId(doctorId: string): Promise<string | null>;
+  /** Names for doctors in one query; an id that is not there is left out. */
+  getDoctorNames(doctorIds: string[]): Promise<Array<{ id: string; name: string }>>;
   listNames(query: { distributorIds?: string[]; chemistIds?: string[] }): Promise<{
     distributors: Array<{ id: string; name: string }>;
     chemists: Array<{ id: string; name: string }>;
@@ -199,4 +254,9 @@ export interface TeamPeoplePort {
 export interface AlertMarksPort {
   /** Records these keys and returns only the ones that were not recorded before (safe from several servers at once). */
   claim(keys: string[]): Promise<string[]>;
+}
+
+/** Team's narrow view of Attendance; `attendance.contract` satisfies it structurally. */
+export interface TeamAttendancePort {
+  getMonth(userId: string, month: string): Promise<{ userId: string; month: string; days: Array<{ date: string; status: string }>; counts: Record<string, number> }>;
 }

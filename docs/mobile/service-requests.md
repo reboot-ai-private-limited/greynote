@@ -43,3 +43,6 @@ What the field app does for a doctor's **service request**: the MR asks for a to
 | `POST` | `/approvals/:id/withdraw` | Withdraw before final approval. |
 
 Admin only (web, not the phone): `POST /field-activity/doctor-services/:id/done`, `POST /field-activity/admin/doctor-services`.
+
+
+**Manager reads (2026-11-18).** `GET /field-activity/doctor-services/:id` is also open to a manager above the MR the service is tied to (the reply carries `userName`); anyone else still gets the 404 of a missing id. This is what the Approvals review and the Services "Details" use. The Services page has two tabs for a manager: **My requests** and **Team requests** (`?scope=team`).

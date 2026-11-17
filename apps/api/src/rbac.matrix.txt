@@ -58,6 +58,7 @@ GET    /api/field-activity/expenses  ACCOUNTANT,ADMIN
 GET    /api/field-master-data/chemists  ACCOUNTANT,ADMIN
 GET    /api/field-master-data/chemists/:id  ACCOUNTANT,ADMIN
 GET    /api/field-master-data/chemists/:id/assignments  ADMIN
+GET    /api/field-master-data/chemists/:id/review  FIELD
 GET    /api/field-master-data/chemists/added  FIELD
 GET    /api/field-master-data/chemists/team  FIELD
 GET    /api/field-master-data/distributors  ACCOUNTANT,ADMIN
@@ -174,8 +175,13 @@ GET    /api/sales/secondary-stock  ADMIN,FIELD
 GET    /api/sales/stock-counts/impact  ADMIN
 GET    /api/sync/drafts  FIELD
 GET    /api/sync/pull  FIELD
+GET    /api/team/day  FIELD
+GET    /api/team/doctors/:id  FIELD
 GET    /api/team/leaves  FIELD
 GET    /api/team/members  FIELD
+GET    /api/team/members/:id/attendance  FIELD
+GET    /api/team/members/:id/days  FIELD
+GET    /api/team/members/:id/doctors  FIELD
 GET    /api/team/members/:id/summary  FIELD
 GET    /api/team/orders  FIELD
 GET    /api/team/plans  FIELD

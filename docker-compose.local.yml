@@ -1,7 +1,11 @@
 # Local MongoDB for development and rehearsing data scripts. Nothing here talks to Atlas.
 #
 #   docker compose -f docker-compose.local.yml up -d
-#   MONGO_URI=mongodb://127.0.0.1:27018/greynotenew     (apps/api/.env.local; `pnpm --filter @greynote/api dev:local`)
+#   MONGO_URI=mongodb://127.0.0.1:27018/greynotenew?directConnection=true   (apps/api/.env.local; `pnpm --filter @greynote/api dev:local`)
+#
+# It runs as a one-member REPLICA SET: submitting and approving use transactions, which a plain mongod refuses ("Transaction numbers are only allowed
+# on a replica set member"), so every submit and approve answered 500. `directConnection=true` makes the driver talk to this one member instead of the
+# address the replica set advertises (127.0.0.1:27017, which may be another project's Mongo).
 #
 # Only the database runs in Docker: the API runs natively with tsx, which costs far less memory than an image
 # on a small machine. Bound to 127.0.0.1 only, on 27018 so it never collides with another project's Mongo on 27017.
@@ -10,12 +14,19 @@ services:
   greynote-local:
     image: mongo:7
     container_name: greynote-local
-    command: ["mongod", "--bind_ip_all", "--wiredTigerCacheSizeGB", "0.25"]
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--wiredTigerCacheSizeGB", "0.25"]
     ports:
       - "127.0.0.1:27018:27017"
     volumes:
       - greynote-local-data:/data/db
     mem_limit: 512m
+    # Starts the replica set the first time (and does nothing when it is already one).
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "try { rs.status().ok } catch (e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] }).ok }"]
+      interval: 5s
+      timeout: 10s
+      retries: 12
+      start_period: 5s
     restart: unless-stopped
 
 volumes:

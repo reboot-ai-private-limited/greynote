@@ -153,6 +153,15 @@ export default function TeamDoctorsScreen() {
   };
 
   const readOnly = fy.isPast;
+  // Opened from a person's page (`userId` given): it is about that one person, so there is no employee dropdown to pick someone else.
+  const fixedPerson =
+    typeof preset === 'string' && preset !== ''
+      ? (team.find((t) => t.id === preset) ?? {
+          name: 'This person',
+          employeeCode: '',
+          designation: null as string | null,
+        })
+      : null;
 
   return (
     <ScreenShell title="Doctors" subtitle="Your team’s doctors, and how often each is visited">
@@ -162,38 +171,46 @@ export default function TeamDoctorsScreen() {
       ) : null}
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
 
-      <CardSection
-        icon={sym('person.2', 'groups')}
-        accent="blue"
-        title="Employee"
-        count={team.length || undefined}
-      >
-        {team.length === 0 ? (
-          <Notice tone="info">
-            {loaded ? 'You have nobody in your team yet.' : 'Loading your team…'}
-          </Notice>
-        ) : (
-          <PersonDropdown
-            people={team.map((t) => ({
-              id: t.id,
-              name: t.name,
-              detail: [t.employeeCode, t.designation].filter(Boolean).join(' · '),
-            }))}
-            value={userId}
-            onChange={pickPerson}
-            disabled={busy}
-          />
-        )}
-        {userId ? (
-          <PrimaryButton
-            label="Show the whole team"
-            variant="text"
-            disabled={busy}
-            onPress={() => pickPerson(null)}
-            style={styles.phone}
-          />
-        ) : null}
-      </CardSection>
+      {fixedPerson ? (
+        <CardSection icon={sym('person.2', 'groups')} accent="blue" title={fixedPerson.name}>
+          <ThemedText type="small" themeColor="textSecondary">
+            {[fixedPerson.employeeCode, fixedPerson.designation].filter(Boolean).join(' · ')}
+          </ThemedText>
+        </CardSection>
+      ) : (
+        <CardSection
+          icon={sym('person.2', 'groups')}
+          accent="blue"
+          title="Employee"
+          count={team.length || undefined}
+        >
+          {team.length === 0 ? (
+            <Notice tone="info">
+              {loaded ? 'You have nobody in your team yet.' : 'Loading your team…'}
+            </Notice>
+          ) : (
+            <PersonDropdown
+              people={team.map((t) => ({
+                id: t.id,
+                name: t.name,
+                detail: [t.employeeCode, t.designation].filter(Boolean).join(' · '),
+              }))}
+              value={userId}
+              onChange={pickPerson}
+              disabled={busy}
+            />
+          )}
+          {userId ? (
+            <PrimaryButton
+              label="Show the whole team"
+              variant="text"
+              disabled={busy}
+              onPress={() => pickPerson(null)}
+              style={styles.phone}
+            />
+          ) : null}
+        </CardSection>
+      )}
 
       {editing ? (
         <CardSection icon={sym('target', 'track_changes')} accent="purple" title={editing.name}>

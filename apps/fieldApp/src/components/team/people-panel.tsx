@@ -4,7 +4,9 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Accents, Spacing, type Accent } from '@/constants/theme';
 import { useTeamBoard } from '@/hooks/use-team-board';
-import { DAY_STATE_TEXT, useApprovalSummary, type DayState } from '@/lib/team-section';
+import { useFinancialYear } from '@/lib/financial-year';
+import { getAllTeamDay, planChip, reportChip, useApprovalSummary, type BoardRow, type TeamBoard } from '@/lib/team-section';
+import { useCachedFetch } from '@/offline/cached-fetch';
 import { rollupText, sortByAttention, type TeamNode } from '@/lib/team-tree';
 import { useOnline } from '@/offline';
 import { formatWhen } from '@/offline/day';
@@ -17,35 +19,22 @@ import { TextField } from '../text-field';
 import { ThemedText } from '../themed-text';
 import { Avatar, InfoCard, Pill } from '../ui-cards';
 
-const STATE_ACCENT: Record<DayState, Accent> = { REPORTED: 'green', WORKING: 'blue', NOT_YET: 'slate', NOT_STARTED: 'red', MISSED: 'red', ON_LEAVE: 'purple', OFF: 'slate' };
-
-type Focus = 'ALL' | 'ATTENTION' | 'NOT_STARTED' | 'ON_LEAVE' | 'BLOCKED';
+type Focus = 'ALL' | 'ATTENTION' | 'PLAN' | 'ON_LEAVE' | 'BLOCKED';
 const FOCUS: { value: Focus; label: string }[] = [
   { value: 'ALL', label: 'Everyone' },
   { value: 'ATTENTION', label: 'Needs attention' },
-  { value: 'NOT_STARTED', label: 'Not started' },
+  { value: 'PLAN', label: 'Plan not approved' },
   { value: 'ON_LEAVE', label: 'On leave' },
   { value: 'BLOCKED', label: 'Blocked' },
 ];
 
-const matches = (n: TeamNode, focus: Focus) => {
+const matches = (n: TeamNode, focus: Focus, row?: BoardRow) => {
   if (focus === 'ALL') return true;
   if (focus === 'BLOCKED') return n.day?.blocked === true;
   if (focus === 'ATTENTION') return n.day?.attention === true || n.day?.blocked === true;
-  if (focus === 'NOT_STARTED') return n.day?.state === 'NOT_STARTED' || n.day?.state === 'MISSED';
-  return n.day?.state === 'ON_LEAVE';
+  if (focus === 'PLAN') return !!row && !row.onLeave && !(row.plan && ['APPROVED', 'MANAGER_APPROVED'].includes(row.plan.status));
+  return n.day?.state === 'ON_LEAVE' || row?.onLeave === true;
 };
-
-/** One line on what the person's day looks like: the plan, then the report if there is one. */
-function dayLine(n: TeamNode): string {
-  const d = n.day;
-  if (!d) return 'No information for today';
-  const plan = d.plan ? d.plan.workingType.replace(/_/g, ' ').toLowerCase() : 'no daily plan';
-  const report = d.dcr ? ` · report ${d.dcr.status.toLowerCase().replace(/_/g, ' ')}, ${d.dcr.doctorCalls + d.dcr.chemistCalls} calls` : '';
-  const leave = d.leave ? ` · ${d.leave.leaveType ?? 'leave'}` : '';
-  const text = `${plan}${report}${leave}`;
-  return text.charAt(0).toUpperCase() + text.slice(1);
-}
 
 /** Four numbers a manager checks first. Tapping one narrows the list below to those people. */
 function Tile({ label, value, accent, active, onPress }: { label: string; value: number | string; accent: Accent; active: boolean; onPress: () => void }) {
@@ -70,9 +59,11 @@ function Tile({ label, value, accent, active, onPress }: { label: string; value:
 /** Each level sits this far in from the one above, with a line down the left to show whose team it is. */
 const INDENT = 14;
 
-function PersonRow({ node, level, expanded, onToggle }: { node: TeamNode; level: number; expanded: boolean; onToggle: (id: string) => void }) {
+function PersonRow({ node, row, level, expanded, onToggle }: { node: TeamNode; row?: BoardRow | undefined; level: number; expanded: boolean; onToggle: (id: string) => void }) {
   const { member, day } = node;
-  const state = day?.state ?? 'NOT_YET';
+  const chip = row?.onLeave || day?.state === 'ON_LEAVE' ? { text: 'On leave', accent: 'purple' as const } : planChip(row?.plan?.status ?? day?.plan?.status);
+  const report = reportChip(row?.report?.status);
+  const field = row?.plan ? !['MEETING', 'CONFERENCE', 'STRIKE'].includes(row.plan.workingType) : false;
   const isManager = node.children.length > 0;
   const canDecide = member.depth === 1;
   return (
@@ -83,7 +74,7 @@ function PersonRow({ node, level, expanded, onToggle }: { node: TeamNode; level:
         accessibilityLabel={`Open ${member.name}`}
         onPress={() => router.push({ pathname: '/team-member', params: { id: member.id } })}
         style={styles.row}>
-        <Avatar name={member.name} accent={day?.blocked ? 'red' : STATE_ACCENT[state]} size={42} />
+        <Avatar name={member.name} accent={day?.blocked ? 'red' : chip.accent === 'slate' ? 'blue' : chip.accent} size={42} />
         <View style={styles.grow}>
           <ThemedText type="smallBold" numberOfLines={2}>{member.name}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
@@ -91,14 +82,23 @@ function PersonRow({ node, level, expanded, onToggle }: { node: TeamNode; level:
           </ThemedText>
         </View>
         <View style={styles.pills}>
-          {day?.blocked ? <Pill text="Blocked" accent="red" /> : <Pill text={DAY_STATE_TEXT[state]} accent={STATE_ACCENT[state]} />}
+          {day?.blocked ? <Pill text="Blocked" accent="red" /> : <Pill text={chip.text} accent={chip.accent} />}
         </View>
       </Pressable>
-      <ThemedText type="small" themeColor="textSecondary">
-        {dayLine(node)}
-      </ThemedText>
+      {row && !row.onLeave ? (
+        <>
+          <ThemedText type="small">
+            {field ? (row.plan?.routes.length ? row.plan.routes.map((r) => r.name).join(', ') : 'No route') : row.plan ? row.plan.workingType.replace(/_/g, ' ').toLowerCase() : 'No plan for today'}
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {[field && row.summary.planned > 0 ? `${row.summary.visited} of ${row.summary.planned} doctors visited` : field ? 'No doctors planned' : null, report.text].filter(Boolean).join(' · ')}
+          </ThemedText>
+        </>
+      ) : (
+        <ThemedText type="small" themeColor="textSecondary">{row?.onLeave || day?.leave ? (day?.leave?.leaveType ?? 'On leave') : 'No information for today'}</ThemedText>
+      )}
       {isManager ? (
-        <ThemedText type="small" themeColor={node.rollup.blocked + node.rollup.notStarted > 0 ? 'danger' : 'textSecondary'}>
+        <ThemedText type="small" themeColor={node.rollup.blocked > 0 ? 'danger' : 'textSecondary'}>
           {rollupText(node.rollup)}
         </ThemedText>
       ) : null}
@@ -113,7 +113,7 @@ function PersonRow({ node, level, expanded, onToggle }: { node: TeamNode; level:
 }
 
 /**
- * Team → People: the team as a list you can drill into. Your direct reports come first; a manager among them shows how many are below
+ * Team → Team: the team as a list you can drill into. Your direct reports come first; a manager among them shows how many are below
  * them and how many have not started or are blocked, and "Team ›" opens their people (an RSM or ZSM goes level by level, with a trail
  * back). Search or any filter looks across the whole team at once. The four numbers on top are today's, for everyone you can see.
  */
@@ -121,6 +121,9 @@ export function PeoplePanel({ onShowApprovals }: { onShowApprovals: () => void }
   const online = useOnline();
   const board = useTeamBoard();
   const pending = useApprovalSummary();
+  const fy = useFinancialYear();
+  const dayRows = useCachedFetch<TeamBoard>(`team-board:${fy.year}:${board.today}`, () => getAllTeamDay({ date: board.today, scope: 'all' }));
+  const rowOf = useMemo(() => new Map((dayRows.data?.items ?? []).map((r) => [r.user.id, r])), [dayRows.data]);
   // The managers whose team is shown under them. Your direct reports are always listed; each manager among them opens in place.
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
@@ -148,14 +151,14 @@ export function PeoplePanel({ onShowApprovals }: { onShowApprovals: () => void }
   const shown = sortByAttention(
     all.filter(
       (n) =>
-        matches(n, focus) &&
+        matches(n, focus, rowOf.get(n.member.id)) &&
         (designation === 'ALL' || n.member.designation === designation) &&
         (term === '' || `${n.member.name} ${n.member.employeeCode}`.toLowerCase().includes(term)),
     ),
   );
 
   const t = board.tiles;
-  const notStarted = (t?.NOT_STARTED ?? 0) + (t?.MISSED ?? 0);
+  const dt = dayRows.data?.totals;
   const clear = () => {
     setSearch('');
     setFocus('ALL');
@@ -169,16 +172,15 @@ export function PeoplePanel({ onShowApprovals }: { onShowApprovals: () => void }
       {board.error && online ? <Notice tone="danger">{board.error}</Notice> : null}
       {board.loading ? <Skeleton cards={3} lines={2} /> : null}
 
+      <PrimaryButton label="Today’s board: where everyone goes, which doctors →" variant="text" onPress={() => router.push('/team-board')} />
       {t ? (
         <View style={styles.tiles}>
           <Tile label="Pending approvals" value={pending.summary ? pending.summary.total : '–'} accent={pending.summary && pending.summary.total > 0 ? 'amber' : 'slate'} active={false} onPress={onShowApprovals} />
-          <Tile label="Not started" value={notStarted} accent={notStarted > 0 ? 'red' : 'slate'} active={focus === 'NOT_STARTED'} onPress={() => pick('NOT_STARTED')} />
-          <Tile label="On leave" value={t.ON_LEAVE ?? 0} accent={(t.ON_LEAVE ?? 0) > 0 ? 'purple' : 'slate'} active={focus === 'ON_LEAVE'} onPress={() => pick('ON_LEAVE')} />
+          <Tile label="Plan not approved" value={dt ? dt.planNotApproved : '–'} accent={dt && dt.planNotApproved > 0 ? 'amber' : 'slate'} active={focus === 'PLAN'} onPress={() => pick('PLAN')} />
+          <Tile label="Reports in" value={dt ? `${dt.reportsIn}/${dt.people}` : '–'} accent="teal" active={false} onPress={() => router.push('/team-board')} />
+          <Tile label="On leave" value={dt ? dt.onLeave : (t.ON_LEAVE ?? 0)} accent={(dt ? dt.onLeave : (t.ON_LEAVE ?? 0)) > 0 ? 'purple' : 'slate'} active={focus === 'ON_LEAVE'} onPress={() => pick('ON_LEAVE')} />
           <Tile label="Blocked" value={t.blocked} accent={t.blocked > 0 ? 'red' : 'slate'} active={focus === 'BLOCKED'} onPress={() => pick('BLOCKED')} />
         </View>
-      ) : null}
-      {board.notStartedAfter && focus === 'NOT_STARTED' ? (
-        <ThemedText type="small" themeColor="textSecondary">{`“Not started” counts people with no call logged after ${board.notStartedAfter}.`}</ThemedText>
       ) : null}
 
       <TextField label="Search by name or code" value={search} onChangeText={setSearch} autoCapitalize="none" autoCorrect={false} />
@@ -199,7 +201,7 @@ export function PeoplePanel({ onShowApprovals }: { onShowApprovals: () => void }
         </View>
       ) : (
         <View style={styles.trail}>
-          <ThemedText type="small" themeColor="textSecondary">{`${shown.length} of ${board.count} people`}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">{`${shown.length} of ${board.count} in your team`}</ThemedText>
           <PrimaryButton label="Clear filters" variant="text" onPress={clear} />
         </View>
       )}
@@ -209,7 +211,7 @@ export function PeoplePanel({ onShowApprovals }: { onShowApprovals: () => void }
       ) : null}
       {(flat ? shown.flatMap((n) => [{ node: n, level: 0, key: n.member.id }, ...(open.has(n.member.id) ? treeRows(n.children, 1).map((r) => ({ ...r, key: `${n.member.id}>${r.node.member.id}` })) : [])]) : treeRows(board.roots, 0).map((r) => ({ ...r, key: r.node.member.id }))).map(
         ({ node, level, key }) => (
-          <PersonRow key={key} node={node} level={level} expanded={open.has(node.member.id)} onToggle={toggle} />
+          <PersonRow key={key} node={node} row={rowOf.get(node.member.id)} level={level} expanded={open.has(node.member.id)} onToggle={toggle} />
         ),
       )}
     </View>

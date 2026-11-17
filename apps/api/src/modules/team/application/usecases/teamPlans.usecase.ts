@@ -1,5 +1,5 @@
 import { buildPaginatedResult, type PaginatedResult } from '@/shared/http/pagination.js';
-import type { NamedPerson, TeamDirectoryPort, TeamPlanningPort, TeamPlanRoute, TeamRoutesPort } from '../../domain/ports.js';
+import type { NamedPerson, TeamDirectoryPort, TeamMasterPort, TeamPlanningPort, TeamPlanRoute, TeamRoutesPort } from '../../domain/ports.js';
 import { mapInChunks } from '../inChunks.js';
 import { makeRouteNamer } from '../planRoutes.js';
 import { activeMembers, type TeamLevel } from '../teamScope.js';
@@ -26,6 +26,9 @@ export interface TeamPlanRow {
     /** Who the day is spent with, as `Name (Designation)`. */
     workWithPeople: NamedPerson[];
     doctorCount: number;
+    /** The doctors the day lists, by name (`null` when names are not wired). */
+    doctors: Array<{ id: string; name: string }>;
+    remarks: string | null;
     /** The employee changed the day the Monthly Plan wrote. */
     changedFromMonthly: boolean;
   } | null;
@@ -46,6 +49,7 @@ export class TeamPlansUseCase {
     private readonly directory: TeamDirectoryPort,
     private readonly planning: TeamPlanningPort,
     private readonly routes: TeamRoutesPort,
+    private readonly master?: Pick<TeamMasterPort, 'getDoctorNames'>,
   ) {}
 
   async execute(managerId: string, query: TeamPlansQuery): Promise<TeamPlansResult> {
@@ -66,6 +70,8 @@ export class TeamPlansUseCase {
           routes: await routesOf(day.routeIds),
           workWithPeople: await this.directory.namePeople(day.workWith ?? []),
           doctorCount: day.doctorIds.length,
+          doctors: await this.doctorsOf(day.doctorIds),
+          remarks: day.remarks ?? null,
           changedFromMonthly: day.changedFromMonthly ?? false,
         },
         monthlyPlanStatus: monthly,
@@ -84,5 +90,11 @@ export class TeamPlansUseCase {
       month,
       counts,
     };
+  }
+
+  private async doctorsOf(ids: string[]): Promise<Array<{ id: string; name: string }>> {
+    if (ids.length === 0 || !this.master) return [];
+    const names = new Map((await this.master.getDoctorNames(ids)).map((d) => [d.id, d.name]));
+    return ids.map((id) => ({ id, name: names.get(id) ?? 'Doctor' }));
   }
 }

@@ -6,6 +6,7 @@ import { Spacing } from '@/constants/theme';
 import { ApiError, NetworkError } from '@/lib/api';
 import {
   getDailyPlanRecord,
+  getChemistReview,
   getDoctorRecord,
   getDoctorServiceRecord,
   getLeaveRecord,
@@ -202,11 +203,11 @@ function NewDoctorSummary({ recordId, canCorrect, who }: { recordId: string; can
 }
 
 /**
- * A new chemist waiting for a decision. The server lets a manager read only the request's subject (the chemist's name and its
- * "HQ · Route"), not the chemist record itself (`GET /field-master-data/chemists/:id` is Admin and Accountant only), so the
- * address and the location the phone captured cannot be shown here yet.
+ * A new chemist waiting for a decision: name, HQ · Route, address, phone, who added it and the location the phone captured, with Open in Maps,
+ * like the doctor review. A manager reads it through `GET /chemists/:id/review` (added by, or held by, someone below them).
  */
 function NewChemistSummary({ request }: { request: ApprovalDetail }) {
+  const { data, error } = useRecord(() => getChemistReview(request.recordId), 0);
   // The server names the chemist on the list rows but not on the single request, so look it up on the lists when it is missing.
   const [found, setFound] = useState<ApprovalItem['subject']>(null);
   useEffect(() => {
@@ -228,15 +229,25 @@ function NewChemistSummary({ request }: { request: ApprovalDetail }) {
   }, [request.id, request.subject]);
   const subject = request.subject ?? found;
   const who = request.submitter ? `${request.submitter.name} (${request.submitter.employeeCode})` : null;
+  const where = data?.capturedLocation ?? data?.location ?? null;
   return (
     <Frame title="New chemist" error={null} loading={false}>
-      <Line label="Name" value={subject?.title ?? '—'} />
+      <Line label="Name" value={data?.name ?? subject?.title ?? '—'} />
       {subject?.subtitle ? <Line label="HQ · Route" value={subject.subtitle} /> : null}
+      {data?.address ? <Line label="Address" value={data.address} /> : null}
+      {data?.phone ? <Line label="Phone" value={data.phone} /> : null}
       {who ? <Line label="Added by" value={who} /> : null}
       <Line label="Sent" value={formatWhen(request.submittedAt)} />
-      <Notice tone="info">
-        The address and the location the phone captured aren’t available in the app yet. To check them on a map before deciding, open this request in the web portal.
-      </Notice>
+      {data ? (
+        <>
+          <Line label="Location" value={where ? `${where.latitude.toFixed(5)}, ${where.longitude.toFixed(5)} (where the phone was)` : 'Not captured'} />
+          {where ? (
+            <PrimaryButton label="Open in Maps" variant="text" onPress={() => void Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${where.latitude},${where.longitude}`)} />
+          ) : null}
+        </>
+      ) : error ? (
+        <Notice tone="info">The address and location couldn’t be loaded here. To check them on a map before deciding, open this request in the web portal.</Notice>
+      ) : null}
     </Frame>
   );
 }
@@ -248,6 +259,7 @@ function DoctorServiceSummary({ recordId }: { recordId: string }) {
       {data ? (
         <>
           <Line label="Doctor" value={data.doctorName} />
+          {data.userName ? <Line label="Asked by" value={data.userName} /> : null}
           <Line label="Service" value={data.serviceType.replace(/_/g, ' ').toLowerCase()} />
           <Line label="Amount" value={formatRupees(data.amountPaise)} />
           {data.remarks ? <Line label="Remarks" value={data.remarks} /> : null}

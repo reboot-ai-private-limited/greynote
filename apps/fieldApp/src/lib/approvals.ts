@@ -306,11 +306,25 @@ export type DoctorRecord = {
 };
 export const getDoctorRecord = (id: string) => apiGet<DoctorRecord>(`/field-master-data/doctors/${id}`);
 
+/** A chemist a manager is deciding on (`GET /field-master-data/chemists/:id/review`: added by, or held by, someone below them). */
+export type ChemistRecord = {
+  id: string;
+  name: string;
+  address: string;
+  phone?: string | null;
+  location: { latitude: number; longitude: number } | null;
+  capturedLocation: { latitude: number; longitude: number } | null;
+  status: string;
+};
+export const getChemistReview = (id: string) => apiGet<ChemistRecord>(`/field-master-data/chemists/${id}/review`);
+
 export type DoctorServiceRecord = {
   id: string;
   doctorName: string;
   serviceType: string;
   amountPaise: number;
   remarks: string | null;
+  /** Who asked, named (on a team read). */
+  userName?: string;
 };
 export const getDoctorServiceRecord = (id: string) => apiGet<DoctorServiceRecord>(`/field-activity/doctor-services/${id}`);

@@ -101,6 +101,8 @@ export default function ServicesScreen() {
 
   // One list, newest first, with one filter row (decision 2026-11-18). A manager's list holds their own requests and the team's.
   const me = useSessionUser();
+  // A manager has two tabs: their own requests and the team's (decision 2026-11-18). An MR has only their own.
+  const [tab, setTab] = useState<'MINE' | 'TEAM'>('MINE');
   const [filter, setFilter] = useState<'ALL' | 'WAITING' | 'TODO' | 'DONE' | 'REJECTED'>('ALL');
   const [search, setSearch] = useState('');
   const term = useDebounced(search.trim().toLowerCase(), 300);
@@ -108,9 +110,10 @@ export default function ServicesScreen() {
   const stageOf = (s: ServiceRow) => (s.doneAt ? 'DONE' : s.status === 'APPROVED' || s.status === 'MANAGER_APPROVED' ? 'TODO' : s.status === 'SUBMITTED' ? 'WAITING' : s.status === 'REJECTED' ? 'REJECTED' : 'OTHER');
   const ownerOf = (s: ServiceRow) => (!s.userId || !me || s.userId === me.id ? 'Own' : (s.userName ?? 'Team'));
   const shownSent = sent
+    .filter((s) => (!isManager || (tab === 'MINE') === (ownerOf(s) === 'Own')))
     .filter((s) => (filter === 'ALL' || stageOf(s) === filter) && (!term || `${doctorName(s.doctorId)} ${TYPE_LABEL[s.serviceType]} ${s.userName ?? ''}`.toLowerCase().includes(term)))
     .sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? '') || b.id.localeCompare(a.id));
-  const { visible } = useWindowed(shownSent, `${filter}|${term}`);
+  const { visible } = useWindowed(shownSent, `${tab}|${filter}|${term}`);
   const waitingCount = sent.filter((s) => stageOf(s) === 'WAITING' && ownerOf(s) === 'Own').length + unsent.length;
   const toDoCount = sent.filter((s) => stageOf(s) === 'TODO').length;
   const doneCount = sent.filter((s) => stageOf(s) === 'DONE').length;
@@ -279,12 +282,22 @@ export default function ServicesScreen() {
       />
       <View style={styles.sectionHead}>
         <View style={styles.grow}>
-          <ThemedText type="smallBold" style={styles.sectionTitle}>Your requests</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">{isManager ? 'Yours and your team’s, newest first' : 'Newest first'}</ThemedText>
+          <ThemedText type="smallBold" style={styles.sectionTitle}>{isManager && tab === 'TEAM' ? 'Team requests' : 'Your requests'}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">{isManager ? (tab === 'TEAM' ? 'Your team’s, newest first' : 'Yours, newest first') : 'Newest first'}</ThemedText>
         </View>
-        <PrimaryButton label="+ Request" style={styles.newButton} onPress={() => start('new')} />
+        {isManager && tab === 'TEAM' ? null : <PrimaryButton label="+ Request" style={styles.newButton} onPress={() => start('new')} />}
       </View>
 
+      {isManager ? (
+        <ChoiceChips
+          options={[
+            { value: 'MINE', label: 'My requests' },
+            { value: 'TEAM', label: 'Team requests' },
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
+      ) : null}
       <ChoiceChips
         options={[
           { value: 'ALL', label: 'All' },
@@ -298,7 +311,7 @@ export default function ServicesScreen() {
       />
       <TextField label={isManager ? 'Search a doctor, a type or an MR' : 'Search a doctor or a type'} value={search} onChangeText={setSearch} autoCapitalize="none" />
 
-      {unsent.map((r) => {
+      {(isManager && tab === 'TEAM' ? [] : unsent).map((r) => {
         const p = r.payload as ServicePayload;
         return (
           <InfoCard key={r.clientId}>
@@ -336,7 +349,7 @@ export default function ServicesScreen() {
               <View style={styles.spread}>
                 <IconChip icon={sym('briefcase', 'work')} accent="indigo" />
                 <View style={styles.grow}>
-                  <ThemedText type="smallBold" numberOfLines={1}>{`${s.doctorName || doctorName(s.doctorId)}${isManager ? ` (${ownerOf(s)})` : ''}`}</ThemedText>
+                  <ThemedText type="smallBold" numberOfLines={1}>{`${s.doctorName || doctorName(s.doctorId)}${isManager && tab === 'TEAM' ? ` (${ownerOf(s)})` : ''}`}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">{`${TYPE_LABEL[s.serviceType]}${s.remarks ? ` · ${s.remarks}` : ''}`}</ThemedText>
                 </View>
                 <ThemedText type="smallBold">{formatRupees(s.amountPaise)}</ThemedText>

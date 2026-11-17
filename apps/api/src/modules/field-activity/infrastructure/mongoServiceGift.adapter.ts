@@ -41,11 +41,12 @@ export class MongoDoctorServiceAdapter implements DoctorServiceRepositoryPort {
     const doc = await DoctorServiceModel.findById(id).lean();
     return doc ? toService(doc) : null;
   }
-  async list(filter: { userId?: string; userIds?: string[]; doctorId?: string }, limit: number): Promise<DoctorService[]> {
+  async list(filter: { userId?: string; userIds?: string[]; doctorId?: string; doctorIds?: string[] }, limit: number): Promise<DoctorService[]> {
     const q: FilterQuery<DoctorServiceDoc> = {};
     if (filter.userId) q.userId = oid(filter.userId);
     else if (filter.userIds) q.userId = { $in: filter.userIds.map(oid) };
     if (filter.doctorId) q.doctorId = oid(filter.doctorId);
+    else if (filter.doctorIds) q.doctorId = { $in: filter.doctorIds.map(oid) };
     return (await DoctorServiceModel.find(q).sort({ createdAt: -1, _id: -1 }).limit(limit).lean()).map(toService);
   }
   async markDone(id: string, by: string, at: Date): Promise<boolean> {

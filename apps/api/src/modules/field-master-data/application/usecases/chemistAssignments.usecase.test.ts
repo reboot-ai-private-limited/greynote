@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { Chemist } from '../../domain/chemist.entity.js';
-import { AssignChemistUseCase, ListChemistAssignmentsUseCase, ListTeamChemistsUseCase, UnassignChemistUseCase } from './chemistAssignments.usecase.js';
+import { AssignChemistUseCase, ListChemistAssignmentsUseCase, ListTeamChemistsUseCase, ReviewChemistUseCase, UnassignChemistUseCase } from './chemistAssignments.usecase.js';
 import { FakeChemistAssignments, FakeChemists, FakeUsers } from './fmdTestKit.js';
 
 async function expectStatus(promise: Promise<unknown>, statusCode: number) {
@@ -87,5 +87,37 @@ describe('chemist assignments (many MRs per chemist)', () => {
       await expectStatus(team.execute(field('stranger'), { ...page, userId: 'mr1' }), 403);
       expect((await team.execute(field('stranger'), page)).total).toBe(0);
     });
+  });
+});
+
+describe('a manager reads a chemist to decide a new-chemist request', () => {
+  let chemists: FakeChemists;
+  let assignments: FakeChemistAssignments;
+  let review: ReviewChemistUseCase;
+  beforeEach(() => {
+    chemists = new FakeChemists();
+    chemists.rows.push(
+      chemist('added', 'Pending Pharmacy', { status: 'pending', addedBy: 'mr1', address: 'Sevoke Road', phone: '9000022222', location: { latitude: 26.7, longitude: 88.4 } }),
+      chemist('held', 'Held Pharmacy'),
+      chemist('other', 'Somebody Else', { addedBy: 'stranger' }),
+    );
+    assignments = new FakeChemistAssignments();
+    review = new ReviewChemistUseCase(chemists, assignments, new FakeUsers());
+  });
+
+  it('reads one added by someone below them, with the address, phone and the location the phone captured', async () => {
+    const c = await review.execute(field('asm'), 'added');
+    expect(c).toMatchObject({ name: 'Pending Pharmacy', address: 'Sevoke Road', phone: '9000022222', location: { latitude: 26.7, longitude: 88.4 } });
+  });
+
+  it('reads one held by someone below them', async () => {
+    await assignments.assign({ chemistId: 'held', userId: 'mr2', assignedBy: 'admin' });
+    expect((await review.execute(field('asm'), 'held')).name).toBe('Held Pharmacy');
+  });
+
+  it('anyone else gets the same 404 as an id that does not exist', async () => {
+    await expectStatus(review.execute(field('asm'), 'other'), 404);
+    await expectStatus(review.execute(field('stranger'), 'added'), 404);
+    await expectStatus(review.execute(field('asm'), 'nope'), 404);
   });
 });
