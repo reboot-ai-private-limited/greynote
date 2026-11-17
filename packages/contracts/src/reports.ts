@@ -550,7 +550,19 @@ export interface EmployeeSalesReportDto {
   /** Every target touching the months, each measured over its own months. For a manager the targets of their MRs, one row per product and run of months. */
   targets: EmployeeTargetFigureDto[];
   /** A manager's figures are the sum of the MRs in their whole team: how many there are. `null` for an MR. */
-  team?: { mrCount: number } | null;
+  team?: {
+    mrCount: number;
+    /** MRs below the manager who have an approved report in the range. Absent from older servers. */
+    approvedMrCount?: number;
+    /**
+     * What the approved MR reports below add up to (secondary and primary, at PTS), live: figures their own manager approved that this manager's own
+     * manager has not yet signed off. The manager's `totals` stay at their approved team report (0 until it is approved up the chain).
+     */
+    waitingPaise?: number;
+    waitingPrimaryPaise?: number;
+    /** Where the manager's own team report for the last month of the range stands. */
+    reportStatus?: 'NOT_SUBMITTED' | 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED';
+  } | null;
   /**
    * The employee's primary by distributor: Done orders to each distributor in the months (the month marked Done), by name. The rows add up to
    * the order part of `totals.primaryPaise`. Secondary is entered per product, not per distributor, so it has no row here; a distributor's own

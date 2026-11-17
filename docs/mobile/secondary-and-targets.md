@@ -121,7 +121,13 @@ Phone screen: on the month's secondary screen show the thumbnails (a PDF as an i
 
 The web employee report lists an employee's Done orders **by distributor** (`GET /api/reports/employee-sales` → `distributors[]`: `distributor`, `orderQty`, `orderPaise`), adding up to the order part of their primary. Secondary is still one figure per product, not per distributor. A manager sees this for their downline through the same endpoint; the phone may show it on the employee's sales screen (📱).
 
-## 2c. Achievement now comes from the distributors (2026-10-14)
+## 2d. What the Targets screen shows (2026-11-18, current rule)
+
+Achievement counts **only the approved monthly Secondary Sales report** (issued units at PTS; primary = the received units of the same report), **approved up the chain**: an MR's report by their manager, a manager's team report (the sum of their approved MRs) by their own manager, the top by Admin. Until that approval it reads 0. **This replaces §2c below**, which is kept only as history: distributor stock and Done orders do not count.
+
+`GET /reports/employee-sales` for a manager additionally returns `team.approvedMrCount`, `team.waitingPaise` and `team.waitingPrimaryPaise` (the approved MR reports below them, added up live: approved by their managers, not yet signed off above) and `team.reportStatus` (the manager's own team report for the month). `totals` and `products` are unchanged. The phone shows the final figure, then "Approved MR reports below you: ₹Y · 4 of 7 MRs approved", the report chip (Not sent / Waiting for your manager / Approved / Rejected) and the button (Send the team report, or See the team's Secondary sales). The team is a tree: direct reports first, a tap opens a level down, each line loading its own figures when shown; a manager's line shows their approved team report and what is waiting. The "Done orders by distributor" block is information only and not part of Achieved.
+
+## 2c. Achievement now comes from the distributors (2026-10-14) — superseded by §2d
 
 An employee's **achievement per product is the sum, over the distributors handed to them, of that product's secondary** (opening + units delivered, free included, − closing, from the distributor's stock statement or count), valued at **PTS**. The secondary the employee enters on the phone (and its approval) is kept as a record but **no longer counts** toward targets: label it informational, or hide it (📱). `primary` is now **supplied × price** (see [`orders-and-stock.md`](orders-and-stock.md)); units include free goods. Targets are still set by Admin or a manager (Sales dashboard > employee > Set a target on the web; the field app's targets screen for a manager).
 

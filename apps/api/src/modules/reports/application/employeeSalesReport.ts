@@ -81,9 +81,13 @@ export class EmployeeSalesReport {
     const owners: ReadonlySet<string> = isManager ? new Set([input.userId]) : members;
     const managers = isManager ? [input.userId] : [];
     const sold = await this.achievement.forFigures(memberIds, managers, input.from, input.to);
+    // A manager also sees what is still waiting: the approved MR reports below them, added up live, and where their own team report stands.
+    const [waitingRows, reportStatuses] = isManager
+      ? await Promise.all([this.achievement.lines(memberIds, input.from, input.to), this.achievement.rollupStatuses([input.userId], input.to)])
+      : [[], new Map<string, string>()];
     const soldWide = reach.from === input.from && reach.to === input.to ? sold : await this.achievement.forFigures(memberIds, managers, reach.from, reach.to);
 
-    const productIds = [...new Set([...sold.map((e) => e.productId), ...shares.flatMap((t) => (t.productId ? [t.productId] : []))])];
+    const productIds = [...new Set([...sold.map((e) => e.productId), ...waitingRows.map((e) => e.productId), ...shares.flatMap((t) => (t.productId ? [t.productId] : []))])];
     const names = productIds.length ? await this.master.listNames({ productIds }) : { products: [] };
     const prices = new Map<string, PriceRow>(names.products.map((p) => [p.id, { id: p.id, name: p.name, sku: p.sku, ptrPaise: p.ptrPaise, ptsPaise: p.ptsPaise ?? null }]));
     const nameOf = (id: string) => prices.get(id)?.name ?? UNKNOWN;
@@ -139,7 +143,15 @@ export class EmployeeSalesReport {
       totals: { targetPaise: totalTarget, primaryPaise: primaryOfLines(sold, prices, all).paise, secondaryPaise: totalSecondary, achievementPercent: percentOf(totalSecondary, totalTarget) },
       targets,
       distributors,
-      team: isManager ? { mrCount: memberIds.length } : null,
+      team: isManager
+        ? {
+            mrCount: memberIds.length,
+            approvedMrCount: new Set(waitingRows.map((l) => l.userId)).size,
+            waitingPaise: secondaryOfLines(waitingRows, prices, { userIds: members, fromMonth: input.from, toMonth: input.to }).paise,
+            waitingPrimaryPaise: primaryOfLines(waitingRows, prices, { userIds: members, fromMonth: input.from, toMonth: input.to }).paise,
+            reportStatus: (reportStatuses.get(input.userId) ?? 'NOT_SUBMITTED') as 'NOT_SUBMITTED' | 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED',
+          }
+        : null,
     };
   }
 

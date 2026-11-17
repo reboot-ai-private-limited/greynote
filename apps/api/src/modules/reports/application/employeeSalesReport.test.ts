@@ -37,7 +37,8 @@ describe('MR figures', () => {
 });
 
 describe('EmployeeSalesReport', () => {
-  const report = new EmployeeSalesReport(
+  const approvedRollup = [{ userId: 'asm', month: '2026-10', status: 'APPROVED' as const, lines: [{ distributorId: 'd1', productId: 'p1', openingQty: 0, primaryQty: 4, issuedQty: 25 }] }];
+  const build = (rollups: typeof approvedRollup) => new EmployeeSalesReport(
     {
       async sumUserOrders() { return orders; },
     },
@@ -54,9 +55,10 @@ describe('EmployeeSalesReport', () => {
     { async getDownline(id) { return id === 'asm' ? [{ id: 'mr1' }] : []; }, async getDesignationLevels(ids) { return ids.map((userId) => ({ userId, level: userId === 'asm' ? 2 : 1 })); } },
     new MrStockFigures({
       listSecondaryLines: async (f) => lines.filter((l) => !f.userIds || f.userIds.includes(l.userId)),
-      listSecondaryRollups: async () => [{ userId: 'asm', month: '2026-10', status: 'APPROVED' as const, lines: [{ distributorId: 'd1', productId: 'p1', openingQty: 0, primaryQty: 4, issuedQty: 25 }] }],
+      listSecondaryRollups: async () => rollups,
     }),
   );
+  const report = build(approvedRollup);
   const input = { userId: 'mr1', from: '2026-10', to: '2026-11' };
 
   it('shows each product\'s target share, primary, secondary and achievement, and each target over its own months', async () => {
@@ -87,7 +89,7 @@ describe('EmployeeSalesReport', () => {
     const mr = await report.read({ actor: { id: 'admin', role: 'ADMIN' }, ...input });
     expect(mr.team).toBeNull();
     const asm = await report.read({ actor: { id: 'admin', role: 'ADMIN' }, ...input, userId: 'asm' });
-    expect(asm.team).toEqual({ mrCount: 1 });
+    expect(asm.team).toMatchObject({ mrCount: 1, approvedMrCount: 1, reportStatus: 'APPROVED' });
     // their target is the MRs' sum; their achievement is their own approved team report (25 units at ₹8), not the live sum of the MRs
     expect(asm.totals).toMatchObject({ targetPaise: 80_000, secondaryPaise: 25 * 800 });
     expect(asm.targets).toHaveLength(2);
@@ -98,5 +100,15 @@ describe('EmployeeSalesReport', () => {
     await report.read({ actor: { id: 'asm', role: 'FIELD' }, ...input });
     await expect(report.read({ actor: { id: 'mr2', role: 'FIELD' }, ...input })).rejects.toMatchObject({ statusCode: 403 });
     await expect(report.read({ actor: { id: 'admin', role: 'ADMIN' }, ...input, to: '2026-09' })).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it('a manager whose team report is not approved up the chain reads 0, with the approved MR figures shown as waiting', async () => {
+    const waiting = await build([]).read({ actor: { id: 'admin', role: 'ADMIN' }, ...input, userId: 'asm' });
+    expect(waiting.totals.secondaryPaise).toBe(0);
+    expect(waiting.team).toMatchObject({ mrCount: 1, approvedMrCount: 1, waitingPaise: 40_000, waitingPrimaryPaise: 19 * 800, reportStatus: 'NOT_SUBMITTED' });
+    // an approved team report is what counts, and the waiting figure is still the MRs' live sum
+    const done = await report.read({ actor: { id: 'admin', role: 'ADMIN' }, ...input, userId: 'asm' });
+    expect(done.totals.secondaryPaise).toBeGreaterThan(0);
+    expect(done.team?.waitingPaise).toBe(40_000);
   });
 });
