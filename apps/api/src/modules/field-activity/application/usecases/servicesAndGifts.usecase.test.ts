@@ -175,3 +175,40 @@ describe('Doctor Gifts', () => {
     expect((await list.execute({ id: 'admin', role: 'ADMIN' }, { status: 'DONE' })).length).toBe(0);
   });
 });
+
+describe('a manager reads the team’s gifts and services (2026-11-18)', () => {
+  let kit: ReturnType<typeof faKit>;
+  beforeEach(() => {
+    kit = faKit();
+  });
+
+  it('gifts: scope team adds the gifts of doctors held below the manager, each with the MR; without it only their own; an MR is unchanged', async () => {
+    await kit.allocateGift.execute('admin', { doctorId: 'd1', productName: 'Table lamp', amountPaise: 80_000 });
+    const list = new ListGiftsUseCase(kit.gifts, kit.fmd, kit.users);
+    const team = await list.execute({ id: 'asm', role: 'FIELD' }, { scope: 'team' });
+    expect(team.map((g) => [g.id, g.userId])).toEqual([['gift-1', 'mr1']]);
+    expect(team[0]?.userName).toBeTruthy();
+    expect(await list.execute({ id: 'asm', role: 'FIELD' }, {})).toHaveLength(0);
+    expect(await list.execute({ id: 'mr1', role: 'FIELD' }, { scope: 'team' })).toHaveLength(1);
+    expect(await list.execute({ id: 'mr2', role: 'FIELD' }, { scope: 'team' })).toHaveLength(0);
+  });
+
+  it('gifts: done ones are listed too, and can be filtered', async () => {
+    const g = await kit.allocateGift.execute('admin', { doctorId: 'd1', productName: 'Lamp', amountPaise: 100 });
+    await kit.markGiftDone.execute(REC, g.id, new Tx());
+    const list = new ListGiftsUseCase(kit.gifts, kit.fmd, kit.users);
+    expect((await list.execute({ id: 'mr1', role: 'FIELD' }, {})).map((x) => x.status)).toEqual(['DONE']);
+    expect(await list.execute({ id: 'mr1', role: 'FIELD' }, { status: 'PENDING' })).toHaveLength(0);
+  });
+
+  it('services: scope team adds the requests of everyone below, named; an MR or no scope sees only their own', async () => {
+    await kit.submitService.execute(REC, svc, new Tx());
+    kit.services.rows.push({ ...kit.services.rows[0]!, id: 'elsewhere', userId: 'someone-else' });
+    const list = new ListDoctorServicesUseCase(kit.services, kit.approvals, kit.fmd, kit.users);
+    const team = await list.execute({ id: 'asm', role: 'FIELD' }, { scope: 'team' });
+    expect(team.map((s) => s.userId)).toEqual(['mr1']);
+    expect(team[0]?.userName).toBeTruthy();
+    expect(await list.execute({ id: 'asm', role: 'FIELD' }, {})).toHaveLength(0);
+    expect((await list.execute({ id: 'mr1', role: 'FIELD' }, { scope: 'team' })).map((s) => s.userId)).toEqual(['mr1']);
+  });
+});

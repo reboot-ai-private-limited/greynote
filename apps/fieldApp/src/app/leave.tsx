@@ -17,6 +17,7 @@ import { ThemedText } from '@/components/themed-text';
 import { CardSection, IconChip, InfoCard, Meter, Pill, sym } from '@/components/ui-cards';
 import { Spacing, type Accent } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
+import { useWindowed } from '@/hooks/use-windowed';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { ApiError, NetworkError } from '@/lib/api';
 import {
@@ -129,7 +130,11 @@ export default function LeaveScreen() {
   }, [online, reloadKey]);
 
   // The year's leaves, newest first, grouped by the month they start in; a leave's approval trail opens on request.
-  const sortedLeaves = [...(leaves ?? [])].sort((a, b) => b.startDate.localeCompare(a.startDate));
+  // One list with one filter row, All first (decision 2026-11-18); the leave of the team is under Team, not here.
+  const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
+  const groupOf = (status: string) => (status === 'APPROVED' ? 'APPROVED' : status === 'REJECTED' ? 'REJECTED' : status === 'SUBMITTED' || status === 'MANAGER_APPROVED' || status === 'DRAFT' ? 'PENDING' : 'OTHER');
+  const filtered = [...(leaves ?? [])].filter((l) => filter === 'ALL' || groupOf(l.status) === filter).sort((a, b) => b.startDate.localeCompare(a.startDate));
+  const { visible: sortedLeaves } = useWindowed(filtered, filter);
   const [trails, setTrails] = useState<Record<string, ApprovalDetail>>({});
   const showTrail = async (l: LeaveView) => {
     if (!l.approval) return;
@@ -377,7 +382,20 @@ export default function LeaveScreen() {
           </ThemedText>
         )
       ) : null}
+      {leaves !== null && leaves.length > 0 ? (
+        <ChoiceChips
+          options={[
+            { value: 'ALL', label: 'All' },
+            { value: 'PENDING', label: 'Pending' },
+            { value: 'APPROVED', label: 'Approved' },
+            { value: 'REJECTED', label: 'Rejected' },
+          ]}
+          value={filter}
+          onChange={setFilter}
+        />
+      ) : null}
       {leaves !== null && leaves.length === 0 ? <Notice tone="info">You haven’t requested any leave yet.</Notice> : null}
+      {leaves !== null && leaves.length > 0 && filtered.length === 0 ? <Notice tone="info">No leave matches that filter.</Notice> : null}
       {sortedLeaves.map((l, i) => (
         <View key={l.id} style={styles.group}>
         {i === 0 || sortedLeaves[i - 1]!.startDate.slice(0, 7) !== l.startDate.slice(0, 7) ? (

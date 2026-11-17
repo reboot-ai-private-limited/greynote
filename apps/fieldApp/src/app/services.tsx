@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { ChoiceChips } from '@/components/choice-chips';
 import { Notice } from '@/components/notice';
+import { NumberedRow } from '@/components/numbered-row';
 import { FormField } from '@/components/form-field';
 import { OutletPicker } from '@/components/outlet-picker';
 import { PrimaryButton } from '@/components/primary-button';
@@ -13,6 +14,9 @@ import { ThemedText } from '@/components/themed-text';
 import { CardSection, IconChip, InfoCard, Pill, SummaryStrip, sym } from '@/components/ui-cards';
 import { Spacing } from '@/constants/theme';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { useDebounced } from '@/hooks/use-debounced';
+import { useWindowed } from '@/hooks/use-windowed';
+import { useSessionUser } from '@/lib/session';
 import { useDoctorPicker } from '@/hooks/use-doctor-picker';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { listAllTeamDoctors, type TeamDoctor } from '@/lib/added-doctors';
@@ -20,7 +24,7 @@ import { ApiError, NetworkError } from '@/lib/api';
 import { withdrawRequest } from '@/lib/marketing';
 import { formatRupees, rupeesToPaise } from '@/lib/money';
 import { getRejectionReason } from '@/lib/planning';
-import { listMyServices, serviceStage, type ServiceView } from '@/lib/services';
+import { listServices, serviceStage, type ServiceView } from '@/lib/services';
 import {
   createRecord,
   getRecord,
@@ -92,16 +96,22 @@ export default function ServicesScreen() {
   const picker = useDoctorPicker(isManager, cachedOptions);
   const unsent = records.filter((r) => !r.deleted && r.status !== 'SYNCED').reverse();
   // The list from the server says whether each approved service was carried out; the offline snapshot is the fallback.
-  const list = useCachedFetch<ServiceView[]>('doctor-services', listMyServices, records.filter((r) => r.status === 'SYNCED').length);
+  const list = useCachedFetch<ServiceView[]>(`doctor-services:${isManager ? 'team' : 'mine'}`, () => listServices(isManager), records.filter((r) => r.status === 'SYNCED').length);
   const sent: ServiceRow[] = list.data ?? (activity.data?.doctorServices ?? []).map((s) => ({ ...s, approval: s.approvalRequestId ? { requestId: s.approvalRequestId, cycle: 0 } : null, doneAt: null, awaitingDone: false }));
 
-  // One doctor's requests, or all of them.
-  const [doctorFilter, setDoctorFilter] = useState('ALL');
-  const doctorsWithRequests = [...new Set(sent.map((s) => s.doctorId))].map((id) => ({ id, name: doctorName(id) }));
-  const shownSent = doctorFilter === 'ALL' ? sent : sent.filter((s) => s.doctorId === doctorFilter);
+  // One list, newest first, with one filter row (decision 2026-11-18). A manager's list holds their own requests and the team's.
+  const me = useSessionUser();
+  const [filter, setFilter] = useState<'ALL' | 'WAITING' | 'TODO' | 'DONE' | 'REJECTED'>('ALL');
+  const [search, setSearch] = useState('');
+  const term = useDebounced(search.trim().toLowerCase(), 300);
   // Approved and not carried out = to do; waiting = still with the manager or Admin.
-  const stageOf = (s: ServiceRow) => (s.doneAt ? 'DONE' : s.status === 'APPROVED' ? 'TODO' : s.status === 'SUBMITTED' || s.status === 'MANAGER_APPROVED' ? 'WAITING' : 'OTHER');
-  const waitingCount = sent.filter((s) => stageOf(s) === 'WAITING').length + unsent.length;
+  const stageOf = (s: ServiceRow) => (s.doneAt ? 'DONE' : s.status === 'APPROVED' || s.status === 'MANAGER_APPROVED' ? 'TODO' : s.status === 'SUBMITTED' ? 'WAITING' : s.status === 'REJECTED' ? 'REJECTED' : 'OTHER');
+  const ownerOf = (s: ServiceRow) => (!s.userId || !me || s.userId === me.id ? 'Own' : (s.userName ?? 'Team'));
+  const shownSent = sent
+    .filter((s) => (filter === 'ALL' || stageOf(s) === filter) && (!term || `${doctorName(s.doctorId)} ${TYPE_LABEL[s.serviceType]} ${s.userName ?? ''}`.toLowerCase().includes(term)))
+    .sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? '') || b.id.localeCompare(a.id));
+  const { visible } = useWindowed(shownSent, `${filter}|${term}`);
+  const waitingCount = sent.filter((s) => stageOf(s) === 'WAITING' && ownerOf(s) === 'Own').length + unsent.length;
   const toDoCount = sent.filter((s) => stageOf(s) === 'TODO').length;
   const doneCount = sent.filter((s) => stageOf(s) === 'DONE').length;
 
@@ -270,14 +280,23 @@ export default function ServicesScreen() {
       <View style={styles.sectionHead}>
         <View style={styles.grow}>
           <ThemedText type="smallBold" style={styles.sectionTitle}>Your requests</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">Newest first</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">{isManager ? 'Yours and your team’s, newest first' : 'Newest first'}</ThemedText>
         </View>
         <PrimaryButton label="+ Request" style={styles.newButton} onPress={() => start('new')} />
       </View>
 
-      {doctorsWithRequests.length > 1 ? (
-        <ChoiceChips options={[{ value: 'ALL', label: 'All doctors' }, ...doctorsWithRequests.map((d) => ({ value: d.id, label: d.name }))]} value={doctorFilter} onChange={setDoctorFilter} />
-      ) : null}
+      <ChoiceChips
+        options={[
+          { value: 'ALL', label: 'All' },
+          { value: 'WAITING', label: 'Waiting' },
+          { value: 'TODO', label: 'Approved' },
+          { value: 'DONE', label: 'Done' },
+          { value: 'REJECTED', label: 'Rejected' },
+        ]}
+        value={filter}
+        onChange={setFilter}
+      />
+      <TextField label={isManager ? 'Search a doctor, a type or an MR' : 'Search a doctor or a type'} value={search} onChangeText={setSearch} autoCapitalize="none" />
 
       {unsent.map((r) => {
         const p = r.payload as ServicePayload;
@@ -308,15 +327,16 @@ export default function ServicesScreen() {
       ) : sent.length === 0 && unsent.length === 0 ? (
         <Notice tone="info">No service requests yet.</Notice>
       ) : (
-        shownSent.map((s) => {
+        visible.map((s, i) => {
           const stage = s.origin === 'ADMIN' && !s.doneAt ? { text: 'Set up by Admin, to do', accent: 'blue' as const } : serviceStage(s);
           const requestId = s.approval?.requestId ?? null;
           return (
-            <InfoCard key={s.id}>
+            <NumberedRow key={s.id} n={i + 1}>
+            <InfoCard>
               <View style={styles.spread}>
                 <IconChip icon={sym('briefcase', 'work')} accent="indigo" />
                 <View style={styles.grow}>
-                  <ThemedText type="smallBold" numberOfLines={1}>{doctorName(s.doctorId)}</ThemedText>
+                  <ThemedText type="smallBold" numberOfLines={1}>{`${s.doctorName || doctorName(s.doctorId)}${isManager ? ` (${ownerOf(s)})` : ''}`}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">{`${TYPE_LABEL[s.serviceType]}${s.remarks ? ` · ${s.remarks}` : ''}`}</ThemedText>
                 </View>
                 <ThemedText type="smallBold">{formatRupees(s.amountPaise)}</ThemedText>
@@ -336,9 +356,11 @@ export default function ServicesScreen() {
                 </View>
               ) : null}
             </InfoCard>
+            </NumberedRow>
           );
         })
       )}
+      {shownSent.length > 0 ? <ThemedText type="small" themeColor="textSecondary">{`Total ${shownSent.length}${term || filter !== 'ALL' ? ' found' : ''}`}</ThemedText> : null}
     </ScreenShell>
   );
 }
