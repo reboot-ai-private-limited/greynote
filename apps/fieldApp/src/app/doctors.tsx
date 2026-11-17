@@ -3,6 +3,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
 import { DoctorAvatar } from '@/components/doctor-avatar';
+import { NumberedRow } from '@/components/numbered-row';
 import { Notice } from '@/components/notice';
 import { PrimaryButton } from '@/components/primary-button';
 import { ScreenShell } from '@/components/screen-shell';
@@ -174,7 +175,12 @@ function MyDoctorsScreen() {
       {loading ? <Skeleton cards={3} lines={2} /> : null}
       {master.loaded && !master.data ? <Notice tone="info">Connect to the internet once so your doctors can load.</Notice> : null}
       {master.data && rows.length === 0 ? <Notice tone="info">{term ? 'No doctor matches that search.' : 'No doctors are assigned to you yet.'}</Notice> : null}
-      {visible.map((r) => r.node)}
+      {rows.length > 0 ? <ThemedText type="small" themeColor="textSecondary">{`Total ${rows.length} doctors${term ? ' found' : ''}`}</ThemedText> : null}
+      {visible.map((r, i) => (
+        <NumberedRow key={r.key} n={i + 1}>
+          {r.node}
+        </NumberedRow>
+      ))}
 
       {pendingCount > 0 ? <PrimaryButton label="Change or withdraw a doctor I added →" variant="text" onPress={() => router.push('/add-doctor')} /> : null}
     </ScreenShell>

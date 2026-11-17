@@ -3,9 +3,16 @@ import { useCallback, useEffect, useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
 import { ChoiceChips } from '@/components/choice-chips';
-import { DateField, EMPTY_PARTS, isoFromParts, partsFromIso, type DateParts } from '@/components/date-field';
+import {
+  DateField,
+  EMPTY_PARTS,
+  isoFromParts,
+  partsFromIso,
+  type DateParts,
+} from '@/components/date-field';
 import { DoctorAvatar } from '@/components/doctor-avatar';
 import { FyBanner } from '@/components/fy-banner';
+import { NumberedRow } from '@/components/numbered-row';
 import { Notice } from '@/components/notice';
 import { PrimaryButton } from '@/components/primary-button';
 import { ScreenShell } from '@/components/screen-shell';
@@ -17,17 +24,27 @@ import { Spacing } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useDebounced } from '@/hooks/use-debounced';
 import { useOnEndReached } from '@/hooks/use-end-reached';
-import { listTeamDoctors, updateDoctorTargets, type DoctorTargetsBody, type TeamDoctor } from '@/lib/added-doctors';
+import {
+  listTeamDoctors,
+  updateDoctorTargets,
+  type DoctorTargetsBody,
+  type TeamDoctor,
+} from '@/lib/added-doctors';
 import { ApiError, NetworkError } from '@/lib/api';
 import { useFinancialYear } from '@/lib/financial-year';
 import { useOnline } from '@/offline';
 import { useTeam } from '@/offline/team';
 
 const errorText = (err: unknown) =>
-  err instanceof ApiError || err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.';
+  err instanceof ApiError || err instanceof NetworkError
+    ? err.message
+    : 'Something went wrong. Please try again.';
 
 const NO_TARGET = 'NONE';
-const FREQUENCIES = [...[1, 2, 3, 4].map((n) => ({ value: String(n), label: String(n) })), { value: NO_TARGET, label: 'No target' }];
+const FREQUENCIES = [
+  ...[1, 2, 3, 4].map((n) => ({ value: String(n), label: String(n) })),
+  { value: NO_TARGET, label: 'No target' },
+];
 
 /**
  * Team doctors (managers): pick someone in your team to see their doctors. "Set visit target" on a doctor sets how many times
@@ -41,7 +58,9 @@ export default function TeamDoctorsScreen() {
   const { team, loaded } = useTeam();
 
   const preset = useLocalSearchParams<{ userId?: string }>().userId;
-  const [userId, setUserId] = useState<string | null>(typeof preset === 'string' && preset !== '' ? preset : null);
+  const [userId, setUserId] = useState<string | null>(
+    typeof preset === 'string' && preset !== '' ? preset : null,
+  );
   const [search, setSearch] = useState('');
   const term = useDebounced(search, 300);
   const [doctors, setDoctors] = useState<TeamDoctor[] | null>(null);
@@ -53,7 +72,9 @@ export default function TeamDoctorsScreen() {
   const [birth, setBirth] = useState<DateParts>(EMPTY_PARTS);
   const [anniversary, setAnniversary] = useState<DateParts>(EMPTY_PARTS);
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ tone: 'danger' | 'success' | 'info'; text: string } | null>(null);
+  const [msg, setMsg] = useState<{ tone: 'danger' | 'success' | 'info'; text: string } | null>(
+    null,
+  );
 
   // No person chosen = the whole team. `page` 1 replaces the list; later pages add to it.
   const load = useCallback(
@@ -89,7 +110,8 @@ export default function TeamDoctorsScreen() {
 
   // Infinite scroll: near the bottom, the next 20.
   useOnEndReached(() => {
-    if (online && !loading && doctors && paging.page < paging.totalPages) void load(paging.page + 1);
+    if (online && !loading && doctors && paging.page < paging.totalPages)
+      void load(paging.page + 1);
   });
 
   const open = (d: TeamDoctor) => {
@@ -113,7 +135,8 @@ export default function TeamDoctorsScreen() {
     if (newFrequency !== (editing.visitFrequency ?? null)) body.visitFrequency = newFrequency;
     if ((dob.iso ?? null) !== (editing.dateOfBirth ?? null)) body.dateOfBirth = dob.iso;
     if ((wedding.iso ?? null) !== (editing.anniversary ?? null)) body.anniversary = wedding.iso;
-    if (Object.keys(body).length === 0) return setMsg({ tone: 'info', text: 'Nothing was changed.' });
+    if (Object.keys(body).length === 0)
+      return setMsg({ tone: 'info', text: 'Nothing was changed.' });
 
     setBusy(true);
     setMsg(null);
@@ -134,21 +157,42 @@ export default function TeamDoctorsScreen() {
   return (
     <ScreenShell title="Doctors" subtitle="Your team’s doctors, and how often each is visited">
       <FyBanner />
-      {!online ? <Notice tone="info">Connect to the internet to see and change your team’s doctors.</Notice> : null}
+      {!online ? (
+        <Notice tone="info">Connect to the internet to see and change your team’s doctors.</Notice>
+      ) : null}
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
 
-      <CardSection icon={sym('person.2', 'groups')} accent="blue" title="Employee" count={team.length || undefined}>
+      <CardSection
+        icon={sym('person.2', 'groups')}
+        accent="blue"
+        title="Employee"
+        count={team.length || undefined}
+      >
         {team.length === 0 ? (
-          <Notice tone="info">{loaded ? 'You have nobody in your team yet.' : 'Loading your team…'}</Notice>
+          <Notice tone="info">
+            {loaded ? 'You have nobody in your team yet.' : 'Loading your team…'}
+          </Notice>
         ) : (
           <PersonDropdown
-            people={team.map((t) => ({ id: t.id, name: t.name, detail: [t.employeeCode, t.designation].filter(Boolean).join(' · ') }))}
+            people={team.map((t) => ({
+              id: t.id,
+              name: t.name,
+              detail: [t.employeeCode, t.designation].filter(Boolean).join(' · '),
+            }))}
             value={userId}
             onChange={pickPerson}
             disabled={busy}
           />
         )}
-        {userId ? <PrimaryButton label="Show the whole team" variant="text" disabled={busy} onPress={() => pickPerson(null)} style={styles.phone} /> : null}
+        {userId ? (
+          <PrimaryButton
+            label="Show the whole team"
+            variant="text"
+            disabled={busy}
+            onPress={() => pickPerson(null)}
+            style={styles.phone}
+          />
+        ) : null}
       </CardSection>
 
       {editing ? (
@@ -159,39 +203,102 @@ export default function TeamDoctorsScreen() {
           <ThemedText type="small" themeColor="textSecondary">
             Visits a month
           </ThemedText>
-          <ChoiceChips options={FREQUENCIES} value={frequency} onChange={setFrequency} disabled={busy || readOnly} />
-          <DateField label="Date of birth (optional)" value={birth} onChange={setBirth} disabled={busy || readOnly} />
-          <DateField label="Anniversary (optional)" value={anniversary} onChange={setAnniversary} disabled={busy || readOnly} />
-          <PrimaryButton label="Save" loading={busy} disabled={!online || readOnly} onPress={save} />
-          <PrimaryButton label="Cancel" variant="text" disabled={busy} onPress={() => setEditing(null)} />
+          <ChoiceChips
+            options={FREQUENCIES}
+            value={frequency}
+            onChange={setFrequency}
+            disabled={busy || readOnly}
+          />
+          <DateField
+            label="Date of birth (optional)"
+            value={birth}
+            onChange={setBirth}
+            disabled={busy || readOnly}
+          />
+          <DateField
+            label="Anniversary (optional)"
+            value={anniversary}
+            onChange={setAnniversary}
+            disabled={busy || readOnly}
+          />
+          <PrimaryButton
+            label="Save"
+            loading={busy}
+            disabled={!online || readOnly}
+            onPress={save}
+          />
+          <PrimaryButton
+            label="Cancel"
+            variant="text"
+            disabled={busy}
+            onPress={() => setEditing(null)}
+          />
         </CardSection>
       ) : null}
 
-      <TextField label="Search the doctor, or an MR’s name or code" value={search} onChangeText={setSearch} autoCapitalize="none" editable={online} />
+      <TextField
+        label="Search the doctor, or an MR’s name or code"
+        value={search}
+        onChangeText={setSearch}
+        autoCapitalize="none"
+        editable={online}
+      />
       {loadError ? <Notice tone="danger">{loadError}</Notice> : null}
       {loading && !doctors ? <Skeleton cards={3} lines={2} /> : null}
-      {doctors && doctors.length === 0 && !loading ? <Notice tone="info">{search.trim() ? 'No doctor matches that search.' : userId ? 'This employee has no doctors yet.' : 'Nobody in your team holds a doctor yet.'}</Notice> : null}
-      {(doctors ?? []).map((d) => (
-        <InfoCard key={d.id}>
-          <View style={styles.row}>
-            <DoctorAvatar name={d.name} photoUrl={d.photoUrl} />
-            <View style={styles.grow}>
-              <ThemedText type="smallBold">{d.name}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                {[d.specialty, d.clinicName].filter(Boolean).join(' · ')}
-              </ThemedText>
-              {d.assignedTo ? (
+      {doctors && doctors.length === 0 && !loading ? (
+        <Notice tone="info">
+          {search.trim()
+            ? 'No doctor matches that search.'
+            : userId
+              ? 'This employee has no doctors yet.'
+              : 'Nobody in your team holds a doctor yet.'}
+        </Notice>
+      ) : null}
+      {doctors && doctors.length > 0 ? (
+        <ThemedText
+          type="small"
+          themeColor="textSecondary"
+        >{`Total ${paging.total}${term.trim() ? ' found' : ''}`}</ThemedText>
+      ) : null}
+      {(doctors ?? []).map((d, i) => (
+        <NumberedRow key={d.id} n={i + 1}>
+          <InfoCard>
+            <View style={styles.row}>
+              <DoctorAvatar name={d.name} photoUrl={d.photoUrl} />
+              <View style={styles.grow}>
+                <ThemedText type="smallBold">{d.name}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  {d.assignedTo.name} ({d.assignedTo.employeeCode})
+                  {[d.specialty, d.clinicName].filter(Boolean).join(' · ')}
                 </ThemedText>
-              ) : null}
+                {d.assignedTo ? (
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {d.assignedTo.name} ({d.assignedTo.employeeCode})
+                  </ThemedText>
+                ) : null}
+              </View>
+              <Pill
+                text={d.visitFrequency ? `${d.visitFrequency} a month` : 'No target'}
+                accent={d.visitFrequency ? 'green' : 'slate'}
+              />
             </View>
-            <Pill text={d.visitFrequency ? `${d.visitFrequency} a month` : 'No target'} accent={d.visitFrequency ? 'green' : 'slate'} />
-          </View>
-          {d.routeNotHeld ? <Pill text="Route not held by this MR" accent="amber" /> : null}
-          {d.phone ? <PrimaryButton label={d.phone} variant="text" onPress={() => void Linking.openURL(`tel:${d.phone}`)} style={styles.phone} /> : null}
-          <PrimaryButton label="Set visit target →" variant="text" disabled={busy || readOnly} onPress={() => open(d)} style={styles.phone} />
-        </InfoCard>
+            {d.routeNotHeld ? <Pill text="Route not held by this MR" accent="amber" /> : null}
+            {d.phone ? (
+              <PrimaryButton
+                label={d.phone}
+                variant="text"
+                onPress={() => void Linking.openURL(`tel:${d.phone}`)}
+                style={styles.phone}
+              />
+            ) : null}
+            <PrimaryButton
+              label="Set visit target →"
+              variant="text"
+              disabled={busy || readOnly}
+              onPress={() => open(d)}
+              style={styles.phone}
+            />
+          </InfoCard>
+        </NumberedRow>
       ))}
       {doctors && doctors.length > 0 && loading ? <Skeleton cards={1} lines={2} /> : null}
     </ScreenShell>

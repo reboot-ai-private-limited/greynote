@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
 import { FormField } from '@/components/form-field';
+import { NumberedRow } from '@/components/numbered-row';
 import { Notice } from '@/components/notice';
 import { OutletPicker } from '@/components/outlet-picker';
 import { PrimaryButton } from '@/components/primary-button';
@@ -446,7 +447,12 @@ function MyChemistsScreen() {
       {loadError ? <Notice tone="danger">{loadError}</Notice> : null}
       {!master.loaded ? <Skeleton cards={3} lines={2} /> : null}
       {master.loaded && rows.length === 0 ? <Notice tone="info">{term ? 'No chemist matches that search.' : 'No chemists are assigned to you yet.'}</Notice> : null}
-      {visible.map((r) => r.node)}
+      {rows.length > 0 ? <ThemedText type="small" themeColor="textSecondary">{`Total ${rows.length} chemists${term ? ' found' : ''}`}</ThemedText> : null}
+      {visible.map((r, i) => (
+        <NumberedRow key={r.key} n={i + 1}>
+          {r.node}
+        </NumberedRow>
+      ))}
     </ScreenShell>
   );
 }

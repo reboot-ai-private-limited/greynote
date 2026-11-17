@@ -7,8 +7,10 @@ import type { Paged } from '@/lib/team-section';
 import { useOnline } from '@/offline';
 
 import { Notice } from '../notice';
+import { NumberedRow } from '../numbered-row';
 import { Skeleton } from '../skeleton';
 import { TextField } from '../text-field';
+import { ThemedText } from '../themed-text';
 
 type Props<T extends { id: string }> = {
   fetchPage: (page: number, search: string) => Promise<Paged<T>>;
@@ -70,7 +72,12 @@ export function PagedList<T extends { id: string }>({ fetchPage, renderItem, sea
       {error ? <Notice tone="danger">{error}</Notice> : null}
       {loading && !items ? <Skeleton cards={3} lines={2} /> : null}
       {items && items.length === 0 ? <Notice tone="info">{search.trim() ? 'Nothing matches that search.' : emptyText}</Notice> : null}
-      {(items ?? []).map((i) => renderItem(i))}
+      {items && items.length > 0 ? <ThemedText type="small" themeColor="textSecondary">{`Total ${meta.total}${term ? ' found' : ''}`}</ThemedText> : null}
+      {(items ?? []).map((i, idx) => (
+        <NumberedRow key={i.id} n={idx + 1}>
+          {renderItem(i)}
+        </NumberedRow>
+      ))}
       {items && items.length > 0 && loading ? <Skeleton cards={1} lines={2} /> : null}
     </>
   );
