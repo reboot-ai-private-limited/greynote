@@ -85,7 +85,11 @@ export const isOneApproval = (r: { kind: string; workflow?: string }) => r.workf
  * The status in words. A one-approval request waits "for approval" (the manager or Admin) and is never "with Admin"; an older one
  * left at `MANAGER_APPROVED` reads as approved, as the server's gate treats it.
  */
-export function statusLabel(r: { kind: string; workflow?: string; status: ApprovalStatus }): string {
+/** A request nobody had to decide (the daily report is approved by the system when it is sent): shown "Auto-approved", not "Approved". */
+export const isAutoApproved = (r: { status: ApprovalStatus; lastAction?: { authority: string } | null }) => r.status === 'APPROVED' && r.lastAction?.authority === 'AUTO';
+
+export function statusLabel(r: { kind: string; workflow?: string; status: ApprovalStatus; lastAction?: { authority: string } | null }): string {
+  if (isAutoApproved(r)) return 'Auto-approved';
   if (!isOneApproval(r)) return STATUS_LABEL[r.status];
   if (r.status === 'SUBMITTED') return 'Waiting for approval';
   if (r.status === 'MANAGER_APPROVED') return 'Approved';

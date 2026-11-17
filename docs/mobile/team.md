@@ -183,3 +183,7 @@ The person page tabs are now **Overview · Plans · Reports · Expenses · Leave
 | Doctor page | `GET /team/doctors/:id?month` (new; 404 unless the holder is below you) | who holds the doctor, visits this month, recent visits, every service asked for him with amount, asker and stage |
 
 A doctor's visits come from the reports logged (a draft report's calls count too). "Last visit" looks back about two months.
+
+## Team tab, phase 3 (2026-11-18): daily reports in Approvals
+
+Daily reports are approved by the system when sent, so they never wait in **To approve**. They are in **All team requests** as the type **Daily report** (view only, newest first, opens the full report), and a request nobody had to decide reads **Auto-approved** (`lastAction.authority = AUTO`), not "Approved". A report a manager must approve still waits in To approve. No server change: the type was already returned by `/approvals/team`.
