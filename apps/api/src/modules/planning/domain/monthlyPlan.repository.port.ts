@@ -20,6 +20,8 @@ export interface MonthlyPlanRepositoryPort {
    * at `expectedRevision` (`null` otherwise).
    */
   amend(id: string, expectedRevision: number, entries: MonthlyPlanEntry[], amendment: MonthlyPlanAmendment, ctx?: TransactionContext): Promise<MonthlyPlan | null>;
+  /** Inside a transaction: remembers `entries` as the last approved version of the month (no revision change). */
+  recordApproved(id: string, entries: MonthlyPlanEntry[], ctx: TransactionContext): Promise<void>;
   /** Inside a transaction: removes the plan, only if it is still at `revision`. */
   deleteById(id: string, revision: number, ctx: TransactionContext): Promise<boolean>;
   confirmRevision(id: string, revision: number, countLateResubmit: boolean, ctx: TransactionContext): Promise<boolean>;

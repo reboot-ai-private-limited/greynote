@@ -3,9 +3,12 @@ import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { ApprovalsPort } from '../domain/approvals.port.js';
 import type { DailyPlanRepositoryPort } from '../domain/dailyPlan.repository.port.js';
-import type { MonthlyPlan } from '../domain/monthlyPlan.entity.js';
+import type { MonthlyPlan, MonthlyPlanEntry } from '../domain/monthlyPlan.entity.js';
 import type { MonthlyPlanRepositoryPort } from '../domain/monthlyPlan.repository.port.js';
 import { sameDay, type PlanDay } from '../domain/plan.js';
+import { dayLabel } from '../domain/offDays.js';
+import { changedDays } from './approvedMonthEdit.js';
+import type { PlanDayLocks } from './dayLocks.js';
 import { OffDays } from './offDays.js';
 import type { PlanDeadlines } from './planDeadlines.js';
 
@@ -47,18 +50,82 @@ export async function inheritDays(
   return written;
 }
 
+/**
+ * Puts back the days that were locked by the time the month is approved but typed differently (decision-log 2026-11-18): a resubmission
+ * approved three days late must not rewrite those three days. The reference is the Daily Plan the day already has, else the day as last
+ * approved (`approvedEntries`). A day added to the past after the last approval is removed; a worked day that was deleted comes back.
+ * Returns the plan (changed in place, with an `amendments` row) and the days put back. The first approval of a month has no reference.
+ */
+export async function restoreLocked(
+  plan: MonthlyPlan,
+  actorId: string,
+  locks: PlanDayLocks,
+  monthly: MonthlyPlanRepositoryPort,
+  now: Date,
+  today: string,
+  ctx: TransactionContext,
+): Promise<{ plan: MonthlyPlan; restored: string[] }> {
+  const { locked, dailies } = await locks.lockedDays(plan);
+  const approved = plan.approvedEntries;
+  if (!approved && dailies.size === 0) return { plan, restored: [] };
+  const was = new Map((approved ?? []).map((e) => [e.planDate, e]));
+  // The Daily Plan the day already has is the truth (its working type and routes); else the day as last approved.
+  const referenceOf = (e: MonthlyPlanEntry): MonthlyPlanEntry | null => {
+    const earlier = was.get(e.planDate);
+    const daily = dailies.get(e.planDate);
+    if (daily) return { ...(earlier ?? e), workingType: daily.workingType, dayKind: daily.dayKind, routeIds: daily.routeIds, remarks: daily.remarks };
+    return earlier ?? null;
+  };
+  const restored = new Set<string>();
+  const entries: MonthlyPlanEntry[] = [];
+  for (const e of plan.entries) {
+    if (!locked.has(e.planDate)) {
+      entries.push(e);
+      continue;
+    }
+    const reference = referenceOf(e);
+    if (reference) {
+      if (changedDays([e], [reference]).length > 0) restored.add(e.planDate);
+      entries.push(reference);
+    } else if (approved) {
+      restored.add(e.planDate); // typed into the past after the last approval: it was never planned
+    } else {
+      entries.push(e);
+    }
+  }
+  const present = new Set(plan.entries.map((e) => e.planDate));
+  for (const e of approved ?? []) {
+    if (e.planDate <= today && !present.has(e.planDate)) {
+      entries.push(e);
+      restored.add(e.planDate);
+    }
+  }
+  if (restored.size === 0) return { plan, restored: [] };
+  entries.sort((a, b) => a.planDate.localeCompare(b.planDate));
+  const days = [...restored].sort();
+  const reason = `Kept as already worked: ${days.map(dayLabel).join(', ')}.`;
+  const amended = await monthly.amend(plan.id, plan.revision, entries, { by: actorId, at: now, reason, previous: plan.entries }, ctx);
+  return { plan: amended ?? plan, restored: days };
+}
+
 export function makeMonthlyPlanInheritHandler(
   monthly: MonthlyPlanRepositoryPort,
   daily: DailyPlanRepositoryPort,
   approvals: ApprovalsPort,
   deadlines: PlanDeadlines,
   offDays: OffDays = new OffDays(),
+  locks?: PlanDayLocks,
 ) {
   return async (change: ApprovalStatusChange, ctx: TransactionContext): Promise<void> => {
     if (change.status !== 'MANAGER_APPROVED' && change.status !== 'APPROVED') return;
-    const plan = await monthly.findById(change.recordId);
+    let plan = await monthly.findById(change.recordId);
     if (!plan) throw AppError.internal('INTERNAL', { reason: 'MONTHLY_PLAN_NOT_FOUND', recordId: change.recordId });
-    await inheritDays(plan, daily, approvals, await deadlines.today(), ctx, await offDatesOf(offDays, plan));
+    const today = await deadlines.today();
+    if (locks) {
+      plan = (await restoreLocked(plan, change.action.actorId, locks, monthly, deadlines.now(), today, ctx)).plan;
+      await monthly.recordApproved(plan.id, plan.entries, ctx);
+    }
+    await inheritDays(plan, daily, approvals, today, ctx, await offDatesOf(offDays, plan));
   };
 }
 

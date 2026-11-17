@@ -2792,3 +2792,10 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 - Each page is **one list, newest first, All by default**, with one compact filter row instead of tab sets (Orders: All / Placed / Done / Cancelled; Gifts: All / Not done / Done; Services: All / Waiting / Approved / Done / Rejected; Leave: All / Pending / Approved / Rejected). The Orders "Waiting" tab and the My/Team switch are gone: unsent orders sit in the list tagged "Waiting to send"; a manager's list is their own and the team's, own rows marked "(Own)".
 - Gifts lists done gifts too (history). Gifts and Services get a manager's team view on the server (`scope=team`, derived from the downline). Leave stays the employee's own.
 - Lists show 20 at a time (infinite scroll over the loaded list), with search, serial numbers and a total.
+
+## 2026-11-18: A re-edited Tour Plan can't rewrite days already worked or sent
+
+- **One locked-day rule** for every way of changing an approved month (employee save, manager edit of a waiting plan, Admin/HR): the day is today or earlier, or its Daily Plan is waiting or approved. `409 PLAN_DAY_LOCKED`. Trips follow from it (the stay and transit days are ordinary entries).
+- **Approval restores, it doesn't refuse:** days that became locked between sending and approving are put back to the Daily Plan, else the last approved version (`approvedEntries`), and noted in `amendments`.
+- **The Tour Plan mirrors the approved Daily Plan** (working type, routes, remarks), never on trip days.
+- A late exception only moves the deadline. Not changed: deadlines, resubmit windows, who approves.

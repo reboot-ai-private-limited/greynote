@@ -31,7 +31,8 @@ export interface PlanStateView {
 /** `changedFromMonthly`: the employee changed the day the Monthly Plan wrote; `plannedFrom` is what it said. */
 export type DailyPlanView = DailyPlan & PlanStateView & { changedFromMonthly: boolean };
 /** `offDays`: the month's locked days for the owner as they stand now (weekly off, holidays of their main HQ). */
-export type MonthlyPlanView = MonthlyPlan & PlanStateView & { offDays: PlanOffDay[] };
+/** `lockedDays`: days nobody can change any more (over, or their Daily Plan has gone to approval): the phone and web show them locked. */
+export type MonthlyPlanView = MonthlyPlan & PlanStateView & { offDays: PlanOffDay[]; lockedDays: string[] };
 
 export const planStatus = (request: ApprovalRequest | null): PlanApprovalStatus => request?.status ?? 'DRAFT';
 
@@ -41,6 +42,7 @@ export class PlanViews {
     private readonly grants: LateSubmitGrantRepositoryPort,
     private readonly deadlines: PlanDeadlines,
     private readonly offDays: OffDays = new OffDays(),
+    private readonly locks?: { lockedDays(plan: MonthlyPlan): Promise<{ locked: Map<string, unknown> }> },
   ) {}
 
   async daily(plan: DailyPlan): Promise<DailyPlanView> {
@@ -57,7 +59,8 @@ export class PlanViews {
       this.deadlines.monthlyResubmitPolicy(plan.planMonth),
       this.offDays.forMonth(plan.userId, plan.planMonth),
     ]);
-    return { ...plan, offDays, ...(await this.state('MONTHLY_PLAN', plan, plan.planMonth, deadline, policy)) };
+    const lockedDays = this.locks ? [...(await this.locks.lockedDays(plan)).locked.keys()].sort() : [];
+    return { ...plan, offDays, lockedDays, ...(await this.state('MONTHLY_PLAN', plan, plan.planMonth, deadline, policy)) };
   }
 
   private async state(
