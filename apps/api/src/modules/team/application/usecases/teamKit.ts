@@ -2,6 +2,7 @@ import type {
   DownlineEntry,
   TeamBlockPort,
   TeamConfigPort,
+  TeamDayActivity,
   TeamDirectoryPort,
   TeamFieldActivityPort,
   TeamHrPort,
@@ -53,7 +54,7 @@ export class FakeTeam
   blocked = new Set<string>();
   plans = new Map<
     string,
-    { status: string; workingType: string; routeIds: string[]; doctorIds: string[] }
+    { status: string; workingType: string; routeIds: string[]; doctorIds: string[]; remarks?: string | null }
   >();
   monthly = new Map<string, string>();
   /** Route types; a route not listed is `HQ`, and `gone` is unknown. */
@@ -63,6 +64,8 @@ export class FakeTeam
     { status: string; doctorCalls: number; chemistCalls: number; followups: number }
   >();
   leaves: TeamLeaveEntry[] = [];
+  /** Per `userId|date`, what was logged (the board's input). */
+  day = new Map<string, TeamDayActivity>();
   off = new Set<string>();
   orders: TeamOrder[] = [];
   /** Per user, the outlets with no stock count. */
@@ -125,6 +128,15 @@ export class FakeTeam
   async getRoute(routeId: string): Promise<TeamPlanRoute | null> {
     if (routeId === 'gone') return null;
     return { id: routeId, name: `Route ${routeId}`, routeType: this.routeTypes.get(routeId) ?? 'HQ' };
+  }
+  async getActivityRange(userId: string, range: { from: string; to: string }): Promise<TeamDayActivity[]> {
+    return [...this.day.values()].filter((a) => a.userId === userId && a.date >= range.from && a.date <= range.to);
+  }
+  async getDayActivity(userIds: string[], date: string): Promise<TeamDayActivity[]> {
+    return userIds.map((userId) => this.day.get(`${userId}|${date}`) ?? { userId, date, reportStatus: null, doctorCalls: [], chemistCalls: [], followups: 0 });
+  }
+  async getDoctorNames(ids: string[]) {
+    return ids.filter((id) => id !== 'gone').map((id) => ({ id, name: `Dr ${id}` }));
   }
   async getDcrSummary(userId: string, range: { from: string }) {
     const d = this.dcrs.get(`${userId}|${range.from}`);

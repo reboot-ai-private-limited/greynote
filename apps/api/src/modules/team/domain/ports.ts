@@ -69,18 +69,37 @@ export interface TeamPlanningPort {
     workWith?: string[];
     doctorIds: string[];
     changedFromMonthly?: boolean;
+    remarks?: string | null;
   } | null>;
   getMonthlyPlanStatus(userId: string, planMonth: string): Promise<string | null>;
+  /** A person's daily plans in a range, oldest first, each with its status, routes, doctors, work with and remarks. */
+  listDailyPlanDays?(
+    userId: string,
+    from: string,
+    to: string,
+  ): Promise<Array<{ date: string; status: string; workingType: string; routeIds: string[]; workWith: string[]; doctorIds: string[]; remarks: string | null; changedFromMonthly: boolean }>>;
 }
 
 /** Team's narrow view of Field Activity; `fieldActivity.contract` satisfies it structurally. */
 export interface TeamFieldActivityPort {
+  getDayActivity(userIds: string[], date: string): Promise<TeamDayActivity[]>;
+  getActivityRange(userId: string, range: { from: string; to: string }): Promise<TeamDayActivity[]>;
   getDcrSummary(
     userId: string,
     range: { from: string; to: string },
   ): Promise<
     Array<{ status: string; doctorCalls: number; chemistCalls: number; followups: number }>
   >;
+}
+
+/** What one person did on one day: the report's status and each call with its time (Field Activity's `getDayActivity`). */
+export interface TeamDayActivity {
+  userId: string;
+  date: string;
+  reportStatus: string | null;
+  doctorCalls: Array<{ doctorId: string; recordedAt: Date; remarks: string | null; geofence: string }>;
+  chemistCalls: Array<{ chemistId: string; recordedAt: Date }>;
+  followups: number;
 }
 
 export interface TeamLeaveEntry {
@@ -149,6 +168,8 @@ export interface TeamSalesPort {
 
 /** Team's narrow view of Field Master Data: outlet names. */
 export interface TeamMasterPort {
+  /** Names for doctors in one query; an id that is not there is left out. */
+  getDoctorNames(doctorIds: string[]): Promise<Array<{ id: string; name: string }>>;
   listNames(query: { distributorIds?: string[]; chemistIds?: string[] }): Promise<{
     distributors: Array<{ id: string; name: string }>;
     chemists: Array<{ id: string; name: string }>;

@@ -192,6 +192,8 @@ const TIMELESS = [
   '/api/team/members/:id/summary', // one person of my team, today and the month asked for
   '/api/team/today', // takes its own day (today or earlier), read live from the daily records
   '/api/team/plans', // takes its own day, including tomorrow: a planning view, not a year's report
+  '/api/team/day', // the board for one day, any day incl. tomorrow
+  '/api/team/members/:id/days', // one person's month, which the phone's month stepper already bounds
   '/api/team/orders', // a short window the phone chooses (at most 93 days)
   '/api/team/stock', // takes its own month
   '/api/team/leaves', // a short window the phone chooses (at most 93 days)

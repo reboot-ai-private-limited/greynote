@@ -36,6 +36,7 @@ import { GetPaidTaDaTotalUseCase, ListExpensesUseCase, MarkExpensePaidUseCase } 
 import { RunMissedDcrCheckUseCase } from './application/usecases/runMissedDcrCheck.usecase.js';
 import type { LeavePort } from './domain/leave.port.js';
 import { CountDoctorCallsByDayUseCase, CountDoctorCallsUseCase, ListCalledDoctorsUseCase, SummarizeDcrsUseCase } from './application/usecases/dcrReports.usecase.js';
+import { GetDayActivityUseCase } from './application/usecases/getDayActivity.usecase.js';
 import { GetDcrSummaryUseCase } from './application/usecases/getDcrSummary.usecase.js';
 import { AllocateGiftUseCase, CreateAdminDoctorServiceUseCase, DOCTOR_SERVICE_KIND, GetDoctorServiceUseCase, MarkDoctorServiceDoneUseCase, ListDoctorServicesUseCase, ListGiftsUseCase, MarkGiftDoneUseCase, SubmitDoctorServiceUseCase } from './application/usecases/servicesAndGifts.usecase.js';
 import { GeofenceEvaluator } from './application/geofenceEvaluator.js';
@@ -150,6 +151,7 @@ export function buildFieldActivityContainer(
   const countDoctorCalls = new CountDoctorCallsUseCase(dcrs, approvals, doctorCalls);
   const countDoctorCallsByDay = new CountDoctorCallsByDayUseCase(dcrs, approvals, doctorCalls, config);
   const paidTaDa = new GetPaidTaDaTotalUseCase(expenses, clock);
+  const dayActivity = new GetDayActivityUseCase(dcrs, views, doctorCalls, chemistCalls, followups);
   const dcrSummary = new GetDcrSummaryUseCase(dcrs, views, doctorCalls, chemistCalls, followups, expenses);
 
   // The day's calls and follow-ups, each checked against Field Master Data and Territory as they are at sync.
@@ -234,6 +236,8 @@ export function buildFieldActivityContainer(
       countDoctorCalls: (range) => countDoctorCalls.execute(range),
       listAcceptedExpenses: (f) => expenses.listAccepted({ from: f.from, to: f.to, ...(f.userId && { userId: f.userId }) }, f.limit ?? 2000),
       getDcrSummary: (userId, range) => dcrSummary.execute(userId, range),
+      getDayActivity: (userIds, date) => dayActivity.execute(userIds, date),
+      getActivityRange: (userId, range) => dayActivity.range(userId, range),
     },
     buildRouter: () =>
       buildFieldActivityRouter(

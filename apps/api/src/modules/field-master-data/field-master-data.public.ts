@@ -71,6 +71,8 @@ export interface FieldMasterDataPublicContract {
   /** Every active Distributor with the field employees it is handed to: whose achievement its secondary counts toward. */
   listDistributorAssignees(): Promise<Array<{ id: string; assignedUserIds: string[] }>>;
   listActiveOutlets(): Promise<{ distributors: Array<{ id: string; name: string }>; chemists: Array<{ id: string; name: string }> }>;
+  /** Names for a batch of Doctors in one query (a team board puts words on the doctors a plan names); an id that is not there is left out. */
+  getDoctorNames(doctorIds: string[]): Promise<Array<{ id: string; name: string }>>;
   listNames(query: { distributorIds?: string[]; chemistIds?: string[]; productIds?: string[] }): Promise<{
     distributors: Array<{ id: string; name: string }>;
     chemists: Array<{ id: string; name: string }>;

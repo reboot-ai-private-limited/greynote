@@ -101,6 +101,12 @@ export class MongoDoctorAdapter implements DoctorRepositoryPort {
     return doc ? toDoctor(doc) : null;
   }
 
+  async findByIds(ids: string[]): Promise<Doctor[]> {
+    const valid = ids.filter((id) => Types.ObjectId.isValid(id));
+    if (valid.length === 0) return [];
+    return (await DoctorModel.find({ _id: { $in: valid } }).lean()).map(toDoctor);
+  }
+
   async create(input: Omit<Doctor, 'id'>): Promise<Doctor> {
     const doc = await DoctorModel.create(toColumns(input));
     return toDoctor(doc.toObject());

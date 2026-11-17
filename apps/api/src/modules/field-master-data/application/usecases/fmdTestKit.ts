@@ -357,6 +357,9 @@ export class FakeDoctors implements DoctorRepositoryPort {
       f,
     );
   }
+  async findByIds(ids: string[]) {
+    return this.rows.filter((d) => ids.includes(d.id));
+  }
   async findById(id: string) {
     return this.rows.find((d) => d.id === id) ?? null;
   }

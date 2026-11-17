@@ -77,11 +77,10 @@ export function buildTeamTree(members: TeamMember[], today: TeamDayRow[]): { roo
   return { roots, byId };
 }
 
-/** "8 people · 2 not started · 1 blocked", or "6 people · all on track" when nothing needs a look. */
+/** "8 people · 1 blocked · 2 on leave", or "6 people · all on track" when nothing needs a look. ("Not started" is no longer shown: it only meant no call by 11:00.) */
 export function rollupText(r: Rollup): string {
   if (r.people === 0) return 'No team';
   const parts = [`${r.people} ${r.people === 1 ? 'person' : 'people'}`];
-  if (r.notStarted) parts.push(`${r.notStarted} not started`);
   if (r.blocked) parts.push(`${r.blocked} blocked`);
   if (r.onLeave) parts.push(`${r.onLeave} on leave`);
   if (parts.length === 1) parts.push('all on track');

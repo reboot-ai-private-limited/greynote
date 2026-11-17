@@ -8,6 +8,8 @@ import type { TeamMemberSummaryUseCase } from '../application/usecases/teamMembe
 import type { TeamLeavesUseCase } from '../application/usecases/teamLeaves.usecase.js';
 import type { TeamOrdersUseCase } from '../application/usecases/teamOrders.usecase.js';
 import type { TeamStockUseCase } from '../application/usecases/teamStock.usecase.js';
+import type { TeamMemberDaysUseCase } from '../application/usecases/teamMemberDays.usecase.js';
+import type { TeamDayUseCase } from '../application/usecases/teamDay.usecase.js';
 import type { TeamPlansUseCase } from '../application/usecases/teamPlans.usecase.js';
 import type { TeamTodayUseCase } from '../application/usecases/teamToday.usecase.js';
 import type {
@@ -16,6 +18,8 @@ import type {
   membersQuerySchema,
   ordersQuerySchema,
   stockQuerySchema,
+  dayQuerySchema,
+  daysQuerySchema,
   plansQuerySchema,
   summaryQuerySchema,
   todayQuerySchema,
@@ -30,7 +34,7 @@ const query = <S extends z.ZodTypeAny>(req: Request): z.output<S> =>
   req.query as unknown as z.output<S>;
 
 export type TeamHandlers = Record<
-  'members' | 'summary' | 'today' | 'plans' | 'leaves' | 'orders' | 'stock',
+  'members' | 'summary' | 'memberDays' | 'today' | 'day' | 'plans' | 'leaves' | 'orders' | 'stock',
   RequestHandler
 >;
 
@@ -38,6 +42,8 @@ export function makeTeamControllers(u: {
   members: ListTeamMembersUseCase;
   today: TeamTodayUseCase;
   plans: TeamPlansUseCase;
+  day: TeamDayUseCase;
+  memberDays: TeamMemberDaysUseCase;
   leaves: TeamLeavesUseCase;
   summary: TeamMemberSummaryUseCase;
   orders: TeamOrdersUseCase;
@@ -89,6 +95,12 @@ export function makeTeamControllers(u: {
         'Your team’s day.',
         200,
       ),
+    ),
+    memberDays: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await u.memberDays.execute(callerId(req), (req.params as unknown as z.output<typeof memberParamsSchema>).id, query<typeof daysQuerySchema>(req).month), 'Their days.', 200),
+    ),
+    day: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await u.day.execute(callerId(req), query<typeof dayQuerySchema>(req)), 'Your team’s board for the day.', 200),
     ),
     plans: asyncHandler(async (req, res) =>
       sendSuccess(

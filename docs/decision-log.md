@@ -2813,3 +2813,9 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 - A manager above the MR can read the doctor service (Approvals review and Services Details were "No such doctor service"); a manager can read a pending or team chemist's record to decide it (address, phone, location, Open in Maps); the other roles' rules are unchanged.
 - Services has **My requests / Team requests** tabs for a manager (supersedes the merged list for this page only).
 - The Approvals date filter is on the main row with custom From / To dates.
+
+
+## 2026-11-18: Team tab phase 1: no "Not started"; the board; the person page as tabs
+
+- "Not started" removed: it was a clock rule (no call by 11:00) shown next to an approved plan. The plan chip, route names, doctors visited and the report chip replace it.
+- Today's board and the person page's Plans and Reports tabs read two new team endpoints (`/team/day`, `/team/members/:id/days`); `/team/plans` gains doctor names and remarks. Contracts gained `getDoctorNames`, `getDayActivity`, `getActivityRange` and richer `listDailyPlanDays`.

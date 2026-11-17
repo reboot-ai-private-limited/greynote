@@ -38,6 +38,14 @@ export const plansQuerySchema = z.object({
   planStatus: z.string().trim().min(1).max(40).optional(),
 });
 
+export const dayQuerySchema = z.object({
+  ...paging(50),
+  scope,
+  date: calendarDateSchema,
+  userId: userId.optional(),
+  filter: z.enum(['PLAN_NOT_APPROVED', 'NO_CALLS', 'REPORT_NOT_SENT']).optional(),
+});
+
 export const leavesQuerySchema = z.object({
   scope,
   from: calendarDateSchema,
@@ -52,6 +60,8 @@ export const summaryQuerySchema = z.object({
   /** The month the figures cover; this month when omitted. */
   month: calendarMonthSchema.optional(),
 });
+
+export const daysQuerySchema = z.object({ month: calendarMonthSchema });
 
 export const ordersQuerySchema = z.object({
   ...paging(50),

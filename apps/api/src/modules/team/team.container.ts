@@ -8,6 +8,8 @@ import { TeamMemberSummaryUseCase } from './application/usecases/teamMemberSumma
 import { TeamOrdersUseCase } from './application/usecases/teamOrders.usecase.js';
 import { TeamStockUseCase } from './application/usecases/teamStock.usecase.js';
 import { TeamPlansUseCase } from './application/usecases/teamPlans.usecase.js';
+import { TeamMemberDaysUseCase } from './application/usecases/teamMemberDays.usecase.js';
+import { TeamDayUseCase } from './application/usecases/teamDay.usecase.js';
 import { TeamTodayUseCase } from './application/usecases/teamToday.usecase.js';
 import type {
   TeamApprovalPort,
@@ -57,7 +59,9 @@ export function buildTeamContainer(
   const clock = new TeamClock(config);
   const members = new ListTeamMembersUseCase(identity, territory);
   const today = new TeamTodayUseCase(identity, identity, planning, territory, fieldActivity, hr, clock);
-  const plans = new TeamPlansUseCase(identity, planning, territory);
+  const plans = new TeamPlansUseCase(identity, planning, territory, master);
+  const memberDays = new TeamMemberDaysUseCase(identity, planning, territory, fieldActivity, master, clock);
+  const day = new TeamDayUseCase(identity, planning, territory, fieldActivity, hr, sales, master, clock);
   const leaves = new TeamLeavesUseCase(identity, hr);
   const orders = new TeamOrdersUseCase(identity, sales, master);
   const stock = new TeamStockUseCase(identity, sales);
@@ -66,7 +70,7 @@ export function buildTeamContainer(
   return {
     buildRouter: () =>
       buildTeamRouter(
-        makeTeamControllers({ members, today, plans, leaves, summary, orders, stock }),
+        makeTeamControllers({ members, today, plans, day, memberDays, leaves, summary, orders, stock }),
       ),
     runAlerts: () => alerts.runWaiting(),
     notifyBlocked: (blocked) => alerts.notifyBlocked(blocked),
