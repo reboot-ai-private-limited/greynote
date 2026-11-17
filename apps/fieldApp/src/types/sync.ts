@@ -23,6 +23,8 @@ export type PlanOffDay = { date: string; reason: 'WEEKLY_OFF' | 'HOLIDAY'; name:
 export type PlanningSnapshot = {
   /** Today's date in the business timezone, as of the pull. */
   today: string;
+  /** Doctors still owed from earlier days (planned, not called since), worked out by the server at every pull; callable today on any route. Absent from older servers. */
+  owedDoctors?: { doctorId: string; carriedFrom: string }[];
   /** This and next month's locked days. Absent from older servers, which lock only the weekly off day. */
   planOffDays?: PlanOffDay[];
   dailyPlans: {

@@ -111,7 +111,7 @@ export default function TeamMemberScreen() {
               <CardSection icon={sym('phone', 'call')} accent="green" title="Field work">
                 <ThemedText type="small">{`${o.field.calls} calls (${o.field.doctorCalls} doctor, ${o.field.chemistCalls} chemist) · ${o.field.followups} follow-up${o.field.followups === 1 ? '' : 's'}`}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">{`${o.field.reportedDays} days reported · ${o.field.lateDays} late · ${o.field.callsPerDay === null ? 'no calls per day yet' : `${o.field.callsPerDay.toFixed(1)} calls a day`}`}</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">{`${o.field.notInPlan} not in plan · ${o.field.offRouteCalls} off route · location: ${o.field.geofence.pass} ok, ${o.field.geofence.fail} failed, ${o.field.geofence.unverified} unverified`}</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">{`location: ${o.field.geofence.pass} ok, ${o.field.geofence.fail} failed, ${o.field.geofence.unverified} unverified`}</ThemedText>
               </CardSection>
               <CardSection icon={sym('calendar', 'event')} accent="purple" title="Attendance">
                 <ThemedText type="small">{`${o.attendance.present} present · ${o.attendance.leave} leave · ${o.attendance.absent} absent · ${o.attendance.strike} strike · ${o.attendance.off} off`}</ThemedText>

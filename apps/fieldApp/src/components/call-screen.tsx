@@ -11,7 +11,8 @@ import { SamplesEditor, type SampleLine } from '@/components/samples-editor';
 import { ScreenShell } from '@/components/screen-shell';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
-import { CardSection, IconChip, InfoCard, Pill, sym } from '@/components/ui-cards';
+import { CardSection, IconChip, InfoCard, sym } from '@/components/ui-cards';
+import { prettyDay } from '@/offline/day';
 import { WorkWithPicker } from '@/components/work-with-picker';
 import { Spacing } from '@/constants/theme';
 import { useCallDoctors } from '@/hooks/use-call-doctors';
@@ -62,6 +63,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
   /** "Ex-station" etc.: the route type the server stamps on the call, read from the cached routes. */
   const routeTypeOf = (routeId: string | undefined) =>
     routeTypeLabel(territory.data?.routes.find((r) => r.id === routeId)?.routeType);
+  const routeName = useMemo(() => new Map((territory.data?.routes ?? []).map((r) => [r.id, r.name])), [territory.data]);
   const reportSent = useReportSent(gate.today);
   const { records } = useRecords([kind]);
   const { doctors: callDoctors, byId: callDoctorById, teamMissing } = useCallDoctors();
@@ -73,18 +75,16 @@ export function CallScreen({ subject }: { subject: Subject }) {
   const madeBy = useMemo(() => new Map((visits.data?.mrs ?? []).flatMap((m) => m.rows).map((r) => [r.doctor.id, r.made])), [visits.data]);
 
   const plan = planning.data?.dailyPlans.find((p) => p.planDate === gate.today) ?? null;
-  const plannedRoutes = useMemo(() => new Set(plan?.routeIds ?? []), [plan]);
-  const plannedDoctorIds = useMemo(() => new Set((plan?.doctors ?? []).map((d) => d.doctorId)), [plan]);
-  const hasPlannedDoctors = (plan?.doctors?.length ?? 0) > 0;
+  // Dr Call offers only today's plan doctors and the ones still owed from earlier days (worked out by the server at every pull); a doctor
+  // outside both is reached through Follow-up. Nothing is "not in plan" any more. `carried` = the day a doctor was first planned and missed.
+  const carried = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const d of plan?.doctors ?? []) if (d.carriedFrom) m.set(d.doctorId, d.carriedFrom);
+    for (const d of planning.data?.owedDoctors ?? []) if (!m.has(d.doctorId)) m.set(d.doctorId, d.carriedFrom);
+    return m;
+  }, [plan, planning.data]);
+  const plannedDoctorIds = useMemo(() => new Set([...(plan?.doctors ?? []).map((d) => d.doctorId), ...carried.keys()]), [plan, carried]);
   const fieldDay = plan ? isFieldDay(plan.workingType) : true;
-
-  /** The plan flags the server will set on this call: a doctor off the day's list, or a route the plan doesn't list. */
-  const flagsFor = (o: { id: string; routeId: string }) => {
-    const flags: string[] = [];
-    if (isDoctor && hasPlannedDoctors && !plannedDoctorIds.has(o.id)) flags.push('Not in plan');
-    if (!plannedRoutes.has(o.routeId)) flags.push('Route not in plan');
-    return flags;
-  };
 
   const [editing, setEditing] = useState<OutboxRecord | 'new' | null>(null);
   const [outletId, setOutletId] = useState<string | null>(null);
@@ -103,14 +103,12 @@ export function CallScreen({ subject }: { subject: Subject }) {
     return (isDoctor ? p.doctorId : p.chemistId) ?? '';
   };
 
-  // Anyone listed can be picked (doctors assigned to me, or for a manager to anyone below them; chemists on my routes); off-plan
-  // ones are flagged, not refused. The day's planned doctors come first, then the rest on the day's routes, then everyone else.
+  // Doctors: today's plan (missed ones first, oldest first, then A to Z). Chemists: every chemist assigned to me. A doctor already on a call
+  // being edited stays pickable even if the plan has since changed.
   const outlets = useMemo(() => {
-    const list: { id: string; routeId: string; name: string }[] = isDoctor ? callDoctors : (master.data?.chemists ?? []);
-    const rank = (o: { id: string; routeId: string }) =>
-      isDoctor && plannedDoctorIds.has(o.id) ? 0 : plannedRoutes.has(o.routeId) ? 1 : 2;
-    return [...list].sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
-  }, [master.data, callDoctors, isDoctor, plannedRoutes, plannedDoctorIds]);
+    const list: { id: string; routeId: string; name: string }[] = isDoctor ? callDoctors.filter((d) => plannedDoctorIds.has(d.id) || d.id === outletId) : (master.data?.chemists ?? []);
+    return [...list].sort((a, b) => (carried.get(a.id) ?? '9999').localeCompare(carried.get(b.id) ?? '9999') || a.name.localeCompare(b.name));
+  }, [master.data, callDoctors, isDoctor, plannedDoctorIds, carried, outletId]);
   const outletById = useMemo(
     () => new Map([...callDoctors, ...(master.data?.chemists ?? [])].map((o) => [o.id, o])),
     [callDoctors, master.data],
@@ -278,7 +276,8 @@ export function CallScreen({ subject }: { subject: Subject }) {
         <OutletPicker
           label={isDoctor ? 'Doctor' : 'Chemist'}
           options={outlets.map((o) => {
-            const flags = flagsFor(o);
+            const missedFrom = carried.get(o.id);
+            const routeLabel = routeName.get(o.routeId);
             const full = outletById.get(o.id);
             const clinic = full && 'clinicName' in full && full.clinicName ? ` · ${full.clinicName}` : '';
             const soon = tooSoon(o.id);
@@ -287,7 +286,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
               name: o.name,
               photoUrl: isDoctor ? (callDoctorById.get(o.id)?.photoUrl ?? null) : null,
               disabled: soon !== null,
-              subtitle: `${soon ? `${soon.short} · ` : ''}${flags.length ? `${flags.join(' · ')} · ` : ''}${full && 'mrLabel' in full && full.mrLabel ? `${full.mrLabel} · ` : ''}${full && 'specialty' in full ? `${full.specialty}${clinic} · ${full.address}` : (full?.address ?? '')}${
+              subtitle: `${soon ? `${soon.short} · ` : ''}${missedFrom ? `Missed since ${prettyDay(missedFrom)} · ` : ''}${routeLabel ? `(${routeLabel}) · ` : ''}${full && 'mrLabel' in full && full.mrLabel ? `${full.mrLabel} · ` : ''}${full && 'specialty' in full ? `${full.specialty}${clinic} · ${full.address}` : (full?.address ?? '')}${
                 full && 'visitFrequency' in full && full.visitFrequency ? ` · ${madeBy.has(o.id) ? `${madeBy.get(o.id)} of ${full.visitFrequency}` : full.visitFrequency} visits${madeBy.has(o.id) ? ' this month' : ' a month'}` : ''
               }${calledIds.has(o.id) ? ' · called today' : ''}`,
             };
@@ -300,17 +299,12 @@ export function CallScreen({ subject }: { subject: Subject }) {
             fe.clear('outlet');
           }}
           disabled={busy}
-          emptyText={`No ${noun}s for you yet. Connect to the internet once so your list can load.`}
+          emptyText={isDoctor ? 'No doctors planned today. Use Follow-up for another doctor, or ask your manager or Admin to change the plan.' : `No ${noun}s for you yet. Connect to the internet once so your list can load.`}
           avatars={isDoctor}
         />
         </FormField>
         {!isDoctor && picked?.phone ? <PrimaryButton label={picked.phone} variant="text" onPress={() => void Linking.openURL(`tel:${picked.phone}`)} style={styles.phone} /> : null}
         {picked && tooSoon(picked.id) ? <Notice tone="warning" title="Too soon for another visit">{tooSoon(picked.id)!.text}</Notice> : null}
-        {picked && flagsFor(picked).length > 0 ? (
-          <Notice tone="warning" title="Not in your plan">
-            {`${flagsFor(picked).join(' and ')}: the call is still saved, and marked that way in your daily report for your manager.`}
-          </Notice>
-        ) : null}
         {picked && !picked.location ? (
           <Notice tone="warning">{`This ${noun} has no registered location, so a call can’t be saved yet. Ask Admin to set it.`}</Notice>
         ) : null}
@@ -377,11 +371,10 @@ export function CallScreen({ subject }: { subject: Subject }) {
           const editable = r.status === 'DRAFT' || r.status === 'FAILED';
           // A call already on the server can still be removed while the report isn't with the manager (it was sent back).
           const removable = editable || (r.status === 'SYNCED' && !reportSent);
-          const flags = who ? flagsFor(who) : [];
           return (
             <InfoCard key={r.clientId}>
               <View style={styles.head}>
-                <IconChip icon={isDoctor ? sym('stethoscope', 'medical_services') : sym('cross.case', 'local_pharmacy')} accent={r.status === 'FAILED' ? 'red' : flags.length ? 'amber' : isDoctor ? 'blue' : 'teal'} />
+                <IconChip icon={isDoctor ? sym('stethoscope', 'medical_services') : sym('cross.case', 'local_pharmacy')} accent={r.status === 'FAILED' ? 'red' : isDoctor ? 'blue' : 'teal'} />
                 <View style={styles.grow}>
                   <ThemedText type="smallBold">{who?.name ?? `Unknown ${noun}`}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">
@@ -389,7 +382,6 @@ export function CallScreen({ subject }: { subject: Subject }) {
                   </ThemedText>
                 </View>
               </View>
-              {flags.length ? <Pill text={flags.join(' · ')} accent="amber" /> : null}
               <GeofenceBadge
                 result={serverGeofence(r)}
                 registered={who?.location ?? null}

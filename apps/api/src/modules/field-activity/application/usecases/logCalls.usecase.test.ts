@@ -68,52 +68,20 @@ describe('logging the day’s calls and follow-ups', () => {
     });
   });
 
-  describe('the plan flags, it never refuses', () => {
-    it('a Doctor on the day’s list is in plan, whatever their Route', async () => {
-      plan({ routeIds: ['route-2'], doctorIds: ['d1'] });
-      await log();
-      expect(kit.doctorCalls.rows[0]).toMatchObject({ notInPlan: false, routeNotInPlan: true });
-    });
-
-    it('a Doctor not on the list is saved and flagged; on a listed Route only the Doctor flag shows', async () => {
-      plan({ doctorIds: ['d9'] });
-      await log();
-      expect(kit.doctorCalls.rows[0]).toMatchObject({ notInPlan: true, routeNotInPlan: false });
-    });
-
-    it('a Doctor on a Route the plan doesn’t list is saved with both flags', async () => {
+  describe('no "not in plan" flags (2026-11-17), and it still never refuses', () => {
+    it('a Doctor off the day’s list, on a Route the plan doesn’t list, is saved with no flag', async () => {
       plan({ routeIds: ['route-2'], doctorIds: ['d9'] });
       await log();
-      expect(kit.doctorCalls.rows[0]).toMatchObject({ notInPlan: true, routeNotInPlan: true });
+      expect(kit.doctorCalls.rows[0]).toMatchObject({ notInPlan: false, routeNotInPlan: false });
     });
 
-    it('a plan that lists no Doctors falls back to the Route', async () => {
-      plan({ doctorIds: [] });
-      await log();
-      expect(kit.doctorCalls.rows[0]!.notInPlan).toBe(false);
-      plan({ routeIds: ['route-2'], doctorIds: [] });
-      await kit.logDoctorCall.execute({ ...REC, clientId: 'c2' }, call(), tx);
-      expect(kit.doctorCalls.rows[1]!.notInPlan).toBe(true);
-    });
-
-    it('a Chemist call and follow-up are flagged when their Route isn’t on the plan', async () => {
+    it('a Chemist call, a Doctor follow-up and a Chemist follow-up carry no flag either', async () => {
+      plan({ routeIds: ['route-2'], doctorIds: ['d9'] });
       await kit.logChemistCall.execute(REC, chemistCall(), tx);
-      await kit.logFollowup.execute({ ...REC, clientId: 'c2' }, followup('CHEMIST', 'c1'), tx);
-      expect(kit.chemistCalls.rows[0]!.routeNotInPlan).toBe(false);
-      expect(kit.followups.rows[0]!.notInPlan).toBe(false);
-      plan({ routeIds: ['route-2'] });
-      await kit.logChemistCall.execute({ ...REC, clientId: 'c3' }, chemistCall(), tx);
-      await kit.logFollowup.execute({ ...REC, clientId: 'c4' }, followup('CHEMIST', 'c1'), tx);
-      expect(kit.chemistCalls.rows[1]!.routeNotInPlan).toBe(true);
-      expect(kit.followups.rows[1]!.notInPlan).toBe(true);
-    });
-
-    it('a Doctor follow-up is flagged when the Doctor isn’t on the day’s list', async () => {
-      plan({ doctorIds: ['d1'] });
-      await kit.logFollowup.execute(REC, followup('DOCTOR', 'd1'), tx);
-      plan({ doctorIds: ['d9'] });
       await kit.logFollowup.execute({ ...REC, clientId: 'c2' }, followup('DOCTOR', 'd1'), tx);
-      expect(kit.followups.rows.map((f) => f.notInPlan)).toEqual([false, true]);
+      await kit.logFollowup.execute({ ...REC, clientId: 'c3' }, followup('CHEMIST', 'c1'), tx);
+      expect(kit.chemistCalls.rows[0]!.routeNotInPlan).toBe(false);
+      expect(kit.followups.rows.map((f) => f.notInPlan)).toEqual([false, false]);
     });
   });
 

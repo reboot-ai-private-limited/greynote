@@ -40,10 +40,6 @@ export function CallCard({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {'doctorName' in call && call.notInPlan ? (
-            <Badge tone="warning">Not in plan</Badge>
-          ) : null}
-          {call.routeNotInPlan ? <Badge tone="warning">Route not in plan</Badge> : null}
           <Badge tone={GEOFENCE_TONE[call.geofence.status]}>
             {GEOFENCE_LABEL[call.geofence.status]}
           </Badge>
