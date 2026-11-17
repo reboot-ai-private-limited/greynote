@@ -15,8 +15,11 @@ import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
 type Props = {
-  /** The plan's routes: only the MR's doctors on these can be picked. A manager's picks aren't limited by them. */
+  /** The plan's routes: only the MR's doctors on these can be picked. A manager's picks are limited to them too when `limitToRoutes` is set (2026-11-17). */
   routeIds: string[];
+  /** A manager's plan is route first: offer only doctors on `routeIds`, and, when the server's list is known, only those on it. */
+  limitToRoutes?: boolean;
+  onlyIds?: Set<string> | undefined;
   /** Doctors the MR chose (not the owed ones). */
   picked: string[];
   /** Missed calls still owed from earlier days — always on the plan, so they show ticked and locked. */
@@ -37,10 +40,10 @@ type Props = {
  * so the list works offline; saving it needs a connection like the rest of the plan. Doctors owed from earlier days come
  * first and can't be unticked — the server adds them whatever is sent.
  *
- * A manager may pick their own doctors or anyone's in their downline, on any route (dailyplan.md M4). That list can be long, so
- * it opens as a search (by doctor or MR), and what is picked shows below as rows that can be unticked.
+ * A manager picks their own doctors or anyone's in their downline, but (2026-11-17, dailyplan.md §1b) only those on the day's chosen routes.
+ * That list can be long, so it opens as a search (by doctor or MR), and what is picked shows below as rows that can be unticked.
  */
-export function PlanDoctorsPicker({ routeIds, picked, owed, onChange, disabled, readOnly, tooSoon }: Props) {
+export function PlanDoctorsPicker({ routeIds, limitToRoutes, onlyIds, picked, owed, onChange, disabled, readOnly, tooSoon }: Props) {
   const theme = useTheme();
   const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
   const territory = useCachedSource<TerritorySnapshot>('territory');
@@ -65,7 +68,7 @@ export function PlanDoctorsPicker({ routeIds, picked, owed, onChange, disabled, 
     if (isManager) {
       const onDayRoute = (d: { routeId: string }) => (routeIds.includes(d.routeId) ? 0 : 1);
       const options: OutletOption[] = callDoctors
-        .filter((d) => !owedIds.has(d.id))
+        .filter((d) => !owedIds.has(d.id) && (!limitToRoutes || (routeIds.includes(d.routeId) && (!onlyIds || onlyIds.has(d.id)))))
         .sort((a, b) => onDayRoute(a) - onDayRoute(b) || byName(a, b))
         .map((d) => {
           const soon = tooSoon?.(d.id) ?? null;
@@ -89,7 +92,7 @@ export function PlanDoctorsPicker({ routeIds, picked, owed, onChange, disabled, 
       .map((id) => ({ id, name: 'Team member’s doctor', photoUrl: null, sub: 'From the people you work with' }));
     const mine = readOnly ? onRoutes.filter((r) => picked.includes(r.id)) : onRoutes;
     return { owedRows, options: [], pickRows: [...mine, ...others] };
-  }, [master.data, territory.data, routeIds, owed, picked, readOnly, isManager, callDoctors, callDoctorById, tooSoon]);
+  }, [master.data, territory.data, routeIds, limitToRoutes, onlyIds, owed, picked, readOnly, isManager, callDoctors, callDoctorById, tooSoon]);
 
   if (readOnly && owedRows.length === 0 && pickRows.length === 0) return null;
 

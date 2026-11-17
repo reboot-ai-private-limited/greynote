@@ -8,8 +8,14 @@ const HQS = [
 ];
 const ZONES = [{ id: 'z1', name: 'North', status: 'active' }, { id: 'z2', name: 'South', status: 'active' }];
 
-function setup(people: P[], coverage: Record<string, { hqIds: string[]; zoneIds: string[] }> = {}) {
-  const users = { listFieldEmployees: async () => people.map((p) => ({ id: p.id, employeeCode: p.id, name: p.id, designation: null, designationId: null, designationLevel: p.level, hqId: p.hqId, zoneId: null, managerId: p.managerId })) } as never;
+function setup(people: P[], coverage: Record<string, { hqIds: string[]; zoneIds: string[] }> = {}, demo: Set<string> = new Set()) {
+  const row = (p: P) => ({ id: p.id, employeeCode: p.id, name: p.id, designation: null, designationId: null, designationLevel: p.level, hqId: p.hqId, zoneId: null, managerId: p.managerId });
+  const below = (id: string): P[] => people.filter((p) => p.managerId === id).flatMap((p) => [p, ...below(p.id)]);
+  const users = {
+    getDownline: async (id: string) => below(id).map((p) => ({ id: p.id })),
+    // Like Identity: by id, anyone asked for is answered; without ids it is the all-staff list, which leaves demo accounts out.
+    listFieldEmployees: async (onlyIds?: string[]) => people.filter((p) => (onlyIds ? onlyIds.includes(p.id) : !demo.has(p.id))).map(row),
+  } as never;
   const cov = { execute: async (id: string) => ({ userId: id, ...(coverage[id] ?? { hqIds: [], zoneIds: [] }) }) } as never;
   const hqs = {
     findByIds: async (ids: string[]) => HQS.filter((h) => ids.includes(h.id)),
@@ -56,5 +62,14 @@ describe('a manager’s territory is computed from their team and what they own'
     const uc = setup(company, { asm: { hqIds: ['hqA'], zoneIds: ['z1'] } });
     expect((await uc.routesInHq('asm', 'hqB', { page: 1, pageSize: 20 })).items).toHaveLength(1);
     await expect(uc.routesInHq('asm', 'hqC', { page: 1, pageSize: 20 })).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it('a demo team is counted too (the all-staff list leaves demo accounts out, but a team is asked for by id)', async () => {
+    const demoTeam = company.map((p) => ({ ...p }));
+    const t = await setup(demoTeam, { asm: { hqIds: ['hqA'], zoneIds: ['z1'] } }, new Set(demoTeam.map((p) => p.id))).execute('asm');
+    expect(t.zones[0]!.hqs.map((h) => [h.name, h.members])).toEqual([['A', 2], ['B', 1]]);
+    // a ZSM who names no HQ owns every HQ of their Zone, found through their own level, not the all-staff list
+    const zsm = await setup(demoTeam, { zsm: { hqIds: [], zoneIds: ['z1'] } }, new Set(demoTeam.map((p) => p.id))).execute('zsm');
+    expect(zsm.zones[0]!.hqs.map((h) => [h.name, h.owned])).toEqual([['A', true], ['B', true]]);
   });
 });

@@ -43,6 +43,18 @@ export class MongoRouteAssignmentAdapter implements RouteAssignmentRepositoryPor
     return docs.map(toAssignment);
   }
 
+  async listActiveForUsers(userIds: string[]): Promise<RouteAssignment[]> {
+    if (userIds.length === 0) return [];
+    const docs = await RouteAssignmentModel.find({ userId: { $in: userIds.map((id) => new Types.ObjectId(id)) }, status: 'active' }).lean();
+    return docs.map(toAssignment);
+  }
+
+  async listActiveForRoutes(routeIds: string[]): Promise<RouteAssignment[]> {
+    if (routeIds.length === 0) return [];
+    const docs = await RouteAssignmentModel.find({ routeId: { $in: routeIds.map((id) => new Types.ObjectId(id)) }, status: 'active' }).lean();
+    return docs.map(toAssignment);
+  }
+
   countActiveForRoute(routeId: string): Promise<number> {
     return RouteAssignmentModel.countDocuments({ routeId: new Types.ObjectId(routeId), status: 'active' });
   }

@@ -69,17 +69,10 @@ export class GetTeamTerritoryUseCase {
   }
 
   private async scope(managerId: string): Promise<{ members: Map<string, number>; owned: Set<string> }> {
-    const people = await this.users.listFieldEmployees();
-    const me = people.find((p) => p.id === managerId);
-    const level = me?.designationLevel ?? 0;
-
-    // Everyone at any depth below the manager, from the one `managerId` link each person has.
-    const children = new Map<string, string[]>();
-    for (const p of people) if (p.managerId) children.set(p.managerId, [...(children.get(p.managerId) ?? []), p.id]);
-    const team = new Set<string>([managerId]);
-    for (const queue = [managerId]; queue.length > 0; ) {
-      for (const child of children.get(queue.shift()!) ?? []) if (!team.has(child)) (team.add(child), queue.push(child));
-    }
+    // The manager and everyone below them, at any depth (the reporting chain, not the all-staff list: demo accounts are in it too).
+    const team = new Set<string>([managerId, ...(await this.users.getDownline(managerId)).map((u) => u.id)]);
+    const people = await this.users.listFieldEmployees([...team]);
+    const level = people.find((p) => p.id === managerId)?.designationLevel ?? 0;
     const members = new Map<string, number>();
     for (const p of people) if (team.has(p.id) && p.hqId) members.set(p.hqId, (members.get(p.hqId) ?? 0) + 1);
 

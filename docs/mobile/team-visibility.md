@@ -52,6 +52,18 @@ All paged: `page` (1…), `pageSize` (≤ 100, use 20). Reply is `{ items, page,
 - `routes` in the phone's territory snapshot is still the caller's **own** assigned routes. A manager does not receive team routes there any more than they receive team doctors.
 - Routes are **no longer copied onto managers**. Picking a manager no longer adds the employee's routes to the manager; the HQs and Zones still extend their coverage.
 
+## 2a. Planning routes: route first (2026-11-17)
+
+Routes belong to MRs, so a manager plans **the routes held by anyone below them** (any depth), plus their own. Nothing is copied onto the manager.
+
+| Method and path | Who | What |
+|---|---|---|
+| `GET /planning/team-routes?hqId&search&page&pageSize` | Manager (`403` for an MR) | Tour Plan route picker: the routes held by the team, paged; reply `{ items:[{id,name,routeType,hqId,hqName,holders:[{id,name,label}],doctorCount}], page, pageSize, total, totalPages, hqs:[{id,name,routes}] }`. Start from `hqs`, then pick an HQ and search inside it. |
+| `GET /planning/daily/route-options?date&routeIds=a,b` | Manager | Daily Plan: for the chosen routes, `people` (who to work with, routes in brackets) and `doctors`. |
+
+- **Tour Plan:** working type, routes, remarks. **No Work With.** The server refuses a manager's route that nobody below them holds (`400`).
+- **Daily Plan (manager):** choose the route(s) among the approved ones, then Works with and Doctors list only what is on those routes. Nobody or nothing on the route: tell the manager to ask their manager or Admin to change the plan. See [`dailyplan.md`](dailyplan.md) §1b.
+
 ## 3. Logging a call on a team doctor
 
 A manager may call on any doctor assigned to anyone in their team, on any route (unchanged, 2026-11-03). The server checks this **when the call syncs**, per record, so a call logged offline against a doctor reassigned in the meantime is refused alone (`DOCTOR_NOT_ASSIGNED`) while the rest of the day syncs.

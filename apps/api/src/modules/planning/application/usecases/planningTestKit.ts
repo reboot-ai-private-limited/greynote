@@ -358,6 +358,15 @@ export class FakeRoutes {
     await this.onList?.();
     return (this.byUser.get(userId) ?? []).map((id) => ({ id, routeType: this.types.get(id) ?? ('HQ' as const) }));
   }
+  /** One batch for a whole downline: the union of what each of them holds, each route once. */
+  async listRoutesForUsers(userIds: string[]) {
+    await this.onList?.();
+    const ids = [...new Set(userIds.flatMap((u) => this.byUser.get(u) ?? []))];
+    return ids.map((id) => ({ id, name: `Route ${id}`, hqId: 'hq-1', hqName: 'HQ 1', routeType: this.types.get(id) ?? ('HQ' as const) }));
+  }
+  async listHoldersOfRoutes(routeIds: string[]) {
+    return [...this.byUser.entries()].flatMap(([userId, held]) => held.filter((r) => routeIds.includes(r)).map((routeId) => ({ routeId, userId })));
+  }
   /** Any id is a route named after it, except `gone` (unknown). */
   async getRoute(routeId: string) {
     return routeId === 'gone' ? null : { id: routeId, name: `Route ${routeId}`, routeType: this.types.get(routeId) ?? ('HQ' as const) };
@@ -409,7 +418,8 @@ export function planningKit(clock: Clock) {
   /** Unbound: no day is locked. A test that needs off days binds its own list. */
   const offDays = new OffDays();
   const views = new PlanViews(approvals, grants, deadlines, offDays);
-  const submitter = new PlanSubmitter(users, routes, approvals, grants, inlineTransactions, clock.now);
+  const scope = new ManagerScope(users, config, routes);
+  const submitter = new PlanSubmitter(users, routes, approvals, grants, inlineTransactions, clock.now, scope);
   approvals.registerKind({
     kind: 'MONTHLY_PLAN',
     finalApproverRoles: ['ADMIN'],
@@ -420,7 +430,6 @@ export function planningKit(clock: Clock) {
   /** Months (`userId:YYYY-MM`) whose Monthly Plan the test says is not approved; every other month is. */
   const monthlyBlocked = new Set<string>();
   const monthlyApproved: MonthlyApprovedCheck = async (u, m) => !monthlyBlocked.has(`${u}:${m}`);
-  const scope = new ManagerScope(users, config);
   const amend = new AmendDailyPlanUseCase(dailyPlans, users, submitter, deadlines, views, () => async (u, d) => reported.has(`${u}:${d}`), scope, approvals);
   /** Each user's visible doctors, and the calls they made (`userId` → `{ doctorId, date }`), as the test sets them. */
   const doctors = new Map<string, Array<{ id: string; routeId: string }>>();
@@ -432,7 +441,7 @@ export function planningKit(clock: Clock) {
   );
   const setDoctors = new SetDailyPlanDoctorsUseCase(dailyPlans, approvals, carryOver, views, scope);
   const teamSuggest = new SuggestFromTeamUseCase(dailyPlans, monthlyPlans, approvals, users, carryOver, scope);
-  const setDay = new SetDailyPlanUseCase(dailyPlans, approvals, users, submitter, carryOver, scope, teamSuggest, views);
+  const setDay = new SetDailyPlanUseCase(dailyPlans, approvals, users, submitter, carryOver, scope, views);
   return { offDays, scope, setDay, teamSuggest, doctors, calls, carryOver, setDoctors, users, routes, approvals, config, dailyPlans, monthlyPlans, grants, deadlines, views, submitter, amend, reported, monthlyBlocked, monthlyApproved };
 }
 

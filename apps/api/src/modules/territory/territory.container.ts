@@ -15,7 +15,7 @@ import { GetRoutePathUseCase } from './application/usecases/getRoutePath.usecase
 import { GetRouteSummaryUseCase } from './application/usecases/getRouteSummary.usecase.js';
 import { ListRouteAssignmentsUseCase } from './application/usecases/listRouteAssignments.usecase.js';
 import { ListRouteIdsInScopeUseCase } from './application/usecases/listRouteIdsInScope.usecase.js';
-import { ListRoutesForUserUseCase } from './application/usecases/listRoutesForUser.usecase.js';
+import { ListRoutesForUserUseCase, ListRoutesForUsersUseCase } from './application/usecases/listRoutesForUser.usecase.js';
 import { UnassignRouteUseCase } from './application/usecases/unassignRoute.usecase.js';
 import { ListRoutesUseCase } from './application/usecases/listRoutes.usecase.js';
 import { GetUserHqUseCase } from './application/usecases/getUserHq.usecase.js';
@@ -113,6 +113,7 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
     unassign: makeUnassignRouteController(new UnassignRouteUseCase(assignmentRepository)),
   };
   const listRoutesForUser = new ListRoutesForUserUseCase(assignmentRepository, routeRepository, hqRepository);
+  const listRoutesForUsers = new ListRoutesForUsersUseCase(assignmentRepository, routeRepository, hqRepository);
   const getRouteSummary = new GetRouteSummaryUseCase(routeRepository, hqRepository);
   const getRoutePath = new GetRoutePathUseCase(routeRepository, hqRepository);
   const listRouteIdsInScope = new ListRouteIdsInScopeUseCase(routeRepository);
@@ -157,6 +158,8 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
           : null;
       },
       listRoutesForUser: (userId) => listRoutesForUser.execute(userId),
+      listRoutesForUsers: (userIds) => listRoutesForUsers.execute(userIds),
+      listHoldersOfRoutes: (routeIds) => listRoutesForUsers.holders(routeIds),
       getRoutePath: async (routeId) => {
         const live = await getRoutePath.execute(routeId);
         if (live) return live;

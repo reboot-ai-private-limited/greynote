@@ -50,14 +50,22 @@ describe('One employee’s monthly plan, found by who and when', () => {
     kit.users.add(STRANGER);
     kit.users.designations.set(ASM, 'ASM');
     kit.routes.byUser.set(MR, [ROUTE]);
-    await new SaveMonthlyPlanUseCase(kit.monthlyPlans, kit.approvals, kit.views).execute(MR, MONTH, [
-      { ...entry('2026-10-05'), workWith: [ASM, STRANGER] },
-      entry('2026-10-06'),
-    ]);
+    // A plan stored before 2026-11-17 may still carry Works with: it is shown by name (history), though nothing writes it any more.
+    await kit.monthlyPlans.save(MR, MONTH, [{ ...entry('2026-10-05'), workWith: [ASM, STRANGER] }, entry('2026-10-06')], null);
     const plan = await new GetMonthlyPlanUseCase(kit.monthlyPlans, kit.users, kit.views, kit.routes).forUserMonth({ id: MR, role: 'FIELD' }, MR, MONTH);
     expect(plan.entries[0]?.workWith).toEqual([ASM, STRANGER]);
     expect(plan.entries[0]?.workWithPeople.map((p) => p.label)).toEqual([`${ASM} (ASM)`, STRANGER]);
     expect(plan.entries[1]?.workWithPeople).toEqual([]);
+  });
+
+  it('a Tour Plan save drops Works with: it is chosen on the Daily Plan', async () => {
+    const kit = planningKit(new Clock(new Date('2026-09-20T04:00:00Z')));
+    kit.users.add(MR);
+    kit.users.add(ASM, { level: 2 });
+    kit.routes.byUser.set(MR, [ROUTE]);
+    await new SaveMonthlyPlanUseCase(kit.monthlyPlans, kit.approvals, kit.views).execute(MR, MONTH, [{ ...entry('2026-10-05'), workWith: [ASM] }]);
+    const plan = await new GetMonthlyPlanUseCase(kit.monthlyPlans, kit.users, kit.views, kit.routes).forUserMonth({ id: MR, role: 'FIELD' }, MR, MONTH);
+    expect(plan.entries[0]?.workWith).toEqual([]);
   });
 
   it('is a 404 for a month with no plan, and for someone who may not read it', async () => {

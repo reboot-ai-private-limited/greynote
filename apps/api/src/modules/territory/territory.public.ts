@@ -13,6 +13,10 @@ export interface TerritoryPublicContract {
   getRoute(routeId: string): Promise<RouteSummary | null>;
   /** The active Routes an employee currently covers — what a Daily Plan may choose from. */
   listRoutesForUser(userId: string): Promise<RouteSummary[]>;
+  /** The active Routes held by any of these employees, each once, in one query (a manager's whole downline). */
+  listRoutesForUsers(userIds: string[]): Promise<RouteSummary[]>;
+  /** Who holds each of these routes now, as `{ routeId, userId }` pairs, in one query. */
+  listHoldersOfRoutes(routeIds: string[]): Promise<Array<{ routeId: string; userId: string }>>;
   /** The Route's HQ and Zone ids and its type, or `null` for an unknown id. */
   getRoutePath(routeId: string): Promise<RoutePath | null>;
   /** Every Route id under an HQ or a Zone (the most specific one given) — for filtering lists by territory. */

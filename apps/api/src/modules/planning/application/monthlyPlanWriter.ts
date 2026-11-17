@@ -35,7 +35,9 @@ export class MonthlyPlanWriter {
   /** `beforeExpand` runs once the days are known to be well-formed — the caller's own check on the plan's state goes there. */
   async prepare(userId: string, planMonth: string, entries: MonthlyPlanEntry[], beforeExpand: () => Promise<void>): Promise<PreparedMonth> {
     // Days the server wrote for a trip come back with the plan; they're rebuilt from the trip, not kept or checked as typed.
-    const typed = entries.filter((e) => e.dayKind === 'NORMAL');
+    // The Tour Plan has no "Works with" (decision-log 2026-11-17): who the day is worked with is chosen on the Daily Plan. An older client may still
+    // send it; it is dropped, never stored.
+    const typed = entries.filter((e) => e.dayKind === 'NORMAL').map((e) => ({ ...e, workWith: [] as string[] }));
     assertMonthlyEntries(planMonth, typed, userId);
     const lastDay = lastDayOf(typed, monthRange(planMonth).to);
     assertNoOffDays(entries, await this.offDays.byDate(userId, monthRange(planMonth).from, lastDay));

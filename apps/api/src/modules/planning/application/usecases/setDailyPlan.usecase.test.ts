@@ -38,9 +38,14 @@ describe('Changing my own Daily Plan', () => {
   });
 
   it('keeps what the monthly plan said on the first change, and the day is the employee’s own', async () => {
-    const saved = await kit.setDay.execute(MR, DATE, edit({ workWith: [ASM], doctorIds: [DOC] }));
+    const saved = await kit.setDay.execute(MR, DATE, edit({ workingType: 'DOCTOR_CAMPAIGN', workWith: [ASM], doctorIds: [DOC] }));
     expect(saved).toMatchObject({ source: 'MANUAL', routeIds: [ROUTE], remarks: null, workWith: [ASM], changedFromMonthly: true });
     expect(saved.plannedFrom).toMatchObject({ workingType: 'FIELD_WORK', routeIds: [ROUTE], workWith: [] });
+  });
+
+  it('choosing who to work with is the day’s own decision (the Tour Plan has none): it is not "changed from monthly"', async () => {
+    const saved = await kit.setDay.execute(MR, DATE, edit({ workWith: [ASM], doctorIds: [DOC] }));
+    expect(saved).toMatchObject({ source: 'MONTHLY', workWith: [ASM], changedFromMonthly: false, plannedFrom: null });
   });
 
   it('keeps the first original through later changes, and clears the flag when the day goes back to the monthly one', async () => {

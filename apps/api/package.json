@@ -4,6 +4,7 @@
     "type": "module",
     "scripts": {
         "dev": "tsx watch src/server.ts",
+        "dev:local": "DOTENV_CONFIG_PATH=.env.local tsx watch src/server.ts",
         "clean": "rm -rf dist",
         "build": "pnpm clean && tsc --noEmit && node esbuild.config.mjs",
         "start": "node dist/server.js",
@@ -25,6 +26,7 @@
         "seed:demo-manager": "tsx src/scripts/seed-demo-manager.ts",
         "seed:demo-hierarchy": "tsx src/scripts/seed-demo-hierarchy.ts",
         "seed:demo-plans": "tsx src/scripts/seed-demo-plans.ts",
+    "seed:local-test": "tsx src/scripts/seed-local-test.ts",
         "export:pay-bands": "tsx src/scripts/export-pay-bands.ts",
         "seed:production": "tsx src/scripts/seed-production.ts",
         "migrate:employee-codes": "tsx src/scripts/migrate-employee-codes.ts",

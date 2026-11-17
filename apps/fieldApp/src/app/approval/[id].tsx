@@ -17,10 +17,9 @@ import { refreshIsManager } from '@/hooks/use-is-manager';
 import { useTheme } from '@/hooks/use-theme';
 import { ApiError, NetworkError } from '@/lib/api';
 import {
-  LATE_APPROVAL_TEXT,
   approveRequest,
   getApproval,
-  isLateApproval,
+  decisionErrorText,
   kindLabel,
   rejectRequest,
   isOneApproval,
@@ -114,8 +113,8 @@ export default function ApprovalDetailScreen() {
       if (step === 'withdraw') void refreshNow();
       router.back();
     } catch (err) {
-      const late = step === 'approve' && err instanceof ApiError && isLateApproval(err.status, err.message, err.data?.code);
-      setMsg({ tone: 'danger', text: late ? LATE_APPROVAL_TEXT : errorText(err) });
+      const explained = err instanceof ApiError ? decisionErrorText(err, step ?? '') : null;
+      setMsg({ tone: 'danger', text: explained ?? errorText(err) });
       setStep(null);
       setReloadKey((k) => k + 1); // the request may have moved on; show its current state
     } finally {

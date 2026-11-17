@@ -481,7 +481,8 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
         });
       },
       listFieldEmployees: async (onlyIds) => {
-        const active = await userRepository.listActiveIdsByRole('FIELD');
+        // Asked for by id (a manager's team, one employee's report), a demo account is included; the all-staff list leaves demo accounts out.
+        const active = await userRepository.listActiveIdsByRole('FIELD', { includeDemo: onlyIds !== undefined });
         const keep = onlyIds ? new Set(onlyIds) : null;
         const ids = keep ? active.filter((id) => keep.has(id)) : active;
         const [users, profiles, designations] = await Promise.all([userRepository.findByIds(ids), employeeProfileRepository.findByUserIds(ids), designationRepository.list()]);

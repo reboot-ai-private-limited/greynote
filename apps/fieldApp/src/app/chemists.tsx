@@ -335,7 +335,7 @@ export default function ChemistsScreen() {
       <View style={styles.head}>
         <View style={styles.grow}>
           <ThemedText type="smallBold" style={styles.sectionTitle}>Your chemists</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">{activeCount !== undefined ? `${activeCount} on your routes · added by you below` : 'Added by you'}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">{activeCount !== undefined ? `${activeCount} assigned to you · added by you below` : 'Added by you'}</ThemedText>
         </View>
         {canAdd ? <PrimaryButton label="+ Add chemist" style={styles.newButton} onPress={() => start('new')} /> : null}
       </View>

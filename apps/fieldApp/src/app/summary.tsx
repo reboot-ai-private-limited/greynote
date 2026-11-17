@@ -16,7 +16,7 @@ import { isFieldDay, needsDayNote, workingTypeLabel } from '@/lib/planning';
 import { useCallDoctors } from '@/hooks/use-call-doctors';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useReportSent } from '@/hooks/use-report-sent';
-import { DAY_KINDS, finalSubmit, prettyDay, useOnline, useRecords, type OutboxRecord, type SyncKind } from '@/offline';
+import { DAY_KINDS, finalSubmit, NOT_ASSIGNED_REFUSALS, prettyDay, REMOVABLE_REFUSALS, useOnline, useRecords, type OutboxRecord, type SyncKind } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
 import { addDays, monthOf } from '@/offline/day';
 import type { ConfigSnapshot, FieldActivitySnapshot, FieldMasterDataSnapshot, PlanningSnapshot } from '@/types/sync';
@@ -200,8 +200,13 @@ export default function SummaryScreen() {
                   {r.errorMessage}
                 </ThemedText>
               ) : null}
-              {/* Refused for its location: nothing was stored, and sending it again won't help — drop it and add it at the place. */}
-              {r.status === 'FAILED' && r.errorCode === 'NOT_AT_LOCATION' ? (
+              {r.status === 'FAILED' && r.errorCode && NOT_ASSIGNED_REFUSALS.has(r.errorCode) ? (
+                <ThemedText type="small" themeColor="textSecondary">
+                  {'Remove this record. If you did visit, ask your manager or Admin.'}
+                </ThemedText>
+              ) : null}
+              {/* Refused for good (its location, or it is no longer yours): nothing was stored, and sending it again won't help — drop it. */}
+              {r.status === 'FAILED' && r.errorCode && REMOVABLE_REFUSALS.has(r.errorCode) ? (
                 <PrimaryButton
                   label="Remove this record"
                   variant="text"
@@ -219,7 +224,7 @@ export default function SummaryScreen() {
 
       {failed.length > 0 ? (
         <Notice tone="danger" title="Fix before submitting">
-          {'Open the screen for each record marked “Not accepted”, correct it, and submit again.'}
+          {'Open the screen for each record marked “Not accepted”, correct it (or remove it where it says so), and submit again.'}
         </Notice>
       ) : null}
 

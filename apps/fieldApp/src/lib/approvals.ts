@@ -135,6 +135,19 @@ export const LATE_APPROVAL_TEXT = 'This can’t be approved any more: its deadli
 export const isLateApproval = (status: number, message: string, code?: unknown) =>
   code === 'LEAVE_APPROVAL_LATE' || code === 'EXPENSE_APPROVAL_LATE' || (status === 409 && /already started|deadline to approve|no longer be approved/i.test(message));
 
+/** A deciding action (approve, reject, reopen) on a month whose salary is final is refused `409 PAYROLL_FINALIZED` (docs/mobile/dcr.md rule 13). */
+export const PAYROLL_FINALIZED_TEXT = 'This month’s salary is already final, so this can’t be decided or changed any more. Ask Admin.';
+
+export const isPayrollFinalized = (status: number, message: string, code?: unknown) =>
+  code === 'PAYROLL_FINALIZED' || (status === 409 && /salary .* (already )?final/i.test(message));
+
+/** The wording for a failed decision: the month-lock and deadline refusals are explained, anything else is the server's own text. */
+export function decisionErrorText(err: { status: number; message: string; data?: Record<string, unknown> | undefined }, step: 'approve' | 'reject' | 'withdraw' | string): string | null {
+  if (isPayrollFinalized(err.status, err.message, err.data?.code)) return PAYROLL_FINALIZED_TEXT;
+  if (step === 'approve' && isLateApproval(err.status, err.message, err.data?.code)) return LATE_APPROVAL_TEXT;
+  return null;
+}
+
 export type BulkResult =
   | { requestId: string; ok: true; status: ApprovalStatus }
   | { requestId: string; ok: false; statusCode: number; message: string };

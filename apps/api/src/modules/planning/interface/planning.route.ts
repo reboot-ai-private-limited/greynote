@@ -13,6 +13,8 @@ import {
   setDailyPlanDoctorsBodySchema,
   setDailyPlanBodySchema,
   teamSuggestQuerySchema,
+  teamRoutesQuerySchema,
+  routeOptionsQuerySchema,
   dateRangeQuerySchema,
   grantLateSubmitBodySchema,
   listLateSubmitGrantsQuerySchema,
@@ -51,6 +53,8 @@ function doc(
 
 doc('post', '/daily/doctors', 'Set the doctors to call on my plan for a day — also on a day inherited from the monthly plan; missed calls still owed are added', { body: setDailyPlanDoctorsBodySchema });
 doc('post', '/daily/plan', 'Change my plan for a day: working type, who I work with and the doctors — while it is a draft, rejected, withdrawn or reopened; routes follow the type (a manager’s follow the people they work with) and remarks stay the monthly plan’s', { body: setDailyPlanBodySchema });
+doc('get', '/team-routes', 'A manager: the routes held by anyone below them (and their own), paged, with HQs to start from, each with who holds it and how many doctors are on it', { query: teamRoutesQuerySchema });
+doc('get', '/daily/route-options', 'A manager: for the day’s chosen routes, the people below them who hold them (routes in brackets) and the doctors on them — what Works with and Doctors offer', { query: routeOptionsQuerySchema });
 doc('get', '/daily/team-suggest', 'A manager: the routes and doctors of the team members they would work with that day, from those people’s own plans', { query: teamSuggestQuerySchema });
 doc('get', '/daily/carry-over', 'Doctors planned on earlier days and not called since — they are owed on this date', { query: carryOverQuerySchema });
 doc('get', '/daily', 'My daily plans between two dates, with status and submit deadline', { query: dateRangeQuerySchema });
@@ -75,6 +79,8 @@ export function buildPlanningRouter(c: PlanningHandlers): Router {
 
   router.post('/daily/doctors', requireRole('FIELD'), validate({ body: setDailyPlanDoctorsBodySchema }), c.setDoctors);
   router.post('/daily/plan', requireRole('FIELD'), validate({ body: setDailyPlanBodySchema }), c.setDay);
+  router.get('/team-routes', requireRole('FIELD'), validate({ query: teamRoutesQuerySchema }), c.teamRoutes);
+  router.get('/daily/route-options', requireRole('FIELD'), validate({ query: routeOptionsQuerySchema }), c.routeOptions);
   router.get('/daily/team-suggest', requireRole('FIELD'), validate({ query: teamSuggestQuerySchema }), c.teamSuggest);
   router.get('/daily/carry-over', requireRole('FIELD'), validate({ query: carryOverQuerySchema }), c.carryOver);
   router.get('/daily', requireRole('FIELD'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: false }), validate({ query: listDailyPlansQuerySchema }), c.listDaily);

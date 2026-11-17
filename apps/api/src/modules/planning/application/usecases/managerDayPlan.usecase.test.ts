@@ -52,80 +52,101 @@ describe('A manager’s Daily Plan', () => {
     await kit.dailyPlans.createInherited(userId, DATE, fieldDay(o));
     return (await kit.dailyPlans.findByUserAndDate(userId, DATE))!;
   };
-  const input = (o: Partial<{ workWith: string[]; doctorIds: string[] }> = {}) => ({ workingType: 'FIELD_WORK' as const, workWith: [], doctorIds: [], ...o });
+  const input = (o: Partial<{ workWith: string[]; doctorIds: string[]; routeIds: string[] }> = {}) => ({ workingType: 'FIELD_WORK' as const, workWith: [] as string[], doctorIds: [] as string[], ...o });
 
-  it('takes the routes of the people picked and lets the doctors be chosen from theirs', async () => {
-    await inherit(RSM);
-    await seed.execute(MR1, DATE, fieldDay({ routeIds: [R_MR1] }));
-    await seed.execute(MR2, DATE, fieldDay({ routeIds: [R_MR2] }));
+  // The RSM's approved day covers two routes held by MRs below them (a manager plans the routes of their team).
+  const approvedDay = (o: Partial<PlanDay> = {}) => inherit(RSM, { routeIds: [R_MR1, R_MR2], ...o });
+  const route = (...routeIds: string[]) => ({ routeIds });
+
+  it('route first: choosing a route lists only the people and doctors on it', async () => {
+    await approvedDay();
+    const saved = await kit.setDay.execute(RSM, DATE, input({ ...route(R_MR1), workWith: [MR1], doctorIds: [D_MR1] }));
+    expect(saved).toMatchObject({ routeIds: [R_MR1], workWith: [MR1], source: 'MANUAL', changedFromMonthly: true });
+    expect(saved.doctors.map((d) => d.doctorId)).toEqual([D_MR1]);
+    expect(saved.plannedFrom).toMatchObject({ routeIds: [R_MR1, R_MR2] });
+  });
+
+  it('without a route chosen the day keeps all the approved routes', async () => {
+    await approvedDay();
     const saved = await kit.setDay.execute(RSM, DATE, input({ workWith: [MR1, MR2], doctorIds: [D_MR1, D_MR2] }));
-    expect(saved.workWith).toEqual([MR1, MR2]);
-    expect(saved.routeIds).toEqual([R_MR1, R_MR2]);
-    expect(saved.doctors.map((d) => d.doctorId)).toEqual([D_MR1, D_MR2]);
-    expect(saved).toMatchObject({ source: 'MANUAL', changedFromMonthly: true });
-    expect(saved.plannedFrom).toMatchObject({ routeIds: [R_RSM], workWith: [] });
+    expect(saved).toMatchObject({ routeIds: [R_MR1, R_MR2], source: 'MONTHLY', changedFromMonthly: false });
   });
 
-  it('without anyone picked, the routes stay the monthly plan’s and the doctors are the manager’s own', async () => {
-    await inherit(RSM);
-    const saved = await kit.setDay.execute(RSM, DATE, input({ doctorIds: [D_RSM] }));
-    expect(saved.routeIds).toEqual([R_RSM]);
-    expect(saved.doctors.map((d) => d.doctorId)).toEqual([D_RSM]);
-    expect(saved.changedFromMonthly).toBe(false);
+  it('refuses a person who does not hold the chosen route, and says who to ask', async () => {
+    await approvedDay();
+    const err = await expectError(kit.setDay.execute(RSM, DATE, input({ ...route(R_MR1), workWith: [MR2] })), 400);
+    expect(err.message).toContain('Ask your manager or Admin');
   });
 
-  it('picking people and then no one goes back to the monthly routes', async () => {
-    await inherit(RSM);
-    await seed.execute(MR1, DATE, fieldDay({ routeIds: [R_MR1] }));
-    await kit.setDay.execute(RSM, DATE, input({ workWith: [MR1] }));
-    const back = await kit.setDay.execute(RSM, DATE, input());
-    expect(back).toMatchObject({ routeIds: [R_RSM], source: 'MONTHLY', plannedFrom: null });
-  });
-
-  it('lets a manager pick any downline doctor on any route, without naming them in Work With', async () => {
-    await inherit(RSM);
-    const saved = await kit.setDay.execute(RSM, DATE, input({ doctorIds: [D_MR1, D_MR2] }));
-    expect(saved.doctors.map((d) => d.doctorId)).toEqual([D_MR1, D_MR2]);
-  });
-
-  it('refuses a doctor outside the downline, and people outside the team or with no routes that day', async () => {
-    await inherit(RSM);
-    kit.doctors.set(STRANGER, [{ id: 'd-stranger', routeId: 'r-stranger' }]);
-    await seed.execute(MR1, DATE, fieldDay({ routeIds: [R_MR1] }));
-    await expectError(kit.setDay.execute(RSM, DATE, input({ workWith: [MR1], doctorIds: ['d-stranger'] })), 400);
+  it('refuses a doctor on another route, even a downline doctor, and a doctor outside the downline', async () => {
+    await approvedDay();
+    kit.doctors.set(STRANGER, [{ id: 'd-stranger', routeId: R_MR1 }]);
+    await expectError(kit.setDay.execute(RSM, DATE, input({ ...route(R_MR1), doctorIds: [D_MR2] })), 400);
+    await expectError(kit.setDay.execute(RSM, DATE, input({ ...route(R_MR1), doctorIds: ['d-stranger'] })), 400);
     await expectError(kit.setDay.execute(RSM, DATE, input({ workWith: [STRANGER] })), 400);
-    await expectError(kit.setDay.execute(RSM, DATE, input({ workWith: [MR2] })), 400); // MR2 has nothing planned that day
+  });
+
+  it('lets a manager pick the downline doctors on the chosen route without naming anyone in Works with', async () => {
+    await approvedDay();
+    const saved = await kit.setDay.execute(RSM, DATE, input({ ...route(R_MR1, R_MR2), doctorIds: [D_MR1, D_MR2] }));
+    expect(saved.doctors.map((d) => d.doctorId)).toEqual([D_MR1, D_MR2]);
+  });
+
+  it('the manager between the RSM and the MRs can be picked: a route’s holders and the managers above them', async () => {
+    await approvedDay();
+    const saved = await kit.setDay.execute(RSM, DATE, input({ ...route(R_MR1), workWith: [ASM, MR1] }));
+    expect(saved.workWith).toEqual([ASM, MR1]);
+  });
+
+  it('refuses a route outside the day’s approved ones (only the manager above or Admin changes the plan)', async () => {
+    await approvedDay({ routeIds: [R_MR1] });
+    const err = await expectError(kit.setDay.execute(RSM, DATE, input(route(R_MR2))), 400);
+    expect(err.message).toContain('approved plan');
+    await expectError(kit.setDay.execute(RSM, DATE, input(route())), 400);
+  });
+
+  it('a route nobody below holds leaves Works with empty: nobody can be picked', async () => {
+    await approvedDay({ routeIds: [R_RSM] }); // only the RSM holds it
+    await expectError(kit.setDay.execute(RSM, DATE, input({ workWith: [MR1] })), 400);
+    const alone = await kit.setDay.execute(RSM, DATE, input({ doctorIds: [D_RSM] }));
+    expect(alone.doctors.map((d) => d.doctorId)).toEqual([D_RSM]);
   });
 
   it('an MR keeps the monthly routes and may name anyone active to work with', async () => {
     await inherit(MR1, { routeIds: [R_MR1] });
-    const saved = await kit.setDay.execute(MR1, DATE, input({ workWith: [ASM], doctorIds: [D_MR1] }));
-    expect(saved).toMatchObject({ routeIds: [R_MR1], workWith: [ASM] });
+    const saved = await kit.setDay.execute(MR1, DATE, input({ workWith: [ASM], doctorIds: [D_MR1], routeIds: [R_MR2] }));
+    expect(saved).toMatchObject({ routeIds: [R_MR1], workWith: [ASM] }); // an MR's routes are the plan's; routeIds is ignored
   });
 
   it('is refused once the plan is submitted, and submits with the team’s routes and doctors', async () => {
-    const plan = await inherit(RSM);
-    await seed.execute(MR1, DATE, fieldDay({ routeIds: [R_MR1] }));
-    await kit.setDay.execute(RSM, DATE, input({ workWith: [MR1], doctorIds: [D_MR1] }));
+    const plan = await approvedDay();
+    await kit.setDay.execute(RSM, DATE, input({ ...route(R_MR1), workWith: [MR1], doctorIds: [D_MR1] }));
     const request = await submit.execute(RSM, plan.id);
     expect(request.status).toBe('SUBMITTED');
     await expectError(kit.setDay.execute(RSM, DATE, input()), 409);
   });
 
-  it('fails the submit when a team member’s route is gone, rather than sending a route nobody covers', async () => {
-    const plan = await inherit(RSM);
-    await seed.execute(MR1, DATE, fieldDay({ routeIds: [R_MR1] }));
-    await kit.setDay.execute(RSM, DATE, input({ workWith: [MR1] }));
+  it('fails the submit when nobody below holds the route any more, rather than sending a route nobody covers', async () => {
+    const plan = await approvedDay();
+    await kit.setDay.execute(RSM, DATE, input({ ...route(R_MR1), workWith: [MR1] }));
     kit.routes.byUser.set(MR1, []);
     await expectError(submit.execute(RSM, plan.id), 400);
+  });
+
+  it('a manager moved to another team no longer has the old team’s routes', async () => {
+    await approvedDay();
+    kit.users.add(RSM, { level: 3 }); // unchanged
+    kit.users.add(MR1, { level: 1, managerId: STRANGER });
+    kit.users.add(MR2, { level: 1, managerId: STRANGER });
+    kit.users.add(ASM, { level: 2, managerId: STRANGER });
+    await expectError(kit.setDay.execute(RSM, DATE, input({ ...route(R_MR1), doctorIds: [D_MR1] })), 400);
   });
 
   it('allows a longer doctor list than an MR’s 50', async () => {
     const many = Array.from({ length: 60 }, (_, i) => ({ id: `d${String(i).padStart(23, '0')}`, routeId: R_MR1 }));
     kit.doctors.set(MR1, many);
-    await inherit(RSM);
-    await seed.execute(MR1, DATE, fieldDay({ routeIds: [R_MR1] }));
-    const saved = await kit.setDay.execute(RSM, DATE, input({ workWith: [MR1], doctorIds: many.map((d) => d.id) }));
+    await approvedDay();
+    const saved = await kit.setDay.execute(RSM, DATE, input({ ...route(R_MR1), workWith: [MR1], doctorIds: many.map((d) => d.id) }));
     expect(saved.doctors).toHaveLength(60);
   });
 

@@ -1,10 +1,11 @@
+import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Spacing } from '@/constants/theme';
+import { useCurrentUser } from '@/hooks/use-current-user';
 import { useTheme } from '@/hooks/use-theme';
 import { useCachedSource } from '@/offline/cache';
-import { isFieldDay, routeTypeLabel, WORKING_TYPES, type NamedRoute, type PlanDay, type WorkingType } from '@/lib/planning';
-import type { Colleague } from '@/offline/colleagues';
+import { isFieldDay, routeTypeLabel, WORKING_TYPES, type NamedRoute, type PlanDay, type TeamRoute, type WorkingType, knownTeamRoute, rememberTeamRoutes } from '@/lib/planning';
 import type { TerritorySnapshot } from '@/types/sync';
 
 import { addDays, addMonths, datesInMonth, prettyMonth } from '@/offline/day';
@@ -13,7 +14,7 @@ import { ChoiceChips } from './choice-chips';
 import { DateStepper } from './date-stepper';
 import { OutletPicker } from './outlet-picker';
 import { PrimaryButton } from './primary-button';
-import { WorkWithPicker } from './work-with-picker';
+import { TeamRoutesField } from './team-routes-field';
 import { TextField } from './text-field';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
@@ -32,23 +33,34 @@ type Props = {
   /** Locked days (weekly off, holidays). A trip can't run over one, so its return date stops the day before the next one. */
   lockedDates?: string[];
   /**
-   * Someone else's plan (a manager editing an employee's month): pick from these routes instead of your own cached ones, and
-   * from `people` for "Work with". `routesLoaded` is false while they are being fetched.
+   * Someone else's plan (a manager editing an employee's month): pick from these routes instead of your own cached ones.
+   * `routesLoaded` is false while they are being fetched.
    */
-  forOther?: { routes: NamedRoute[]; routesLoaded: boolean; people: { list: Colleague[]; loaded: boolean; emptyText: string } };
+  forOther?: { routes: NamedRoute[]; routesLoaded: boolean };
 };
 
 /**
- * One planned day of the Monthly Plan: working type, routes, work-with, remarks. Routes come from the cached `territory`
- * pull, so it works offline. "Work with" comes from the colleagues the server offers (offline/colleagues.ts). The routes
- * chosen here decide which doctors can be planned on that day (docs/mobile/monthlyplan.md rule 15).
+ * One planned day of the Tour Plan: working type, routes, remarks. There is no "Work with" here any more (2026-11-17): who the day is
+ * worked with is chosen on the Daily Plan, after the route. An MR's routes come from the cached `territory` pull, so it works offline; a manager's
+ * are the routes held by anyone below them, picked HQ first (`TeamRoutesField`, online). The routes chosen here decide which doctors can be
+ * planned on that day (docs/mobile/monthlyplan.md rule 15).
  */
 export function PlanDayForm({ value, onChange, disabled, date, errors, lockedDates, forOther }: Props) {
   const theme = useTheme();
+  const { isManager } = useCurrentUser();
   const territory = useCachedSource<TerritorySnapshot>('territory');
+  // A manager's own plan: routes of their team (server lookup), remembered here so the chosen ones keep their names and types.
+  const teamPick = isManager && !forOther;
+  const [teamKnown, setTeamKnown] = useState<TeamRoute[]>(() => value.routeIds.flatMap((id) => knownTeamRoute(id) ?? []));
+  const rememberFound = (found: TeamRoute[]) => {
+    rememberTeamRoutes(found); // shared, so the screen's trip check and route names can use them too
+    setTeamKnown((prev) => [...prev.filter((p) => !found.some((f) => f.id === p.id)), ...found]);
+  };
   const routes: { id: string; name: string; routeType: string; detail: string }[] = forOther
     ? forOther.routes.map((r) => ({ ...r, detail: routeTypeLabel(r.routeType) ?? '' }))
-    : (territory.data?.routes ?? []).map((r) => ({ ...r, detail: r.hqName }));
+    : teamPick
+      ? teamKnown.map((r) => ({ id: r.id, name: r.name, routeType: r.routeType, detail: r.hqName }))
+      : (territory.data?.routes ?? []).map((r) => ({ ...r, detail: r.hqName }));
   const routesLoaded = forOther ? forOther.routesLoaded : territory.loaded;
   const needsRoute = isFieldDay(value.workingType);
   // A trip needs at least one out-station route; the return day is then asked for.
@@ -61,56 +73,8 @@ export function PlanDayForm({ value, onChange, disabled, date, errors, lockedDat
   const latest = nextLocked && nextMonthEnd ? (addDays(nextLocked, -1) < nextMonthEnd ? addDays(nextLocked, -1) : nextMonthEnd) : nextMonthEnd;
   const tripPossible = earliest !== undefined && latest !== undefined && earliest <= latest;
 
-  function setType(workingType: WorkingType) {
-    // Only Field Work and Doctor Campaign take routes (the server refuses them on the other three) and colleagues to work with.
-    const field = isFieldDay(workingType);
-    onChange({ ...value, workingType, routeIds: field ? value.routeIds : [], workWith: field ? value.workWith : [], returnDate: field ? value.returnDate : null });
-  }
-
-  function setRoutes(routeIds: string[]) {
-    // Without an out-station route there is no trip, so the return day goes.
-    const stillOut = routes.some((r) => r.routeType === 'OUT_STATION' && routeIds.includes(r.id));
-    onChange({ ...value, routeIds, returnDate: stillOut ? value.returnDate : null });
-  }
-
-  return (
-    <>
-      <ThemedText type="smallBold">Working type</ThemedText>
-      <ChoiceChips options={WORKING_TYPES} value={value.workingType} onChange={setType} disabled={disabled} />
-
-      {!needsRoute ? (
-        <ThemedText type="small" themeColor="textSecondary">
-          Routes and “Work with” are only picked for Field Work and Doctor Campaign days.
-        </ThemedText>
-      ) : null}
-
-      {needsRoute ? (
-        <>
-          <ThemedText type="small" themeColor="textSecondary">
-            {`Choose carefully: only ${forOther ? 'their' : 'your'} doctors on these routes can be planned that day.${
-              value.workingType === 'DOCTOR_CAMPAIGN' ? ' A campaign day pays DA at the highest route type and no TA.' : ''
-            }`}
-          </ThemedText>
-          {routes.length === 0 ? (
-            <ThemedText type="small" themeColor="textSecondary">
-              {!routesLoaded
-                ? forOther ? 'Loading their routes…' : 'Loading your routes…'
-                : forOther ? 'No routes are assigned to them. Admin assigns routes.' : 'No routes are assigned to you yet. Ask your Admin to assign one.'}
-            </ThemedText>
-          ) : (
-            <View style={errors?.routes ? [styles.marked, { borderColor: theme.danger }] : styles.routeList}>
-              {/* One dropdown, several routes: tick the routes in the sheet and tap Done. */}
-              <OutletPicker
-                label="Routes"
-                multiple
-                searchable
-                values={value.routeIds}
-                onChangeValues={setRoutes}
-                options={routes.map((r) => ({ id: r.id, name: r.name, subtitle: r.detail }))}
-                disabled={disabled}
-                emptyText={forOther ? 'No routes are assigned to them.' : 'No routes are assigned to you yet.'}
-              />
-              {value.routeIds.length > 0 ? (
+  const chosenTags =
+    value.routeIds.length > 0 ? (
                 <View style={styles.tags}>
                   {value.routeIds.map((id) => {
                     const r = routes.find((x) => x.id === id);
@@ -129,7 +93,68 @@ export function PlanDayForm({ value, onChange, disabled, date, errors, lockedDat
                     );
                   })}
                 </View>
+    ) : null;
+
+  function setType(workingType: WorkingType) {
+    // Only Field Work and Doctor Campaign take routes (the server refuses them on the other three).
+    const field = isFieldDay(workingType);
+    onChange({ ...value, workingType, routeIds: field ? value.routeIds : [], workWith: [], returnDate: field ? value.returnDate : null });
+  }
+
+  function setRoutes(routeIds: string[]) {
+    // Without an out-station route there is no trip, so the return day goes.
+    const stillOut = routes.some((r) => r.routeType === 'OUT_STATION' && routeIds.includes(r.id));
+    onChange({ ...value, routeIds, returnDate: stillOut ? value.returnDate : null });
+  }
+
+  return (
+    <>
+      <ThemedText type="smallBold">Working type</ThemedText>
+      <ChoiceChips options={WORKING_TYPES} value={value.workingType} onChange={setType} disabled={disabled} />
+
+      {!needsRoute ? (
+        <ThemedText type="small" themeColor="textSecondary">
+          Routes are only picked for Field Work and Doctor Campaign days. Who you work with is chosen on the day itself.
+        </ThemedText>
+      ) : null}
+
+      {needsRoute ? (
+        <>
+          <ThemedText type="small" themeColor="textSecondary">
+            {`Choose carefully: only ${forOther ? 'their' : teamPick ? 'your team’s' : 'your'} doctors on these routes can be planned that day.${
+              value.workingType === 'DOCTOR_CAMPAIGN' ? ' A campaign day pays DA at the highest route type and no TA.' : ''
+            }`}
+          </ThemedText>
+          {teamPick ? (
+            <View style={errors?.routes ? [styles.marked, { borderColor: theme.danger }] : styles.routeList}>
+              <TeamRoutesField value={value.routeIds} onChange={setRoutes} disabled={disabled} known={teamKnown} onKnown={rememberFound} />
+              {chosenTags}
+              {errors?.routes ? (
+                <ThemedText type="small" themeColor="danger">
+                  {errors.routes}
+                </ThemedText>
               ) : null}
+            </View>
+          ) : routes.length === 0 ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              {!routesLoaded
+                ? forOther ? 'Loading their routes…' : 'Loading your routes…'
+                : forOther ? 'No routes are assigned to them. Admin assigns routes.' : 'No routes are assigned to you yet. Ask your Admin to assign one.'}
+            </ThemedText>
+          ) : (
+            <View style={errors?.routes ? [styles.marked, { borderColor: theme.danger }] : styles.routeList}>
+              {/* One dropdown, several routes: tick the routes in the sheet and tap Done. */}
+              <OutletPicker
+                label="Routes"
+                multiple
+                searchable
+                values={value.routeIds}
+                onChangeValues={setRoutes}
+                options={routes.map((r) => ({ id: r.id, name: r.name, subtitle: r.detail }))}
+                disabled={disabled}
+                emptyText={forOther ? 'No routes are assigned to them.' : 'No routes are assigned to you yet.'}
+              />
+              {chosenTags}
               {errors?.routes ? (
                 <ThemedText type="small" themeColor="danger">
                   {errors.routes}
@@ -188,10 +213,6 @@ export function PlanDayForm({ value, onChange, disabled, date, errors, lockedDat
             </>
           )}
         </ThemedView>
-      ) : null}
-
-      {needsRoute ? (
-        <WorkWithPicker value={value.workWith} onChange={(workWith) => onChange({ ...value, workWith })} disabled={disabled} people={forOther?.people} />
       ) : null}
 
       <TextField

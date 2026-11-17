@@ -9,7 +9,6 @@ import { FormField } from '@/components/ui/FormField';
 import { Input, Textarea } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { ApiError } from '@/lib/api/ApiError';
-import { EmployeePickerField, WorkWithName } from '@/features/people/components/EmployeePickerField';
 import { useAmendMonthlyPlan, usePlanOwnerRoutes } from '../hooks/usePreviews';
 import { amendEntries, changedDates, clearedForType, dayProblem, draftsOf, isFieldDay, isTripDay, localToday, nextDay, offDayLabel, planDayLabel, tripLines, withDay, type DraftDay } from '../lib/plans';
 import { DAY_KIND_LABEL, WORKING_TYPE_LABEL } from '../lib/review';
@@ -224,30 +223,6 @@ export function AmendMonthlyPlanDialog({ plan, approved = false, onClose }: { pl
                       ))}
                     </div>
                   </fieldset>
-                  <div className="space-y-1.5">
-                    <p className="text-sm font-medium text-text">Works with</p>
-                    {form.workWith.length > 0 ? (
-                      <ul className="flex flex-wrap gap-2">
-                        {form.workWith.map((id) => (
-                          <li key={id} className="flex items-center gap-1 rounded-md border border-border bg-surface px-2 py-1 text-sm">
-                            <WorkWithName userId={id} />
-                            <button type="button" className="text-text-subtle hover:text-text" aria-label="Remove" onClick={() => setForm((f) => ({ ...f, workWith: toggle(f.workWith, id) }))}>
-                              ×
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : null}
-                    <EmployeePickerField
-                      id="amend-work-with"
-                      label="Add a colleague"
-                      title="Works with"
-                      value=""
-                      selfId={plan.userId}
-                      hint="Only people in the employee’s team can be added; the server checks."
-                      onChange={(id) => id && setForm((f) => ({ ...f, workWith: f.workWith.includes(id) ? f.workWith : [...f.workWith, id] }))}
-                    />
-                  </div>
                   {hasOutStation ? (
                     <FormField label="Return date (trip)" htmlFor="amend-return" hint="Leave empty for a same-day return. The days between become stay days, and the return day is the way back.">
                       <Input id="amend-return" type="date" className="w-44" min={nextDay(date)} value={form.returnDate ?? ''} onChange={(e) => setForm((f) => ({ ...f, returnDate: e.target.value || null }))} />
@@ -255,7 +230,7 @@ export function AmendMonthlyPlanDialog({ plan, approved = false, onClose }: { pl
                   ) : null}
                     </>
                   ) : (
-                    <p className="text-sm text-text-subtle">Routes and “Work with” are only picked for Field work and Doctor campaign days.</p>
+                    <p className="text-sm text-text-subtle">Routes are only picked for Field work and Doctor campaign days. Who the day is worked with is chosen on the Daily Plan.</p>
                   )}
                   <FormField label="Remarks" htmlFor="amend-remarks">
                     <Textarea id="amend-remarks" maxLength={500} value={form.remarks ?? ''} onChange={(e) => setForm((f) => ({ ...f, remarks: e.target.value }))} />
