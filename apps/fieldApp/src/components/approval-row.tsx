@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Accents, Spacing, type Accent } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { isOneApproval, kindLabel, statusLabel, type ApprovalItem, type ApprovalStatus } from '@/lib/approvals';
+import { isAutoApproved, isOneApproval, kindLabel, statusLabel, type ApprovalItem, type ApprovalStatus } from '@/lib/approvals';
 import { formatWhen } from '@/offline/day';
 
 import { ThemedText } from './themed-text';
@@ -64,7 +64,7 @@ export function ApprovalRow({ item, onPress, selecting, selected, own }: Props) 
   // One approval (plans, services): never "With Admin"; an older one left at MANAGER_APPROVED is approved, and green.
   const oneApprovalDone = item.status === 'MANAGER_APPROVED' && isOneApproval(item);
   const status = Accents[oneApprovalDone ? 'green' : STATUS_ACCENT[item.status]];
-  const statusText = own ? statusLabel(item) : oneApprovalDone ? 'Approved' : STATUS_SHORT[item.status];
+  const statusText = own || isAutoApproved(item) ? statusLabel(item) : oneApprovalDone ? 'Approved' : STATUS_SHORT[item.status];
   const name = item.submitter?.name ?? 'Unknown employee';
 
   return (
