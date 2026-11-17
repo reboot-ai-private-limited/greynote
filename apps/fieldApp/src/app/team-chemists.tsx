@@ -1,3 +1,4 @@
+import { useLocalSearchParams } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { PagedList } from '@/components/team/paged-list';
@@ -9,10 +10,11 @@ import { holdersText, listTeamChemistsPage, type TeamChemist } from '@/lib/team-
 
 /** Team chemists (managers): every chemist an MR below you holds, with who holds it. Computed by the server; nothing is assigned to you. */
 export default function TeamChemistsScreen() {
+  const { userId } = useLocalSearchParams<{ userId?: string }>();
   return (
     <ScreenShell title="Chemists" subtitle="Chemists held by the people in your team">
       <PagedList<TeamChemist>
-        fetchPage={listTeamChemistsPage}
+        fetchPage={(p, q) => listTeamChemistsPage(p, q, typeof userId === 'string' && userId !== '' ? userId : undefined)}
         searchLabel="Search the chemist, or an MR’s name or code"
         emptyText="Nobody in your team holds a chemist yet."
         offlineText="Connect to the internet to see your team’s chemists."

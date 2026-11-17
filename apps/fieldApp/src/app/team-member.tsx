@@ -8,7 +8,8 @@ import { PrimaryButton } from '@/components/primary-button';
 import { ScreenShell } from '@/components/screen-shell';
 import { Skeleton } from '@/components/skeleton';
 import { PlansTab, ReportsTab } from '@/components/team/member/plans-tab';
-import { PillToggle } from '@/components/pill-toggle';
+import { ChoiceChips } from '@/components/choice-chips';
+import { DoctorsTab, ExpensesTab, LeaveTab, OrdersTab } from '@/components/team/member/more-tabs';
 import { MemberDownloads } from '@/components/team/member-downloads';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar, CardSection, InfoCard, Meter, Pill, RowCard, SummaryStrip, sym } from '@/components/ui-cards';
@@ -33,7 +34,7 @@ export default function TeamMemberScreen() {
   const clamp = (m: string) => (m < fy.firstMonth ? fy.firstMonth : m > lastMonth ? lastMonth : m);
   const [picked, setMonth] = useState<string | null>(null);
   const month = clamp(picked ?? lastMonth);
-  const [tab, setTab] = useState<'overview' | 'plans' | 'reports' | 'more'>('overview');
+  const [tab, setTab] = useState<'overview' | 'plans' | 'reports' | 'expenses' | 'leave' | 'doctors' | 'orders'>('overview');
   const [menu, setMenu] = useState(false);
 
   const list = useCachedFetch<TeamMemberSummary>(`team-member:${id}:${month}`, () => getTeamMemberSummary(String(id), month));
@@ -83,12 +84,15 @@ export default function TeamMemberScreen() {
             </Notice>
           ) : null}
 
-          <PillToggle
+          <ChoiceChips
             options={[
               { value: 'overview', label: 'Overview' },
               { value: 'plans', label: 'Plans' },
               { value: 'reports', label: 'Reports' },
-              { value: 'more', label: 'More' },
+              { value: 'expenses', label: 'Expenses' },
+              { value: 'leave', label: 'Leave' },
+              { value: 'doctors', label: 'Doctors' },
+              { value: 'orders', label: 'Orders' },
             ]}
             value={tab}
             onChange={setTab}
@@ -128,15 +132,10 @@ export default function TeamMemberScreen() {
           ) : null}
           {tab === 'plans' ? <PlansTab userId={String(id)} month={month} /> : null}
           {tab === 'reports' ? <ReportsTab userId={String(id)} month={month} /> : null}
-          {tab === 'more' ? (
-            <View style={styles.group}>
-              <RowCard icon={sym('stethoscope', 'medical_services')} accent="teal" title="Doctors" subtitle="Their doctors, and how often each is visited" right={chevron} onPress={() => go('/team-doctors')} />
-              <RowCard icon={sym('calendar.badge.clock', 'event_busy')} accent="pink" title="Leave" subtitle="Leave taken or waiting this month" right={chevron} onPress={() => go('/team-leaves')} />
-              <RowCard icon={sym('cart', 'shopping_cart')} accent="orange" title="Orders" subtitle="Orders placed this month" right={chevron} onPress={() => go('/team-orders')} />
-              <RowCard icon={sym('shippingbox', 'inventory_2')} accent="lime" title="Stock & secondary" subtitle="Stock counts and the month’s secondary" right={chevron} onPress={() => go('/team-stock')} />
-              <RowCard icon={sym('doc.text', 'description')} accent="blue" title="Daily reports (full list)" subtitle="Each report with its calls and status" right={chevron} onPress={() => go('/team-reports')} />
-            </View>
-          ) : null}
+          {tab === 'expenses' ? <ExpensesTab userId={String(id)} month={month} /> : null}
+          {tab === 'leave' ? <LeaveTab userId={String(id)} month={month} /> : null}
+          {tab === 'doctors' ? <DoctorsTab userId={String(id)} month={month} /> : null}
+          {tab === 'orders' ? <OrdersTab userId={String(id)} month={month} /> : null}
         </>
       ) : null}
     </ScreenShell>

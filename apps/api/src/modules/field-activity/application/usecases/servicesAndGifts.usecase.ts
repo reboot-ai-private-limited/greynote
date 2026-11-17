@@ -236,3 +236,21 @@ export class ListGiftsUseCase {
     return Promise.all(rows.map(async (g) => ({ ...g, doctorName: (await this.master.getDoctor(g.doctorId))?.name ?? '' })));
   }
 }
+
+/** What the services asked for some doctors come to, for a manager's doctor lists (any requester; newest first). */
+export class ListServicesForDoctorsUseCase {
+  constructor(
+    private readonly services: DoctorServiceRepositoryPort,
+    private readonly approvals: ApprovalsPort,
+    private readonly master: FieldMasterDataPort,
+    private readonly users: UserDirectoryPort,
+  ) {}
+
+  async execute(doctorIds: string[], limit = 2000): Promise<DoctorServiceView[]> {
+    if (doctorIds.length === 0) return [];
+    const rows = await this.services.list({ doctorIds }, limit);
+    const views = await Promise.all(rows.map((s) => toServiceView(this.approvals, this.master, s)));
+    const names = new Map((await this.users.getUserSummaries([...new Set(rows.map((r) => r.userId))])).map((u) => [u.id, u.name]));
+    return views.map((v) => ({ ...v, userName: names.get(v.userId) ?? '' }));
+  }
+}

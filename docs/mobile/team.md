@@ -168,3 +168,18 @@ Suggested shape, not ours to build. Visible only when `GET /auth/me` shows the p
 - `GET /team/plans` rows now also carry `doctors[{ id, name }]` and `remarks`. `/team/today` still sends `NOT_STARTED` (older phones); the phone ignores it.
 - Opening **Team doctors** from a person (`userId`) is about that person only: no employee dropdown.
 - Phase 2: Expenses, Leave and attendance calendar, Doctors tab and doctor page (services ₹), orders filter. Phase 3: Daily report in Approvals' All team requests.
+
+
+## Team tab, phase 2 (2026-11-18): the person page's other tabs, the doctor page
+
+The person page tabs are now **Overview · Plans · Reports · Expenses · Leave · Doctors · Orders**, all following the financial year and the month stepper.
+
+| Tab | Source | Shows |
+|---|---|---|
+| Expenses | `GET /field-activity/expense-months?month&userId` (existing, read for a team member) | the month's status, TA / DA / Other / Total, and each day |
+| Leave | `GET /team/members/:id/attendance?month` (new) and `GET /team/leaves?userId` | a **calendar grid** (Monday first, one coloured cell per day: present, leave, absent, strike, weekly off, holiday) with a legend and counts, then the month's leaves |
+| Doctors | `GET /team/members/:id/doctors?month` (new) | that person's doctors only: visits this month against target, the last visit, **services asked ₹** (count, total, waiting / to do / done / rejected; rejected is not summed); the chemists and distributors they hold, first five with "See all" (`/team-chemists?userId`) |
+| Orders | `GET /team/orders?userId&from&to` | the month's orders, filter All / Placed / Done / Cancelled (chemist orders read "Info only") |
+| Doctor page | `GET /team/doctors/:id?month` (new; 404 unless the holder is below you) | who holds the doctor, visits this month, recent visits, every service asked for him with amount, asker and stage |
+
+A doctor's visits come from the reports logged (a draft report's calls count too). "Last visit" looks back about two months.

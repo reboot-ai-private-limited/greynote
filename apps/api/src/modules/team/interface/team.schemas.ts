@@ -63,6 +63,8 @@ export const summaryQuerySchema = z.object({
 
 export const daysQuerySchema = z.object({ month: calendarMonthSchema });
 
+export const doctorParamsSchema = z.object({ id: userId });
+
 export const ordersQuerySchema = z.object({
   ...paging(50),
   scope,

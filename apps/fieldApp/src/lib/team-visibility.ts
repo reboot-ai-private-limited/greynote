@@ -17,8 +17,8 @@ export const TEAM_PAGE_SIZE = 20;
 
 const page = (p: number, search: string) => `page=${p}&pageSize=${TEAM_PAGE_SIZE}${search.trim() ? `&search=${encodeURIComponent(search.trim().slice(0, 100))}` : ''}`;
 
-export const listTeamChemistsPage = (p: number, search: string) => apiGet<Paged<TeamChemist>>(`/field-master-data/chemists/team?${page(p, search)}`);
-export const listTeamDistributorsPage = (p: number, search: string) => apiGet<Paged<TeamDistributor>>(`/field-master-data/distributors/team?${page(p, search)}`);
+export const listTeamChemistsPage = (p: number, search: string, userId?: string) => apiGet<Paged<TeamChemist>>(`/field-master-data/chemists/team?${page(p, search)}${userId ? `&userId=${userId}` : ''}`);
+export const listTeamDistributorsPage = (p: number, search: string, userId?: string) => apiGet<Paged<TeamDistributor>>(`/field-master-data/distributors/team?${page(p, search)}${userId ? `&userId=${userId}` : ''}`);
 export const getTeamTerritory = async () => (await apiGet<{ zones: TeamZone[] }>('/territory/team')).zones;
 export const listHqRoutesPage = (hqId: string, p: number, search: string) => apiGet<Paged<HqRoute>>(`/territory/team/hqs/${hqId}/routes?${page(p, search)}`);
 

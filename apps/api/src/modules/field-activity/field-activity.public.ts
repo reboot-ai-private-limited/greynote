@@ -1,12 +1,14 @@
 import type { Expense } from './domain/expense.entity.js';
 import type { ExpenseMonthSummary } from './domain/records.repository.port.js';
 import type { DcrMonthSummary } from './application/usecases/dcrReports.usecase.js';
+import type { DoctorServiceView } from './application/usecases/servicesAndGifts.usecase.js';
 import type { DayActivity } from './application/usecases/getDayActivity.usecase.js';
 import type { DcrSummary } from './application/usecases/getDcrSummary.usecase.js';
 
 export type { Expense } from './domain/expense.entity.js';
 export type { ExpenseMonthSummary } from './domain/records.repository.port.js';
 export type { DcrMonthSummary } from './application/usecases/dcrReports.usecase.js';
+export type { DoctorServiceView } from './application/usecases/servicesAndGifts.usecase.js';
 export type { DayActivity } from './application/usecases/getDayActivity.usecase.js';
 export type { DcrSummary } from './application/usecases/getDcrSummary.usecase.js';
 
@@ -61,4 +63,6 @@ export interface FieldActivityPublicContract {
   getDayActivity(userIds: string[], date: string): Promise<DayActivity[]>;
   /** One person's days of a range, one line per report that exists (the person page's Plans and Reports tabs). */
   getActivityRange(userId: string, range: { from: string; to: string }): Promise<DayActivity[]>;
+  /** The services asked for these doctors by anyone, with their stage (`status`, `doneAt`), amount and requester: a manager's doctor lists. */
+  listServicesForDoctors(doctorIds: string[]): Promise<DoctorServiceView[]>;
 }

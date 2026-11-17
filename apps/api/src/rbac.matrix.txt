@@ -176,9 +176,12 @@ GET    /api/sales/stock-counts/impact  ADMIN
 GET    /api/sync/drafts  FIELD
 GET    /api/sync/pull  FIELD
 GET    /api/team/day  FIELD
+GET    /api/team/doctors/:id  FIELD
 GET    /api/team/leaves  FIELD
 GET    /api/team/members  FIELD
+GET    /api/team/members/:id/attendance  FIELD
 GET    /api/team/members/:id/days  FIELD
+GET    /api/team/members/:id/doctors  FIELD
 GET    /api/team/members/:id/summary  FIELD
 GET    /api/team/orders  FIELD
 GET    /api/team/plans  FIELD

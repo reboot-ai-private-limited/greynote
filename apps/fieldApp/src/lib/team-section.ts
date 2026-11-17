@@ -151,6 +151,40 @@ export type TeamMemberDay = {
 export type TeamMemberDays = { month: string; monthlyPlanStatus: string | null; items: TeamMemberDay[] };
 export const getTeamMemberDays = (userId: string, month: string) => apiGet<TeamMemberDays>(`/team/members/${userId}/days${query({ month })}`, { auth: true, fy: true });
 
+/* ── one person's attendance, doctors; one doctor ── */
+
+export type AttendanceStatus = 'NOT_YET' | 'BEFORE_JOINING' | 'NOT_EMPLOYED' | 'HOLIDAY' | 'WEEKLY_OFF' | 'LEAVE' | 'STRIKE' | 'PRESENT' | 'ABSENT' | 'UNKNOWN';
+export type AttendanceMonth = { userId: string; month: string; days: { date: string; status: AttendanceStatus }[]; counts: Record<string, number> };
+export const getMemberAttendance = (userId: string, month: string) => apiGet<AttendanceMonth>(`/team/members/${userId}/attendance${query({ month })}`, { auth: true, fy: true });
+
+export type ServiceTotals = { count: number; totalPaise: number; waiting: number; toDo: number; done: number; rejected: number };
+export type MemberDoctor = {
+  id: string;
+  name: string;
+  specialty: string;
+  clinicName: string | null;
+  routeName: string | null;
+  visitFrequency: number | null;
+  visitsThisMonth: number;
+  lastVisit: string | null;
+  services: ServiceTotals;
+};
+export const getMemberDoctors = (userId: string, month: string) => apiGet<{ month: string; items: MemberDoctor[] }>(`/team/members/${userId}/doctors${query({ month })}`, { auth: true, fy: true });
+
+export type TeamDoctorDetail = {
+  doctor: { id: string; name: string; specialty: string; clinicName: string | null; phone: string | null; address: string; visitFrequency: number | null; routeName: string | null };
+  heldBy: { id: string; name: string; employeeCode: string };
+  month: string;
+  visitsThisMonth: number;
+  calls: { date: string; at: string; remarks: string | null; geofence: string }[];
+  services: { totals: ServiceTotals; items: { id: string; serviceType: string; amountPaise: number; remarks: string | null; status: string; doneAt: string | null; askedBy: string; createdAt: string }[] };
+};
+export const getTeamDoctor = (doctorId: string, month: string) => apiGet<TeamDoctorDetail>(`/team/doctors/${doctorId}${query({ month })}`, { auth: true, fy: true });
+
+/** A service's stage in words, from its approval status and whether it was carried out. */
+export const serviceStageText = (status: string, doneAt: string | null): { text: string; accent: Accent } =>
+  doneAt ? { text: 'Done', accent: 'green' } : status === 'REJECTED' ? { text: 'Rejected', accent: 'red' } : status === 'APPROVED' || status === 'MANAGER_APPROVED' ? { text: 'Approved, to do', accent: 'blue' } : status === 'SUBMITTED' ? { text: 'Waiting for approval', accent: 'amber' } : { text: status.toLowerCase(), accent: 'slate' };
+
 /** The plan chip's words and colour, from a Daily Plan status (`null` = no plan). */
 export const PLAN_CHIP: Record<string, { text: string; accent: Accent }> = {
   APPROVED: { text: 'Plan approved', accent: 'green' },

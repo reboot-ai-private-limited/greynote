@@ -2,6 +2,8 @@ import type {
   DownlineEntry,
   TeamBlockPort,
   TeamConfigPort,
+  TeamDoctorInfo,
+  TeamDoctorService,
   TeamDayActivity,
   TeamDirectoryPort,
   TeamFieldActivityPort,
@@ -128,6 +130,21 @@ export class FakeTeam
   async getRoute(routeId: string): Promise<TeamPlanRoute | null> {
     if (routeId === 'gone') return null;
     return { id: routeId, name: `Route ${routeId}`, routeType: this.routeTypes.get(routeId) ?? 'HQ' };
+  }
+  /** Doctors by holder, and the services asked for doctors (the manager's doctor lists). */
+  held = new Map<string, TeamDoctorInfo[]>();
+  services: TeamDoctorService[] = [];
+  async listAssignedDoctors(userId: string) {
+    return this.held.get(userId) ?? [];
+  }
+  async getDoctor(id: string) {
+    return [...this.held.values()].flat().find((d) => d.id === id) ?? null;
+  }
+  async getAssignedUserId(id: string) {
+    return [...this.held].find(([, ds]) => ds.some((d) => d.id === id))?.[0] ?? null;
+  }
+  async listServicesForDoctors(ids: string[]) {
+    return this.services.filter((s) => ids.includes(s.doctorId));
   }
   async getActivityRange(userId: string, range: { from: string; to: string }): Promise<TeamDayActivity[]> {
     return [...this.day.values()].filter((a) => a.userId === userId && a.date >= range.from && a.date <= range.to);

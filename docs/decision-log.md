@@ -2819,3 +2819,9 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 
 - "Not started" removed: it was a clock rule (no call by 11:00) shown next to an approved plan. The plan chip, route names, doctors visited and the report chip replace it.
 - Today's board and the person page's Plans and Reports tabs read two new team endpoints (`/team/day`, `/team/members/:id/days`); `/team/plans` gains doctor names and remarks. Contracts gained `getDoctorNames`, `getDayActivity`, `getActivityRange` and richer `listDailyPlanDays`.
+
+
+## 2026-11-18: Team tab phase 2: the person's Expenses, Leave and attendance calendar, Doctors and Orders tabs; the doctor page
+
+- Services are the doctor's "how much service": asked services with ₹ and stage (rejected not summed). Field Activity's contract gained `listServicesForDoctors`; Team gained attendance, doctors and doctor reads (downline only).
+- The web Doctors list column for services is not built yet.

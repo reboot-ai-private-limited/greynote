@@ -162,7 +162,7 @@ export function buildContainers(): AppContainers {
   const reports = buildReportsContainer(identity.contract, fieldMasterData.contract, sales.contract, fieldActivity.contract, territory.contract, payroll.contract, planning.contract, attendance.contract, marketing.contract, config.contract);
 
   // Tier 7 — Team: a manager's view of their downline. Reads Identity, Territory, Planning, Field Activity, HR, Config, Reports, Sales and Field Master Data; owns no data.
-  const team = buildTeamContainer(identity.contract, territory.contract, planning.contract, fieldActivity.contract, hr.contract, config.contract, reports.contract, sales.contract, fieldMasterData.contract, approval.contract, inbox.contract, identity.contract);
+  const team = buildTeamContainer(identity.contract, territory.contract, planning.contract, fieldActivity.contract, hr.contract, config.contract, reports.contract, sales.contract, fieldMasterData.contract, approval.contract, inbox.contract, identity.contract, attendance.contract);
 
   // Tier 7 — Reminders: deadline reminders to employees and "N not submitted" / "N waiting" messages to managers, through the Inbox (which also pushes). Owns only its dedupe marks.
   const reminders = buildRemindersContainer(identity.contract, hr.contract, planning.contract, fieldActivity.contract, sales.contract, approval.contract, inbox.contract, config.contract);

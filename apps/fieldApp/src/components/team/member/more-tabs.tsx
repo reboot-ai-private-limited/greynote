@@ -1,0 +1,232 @@
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+
+import { Spacing } from '@/constants/theme';
+import { useWindowed } from '@/hooks/use-windowed';
+import { useFinancialYear } from '@/lib/financial-year';
+import { formatRupees } from '@/lib/money';
+import { getStatement, STATUS_TEXT, type ExpenseStatement } from '@/lib/expense-months';
+import {
+  getMemberAttendance,
+  getMemberDoctors,
+  getTeamLeaves,
+  getTeamOrders,
+  type AttendanceMonth,
+  type MemberDoctor,
+  type TeamLeave,
+  type TeamOrders,
+} from '@/lib/team-section';
+import { listTeamChemistsPage, listTeamDistributorsPage, type TeamChemist, type TeamDistributor } from '@/lib/team-visibility';
+import { useOnline } from '@/offline';
+import { useCachedFetch } from '@/offline/cached-fetch';
+import { prettyDay } from '@/offline/day';
+
+import { ChoiceChips } from '../../choice-chips';
+import { Notice } from '../../notice';
+import { NumberedRow } from '../../numbered-row';
+import { PrimaryButton } from '../../primary-button';
+import { Skeleton } from '../../skeleton';
+import { ThemedText } from '../../themed-text';
+import { CardSection, InfoCard, Pill, SummaryStrip, sym } from '../../ui-cards';
+import { AttendanceCalendar } from './attendance-calendar';
+
+const monthEnd = (month: string) => {
+  const [y, m] = month.split('-').map(Number) as [number, number];
+  return `${month}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, '0')}`;
+};
+
+const Offline = ({ what }: { what: string }) => <Notice tone="info">{`Connect to see ${what}.`}</Notice>;
+
+/** The month's TA/DA statement of the person: totals, status, and each day. Read only. */
+export function ExpensesTab({ userId, month }: { userId: string; month: string }) {
+  const online = useOnline();
+  const fy = useFinancialYear();
+  const q = useCachedFetch<ExpenseStatement>(`team-member-expenses:${fy.year}:${userId}:${month}`, () => getStatement(month, userId));
+  const st = q.data;
+  const rows = (st?.days ?? []).filter((d) => d.totalPaise > 0 || d.others.length > 0);
+  const { visible } = useWindowed(rows, `${userId}|${month}`);
+  return (
+    <View style={styles.stack}>
+      {!online && !st ? <Offline what="this person’s expenses" /> : null}
+      {q.error && online ? <Notice tone="danger">{q.error}</Notice> : null}
+      {q.loading && !st ? <Skeleton cards={2} lines={3} /> : null}
+      {st ? (
+        <>
+          <InfoCard>
+            <View style={styles.head}>
+              <ThemedText type="smallBold" style={styles.grow}>Month statement</ThemedText>
+              <Pill text={STATUS_TEXT[st.status].split(' — ')[0]!} accent={st.status === 'APPROVED' ? 'green' : st.status === 'SUBMITTED' ? 'amber' : st.status === 'REJECTED' ? 'red' : 'slate'} />
+            </View>
+            <ThemedText type="small" themeColor="textSecondary">
+              {st.status === 'DRAFT' ? 'Not sent yet: the figures below are what the days come to so far.' : st.status === 'SUBMITTED' ? 'Waiting for the manager’s approval.' : st.status === 'APPROVED' ? `Approved${st.paidPaise > 0 ? `, ${formatRupees(st.paidPaise)} paid` : ''}.` : 'Sent back to the person.'}
+            </ThemedText>
+          </InfoCard>
+          <SummaryStrip
+            items={[
+              { label: 'TA', value: formatRupees(st.totals.taPaise), accent: 'blue' },
+              { label: 'DA', value: formatRupees(st.totals.daPaise), accent: 'teal' },
+              { label: 'Other', value: formatRupees(st.totals.otherPaise), accent: 'purple' },
+              { label: 'Total', value: formatRupees(st.totals.totalPaise), accent: 'green' },
+            ]}
+          />
+          {rows.length === 0 ? <Notice tone="info">No expenses on any day this month.</Notice> : <ThemedText type="small" themeColor="textSecondary">{`Total ${rows.length} days`}</ThemedText>}
+          {visible.map((d, i) => (
+            <NumberedRow key={d.date} n={i + 1}>
+              <InfoCard>
+                <View style={styles.head}>
+                  <ThemedText type="smallBold" style={styles.grow}>{prettyDay(d.date)}</ThemedText>
+                  <ThemedText type="smallBold">{formatRupees(d.totalPaise)}</ThemedText>
+                </View>
+                <ThemedText type="small" themeColor="textSecondary">{`TA ${formatRupees(d.taPaise)} · DA ${formatRupees(d.daPaise)} · Other ${formatRupees(d.otherPaise)}`}</ThemedText>
+                {d.others.map((o) => (
+                  <ThemedText key={o.id} type="small">{`${formatRupees(o.amountPaise)}${o.remarks ? ` · ${o.remarks}` : ''}`}</ThemedText>
+                ))}
+              </InfoCard>
+            </NumberedRow>
+          ))}
+        </>
+      ) : null}
+    </View>
+  );
+}
+
+/** Attendance as a calendar for the month, then the leaves in it. */
+export function LeaveTab({ userId, month }: { userId: string; month: string }) {
+  const online = useOnline();
+  const fy = useFinancialYear();
+  const att = useCachedFetch<AttendanceMonth>(`team-member-attendance:${fy.year}:${userId}:${month}`, () => getMemberAttendance(userId, month));
+  const leaves = useCachedFetch<TeamLeave[]>(`team-member-leaves:${fy.year}:${userId}:${month}`, async () => (await getTeamLeaves({ from: `${month}-01`, to: monthEnd(month), userId })).items);
+  const list = (Array.isArray(leaves.data) ? leaves.data : []).slice().sort((a, b) => b.startDate.localeCompare(a.startDate));
+  const a = att.data;
+  return (
+    <View style={styles.stack}>
+      {!online && !a ? <Offline what="this person’s attendance" /> : null}
+      {att.error && online ? <Notice tone="danger">{att.error}</Notice> : null}
+      {att.loading && !a ? <Skeleton cards={2} lines={4} /> : null}
+      {a ? (
+        <CardSection icon={sym('calendar', 'event')} accent="purple" title="Attendance">
+          <AttendanceCalendar days={a.days} counts={a.counts} />
+        </CardSection>
+      ) : null}
+      <ThemedText type="smallBold">Leave this month</ThemedText>
+      {leaves.data && list.length === 0 ? <Notice tone="info">No leave this month.</Notice> : null}
+      {list.map((l) => (
+        <InfoCard key={l.leaveId}>
+          <View style={styles.head}>
+            <ThemedText type="smallBold" style={styles.grow}>{`${l.leaveType ?? 'Leave'} · ${l.daysCount} ${l.daysCount === 1 ? 'day' : 'days'}`}</ThemedText>
+            <Pill text={l.status === 'SUBMITTED' ? 'Waiting' : 'Approved'} accent={l.status === 'SUBMITTED' ? 'amber' : 'green'} />
+          </View>
+          <ThemedText type="small" themeColor="textSecondary">{l.startDate === l.endDate ? prettyDay(l.startDate) : `${prettyDay(l.startDate)} → ${prettyDay(l.endDate)}`}</ThemedText>
+        </InfoCard>
+      ))}
+    </View>
+  );
+}
+
+type OrderFilter = 'ALL' | 'PLACED' | 'DONE' | 'CANCELLED';
+/** The person's orders of the month, filterable by status. Chemist orders are information only and read as Placed. */
+export function OrdersTab({ userId, month }: { userId: string; month: string }) {
+  const online = useOnline();
+  const fy = useFinancialYear();
+  const [filter, setFilter] = useState<OrderFilter>('ALL');
+  const q = useCachedFetch<TeamOrders>(`team-member-orders:${fy.year}:${userId}:${month}`, () => getTeamOrders({ from: `${month}-01`, to: monthEnd(month), userId }));
+  const data = q.data;
+  const rows = (data?.items ?? []).filter((o) => filter === 'ALL' || o.status === filter);
+  const { visible } = useWindowed(rows, `${userId}|${month}|${filter}`);
+  return (
+    <View style={styles.stack}>
+      <ChoiceChips
+        options={[
+          { value: 'ALL', label: 'All' },
+          { value: 'PLACED', label: 'Placed' },
+          { value: 'DONE', label: 'Done' },
+          { value: 'CANCELLED', label: 'Cancelled' },
+        ]}
+        value={filter}
+        onChange={setFilter}
+      />
+      {!online && !data ? <Offline what="this person’s orders" /> : null}
+      {q.error && online ? <Notice tone="danger">{q.error}</Notice> : null}
+      {q.loading && !data ? <Skeleton cards={2} lines={3} /> : null}
+      {data ? <ThemedText type="small" themeColor="textSecondary">{`Total ${rows.length}${filter === 'ALL' ? ` · ${formatRupees(data.totals.amountPaise)}` : ''}`}</ThemedText> : null}
+      {data && rows.length === 0 ? <Notice tone="info">No orders.</Notice> : null}
+      {visible.map((o, i) => (
+        <NumberedRow key={o.id} n={i + 1}>
+          <InfoCard>
+            <View style={styles.head}>
+              <View style={styles.grow}>
+                <ThemedText type="smallBold">{o.outlet.name}</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">{`${o.outlet.type === 'CHEMIST' ? 'Chemist' : 'Distributor'} · ${prettyDay(o.orderDate)} · ${o.itemCount} product${o.itemCount === 1 ? '' : 's'}`}</ThemedText>
+              </View>
+              <ThemedText type="smallBold">{formatRupees(o.totalAmountPaise)}</ThemedText>
+            </View>
+            <Pill text={o.outlet.type === 'CHEMIST' ? 'Info only' : o.status === 'DONE' ? 'Done' : o.status === 'CANCELLED' ? 'Cancelled' : 'Placed'} accent={o.outlet.type === 'CHEMIST' ? 'slate' : o.status === 'DONE' ? 'green' : o.status === 'CANCELLED' ? 'red' : 'orange'} />
+          </InfoCard>
+        </NumberedRow>
+      ))}
+    </View>
+  );
+}
+
+/** The person's doctors (visits against target, the last visit, services asked for each in ₹), then the chemists and distributors they hold. */
+export function DoctorsTab({ userId, month }: { userId: string; month: string }) {
+  const online = useOnline();
+  const fy = useFinancialYear();
+  const q = useCachedFetch<{ month: string; items: MemberDoctor[] }>(`team-member-doctors:${fy.year}:${userId}:${month}`, () => getMemberDoctors(userId, month));
+  const data = q.data;
+  const rows = data?.items ?? [];
+  const { visible } = useWindowed(rows, `${userId}|${month}`);
+  const [chemists, setChemists] = useState<{ total: number; items: TeamChemist[] } | null>(null);
+  const [distributors, setDistributors] = useState<{ total: number; items: TeamDistributor[] } | null>(null);
+  useEffect(() => {
+    if (!online) return;
+    let alive = true;
+    void listTeamChemistsPage(1, '', userId).then((r) => alive && setChemists({ total: r.total, items: r.items.slice(0, 5) })).catch(() => undefined);
+    void listTeamDistributorsPage(1, '', userId).then((r) => alive && setDistributors({ total: r.total, items: r.items.slice(0, 5) })).catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [online, userId]);
+  const totalServices = rows.reduce((n, d) => n + d.services.totalPaise, 0);
+  return (
+    <View style={styles.stack}>
+      {!online && !data ? <Offline what="this person’s doctors" /> : null}
+      {q.error && online ? <Notice tone="danger">{q.error}</Notice> : null}
+      {q.loading && !data ? <Skeleton cards={3} lines={3} /> : null}
+      {data ? <ThemedText type="small" themeColor="textSecondary">{`Total ${rows.length} doctors · services asked ${formatRupees(totalServices)}`}</ThemedText> : null}
+      {data && rows.length === 0 ? <Notice tone="info">This person holds no doctors yet.</Notice> : null}
+      {visible.map((d, i) => (
+        <NumberedRow key={d.id} n={i + 1}>
+          <InfoCard>
+            <PrimaryButton label={d.name} variant="text" onPress={() => router.push({ pathname: '/team-doctor', params: { id: d.id, month } })} style={styles.name} />
+            <ThemedText type="small" themeColor="textSecondary">{[d.specialty, d.routeName].filter(Boolean).join(' · ')}</ThemedText>
+            <ThemedText type="small">
+              {`Visits this month ${d.visitsThisMonth}${d.visitFrequency ? ` of ${d.visitFrequency}` : ''} · last visit ${d.lastVisit ? prettyDay(d.lastVisit) : 'not recently'}`}
+            </ThemedText>
+            <ThemedText type="small" themeColor={d.services.count > 0 ? 'text' : 'textSecondary'}>
+              {d.services.count > 0 ? `Services ${formatRupees(d.services.totalPaise)} · ${d.services.count} asked (${[d.services.waiting && `${d.services.waiting} waiting`, d.services.toDo && `${d.services.toDo} to do`, d.services.done && `${d.services.done} done`, d.services.rejected && `${d.services.rejected} rejected`].filter(Boolean).join(', ')})` : 'No services asked'}
+            </ThemedText>
+          </InfoCard>
+        </NumberedRow>
+      ))}
+      <ThemedText type="smallBold">{`Chemists${chemists ? ` (${chemists.total})` : ''}`}</ThemedText>
+      {chemists?.items.map((c) => (
+        <ThemedText key={c.id} type="small">{`• ${c.name}${c.assignedTo.length > 1 ? ` (${c.assignedTo.length} MRs)` : ''}`}</ThemedText>
+      ))}
+      {chemists && chemists.total > 5 ? <PrimaryButton label={`See all ${chemists.total} chemists →`} variant="text" onPress={() => router.push({ pathname: '/team-chemists', params: { userId } })} style={styles.name} /> : null}
+      <ThemedText type="smallBold">{`Distributors${distributors ? ` (${distributors.total})` : ''}`}</ThemedText>
+      {distributors?.items.map((c) => (
+        <ThemedText key={c.id} type="small">{`• ${c.name}`}</ThemedText>
+      ))}
+      {distributors && distributors.total > 5 ? <PrimaryButton label={`See all ${distributors.total} distributors →`} variant="text" onPress={() => router.push({ pathname: '/team-distributors', params: { userId } })} style={styles.name} /> : null}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  stack: { gap: Spacing.two },
+  head: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  grow: { flex: 1 },
+  name: { alignSelf: 'flex-start' },
+});

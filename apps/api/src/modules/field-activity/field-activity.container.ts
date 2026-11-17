@@ -38,7 +38,7 @@ import type { LeavePort } from './domain/leave.port.js';
 import { CountDoctorCallsByDayUseCase, CountDoctorCallsUseCase, ListCalledDoctorsUseCase, SummarizeDcrsUseCase } from './application/usecases/dcrReports.usecase.js';
 import { GetDayActivityUseCase } from './application/usecases/getDayActivity.usecase.js';
 import { GetDcrSummaryUseCase } from './application/usecases/getDcrSummary.usecase.js';
-import { AllocateGiftUseCase, CreateAdminDoctorServiceUseCase, DOCTOR_SERVICE_KIND, GetDoctorServiceUseCase, MarkDoctorServiceDoneUseCase, ListDoctorServicesUseCase, ListGiftsUseCase, MarkGiftDoneUseCase, SubmitDoctorServiceUseCase } from './application/usecases/servicesAndGifts.usecase.js';
+import { AllocateGiftUseCase, CreateAdminDoctorServiceUseCase, DOCTOR_SERVICE_KIND, GetDoctorServiceUseCase, MarkDoctorServiceDoneUseCase, ListDoctorServicesUseCase, ListGiftsUseCase, ListServicesForDoctorsUseCase, MarkGiftDoneUseCase, SubmitDoctorServiceUseCase } from './application/usecases/servicesAndGifts.usecase.js';
 import { GeofenceEvaluator } from './application/geofenceEvaluator.js';
 import { LoggingGate } from './application/loggingGate.js';
 import { OverrideGeofenceUseCase } from './application/usecases/overrideGeofence.usecase.js';
@@ -238,6 +238,7 @@ export function buildFieldActivityContainer(
       getDcrSummary: (userId, range) => dcrSummary.execute(userId, range),
       getDayActivity: (userIds, date) => dayActivity.execute(userIds, date),
       getActivityRange: (userId, range) => dayActivity.range(userId, range),
+      listServicesForDoctors: (doctorIds) => new ListServicesForDoctorsUseCase(services, approvals, master, users).execute(doctorIds),
     },
     buildRouter: () =>
       buildFieldActivityRouter(

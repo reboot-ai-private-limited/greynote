@@ -1,3 +1,4 @@
+import { useLocalSearchParams } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { PagedList } from '@/components/team/paged-list';
@@ -9,10 +10,11 @@ import { holdersText, listTeamDistributorsPage, type TeamDistributor } from '@/l
 
 /** Team distributors (managers): distributors assigned to anyone in your team. Assignees outside your team are never shown. */
 export default function TeamDistributorsScreen() {
+  const { userId } = useLocalSearchParams<{ userId?: string }>();
   return (
     <ScreenShell title="Distributors" subtitle="Distributors held by the people in your team">
       <PagedList<TeamDistributor>
-        fetchPage={listTeamDistributorsPage}
+        fetchPage={(p, q) => listTeamDistributorsPage(p, q, typeof userId === 'string' && userId !== '' ? userId : undefined)}
         searchLabel="Search by name, GST or contact"
         emptyText="Nobody in your team has a distributor yet."
         offlineText="Connect to the internet to see your team’s distributors."
