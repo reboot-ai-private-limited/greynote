@@ -157,6 +157,7 @@ const TIMELESS = [
   '/api/field-master-data/chemists/team', // who holds what now, not a dated record
   '/api/field-master-data/distributors/team',
   '/api/field-master-data/chemists/:id/assignments',
+  '/api/field-master-data/chemists/:id/review', // one chemist a manager decides on: not a dated record
   '/api/field-master-data/doctors/added',
   '/api/field-master-data/doctors',
   '/api/field-master-data/doctors/:id',

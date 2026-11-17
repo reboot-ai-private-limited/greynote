@@ -58,6 +58,7 @@ GET    /api/field-activity/expenses  ACCOUNTANT,ADMIN
 GET    /api/field-master-data/chemists  ACCOUNTANT,ADMIN
 GET    /api/field-master-data/chemists/:id  ACCOUNTANT,ADMIN
 GET    /api/field-master-data/chemists/:id/assignments  ADMIN
+GET    /api/field-master-data/chemists/:id/review  FIELD
 GET    /api/field-master-data/chemists/added  FIELD
 GET    /api/field-master-data/chemists/team  FIELD
 GET    /api/field-master-data/distributors  ACCOUNTANT,ADMIN
