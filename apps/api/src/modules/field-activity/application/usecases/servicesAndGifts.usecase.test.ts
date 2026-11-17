@@ -212,3 +212,18 @@ describe('a manager reads the team’s gifts and services (2026-11-18)', () => {
     expect((await list.execute({ id: 'mr1', role: 'FIELD' }, { scope: 'team' })).map((s) => s.userId)).toEqual(['mr1']);
   });
 });
+
+describe('a manager reads a team service (2026-11-18)', () => {
+  it('the manager above the MR reads it, named; an unrelated manager and another MR get the 404 of a missing id', async () => {
+    const kit = faKit();
+    const { serverId } = await kit.submitService.execute(REC, svc, new Tx());
+    const get = new GetDoctorServiceUseCase(kit.services, kit.approvals, kit.fmd, kit.users);
+    const seen = await get.execute({ id: 'asm', role: 'FIELD' }, serverId);
+    expect(seen).toMatchObject({ id: serverId, userId: 'mr1', status: 'SUBMITTED' });
+    expect(seen.userName).toBeTruthy();
+    expect(await get.execute({ id: 'mr1', role: 'FIELD' }, serverId)).toMatchObject({ id: serverId });
+    kit.users.add('other-mgr', { role: 'FIELD', managerId: null });
+    await expect(get.execute({ id: 'other-mgr', role: 'FIELD' }, serverId)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(get.execute({ id: 'mr2', role: 'FIELD' }, serverId)).rejects.toMatchObject({ statusCode: 404 });
+  });
+});

@@ -155,3 +155,6 @@ Suggested shape, not ours to build. Visible only when `GET /auth/me` shows the p
 - **Q3** Notifications (F8): **blocked and overdue always; new-request messages only for leave, monthly expenses and new doctors**; plans and daily reports stay with the badge. In-app Inbox only for now.
 - **Q4** Salary or CTC for a manager? **No, never** (HR/Accounts only). Nothing in the Team routes returns pay.
 - **Q5** Approve on behalf of an absent peer? **Admin only**, as today.
+
+
+**Approvals date filter (2026-11-18).** On both lists the date sent is a main filter (Any time, Last 7 days, This month, Last month, **Pick dates** with a From and a To, either alone is fine). The server's `from` and `to` (inclusive) are used as they are.

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Accents, Spacing } from '@/constants/theme';
+import { DateField, EMPTY_PARTS, isoFromParts, type DateParts } from '@/components/date-field';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { ApiError, NetworkError } from '@/lib/api';
 import {
@@ -40,7 +41,7 @@ import { PersonDropdown } from '../ui-cards';
 
 type Tab = 'inbox' | 'all';
 type Whose = Extract<TeamScope, 'all' | 'direct' | 'indirect'>;
-type Period = 'ANY' | 'WEEK' | 'MONTH' | 'LAST_MONTH';
+type Period = 'ANY' | 'WEEK' | 'MONTH' | 'LAST_MONTH' | 'CUSTOM';
 
 const TABS: { value: Tab; label: string }[] = [
   { value: 'inbox', label: 'To approve' },
@@ -61,6 +62,7 @@ const PERIODS: { value: Period; label: string }[] = [
   { value: 'WEEK', label: 'Last 7 days' },
   { value: 'MONTH', label: 'This month' },
   { value: 'LAST_MONTH', label: 'Last month' },
+  { value: 'CUSTOM', label: 'Pick dates' },
 ];
 const STATUSES: { id: ApprovalStatus | 'ANY'; name: string }[] = [
   { id: 'ANY', name: 'All statuses' },
@@ -76,7 +78,7 @@ const errorText = (err: unknown) =>
 
 /** The instants a period covers, from the business "today" (`YYYY-MM-DD`). */
 function rangeOf(period: Period, today: string): Pick<ApprovalFilter, 'from' | 'to'> {
-  if (period === 'ANY') return {};
+  if (period === 'ANY' || period === 'CUSTOM') return {};
   const day = (iso: string, end = false) => new Date(`${iso}T${end ? '23:59:59.999' : '00:00:00.000'}`);
   const [y, m] = [Number(today.slice(0, 4)), Number(today.slice(5, 7))];
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -112,6 +114,9 @@ export function ApprovalsPanel({ summary, refreshSummary }: Props) {
   const [personId, setPersonId] = useState<string | null>(null);
   const [status, setStatus] = useState<ApprovalStatus | 'ANY'>('ANY');
   const [period, setPeriod] = useState<Period>('ANY');
+  // "Pick dates": a From and a To (either alone is fine), as day, month and year.
+  const [fromParts, setFromParts] = useState<DateParts>(EMPTY_PARTS);
+  const [toParts, setToParts] = useState<DateParts>(EMPTY_PARTS);
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [showMore, setShowMore] = useState(false);
 
@@ -126,7 +131,15 @@ export function ApprovalsPanel({ summary, refreshSummary }: Props) {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkMsg, setBulkMsg] = useState<{ tone: 'danger' | 'success' | 'warning'; text: string } | null>(null);
 
-  const range = useMemo(() => rangeOf(period, today), [period, today]);
+  const fromIso = isoFromParts(fromParts, today);
+  const toIso = isoFromParts(toParts, today);
+  const range = useMemo(
+    () =>
+      period === 'CUSTOM'
+        ? { ...(fromIso.iso ? { from: new Date(`${fromIso.iso}T00:00:00.000`) } : {}), ...(toIso.iso ? { to: new Date(`${toIso.iso}T23:59:59.999`) } : {}) }
+        : rangeOf(period, today),
+    [period, today, fromIso.iso, toIso.iso],
+  );
   const fromMs = range.from?.getTime();
   const toMs = range.to?.getTime();
 
@@ -137,7 +150,8 @@ export function ApprovalsPanel({ summary, refreshSummary }: Props) {
       ...(kind ? { kind } : {}),
       ...(personId ? { submitterId: personId } : {}),
       ...(tab === 'all' && status !== 'ANY' ? { status } : {}),
-      ...(fromMs !== undefined && toMs !== undefined ? { from: new Date(fromMs), to: new Date(toMs) } : {}),
+      ...(fromMs !== undefined ? { from: new Date(fromMs) } : {}),
+      ...(toMs !== undefined ? { to: new Date(toMs) } : {}),
     };
     (async () => {
       try {
@@ -175,13 +189,15 @@ export function ApprovalsPanel({ summary, refreshSummary }: Props) {
   if (kind) active.push({ key: 'kind', label: kindLabel(kind), clear: () => setKind(null) });
   if (personId) active.push({ key: 'person', label: personName ?? 'One person', clear: () => setPersonId(null) });
   if (tab === 'all' && status !== 'ANY') active.push({ key: 'status', label: STATUS_LABEL[status], clear: () => setStatus('ANY') });
-  if (period !== 'ANY') active.push({ key: 'period', label: PERIODS.find((p) => p.value === period)!.label, clear: () => setPeriod('ANY') });
+  if (period !== 'ANY') active.push({ key: 'period', label: period === 'CUSTOM' ? `${fromIso.iso ?? 'start'} to ${toIso.iso ?? 'today'}` : PERIODS.find((p) => p.value === period)!.label, clear: () => setPeriod('ANY') });
   if (overdueOnly) active.push({ key: 'overdue', label: 'Overdue only', clear: () => setOverdueOnly(false) });
   const clearAll = () => {
     setKind(null);
     setPersonId(null);
     setStatus('ANY');
     setPeriod('ANY');
+    setFromParts(EMPTY_PARTS);
+    setToParts(EMPTY_PARTS);
     setOverdueOnly(false);
   };
 
@@ -283,6 +299,24 @@ export function ApprovalsPanel({ summary, refreshSummary }: Props) {
         </>
       )}
 
+      <OutletPicker
+        label="Date sent"
+        options={PERIODS.map((p) => ({ id: p.value, name: p.label }))}
+        value={period}
+        onChange={(v) => { reset(); setPeriod(v as Period); }}
+        emptyText="No choices."
+      />
+      {period === 'CUSTOM' ? (
+        <View style={styles.dropdownRow}>
+          <View style={styles.dropdown}>
+            <DateField label="From" value={fromParts} onChange={(v) => { reset(); setFromParts(v); }} error={fromIso.error ?? undefined} />
+          </View>
+          <View style={styles.dropdown}>
+            <DateField label="To" value={toParts} onChange={(v) => { reset(); setToParts(v); }} error={toIso.error ?? undefined} />
+          </View>
+        </View>
+      ) : null}
+
       <PrimaryButton label={showMore ? 'Hide filters' : `More filters${active.length > 0 ? ` (${active.length})` : ''}`} variant="text" onPress={() => setShowMore((s) => !s)} />
       {showMore ? (
         <ThemedView type="backgroundElement" style={styles.filters}>
@@ -292,8 +326,6 @@ export function ApprovalsPanel({ summary, refreshSummary }: Props) {
           ) : (
             <PersonDropdown people={people} value={personId} onChange={(id) => { reset(); setPersonId(id); }} placeholder="Any person" />
           )}
-          <ThemedText type="smallBold">Period</ThemedText>
-          <ChoiceChips options={PERIODS} value={period} onChange={(v) => { reset(); setPeriod(v); }} />
           <ThemedText type="smallBold">Overdue</ThemedText>
           <ChoiceChips options={[{ value: 'no', label: 'All' }, { value: 'yes', label: 'Overdue only' }]} value={overdueOnly ? 'yes' : 'no'} onChange={(v) => setOverdueOnly(v === 'yes')} />
         </ThemedView>

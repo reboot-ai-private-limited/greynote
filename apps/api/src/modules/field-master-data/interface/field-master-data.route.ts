@@ -98,6 +98,7 @@ doc('get', '/doctors/team', 'Managers: the doctors of everyone in my downline', 
 doc('get', '/doctors/assigned', 'Admin: the doctors assigned to one employee, as that employee sees them', { query: employeeDoctorsQuerySchema });
 doc('get', '/distributors/team', 'Managers: the distributors handed to anyone in my team, each with the team members who hold it', { query: teamDistributorsQuerySchema });
 doc('get', '/chemists/team', 'Managers: the chemists held by everyone in my team, each with the MRs who hold it', { query: teamChemistsQuerySchema });
+doc('get', '/chemists/{id}/review', 'Managers: one chemist added by or held by someone below me, to decide a new-chemist request', { params: idParamsSchema });
 doc('get', '/chemists/{id}/assignments', 'Admin: who holds a chemist, now and before', { params: idParamsSchema });
 doc('post', '/chemists/{id}/assignments', 'Admin: make one more MR responsible for a chemist (many MRs can hold one)', { params: idParamsSchema, body: assignChemistBodySchema });
 doc('delete', '/chemists/{id}/assignments/{userId}', 'Admin: take one MR off a chemist; the others keep it', { params: chemistAssignmentParamsSchema });
@@ -223,6 +224,7 @@ function chemistAssignmentsRouter(c: ChemistAssignmentHandlers): Router {
   router.use(authenticate());
   const admin = requireRole('ADMIN');
   router.get('/team', requireRole('FIELD'), validate({ query: teamChemistsQuerySchema }), c.team);
+  router.get('/:id/review', requireRole('FIELD'), validate({ params: idParamsSchema }), c.review);
   router.get('/:id/assignments', admin, validate({ params: idParamsSchema }), c.listAssignments);
   router.post('/:id/assignments', admin, validate({ params: idParamsSchema, body: assignChemistBodySchema }), c.assign);
   router.delete('/:id/assignments/:userId', admin, validate({ params: chemistAssignmentParamsSchema }), c.unassign);

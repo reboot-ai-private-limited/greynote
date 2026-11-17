@@ -243,7 +243,7 @@ export function buildFieldActivityContainer(
           listTeam: new ListTeamDcrsUseCase(dcrs, users, views),
           adminService: new CreateAdminDoctorServiceUseCase(master, services),
           listServices: new ListDoctorServicesUseCase(services, approvals, master, users),
-          getService: new GetDoctorServiceUseCase(services, approvals, master),
+          getService: new GetDoctorServiceUseCase(services, approvals, master, users),
           markServiceDone: new MarkDoctorServiceDoneUseCase(services, approvals, master),
           allocateGift: new AllocateGiftUseCase(master, gifts),
           listGifts: new ListGiftsUseCase(gifts, master, users),

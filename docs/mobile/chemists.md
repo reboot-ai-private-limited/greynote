@@ -43,3 +43,6 @@ approved. `CHEMIST_ROUTE_NOT_ASSIGNED` keeps its name and now means "no longer a
 ## 4. What the snapshot carries (2026-11-03)
 
 Each entry of `chemists` in the snapshot (active, on my routes) now also has **`phone`**: the chemist's number, or `null` for every chemist without one (all those added before 2026-11-03 and any Admin left blank). Show it on the chemist card; make it tappable to call, as on the doctor card. Admin can add or change it on the web (`PUT /field-master-data/chemists/:id`); the phone picks the new value up at the next sync. No other snapshot field changed, and an older build that ignores `phone` keeps working.
+
+
+**A manager reads a chemist to decide a request (2026-11-18).** `GET /field-master-data/chemists/:id/review` (field roles only) returns the chemist (name, address, phone, `location`, `capturedLocation`, status) when it was added by, or is held by, someone below the caller; otherwise `404`. The plain `GET /chemists/:id` stays Admin and Accounts only. The phone's New chemist review shows the address, phone, coordinates and Open in Maps from it.

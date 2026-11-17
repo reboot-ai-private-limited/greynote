@@ -8,7 +8,7 @@ import type { Actor } from '../application/actor.js';
 import type { AddedChemists } from '../application/usecases/addedChemists.js';
 import type { AddedDoctors } from '../application/usecases/addedDoctors.js';
 import type { AdjustSampleAllocationUseCase } from '../application/usecases/adjustSampleAllocation.usecase.js';
-import type { AssignChemistUseCase, ListChemistAssignmentsUseCase, ListTeamChemistsUseCase, UnassignChemistUseCase } from '../application/usecases/chemistAssignments.usecase.js';
+import type { AssignChemistUseCase, ListChemistAssignmentsUseCase, ListTeamChemistsUseCase, ReviewChemistUseCase, UnassignChemistUseCase } from '../application/usecases/chemistAssignments.usecase.js';
 import type { ListTeamDistributorsUseCase } from '../application/usecases/listTeamDistributors.usecase.js';
 import type { AssignDoctorUseCase } from '../application/usecases/assignDoctor.usecase.js';
 import type { CreateChemistUseCase } from '../application/usecases/createChemist.usecase.js';
@@ -122,11 +122,12 @@ export function makeChemistControllers(u: {
   };
 }
 
-export type ChemistAssignmentHandlers = Record<'team' | 'listAssignments' | 'assign' | 'unassign', RequestHandler>;
+export type ChemistAssignmentHandlers = Record<'team' | 'review' | 'listAssignments' | 'assign' | 'unassign', RequestHandler>;
 
 /** Who holds a Chemist (many MRs each): Admin's assign/unassign, and a manager's team read. */
 export function makeChemistAssignmentControllers(u: {
   team: ListTeamChemistsUseCase;
+  review: ReviewChemistUseCase;
   listAssignments: ListChemistAssignmentsUseCase;
   assign: AssignChemistUseCase;
   unassign: UnassignChemistUseCase;
@@ -136,6 +137,7 @@ export function makeChemistAssignmentControllers(u: {
       const query = req.query as unknown as z.output<typeof teamChemistsQuerySchema>;
       sendSuccess(req, res, await u.team.execute(actorOf(req), query), 'Your team’s chemists.', 200);
     }),
+    review: asyncHandler(async (req, res) => sendSuccess(req, res, await u.review.execute(actorOf(req), requiredParam(req.params, 'id')), 'The chemist.', 200)),
     listAssignments: asyncHandler(async (req, res) => sendSuccess(req, res, await u.listAssignments.execute(requiredParam(req.params, 'id')), 'Assignments.', 200)),
     assign: asyncHandler(async (req, res) => {
       const { userId } = req.body as z.output<typeof assignChemistBodySchema>;

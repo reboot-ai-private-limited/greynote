@@ -127,12 +127,18 @@ export class GetDoctorServiceUseCase {
     private readonly services: DoctorServiceRepositoryPort,
     private readonly approvals: ApprovalsPort,
     private readonly master: FieldMasterDataPort,
+    private readonly users?: UserDirectoryPort,
   ) {}
 
   async execute(actor: Actor, id: string): Promise<DoctorServiceView> {
     const service = await this.services.findById(id);
-    if (!service || (actor.role !== 'ADMIN' && actor.role !== 'ACCOUNTANT' && service.userId !== actor.id)) throw AppError.notFound('No such doctor service.');
-    return toServiceView(this.approvals, this.master, service);
+    const privileged = actor.role === 'ADMIN' || actor.role === 'ACCOUNTANT';
+    // A manager above the MR the service is tied to reads it too (it is in their Approvals, and on their Services page).
+    const above = !privileged && !!service && service.userId !== actor.id && !!this.users && (await this.users.getManagerChain(service.userId)).some((m) => m.id === actor.id);
+    if (!service || (!privileged && service.userId !== actor.id && !above)) throw AppError.notFound('No such doctor service.');
+    const view = await toServiceView(this.approvals, this.master, service);
+    if (!this.users || service.userId === actor.id) return view;
+    return { ...view, userName: (await this.users.findUserSummary(service.userId))?.name ?? '' };
   }
 }
 
