@@ -463,6 +463,8 @@ export interface PlanningSnapshot {
   monthlyPlans: Array<{
     id: string;
     planMonth: string;
+    /** Days nobody can change any more (over, or their Daily Plan has gone to approval). Absent from older servers. */
+    lockedDays?: string[];
     entries: Array<{
       planDate: string;
       returnDate: string | null;

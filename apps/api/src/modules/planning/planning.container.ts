@@ -5,6 +5,8 @@ import type { SyncPublicContract } from '@/modules/sync/sync.public.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
 import { monthRange } from '@/shared/time/businessTime.js';
 import { PlanDeadlines } from './application/planDeadlines.js';
+import { makeDailyPlanMirrorHandler, mirrorDayIntoMonth } from './application/dailyToMonthMirror.js';
+import { PlanDayLocks } from './application/dayLocks.js';
 import { PlanSubmitter } from './application/planSubmitter.js';
 import { PlanViews } from './application/planViews.js';
 import { makePlanningSource } from './application/syncSnapshot.js';
@@ -83,11 +85,12 @@ export function buildPlanningContainer(
   // 2. Use cases
   const deadlines = new PlanDeadlines(config);
   const offDays = new OffDays();
+  const dayLocks = new PlanDayLocks(dailyPlans, approvals, deadlines);
   // Plans are approved once, by the submitter's manager or by Admin, whoever acts first (managerOnly). A Daily Plan's
   // status lives in the approval module; an approved Monthly Plan writes its days into Daily Plans (see below).
-  approvals.registerKind({ kind: 'DAILY_PLAN', finalApproverRoles: ['HR', 'ADMIN'], overrideRoles: ['HR', 'ADMIN'], managerOnly: true, describeRecords: describeEach((id) => dailyPlans.findById(id), (plan) => ({ title: dayTitle(plan.planDate), subtitle: null })) });
-  approvals.registerKind({ kind: 'MONTHLY_PLAN', finalApproverRoles: ['HR', 'ADMIN'], overrideRoles: ['HR', 'ADMIN'], managerOnly: true, describeRecords: describeEach((id) => monthlyPlans.findById(id), (plan) => ({ title: monthTitle(plan.planMonth), subtitle: null })), onStatusChange: makeMonthlyPlanInheritHandler(monthlyPlans, dailyPlans, approvals, deadlines, offDays) });
-  const views = new PlanViews(approvals, grants, deadlines, offDays);
+  approvals.registerKind({ kind: 'DAILY_PLAN', finalApproverRoles: ['HR', 'ADMIN'], overrideRoles: ['HR', 'ADMIN'], managerOnly: true, onStatusChange: makeDailyPlanMirrorHandler(dailyPlans, monthlyPlans, deadlines), describeRecords: describeEach((id) => dailyPlans.findById(id), (plan) => ({ title: dayTitle(plan.planDate), subtitle: null })) });
+  approvals.registerKind({ kind: 'MONTHLY_PLAN', finalApproverRoles: ['HR', 'ADMIN'], overrideRoles: ['HR', 'ADMIN'], managerOnly: true, describeRecords: describeEach((id) => monthlyPlans.findById(id), (plan) => ({ title: monthTitle(plan.planMonth), subtitle: null })), onStatusChange: makeMonthlyPlanInheritHandler(monthlyPlans, dailyPlans, approvals, deadlines, offDays, dayLocks) });
+  const views = new PlanViews(approvals, grants, deadlines, offDays, dayLocks);
   const scope = new ManagerScope(users, config, routes);
   const submitter = new PlanSubmitter(users, routes, approvals, grants, transactions, deadlines.now, scope);
   const carryOver = new CarryOver(dailyPlans, approvals, config);
@@ -99,7 +102,7 @@ export function buildPlanningContainer(
   const setDay = new SetDailyPlanUseCase(dailyPlans, approvals, users, submitter, carryOver, scope, views);
   const getDaily = new GetDailyPlanUseCase(dailyPlans, users, views, routes);
   const listDaily = new ListDailyPlansUseCase(dailyPlans, views);
-  const saveMonthly = new SaveMonthlyPlanUseCase(monthlyPlans, approvals, views, offDays);
+  const saveMonthly = new SaveMonthlyPlanUseCase(monthlyPlans, approvals, views, offDays, dayLocks);
   const submitMonthly = new SubmitMonthlyPlanUseCase(monthlyPlans, deadlines, submitter, offDays);
   const getMonthly = new GetMonthlyPlanUseCase(monthlyPlans, users, views, routes);
   const listMonthly = new ListMonthlyPlansUseCase(monthlyPlans, views);
@@ -128,10 +131,12 @@ export function buildPlanningContainer(
   let dayReported: DayReportedCheck = async () => {
     throw new Error('Planning: the day-reported check was never bound.');
   };
-  const amendDaily = new AmendDailyPlanUseCase(dailyPlans, users, submitter, deadlines, views, () => dayReported, scope, approvals);
+  const amendDaily = new AmendDailyPlanUseCase(dailyPlans, users, submitter, deadlines, views, () => dayReported, scope, approvals, async (plan, by) => {
+    await mirrorDayIntoMonth(plan, by, monthlyPlans, deadlines.now());
+  });
 
   const planOwnerRoutes = new ListPlanOwnerRoutesUseCase(monthlyPlans, users, routes, scope);
-  const amendMonthly = new AmendMonthlyPlanUseCase(monthlyPlans, users, approvals, submitter, views, offDays, deadlines.now, { deadlines, daily: dailyPlans, transactions });
+  const amendMonthly = new AmendMonthlyPlanUseCase(monthlyPlans, users, approvals, submitter, views, offDays, deadlines.now, { deadlines, daily: dailyPlans, transactions }, dayLocks);
 
   const deleteMonthly = new DeleteMonthlyPlanUseCase(monthlyPlans, dailyPlans, approvals, deadlines, transactions);
 

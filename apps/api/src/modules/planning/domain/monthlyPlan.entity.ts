@@ -33,6 +33,11 @@ export interface MonthlyPlan {
   entries: MonthlyPlanEntry[];
   /** Oldest first. */
   amendments: MonthlyPlanAmendment[];
+  /**
+   * The days as they stood when the month was last approved (set at every approval). The reference for restoring days that became past or
+   * worked between a resubmission and its approval (decision-log 2026-11-18). Absent on plans approved before it existed.
+   */
+  approvedEntries?: MonthlyPlanEntry[];
   /** Bumped on every save; submit is conditional on the revision it validated. */
   revision: number;
   /** Resubmits made through the after-rejection window; capped by `PLAN_RESUBMIT_GRACE_MAX`. */

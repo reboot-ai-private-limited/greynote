@@ -15,6 +15,7 @@ function toPlan(doc: MonthlyPlanDoc & { _id: unknown }): MonthlyPlan {
     planMonth: doc.planMonth,
     entries: toEntries(doc.entries),
     amendments: (doc.amendments ?? []).map((a) => ({ by: String(a.by), at: a.at, reason: a.reason, previous: toEntries(a.previous) })),
+    ...(doc.approvedEntries ? { approvedEntries: toEntries(doc.approvedEntries) } : {}),
     revision: doc.revision,
     lateResubmits: doc.lateResubmits ?? 0,
     updatedAt: doc.updatedAt,
@@ -87,6 +88,11 @@ export class MongoMonthlyPlanAdapter implements MonthlyPlanRepositoryPort {
       { new: true, session: (ctx as ClientSession | undefined) ?? null },
     ).lean();
     return doc ? toPlan(doc) : null;
+  }
+
+  async recordApproved(id: string, entries: MonthlyPlanEntry[], ctx: TransactionContext): Promise<void> {
+    if (!Types.ObjectId.isValid(id)) return;
+    await MonthlyPlanModel.updateOne({ _id: id }, { $set: { approvedEntries: toEntryDocs(entries) } }, { session: ctx as ClientSession });
   }
 
   async deleteById(id: string, revision: number, ctx: TransactionContext): Promise<boolean> {

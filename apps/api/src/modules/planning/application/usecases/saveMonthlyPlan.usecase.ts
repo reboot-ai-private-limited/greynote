@@ -3,6 +3,7 @@ import type { ApprovalsPort } from '../../domain/approvals.port.js';
 import type { MonthlyPlanEntry } from '../../domain/monthlyPlan.entity.js';
 import type { MonthlyPlanRepositoryPort } from '../../domain/monthlyPlan.repository.port.js';
 import { assertEditable } from '../assertEditable.js';
+import type { PlanDayLocks } from '../dayLocks.js';
 import { MonthlyPlanWriter } from '../monthlyPlanWriter.js';
 import { OffDays } from '../offDays.js';
 import type { MonthlyPlanView, PlanViews } from '../planViews.js';
@@ -19,6 +20,8 @@ export class SaveMonthlyPlanUseCase {
     private readonly approvals: ApprovalsPort,
     private readonly views: PlanViews,
     offDays: OffDays = new OffDays(),
+    /** Locked days (decision-log 2026-11-18): a month that was approved can't have a worked or sent day changed. */
+    private readonly locks?: PlanDayLocks,
   ) {
     this.writer = new MonthlyPlanWriter(plans, approvals, offDays);
   }
@@ -29,6 +32,7 @@ export class SaveMonthlyPlanUseCase {
       if (existing) await assertEditable(this.approvals, 'MONTHLY_PLAN', existing.id);
     });
 
+    await this.locks?.assertUnchanged(existing, prepared.entries);
     const saved = await this.plans.save(userId, planMonth, prepared.entries, existing?.revision ?? null);
     if (!saved) throw AppError.conflict('This plan changed while you were saving it. Reload it and try again.');
     await this.writer.saveNext(userId, prepared);

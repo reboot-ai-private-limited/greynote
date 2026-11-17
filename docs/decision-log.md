@@ -2785,3 +2785,11 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 - **"Not in plan" / "Route not in plan" are gone** from the phone, the web DCR screens and the report tiles; the server stops setting them (fields kept, false). An out-of-date phone's call is still saved, never refused.
 - **Owed doctors are derived** into `planning.owedDoctors` at every sync pull (from `CarryOver.pending`) instead of only being written into a plan when it is saved: a plan approved before the miss still shows them. Tomorrow's routes are not rewritten.
 - **"Missed Calls" is now "Visit targets"** (monthly frequency, made, remaining) and shows the team as a tree with roll-ups; the daily "missed" is a separate idea.
+
+
+## 2026-11-18: A re-edited Tour Plan can't rewrite days already worked or sent
+
+- **One locked-day rule** for every way of changing an approved month (employee save, manager edit of a waiting plan, Admin/HR): the day is today or earlier, or its Daily Plan is waiting or approved. `409 PLAN_DAY_LOCKED`. Trips follow from it (the stay and transit days are ordinary entries).
+- **Approval restores, it doesn't refuse:** days that became locked between sending and approving are put back to the Daily Plan, else the last approved version (`approvedEntries`), and noted in `amendments`.
+- **The Tour Plan mirrors the approved Daily Plan** (working type, routes, remarks), never on trip days.
+- A late exception only moves the deadline. Not changed: deadlines, resubmit windows, who approves.

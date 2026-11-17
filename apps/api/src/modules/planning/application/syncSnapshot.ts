@@ -61,6 +61,7 @@ export function makePlanningSource(deps: { deadlines: PlanDeadlines; daily: List
           id: p.id,
           planMonth: p.planMonth,
           entries: p.entries.map((e) => withPeople(e, peopleOf)),
+          lockedDays: p.lockedDays,
           revision: p.revision,
           status: p.status,
           approvalRequestId: p.approval?.requestId ?? null,

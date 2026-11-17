@@ -18,6 +18,8 @@ export interface MonthlyPlanDoc {
   planMonth: string;
   entries: MonthlyPlanEntryDoc[];
   amendments?: MonthlyPlanAmendmentDoc[];
+  /** The days as last approved; absent on plans approved before it existed. */
+  approvedEntries?: MonthlyPlanEntryDoc[];
   revision: number;
   lateResubmits: number;
   updatedAt: Date;
@@ -47,6 +49,7 @@ const monthlyPlanSchema = new Schema<MonthlyPlanDoc>({
   entries: { type: [entrySchema], default: [] },
   // Absent on plans from before manager amendments: read as none.
   amendments: { type: [amendmentSchema], default: [] },
+  approvedEntries: { type: [entrySchema], default: undefined },
   revision: { type: Number, required: true },
   lateResubmits: { type: Number, default: 0 },
   updatedAt: { type: Date, required: true },

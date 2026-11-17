@@ -121,6 +121,8 @@ export default function MonthlyPlanScreen() {
   const [detailState, setDetailState] = useState<{ key: string; detail: MonthlyPlanDetail | null } | null>(null);
 
   const existing = planning.data?.monthlyPlans.find((p) => p.planMonth === month) ?? null;
+  // Days nobody can change any more: over, or their Daily Plan has gone to approval (decision-log 2026-11-18). The server refuses them too.
+  const workedDays = useMemo(() => new Set(existing?.lockedDays ?? []), [existing]);
   const status = existing?.status ?? null;
   const editable = EDITABLE.includes(status);
   const days = useMemo(() => datesInMonth(month), [month]);
@@ -410,7 +412,7 @@ export default function MonthlyPlanScreen() {
   ) : null;
 
   const calendar = (
-    <PlanCalendar month={month} days={days} entries={entries} isOff={isOff} today={today} onPressDay={editable ? openDay : undefined} />
+    <PlanCalendar month={month} days={days} entries={entries} isOff={isOff} today={today} onPressDay={editable ? (d: string) => (workedDays.has(d) ? setMsg({ tone: 'info', text: `${prettyDay(d)} is already worked or sent for approval, so it can’t be changed.` }) : openDay(d)) : undefined} />
   );
   const summary = <PlanSummaryCard counts={counts} />;
 
@@ -453,7 +455,7 @@ export default function MonthlyPlanScreen() {
         </ThemedText>
       ) : (
         shownDays.map((d) => (
-          <PlanDayCard key={d} date={d} entry={entries[d]} off={isOff(d)} offLabel={offLabelOf(d)} editable={editable} names={names} onPress={() => openDay(d)} />
+          <PlanDayCard key={d} date={d} entry={entries[d]} off={isOff(d)} offLabel={offLabelOf(d)} editable={editable && !workedDays.has(d)} locked={editable && workedDays.has(d)} names={names} onPress={() => openDay(d)} />
         ))
       )}
     </View>

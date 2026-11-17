@@ -20,12 +20,14 @@ type Props = {
   offLabel?: string;
   /** The plan can be edited, so a working day can be tapped. */
   editable: boolean;
+  /** Already worked, or its Daily Plan has gone to approval: shown as such and can't be changed. */
+  locked?: boolean;
   names: { routes: Map<string, string>; colleagues: Map<string, Colleague> };
   onPress: () => void;
 };
 
 /** One day of the month: a coloured date block, the type, where, and who with. */
-export function PlanDayCard({ date, entry, off, offLabel, editable, names, onPress }: Props) {
+export function PlanDayCard({ date, entry, off, offLabel, editable, locked, names, onPress }: Props) {
   const theme = useTheme();
   const colors = off ? OFF_COLORS : entry ? typeColors(entry.workingType) : null;
 
@@ -43,7 +45,7 @@ export function PlanDayCard({ date, entry, off, offLabel, editable, names, onPre
   const subtitle = off
     ? 'No activity planned'
     : entry
-      ? [people.length > 0 ? `With ${people.join(', ')}` : null, routes.length > 0 ? entry.remarks : null].filter(Boolean).join(' · ')
+      ? [locked ? 'Locked: already worked or sent' : null, people.length > 0 ? `With ${people.join(', ')}` : null, routes.length > 0 ? entry.remarks : null].filter(Boolean).join(' · ')
       : null;
 
   const tappable = editable && !off;

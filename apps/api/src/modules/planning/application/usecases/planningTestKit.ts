@@ -3,6 +3,8 @@ import { isEditableBySubmitter } from '@/modules/approval/approval.public.js';
 import type { TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { ApprovalKindDefinition } from '@/modules/approval/approval.public.js';
+import { makeDailyPlanMirrorHandler } from '../dailyToMonthMirror.js';
+import { PlanDayLocks } from '../dayLocks.js';
 import { makeMonthlyPlanInheritHandler } from '../monthlyPlanInheritHandler.js';
 import { AmendDailyPlanUseCase } from './amendDailyPlan.usecase.js';
 import type { ApprovalsPort } from '../../domain/approvals.port.js';
@@ -136,6 +138,7 @@ export class FakeMonthlyPlans implements MonthlyPlanRepositoryPort {
       planMonth,
       entries,
       amendments: existing?.amendments ?? [],
+      ...(existing?.approvedEntries ? { approvedEntries: existing.approvedEntries } : {}),
       revision: (existing?.revision ?? 0) + 1,
       lateResubmits: existing?.lateResubmits ?? 0,
       updatedAt: new Date(),
@@ -149,6 +152,10 @@ export class FakeMonthlyPlans implements MonthlyPlanRepositoryPort {
     const next = { ...plan, entries, revision: plan.revision + 1, amendments: [...plan.amendments, amendment], updatedAt: amendment.at };
     this.rows.set(id, next);
     return next;
+  }
+  async recordApproved(id: string, entries: MonthlyPlanEntry[]) {
+    const plan = this.rows.get(id);
+    if (plan) this.rows.set(id, { ...plan, approvedEntries: entries });
   }
   async deleteById(id: string, revision: number) {
     const plan = this.rows.get(id);
@@ -423,8 +430,9 @@ export function planningKit(clock: Clock) {
   approvals.registerKind({
     kind: 'MONTHLY_PLAN',
     finalApproverRoles: ['ADMIN'],
-    onStatusChange: makeMonthlyPlanInheritHandler(monthlyPlans, dailyPlans, approvals, deadlines, offDays),
+    onStatusChange: makeMonthlyPlanInheritHandler(monthlyPlans, dailyPlans, approvals, deadlines, offDays, new PlanDayLocks(dailyPlans, approvals, deadlines)),
   });
+  approvals.registerKind({ kind: 'DAILY_PLAN', finalApproverRoles: ['ADMIN'], onStatusChange: makeDailyPlanMirrorHandler(dailyPlans, monthlyPlans, deadlines) });
   /** Dates (`userId:YYYY-MM-DD`) whose DCR the test says is already submitted. */
   const reported = new Set<string>();
   /** Months (`userId:YYYY-MM`) whose Monthly Plan the test says is not approved; every other month is. */

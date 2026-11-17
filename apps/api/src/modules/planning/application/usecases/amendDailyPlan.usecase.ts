@@ -1,4 +1,5 @@
 import { AppError } from '@/shared/errors/AppError.js';
+import type { DailyPlan } from '../../domain/dailyPlan.entity.js';
 import type { ApprovalsPort } from '../../domain/approvals.port.js';
 import type { DailyPlanRepositoryPort } from '../../domain/dailyPlan.repository.port.js';
 import type { PlanDay } from '../../domain/plan.js';
@@ -32,6 +33,8 @@ export class AmendDailyPlanUseCase {
     private readonly isDayReported: () => DayReportedCheck,
     private readonly scope: ManagerScope,
     private readonly approvals: ApprovalsPort,
+    /** Writes an approved day's change back into the Tour Plan (decision-log 2026-11-18). */
+    private readonly mirror?: (plan: DailyPlan, actorId: string) => Promise<void>,
   ) {}
 
   async execute(actor: Actor, planId: string, body: Omit<PlanDay, 'dayKind'>, reason: string): Promise<DailyPlanView> {
@@ -67,6 +70,8 @@ export class AmendDailyPlanUseCase {
       previous: { workingType, dayKind, workWith, routeIds, remarks },
     });
     if (!saved) throw AppError.conflict('This plan changed while you were amending it. Reload it and try again.');
+    const status = (await this.approvals.getForRecord('DAILY_PLAN', saved.id))?.status;
+    if (status === 'APPROVED' || status === 'MANAGER_APPROVED') await this.mirror?.(saved, actor.id);
     return this.views.daily(saved);
   }
 }
