@@ -18,7 +18,7 @@ type Section = 'approvals' | 'people' | 'reports';
 
 /**
  * Team (PRD §7.1, managers only), in three sections: Approvals (what waits on you, and everything your team sent, with filters),
- * People (your team as a list you can drill into, with today's state for each) and Reports (the team-wide views and the few things you
+ * Team (your team as a list you can drill into, with today's state for each) and Reports (the team-wide views and the few things you
  * set for someone). `?section=` opens one directly. Needs a connection: approvals are decided on the server's live state.
  */
 export default function TeamScreen() {
@@ -47,7 +47,7 @@ export default function TeamScreen() {
   const waiting = badge.summary?.total ?? null;
   const sections: { value: Section; label: string; badge?: number | null }[] = [
     { value: 'approvals', label: 'Approvals', badge: waiting },
-    { value: 'people', label: 'People' },
+    { value: 'people', label: 'Team' },
     { value: 'reports', label: 'Reports' },
   ];
 
@@ -61,7 +61,7 @@ export default function TeamScreen() {
                 Team
               </ThemedText>
               <ThemedText type="small" style={styles.headerSub}>
-                Approvals, people and reports for your team
+                Approvals, team and reports
               </ThemedText>
             </View>
             <View style={styles.waiting}>

@@ -113,7 +113,7 @@ function PersonRow({ node, level, expanded, onToggle }: { node: TeamNode; level:
 }
 
 /**
- * Team → People: the team as a list you can drill into. Your direct reports come first; a manager among them shows how many are below
+ * Team → Team: the team as a list you can drill into. Your direct reports come first; a manager among them shows how many are below
  * them and how many have not started or are blocked, and "Team ›" opens their people (an RSM or ZSM goes level by level, with a trail
  * back). Search or any filter looks across the whole team at once. The four numbers on top are today's, for everyone you can see.
  */
@@ -199,7 +199,7 @@ export function PeoplePanel({ onShowApprovals }: { onShowApprovals: () => void }
         </View>
       ) : (
         <View style={styles.trail}>
-          <ThemedText type="small" themeColor="textSecondary">{`${shown.length} of ${board.count} people`}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">{`${shown.length} of ${board.count} in your team`}</ThemedText>
           <PrimaryButton label="Clear filters" variant="text" onPress={clear} />
         </View>
       )}

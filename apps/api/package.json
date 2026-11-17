@@ -27,6 +27,7 @@
         "seed:demo-hierarchy": "tsx src/scripts/seed-demo-hierarchy.ts",
         "seed:demo-plans": "tsx src/scripts/seed-demo-plans.ts",
     "seed:local-test": "tsx src/scripts/seed-local-test.ts",
+    "seed:team-demo": "tsx src/scripts/seed-team-demo.ts",
         "export:pay-bands": "tsx src/scripts/export-pay-bands.ts",
         "seed:production": "tsx src/scripts/seed-production.ts",
         "migrate:employee-codes": "tsx src/scripts/migrate-employee-codes.ts",
