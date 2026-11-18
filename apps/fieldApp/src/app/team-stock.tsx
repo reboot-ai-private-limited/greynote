@@ -14,6 +14,7 @@ import { Avatar, InfoCard, Pill } from '@/components/ui-cards';
 import { Spacing, type Accent } from '@/constants/theme';
 import { toCsv } from '@/lib/csv';
 import { teamFileName } from '@/lib/exports';
+import { downloadSecondarySheet } from '@/lib/secondary-sheet';
 import { useFinancialYear } from '@/lib/financial-year';
 import { SECONDARY_STATE_TEXT, getTeamStock, type SecondaryState, type TeamStock } from '@/lib/team-section';
 import { useOnline } from '@/offline';
@@ -63,7 +64,8 @@ export default function TeamStockScreen() {
           items={[
             {
               key: 'secondary',
-              label: 'Download',
+              label: 'Status list (CSV)',
+              hint: `Who has sent ${prettyMonth(month)}, outlets without a count`,
               build: async () => ({
                 fileName: teamFileName('secondary', month),
                 title: `Secondary sales · ${prettyMonth(month)}`,
@@ -72,6 +74,12 @@ export default function TeamStockScreen() {
                   data.items.map((r) => [r.user.name, r.user.employeeCode, SECONDARY_STATE_TEXT[r.secondary], r.missingOutlets.length, r.secondaryUnits ?? 0]),
                 ),
               }),
+            },
+            {
+              key: 'sheet',
+              label: `Excel sheet · ${fy.label.replace(/^FY /, '')}`,
+              hint: 'Targets and secondary by product and month: a sheet per MR, a roll-up per manager',
+              build: async () => ({ delivered: await downloadSecondarySheet(fy.label.replace(/^FY /, '')) }),
             },
           ]}
         />

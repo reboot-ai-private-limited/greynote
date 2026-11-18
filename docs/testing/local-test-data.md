@@ -72,3 +72,13 @@ DEMOZSM ── DEMORSM ─┬─ DEMOASM  ─┬─ DEMOMRA1  routes N1, OUT
 | `ADMIN01` (web) | Amend a manager's Tour Plan day | No Works with field; the route list is the team's routes. |
 
 The same checks were run against the real API when this was set up: team routes, route options, the refusals above, team doctors/chemists/distributors and Team → Territory all answer as listed.
+
+## Secondary sales sheet (Excel)
+
+```bash
+DOTENV_CONFIG_PATH=.env.local pnpm --filter @greynote/api seed:secondary-demo -- --apply   # local only; run again any time
+```
+
+Writes, for the seven demo MRs (A1-A3, B1-B2, R1-R2): product **targets** (units, eight products, a different figure for each half of the year), **approved** secondary for April to last month, a **draft** this month for `DEMOMRA1` and `DEMOMRB1` (must not count), and last financial year approved for those two (so **% GR.** shows). The rows go straight into the local database as approved because the real submit path needs a proof upload and Cloudinary is not set up here.
+
+Try: `ADMIN01` on the web, Reports → Secondary sales → *Download Excel*; `DEMORSM` or `DEMOASM` on the phone, Team → Reports → Secondary sales → Download → Excel sheet (their team only); `DEMOMRA1` cannot (403). Change the financial year (the selector) and download again: the title and figures follow it. Expect each MR to show about ₹50.5 lakh of target and ₹21-23 lakh of secondary so far, and the RSM roll-up (about ₹353 lakh target, ₹155 lakh secondary) to equal the sum of the seven MR sheets.

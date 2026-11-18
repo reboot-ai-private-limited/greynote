@@ -2,6 +2,7 @@ import type { Router } from 'express';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import { DoctorVisitsReport } from './application/doctorVisitsReport.js';
 import { EmployeeSalesReport } from './application/employeeSalesReport.js';
+import { SecondarySheetReport } from './application/secondarySheetReport.js';
 import { DcrReport } from './application/dcrReport.js';
 import { OrdersReport } from './application/ordersReport.js';
 import { SalesDashboardReport } from './application/salesDashboardReport.js';
@@ -48,11 +49,12 @@ export function buildReportsContainer(
   const salaryReport = new SalaryReport(payroll, fieldActivity, identity, config);
   const salesDashboard = new SalesDashboardReport(identity, planning, attendance, fieldActivity, marketing, master, territory, config, achievement);
   const employeeSales = new EmployeeSalesReport(sales, marketing, master, identity, identity, achievement);
+  const secondarySheet = new SecondarySheetReport(marketing, master, identity, config, achievement);
   const salesBreakdown = new SalesBreakdownReport(salesDashboard, marketing, master, achievement, identity, config);
   const doctorVisits = new DoctorVisitsReport(identity, master, fieldActivity, planning);
   const teamOverview = new TeamOverviewReport(salesDashboard, fieldActivity, attendance);
   return {
     contract: { readTeamOverview: (input) => teamOverview.read(input) },
-    buildRouter: () => buildReportsRouter(makeReportsControllers(orders, salesReport, stockReport, taDaReport, dcrReport, salaryReport, salesDashboard, employeeSales, doctorVisits, teamOverview, salesBreakdown)),
+    buildRouter: () => buildReportsRouter(makeReportsControllers(orders, salesReport, stockReport, taDaReport, dcrReport, salaryReport, salesDashboard, employeeSales, doctorVisits, teamOverview, salesBreakdown, secondarySheet)),
   };
 }

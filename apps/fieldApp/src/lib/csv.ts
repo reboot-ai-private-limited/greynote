@@ -116,3 +116,30 @@ export async function deliverCsv(fileName: string, csv: string, title: string): 
   }
   return null;
 }
+
+
+const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+/**
+ * Hands an Excel workbook the server made to the person: in a browser, a download; on the phone, the file is written to the app's cache and
+ * the share sheet opens (save to Files or Drive, open in Excel, send on). Returns a line to show, or `null` when nothing needs saying.
+ */
+export async function deliverXlsx(fileName: string, bytes: ArrayBuffer, title: string): Promise<string | null> {
+  if (Platform.OS === 'web') {
+    const url = URL.createObjectURL(new Blob([bytes], { type: XLSX_MIME }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    return `Downloaded ${fileName}.`;
+  }
+  if (!(await Sharing.isAvailableAsync())) throw new Error('This phone can’t share files.');
+  const file = new File(Paths.cache, fileName);
+  file.create({ overwrite: true });
+  file.write(new Uint8Array(bytes));
+  await Sharing.shareAsync(file.uri, { mimeType: XLSX_MIME, UTI: 'org.openxmlformats.spreadsheetml.sheet', dialogTitle: title });
+  return null;
+}

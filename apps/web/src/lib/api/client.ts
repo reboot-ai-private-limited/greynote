@@ -78,3 +78,27 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
   return payload.data;
 }
+
+
+/**
+ * A request whose answer is a file (an Excel workbook), returned as a `Blob`. The same headers as `request` (so the selected Financial Year
+ * goes along); a failure still arrives as the API's JSON envelope and is thrown as an `ApiError`.
+ */
+export async function requestFile(path: string, options: Pick<RequestOptions, 'token' | 'query' | 'signal'> = {}): Promise<Blob> {
+  const { token, query, signal } = options;
+  const url = new URL(BASE_URL + path);
+  if (query !== undefined) for (const [key, value] of Object.entries(query)) if (value !== undefined && value !== '') url.searchParams.set(key, String(value));
+  const headers: Record<string, string> = { ...financialYearHeaders() };
+  if (token !== undefined) headers['Authorization'] = `Bearer ${token}`;
+  let response: Response;
+  try {
+    response = await fetch(url, { method: 'GET', headers, credentials: 'omit', ...(signal === undefined ? {} : { signal }) });
+  } catch (cause) {
+    if (cause instanceof DOMException && cause.name === 'AbortError') throw cause;
+    throw new NetworkError();
+  }
+  if (response.ok) return response.blob();
+  const payload = (await response.json().catch(() => null)) as HttpBody<never> | null;
+  if (payload === null || typeof payload !== 'object' || !('success' in payload) || payload.success !== false) throw new NetworkError();
+  throw new ApiError(payload);
+}

@@ -1,0 +1,281 @@
+import ExcelJS from 'exceljs';
+import type { SecondarySheetModel, SheetPerson, SheetRow } from '../domain/secondarySheet.js';
+
+const MONTH_NAMES = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+const SHORT = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
+/** Column letters for a 1-based column number (1 = A, 27 = AA). */
+export const colName = (n: number): string => {
+  let s = '';
+  for (let x = n; x > 0; x = Math.floor((x - 1) / 26)) s = String.fromCharCode(65 + ((x - 1) % 26)) + s;
+  return s;
+};
+
+type Block = { kind: 'month'; i: number } | { kind: 'qtr'; q: number } | { kind: 'half'; h: number } | { kind: 'annual' };
+
+/** The order the sheet runs in, as in the company's file: three months, the quarter, three months, the quarter, the first half, … the year. */
+const BLOCKS: Block[] = [
+  ...[0, 1, 2].map((i): Block => ({ kind: 'month', i })), { kind: 'qtr', q: 0 },
+  ...[3, 4, 5].map((i): Block => ({ kind: 'month', i })), { kind: 'qtr', q: 1 }, { kind: 'half', h: 0 },
+  ...[6, 7, 8].map((i): Block => ({ kind: 'month', i })), { kind: 'qtr', q: 2 },
+  ...[9, 10, 11].map((i): Block => ({ kind: 'month', i })), { kind: 'qtr', q: 3 }, { kind: 'half', h: 1 },
+  { kind: 'annual' },
+];
+
+const FIRST_BLOCK_COL = 10; // J
+const WIDTH = 4; // TGT, SEC, a narrow spare column, % ACH
+const HEAD_ROW = 5;
+const FIRST_ROW = 6;
+const blockCol = (b: number) => FIRST_BLOCK_COL + b * WIDTH;
+const pct = (sec: number, tgt: number) => (tgt > 0 ? (sec * 100) / tgt : 0);
+
+type Pair = { tgt: number; sec: number };
+/** Every block's target and secondary for one product row, worked out the same way the formulas will. */
+function figures(row: Pick<SheetRow, 'tgt' | 'sec'>): Pair[] {
+  const month = (i: number): Pair => ({ tgt: row.tgt[i]!, sec: row.sec[i]! });
+  const add = (...ps: Pair[]): Pair => ({ tgt: ps.reduce((n, p) => n + p.tgt, 0), sec: ps.reduce((n, p) => n + p.sec, 0) });
+  const q = [0, 1, 2, 3].map((k) => add(month(k * 3), month(k * 3 + 1), month(k * 3 + 2)));
+  const h = [add(q[0]!, q[1]!), add(q[2]!, q[3]!)];
+  const year = add(h[0]!, h[1]!);
+  return BLOCKS.map((b) => (b.kind === 'month' ? month(b.i) : b.kind === 'qtr' ? q[b.q]! : b.kind === 'half' ? h[b.h]! : year));
+}
+
+const rupees = (paise: number | null) => (paise === null ? 0 : paise / 100);
+
+/** The label above a block: "APRIL '26", "QTR - 1", "1ST HALF", "ANNUAL 2026 - 27". */
+function blockTitle(b: Block, model: SecondarySheetModel): string {
+  if (b.kind === 'month') {
+    const month = model.months[b.i]!;
+    return `${MONTH_NAMES[Number(month.slice(5)) - 1]} '${month.slice(2, 4)}`;
+  }
+  if (b.kind === 'qtr') return `QTR - ${b.q + 1}`;
+  if (b.kind === 'half') return b.h === 0 ? '1ST HALF' : '2ND HALF';
+  return `ANNUAL ${model.label.replace('-', ' - ')}`;
+}
+
+const range = (model: SecondarySheetModel) => {
+  const first = model.months[0]!;
+  const last = model.months[11]!;
+  const part = (m: string) => `${SHORT[Number(m.slice(5)) - 1]} ${m.slice(2, 4)}`;
+  return `${part(first)} - ${part(last)}`;
+};
+
+const HEAD_FILL: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCE6F1' } };
+const TOTAL_FILL: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
+const THIN: Partial<ExcelJS.Borders> = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+
+function writePerson(ws: ExcelJS.Worksheet, p: SheetPerson, model: SecondarySheetModel): void {
+  const rows = p.rows;
+  const last = FIRST_ROW + rows.length - 1;
+  const totalRow = last + 1;
+
+  ws.getCell('A1').value = `${model.label} Performance Sheet`;
+  ws.getCell('A1').font = { bold: true, size: 14 };
+  ws.getCell('A2').value = p.kind === 'TEAM' ? 'NAME OF THE MANAGER:' : 'NAME OF THE BE/ BE-S HQ:';
+  ws.getCell('C2').value = `${p.name} · ${p.code}${p.designation ? ` · ${p.designation}` : ''}`;
+  ws.getCell('A3').value = 'NO.OF BEs/ BE-Ss :';
+  ws.getCell('C3').value = p.members;
+  for (const a of ['A2', 'A3', 'C2', 'C3']) ws.getCell(a).font = { bold: true };
+
+  // Heads.
+  const head = (col: number, text: string) => {
+    const c = ws.getCell(HEAD_ROW, col);
+    c.value = text;
+    c.font = { bold: true };
+    c.fill = HEAD_FILL;
+    c.border = THIN;
+    c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+  };
+  head(1, 'SL.NO.');
+  head(2, 'PRODUCT');
+  head(3, 'N.S.R.');
+  head(4, `TGT ${range(model)}`);
+  head(5, `ACH ${range(model)}`);
+  head(6, '% ACH');
+  head(8, '% GR.');
+  BLOCKS.forEach((b, n) => {
+    const col = blockCol(n);
+    const title = ws.getCell(4, col);
+    title.value = blockTitle(b, model);
+    title.font = { bold: true };
+    head(col, 'TGT');
+    head(col + 1, 'SEC');
+    head(col + 3, '% ACH');
+  });
+
+  // Products.
+  rows.forEach((row, k) => {
+    const r = FIRST_ROW + k;
+    const fig = figures(row);
+    ws.getCell(r, 1).value = k + 1;
+    ws.getCell(r, 2).value = row.name;
+    ws.getCell(r, 3).value = row.nsrPaise === null ? null : rupees(row.nsrPaise);
+    ws.getCell(r, 3).numFmt = '#,##0.00';
+    BLOCKS.forEach((b, n) => {
+      const col = blockCol(n);
+      const t = colName(col);
+      const s = colName(col + 1);
+      const pc = col + 3;
+      const f = fig[n]!;
+      if (b.kind === 'month') {
+        ws.getCell(r, col).value = f.tgt;
+        ws.getCell(r, col + 1).value = f.sec;
+      } else {
+        // A quarter adds its three months, a half its two quarters, the year its two halves.
+        const sources = sourceBlocks(b);
+        ws.getCell(r, col).value = { formula: sources.map((x) => `${colName(blockCol(x))}${r}`).join('+'), result: f.tgt };
+        ws.getCell(r, col + 1).value = { formula: sources.map((x) => `${colName(blockCol(x) + 1)}${r}`).join('+'), result: f.sec };
+      }
+      ws.getCell(r, pc).value = { formula: `IF(${t}${r}=0,0,${s}${r}/${t}${r}*100)`, result: pct(f.sec, f.tgt) };
+      ws.getCell(r, pc).numFmt = '0.0';
+    });
+    const year = fig[BLOCKS.length - 1]!;
+    const yc = blockCol(BLOCKS.length - 1);
+    ws.getCell(r, 4).value = { formula: `${colName(yc)}${r}`, result: year.tgt };
+    ws.getCell(r, 5).value = { formula: `${colName(yc + 1)}${r}`, result: year.sec };
+    ws.getCell(r, 6).value = { formula: `IF(D${r}=0,0,E${r}/D${r}*100)`, result: pct(year.sec, year.tgt) };
+    ws.getCell(r, 6).numFmt = '0.0';
+    // Growth on the same year before: blank when there was nothing then.
+    if (row.prevSec !== null && row.prevSec > 0) {
+      ws.getCell(r, 8).value = { formula: `(E${r}/${row.prevSec}-1)*100`, result: (year.sec / row.prevSec - 1) * 100 };
+      ws.getCell(r, 8).numFmt = '0.0';
+    }
+  });
+
+  // Grand total, in rupees lakh (units x N.S.R. / 1,00,000), the way the company's file shows it.
+  ws.getCell(totalRow, 2).value = 'GRAND TOTAL (₹ lakh)';
+  const lakh = (pick: (f: Pair) => number): number[] => BLOCKS.map((_, n) => rows.reduce((acc, row) => acc + pick(figures(row)[n]!) * rupees(row.nsrPaise), 0) / 100_000);
+  const tgtLakh = lakh((f) => f.tgt);
+  const secLakh = lakh((f) => f.sec);
+  const sumLakh = (col: number, v: number) => {
+    const c = ws.getCell(totalRow, col);
+    c.value = rows.length ? { formula: `SUMPRODUCT(${colName(col)}${FIRST_ROW}:${colName(col)}${last},$C$${FIRST_ROW}:$C$${last})/100000`, result: v } : 0;
+    c.numFmt = '0.00';
+  };
+  BLOCKS.forEach((_, n) => {
+    const col = blockCol(n);
+    sumLakh(col, tgtLakh[n]!);
+    sumLakh(col + 1, secLakh[n]!);
+    const pc = ws.getCell(totalRow, col + 3);
+    pc.value = { formula: `IF(${colName(col)}${totalRow}=0,0,${colName(col + 1)}${totalRow}/${colName(col)}${totalRow}*100)`, result: pct(secLakh[n]!, tgtLakh[n]!) };
+    pc.numFmt = '0.0';
+  });
+  const yn = BLOCKS.length - 1;
+  sumLakh(4, tgtLakh[yn]!);
+  sumLakh(5, secLakh[yn]!);
+  ws.getCell(totalRow, 6).value = { formula: `IF(D${totalRow}=0,0,E${totalRow}/D${totalRow}*100)`, result: pct(secLakh[yn]!, tgtLakh[yn]!) };
+  ws.getCell(totalRow, 6).numFmt = '0.0';
+  for (let c = 1; c <= blockCol(BLOCKS.length - 1) + 3; c++) {
+    const cell = ws.getCell(totalRow, c);
+    cell.font = { bold: true };
+    cell.fill = TOTAL_FILL;
+  }
+
+  ws.getCell(totalRow + 2, 1).value = 'TGT = the target in units, spread evenly over the months it covers. SEC = secondary units the MR sent and the manager approved; a month not approved shows 0. % GR. = this year\'s secondary against the year before. Products with no N.S.R. count in units only.';
+  ws.getCell(totalRow + 2, 1).font = { italic: true, color: { argb: 'FF666666' } };
+
+  ws.getColumn(1).width = 7;
+  ws.getColumn(2).width = 26;
+  ws.getColumn(3).width = 10;
+  ws.getColumn(4).width = 12;
+  ws.getColumn(5).width = 12;
+  ws.getColumn(6).width = 8;
+  ws.getColumn(7).width = 2;
+  ws.getColumn(8).width = 8;
+  ws.getColumn(9).width = 2;
+  for (let n = 0; n < BLOCKS.length; n++) {
+    ws.getColumn(blockCol(n)).width = 8;
+    ws.getColumn(blockCol(n) + 1).width = 8;
+    ws.getColumn(blockCol(n) + 2).width = 2;
+    ws.getColumn(blockCol(n) + 3).width = 8;
+  }
+  ws.views = [{ state: 'frozen', xSplit: 3, ySplit: HEAD_ROW }];
+}
+
+/** The block numbers a quarter, a half or the year adds up. */
+function sourceBlocks(b: Block): number[] {
+  const at = (x: Block) => BLOCKS.findIndex((y) => JSON.stringify(y) === JSON.stringify(x));
+  if (b.kind === 'qtr') return [0, 1, 2].map((k) => at({ kind: 'month', i: b.q * 3 + k }));
+  if (b.kind === 'half') return [at({ kind: 'qtr', q: b.h * 2 }), at({ kind: 'qtr', q: b.h * 2 + 1 })];
+  return [at({ kind: 'half', h: 0 }), at({ kind: 'half', h: 1 })];
+}
+
+/** A sheet name Excel accepts: at most 31 characters, none of `[]:*?/\`, and not used twice. */
+function sheetName(raw: string, used: Set<string>): string {
+  const base = raw.replace(/[[\]:*?/\\]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 31) || 'Sheet';
+  let name = base;
+  for (let n = 2; used.has(name.toLowerCase()); n++) name = `${base.slice(0, 31 - String(n).length - 1)} ${n}`;
+  used.add(name.toLowerCase());
+  return name;
+}
+
+function annualLakh(p: SheetPerson): { tgt: number; sec: number } {
+  const tgt = p.rows.reduce((n, r) => n + r.tgt.reduce((a, b) => a + b, 0) * rupees(r.nsrPaise), 0) / 100_000;
+  const sec = p.rows.reduce((n, r) => n + r.sec.reduce((a, b) => a + b, 0) * rupees(r.nsrPaise), 0) / 100_000;
+  return { tgt, sec };
+}
+
+function writeSummary(ws: ExcelJS.Worksheet, model: SecondarySheetModel, names: Map<string, string>): void {
+  ws.getCell('A1').value = `${model.label} Secondary Sales · ${model.scopeName}`;
+  ws.getCell('A1').font = { bold: true, size: 14 };
+  ws.getCell('A2').value = `${model.mrCount} MRs, ${model.mrsWithApproved} with approved secondary this year. Figures in ₹ lakh at N.S.R.; only approved secondary counts.`;
+  const heads = ['NAME', 'CODE', 'ROLE', 'MRs', 'TGT (₹ lakh)', 'SEC (₹ lakh)', '% ACH', 'SHEET'];
+  heads.forEach((h, i) => {
+    const c = ws.getCell(4, i + 1);
+    c.value = h;
+    c.font = { bold: true };
+    c.fill = HEAD_FILL;
+    c.border = THIN;
+  });
+  let r = 5;
+  let mrTgt = 0;
+  let mrSec = 0;
+  for (const p of model.people) {
+    const t = annualLakh(p);
+    if (p.kind === 'MR') {
+      mrTgt += t.tgt;
+      mrSec += t.sec;
+    }
+    ws.getCell(r, 1).value = p.name;
+    ws.getCell(r, 2).value = p.code;
+    ws.getCell(r, 3).value = p.kind === 'TEAM' ? `${p.designation ?? 'Manager'} (roll-up)` : (p.designation ?? 'MR');
+    ws.getCell(r, 4).value = p.members;
+    ws.getCell(r, 5).value = t.tgt;
+    ws.getCell(r, 6).value = t.sec;
+    ws.getCell(r, 7).value = { formula: `IF(E${r}=0,0,F${r}/E${r}*100)`, result: pct(t.sec, t.tgt) };
+    const sheet = names.get(p.id)!;
+    ws.getCell(r, 8).value = { text: sheet, hyperlink: `#'${sheet.replace(/'/g, "''")}'!A1` };
+    for (const col of [5, 6]) ws.getCell(r, col).numFmt = '0.00';
+    ws.getCell(r, 7).numFmt = '0.0';
+    r += 1;
+  }
+  ws.getCell(r, 1).value = 'TOTAL OF THE MRs (managers are sums of these, so they are not added again)';
+  ws.getCell(r, 5).value = mrTgt;
+  ws.getCell(r, 6).value = mrSec;
+  ws.getCell(r, 7).value = { formula: `IF(E${r}=0,0,F${r}/E${r}*100)`, result: pct(mrSec, mrTgt) };
+  for (const col of [5, 6]) ws.getCell(r, col).numFmt = '0.00';
+  ws.getCell(r, 7).numFmt = '0.0';
+  for (let c = 1; c <= 8; c++) {
+    ws.getCell(r, c).font = { bold: true };
+    ws.getCell(r, c).fill = TOTAL_FILL;
+  }
+  [26, 12, 22, 7, 14, 14, 9, 30].forEach((w, i) => (ws.getColumn(i + 1).width = w));
+}
+
+/** The workbook: a Summary first, then a roll-up per manager and a sheet per MR, as in the company's file. */
+export async function buildSecondarySheetWorkbook(model: SecondarySheetModel): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Greynote';
+  wb.created = new Date();
+  const used = new Set<string>(['summary']);
+  const summary = wb.addWorksheet('Summary');
+  const names = new Map<string, string>();
+  const sheets = model.people.map((p) => {
+    const name = sheetName(p.kind === 'TEAM' ? `${p.code} TEAM` : `${p.name} (${p.code})`, used);
+    names.set(p.id, name);
+    return { p, ws: wb.addWorksheet(name) };
+  });
+  writeSummary(summary, model, names);
+  for (const { p, ws } of sheets) writePerson(ws, p, model);
+  return Buffer.from(await wb.xlsx.writeBuffer());
+}

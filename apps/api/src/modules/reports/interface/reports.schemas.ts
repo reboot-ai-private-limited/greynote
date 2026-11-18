@@ -57,3 +57,6 @@ const salesWindowShape = {
 export const salesByProductQuerySchema = z.object({ ...salesWindowShape, distributorId: objectId.optional() });
 export const salesByDistributorQuerySchema = z.object({ ...salesWindowShape, productId: objectId.optional() });
 export const salesByEmployeeQuerySchema = z.object({ ...salesWindowShape, search: z.string().trim().min(1).optional() });
+
+/** The Secondary Sales sheet: the year a financial year starts in (the selected one when left out) and, optionally, one manager's team. */
+export const secondarySheetQuerySchema = z.object({ year: z.coerce.number().int().min(2000).max(2100), managerId: objectId.optional() });

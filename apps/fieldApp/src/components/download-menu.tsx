@@ -13,7 +13,7 @@ import { PrimaryButton } from './primary-button';
 import { RowCard, sym } from './ui-cards';
 
 /** What one download makes: the file, or the reason there is nothing to download (shown instead of failing). */
-export type DownloadResult = { fileName: string; csv: string; title: string } | { empty: string };
+export type DownloadResult = { fileName: string; csv: string; title: string } | { empty: string } | { delivered: string | null };
 export type DownloadItem = {
   key: string;
   label: string;
@@ -44,7 +44,11 @@ export function DownloadMenu({ items, label = 'Download' }: { items: DownloadIte
     try {
       const made = await item.build();
       if ('empty' in made) setMsg({ tone: 'info', text: made.empty });
-      else {
+      else if ('delivered' in made) {
+        // The item handed the file over itself (an Excel workbook from the server).
+        if (made.delivered) setMsg({ tone: 'info', text: made.delivered });
+        setOpen(false);
+      } else {
         const done = await deliverCsv(made.fileName, made.csv, made.title);
         if (done) setMsg({ tone: 'info', text: done });
         setOpen(false);

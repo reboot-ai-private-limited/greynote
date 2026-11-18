@@ -76,6 +76,7 @@ const SCOPED = [
   '/api/reports/me/dcr',
   '/api/reports/me/dcr/coverage',
   '/api/reports/salary',
+  '/api/reports/secondary-sheet',
   '/api/reports/sales-dashboard',
   '/api/reports/team/overview',
   '/api/approvals/inbox',

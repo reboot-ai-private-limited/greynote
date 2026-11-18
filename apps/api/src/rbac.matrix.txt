@@ -154,6 +154,7 @@ GET    /api/reports/sales/by-distributor  ACCOUNTANT,ADMIN,HR
 GET    /api/reports/sales/by-employee  ACCOUNTANT,ADMIN,FIELD,HR
 GET    /api/reports/sales/by-product  ACCOUNTANT,ADMIN,HR
 GET    /api/reports/sales/statement  ADMIN
+GET    /api/reports/secondary-sheet  ACCOUNTANT,ADMIN,FIELD,HR
 GET    /api/reports/stock  ADMIN
 GET    /api/reports/ta-da  ADMIN
 GET    /api/reports/ta-da/days  ADMIN

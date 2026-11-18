@@ -2848,3 +2848,10 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 
 - Team overview, Sales & compliance and Team orders removed (repeat the board and the person page). New team Expenses read; `secondaryUnits` added to team stock rows; Field Activity's contract gained `listExpenseMonthSummaries`.
 - Person page: day picker for the header, Plans tab as day blocks, one Download (Tour Plan, Daily plans, Expenses).
+
+
+## 2026-11-18: Secondary Sales sheet (Excel) for any financial year
+
+- One workbook in the company's format: Summary, a roll-up per manager, a sheet per MR; targets (units) and approved secondary by product and month with quarters, halves and the year, N.S.R. = PTS, grand total in ₹ lakh, % GR. against the year before. A manager's sheet is the sum of the MR sheets (not the frozen team report), so the file adds up.
+- `GET /reports/secondary-sheet` (Admin, Accountant, HR: company or one team; manager: own downline), built with `exceljs`. Admin web (Secondary sales) and the phone (Team → Reports → Secondary sales) download it; the file follows the financial year selector.
+- Local demo data: `seed:secondary-demo` (rows written directly as approved; no Cloudinary locally).

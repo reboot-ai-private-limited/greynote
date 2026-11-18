@@ -8,6 +8,8 @@ import type { DcrReport } from '../application/dcrReport.js';
 import type { OrdersReport } from '../application/ordersReport.js';
 import type { DoctorVisitsReport } from '../application/doctorVisitsReport.js';
 import type { EmployeeSalesReport } from '../application/employeeSalesReport.js';
+import { buildSecondarySheetWorkbook } from '../application/secondarySheetXlsx.js';
+import type { SecondarySheetReport } from '../application/secondarySheetReport.js';
 import type { TeamOverviewReport } from '../application/teamOverviewReport.js';
 import type { SalesBreakdownReport } from '../application/salesBreakdownReport.js';
 import type { SalesDashboardReport } from '../application/salesDashboardReport.js';
@@ -15,9 +17,9 @@ import type { SalesReport } from '../application/salesReport.js';
 import type { SalaryReport } from '../application/salaryReport.js';
 import type { StockReport } from '../application/stockReport.js';
 import type { TaDaReport } from '../application/taDaReport.js';
-import type { myMonthQuerySchema, doctorVisitsQuerySchema, dcrCoverageQuerySchema, employeeSalesQuerySchema, dcrYearQuerySchema, ordersQuerySchema, salaryYearQuerySchema, salesDashboardQuerySchema, salesByProductQuerySchema, salesByDistributorQuerySchema, salesByEmployeeQuerySchema, teamOverviewQuerySchema, salesStatementQuerySchema, salesYearQuerySchema, stockQuerySchema, taDaDaysQuerySchema, taDaYearQuerySchema } from './reports.schemas.js';
+import type { myMonthQuerySchema, doctorVisitsQuerySchema, dcrCoverageQuerySchema, employeeSalesQuerySchema, secondarySheetQuerySchema, dcrYearQuerySchema, ordersQuerySchema, salaryYearQuerySchema, salesDashboardQuerySchema, salesByProductQuerySchema, salesByDistributorQuerySchema, salesByEmployeeQuerySchema, teamOverviewQuerySchema, salesStatementQuerySchema, salesYearQuerySchema, stockQuerySchema, taDaDaysQuerySchema, taDaYearQuerySchema } from './reports.schemas.js';
 
-export function makeReportsControllers(orders: OrdersReport, sales: SalesReport, stock: StockReport, taDa: TaDaReport, dcr: DcrReport, salary: SalaryReport, salesDashboard: SalesDashboardReport, employeeSales: EmployeeSalesReport, doctorVisits: DoctorVisitsReport, teamOverview: TeamOverviewReport, breakdown: SalesBreakdownReport): Record<'salesByProduct' | 'salesByDistributor' | 'salesByEmployee' | 'orders' | 'doctorVisits' | 'teamOverview' | 'salesDashboard' | 'employeeSales' | 'order' | 'salesYear' | 'salesStatement' | 'stock' | 'taDaYear' | 'taDaDays' | 'dcrYear' | 'dcrCoverage' | 'salaryYear' | 'myTaDaYear' | 'myTaDaDays' | 'myDcrYear' | 'myDcrCoverage', RequestHandler> {
+export function makeReportsControllers(orders: OrdersReport, sales: SalesReport, stock: StockReport, taDa: TaDaReport, dcr: DcrReport, salary: SalaryReport, salesDashboard: SalesDashboardReport, employeeSales: EmployeeSalesReport, doctorVisits: DoctorVisitsReport, teamOverview: TeamOverviewReport, breakdown: SalesBreakdownReport, secondarySheet: SecondarySheetReport): Record<'secondarySheet' | 'salesByProduct' | 'salesByDistributor' | 'salesByEmployee' | 'orders' | 'doctorVisits' | 'teamOverview' | 'salesDashboard' | 'employeeSales' | 'order' | 'salesYear' | 'salesStatement' | 'stock' | 'taDaYear' | 'taDaDays' | 'dcrYear' | 'dcrCoverage' | 'salaryYear' | 'myTaDaYear' | 'myTaDaDays' | 'myDcrYear' | 'myDcrCoverage', RequestHandler> {
   return {
     orders: asyncHandler(async (req, res) => {
       const q = req.query as unknown as z.output<typeof ordersQuerySchema>;
@@ -87,6 +89,15 @@ export function makeReportsControllers(orders: OrdersReport, sales: SalesReport,
     salaryYear: asyncHandler(async (req, res) => {
       const q = req.query as unknown as z.output<typeof salaryYearQuerySchema>;
       sendSuccess(req, res, await salary.year({ year: q.year }), 'Salary for the financial year.', 200);
+    }),
+    secondarySheet: asyncHandler(async (req, res) => {
+      if (!req.user) throw AppError.unauthenticated();
+      const q = req.query as unknown as z.output<typeof secondarySheetQuerySchema>;
+      const model = await secondarySheet.read({ actor: { id: req.user.sub, role: req.user.role }, year: q.year, managerId: q.managerId });
+      const file = await buildSecondarySheetWorkbook(model);
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="GREYNOTE SECONDARY SALES ${model.label}.xlsx"`);
+      res.status(200).send(file);
     }),
     employeeSales: asyncHandler(async (req, res) => {
       if (!req.user) throw AppError.unauthenticated();

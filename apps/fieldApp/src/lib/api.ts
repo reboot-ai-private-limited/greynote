@@ -164,6 +164,32 @@ export async function apiUpload<T>(path: string, file: UploadFile, method: 'POST
   }
 }
 
+async function sendForBytes(path: string, accessToken: string | undefined, extraHeaders?: Record<string, string>): Promise<ArrayBuffer> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, { method: 'GET', headers: { 'X-Client': 'mobile', ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}), ...extraHeaders } });
+  } catch {
+    throw new NetworkError(`Can’t reach the server at ${API_BASE_URL}.`);
+  }
+  if (!response.ok) {
+    const json = await response.json().catch(() => null);
+    throw new ApiError(response.status, json?.message ?? 'Something went wrong. Please try again.', json?.data);
+  }
+  return response.arrayBuffer();
+}
+
+/** A file the server makes (an Excel workbook), as bytes. The same sign-in and financial-year headers as `apiGet`, one refresh on a 401. */
+export async function apiGetFile(path: string): Promise<ArrayBuffer> {
+  const extra = financialYearHeader ? { 'X-Financial-Year': financialYearHeader } : undefined;
+  try {
+    return await sendForBytes(path, getTokens()?.accessToken, extra);
+  } catch (err) {
+    if (!(err instanceof ApiError) || err.status !== 401) throw err;
+    if (!(await refreshTokens())) throw err;
+    return sendForBytes(path, getTokens()?.accessToken, extra);
+  }
+}
+
 export const apiGet = <T>(path: string, opts?: Options) =>
   request<T>('GET', path, undefined, { auth: true, ...opts });
 export const apiPut = <T>(path: string, body: unknown, opts?: Options) =>
