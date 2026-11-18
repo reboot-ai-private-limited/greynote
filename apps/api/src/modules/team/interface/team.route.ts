@@ -8,6 +8,7 @@ import type { TeamHandlers } from './team.controller.js';
 import {
   leavesQuerySchema,
   memberParamsSchema,
+  memberDayParamsSchema,
   membersQuerySchema,
   ordersQuerySchema,
   stockQuerySchema,
@@ -98,6 +99,7 @@ export function buildTeamRouter(c: TeamHandlers): Router {
     c.summary,
   );
   router.get('/today', validate({ query: todayQuerySchema }), c.today);
+  router.get('/members/:id/days/:date', validate({ params: memberDayParamsSchema }), c.memberDay);
   router.get('/members/:id/days', validate({ params: memberParamsSchema, query: daysQuerySchema }), c.memberDays);
   router.get('/members/:id/attendance', validate({ params: memberParamsSchema, query: daysQuerySchema }), c.memberAttendance);
   router.get('/members/:id/doctors', validate({ params: memberParamsSchema, query: daysQuerySchema }), c.memberDoctors);

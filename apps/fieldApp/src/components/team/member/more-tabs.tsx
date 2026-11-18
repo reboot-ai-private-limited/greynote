@@ -182,7 +182,7 @@ const DOCTOR_FILTERS: { value: DoctorFilter; label: string }[] = [
 ];
 
 /** The person's month in doctors, as numbers: visits made of wanted, missed, not called at all, carried over. Each count opens the Doctors tab on that filter. */
-export function DoctorsMonthCard({ userId, month, onOpen }: { userId: string; month: string; onOpen: (filter: DoctorFilter) => void }) {
+export function DoctorsMonthCard({ userId, month, doctorCalls, onOpen }: { userId: string; month: string; doctorCalls?: number | undefined; onOpen: (filter: DoctorFilter) => void }) {
   const fy = useFinancialYear();
   const q = useCachedFetch<MemberDoctors>(`team-member-doctors:${fy.year}:${userId}:${month}`, () => getMemberDoctors(userId, month));
   const t = q.data?.totals;
@@ -193,7 +193,7 @@ export function DoctorsMonthCard({ userId, month, onOpen }: { userId: string; mo
       {t.withTarget === 0 ? (
         <ThemedText type="small" themeColor="textSecondary">No doctor has a visit target yet.</ThemedText>
       ) : (
-        <ThemedText type="small">{`${t.withTarget} doctors with a target · ${t.made} of ${t.quota} visits made · ${t.missed} ${now ? 'still to do' : 'missed'}`}</ThemedText>
+        <ThemedText type="small">{`${t.withTarget} doctors with a target · ${t.made} of ${t.quota} visits made · ${t.missed} ${now ? 'still to do' : 'missed'}${doctorCalls !== undefined ? ` · ${doctorCalls} doctor calls this month` : ''}`}</ThemedText>
       )}
       <View style={styles.counts}>
         <PrimaryButton label={`${t.notCalled} not called at all`} variant="text" onPress={() => onOpen('NO_CALL')} />

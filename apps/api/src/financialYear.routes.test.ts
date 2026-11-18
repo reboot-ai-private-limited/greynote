@@ -194,6 +194,7 @@ const TIMELESS = [
   '/api/team/plans', // takes its own day, including tomorrow: a planning view, not a year's report
   '/api/team/day', // the board for one day, any day incl. tomorrow
   '/api/team/members/:id/days', // one person's month, which the phone's month stepper already bounds
+  '/api/team/members/:id/days/:date', // one day of one person
   '/api/team/members/:id/attendance', // one person's month, bounded by the month stepper
   '/api/team/members/:id/doctors', // one person's doctors for a month
   '/api/team/doctors/:id', // one doctor held below the manager

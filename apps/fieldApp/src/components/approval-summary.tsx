@@ -376,7 +376,7 @@ export { DcrSummary };
  * tablet; every other kind shows it under the record. An unknown kind still shows the history.
  */
 export function ApprovalSummary({ request, aside }: { request: ApprovalDetail; aside?: React.ReactNode }) {
-  if (request.kind === 'DCR') return <DcrSummary recordId={request.recordId} canAct={request.canAct} aside={aside} />;
+  if (request.kind === 'DCR') return <DcrSummary recordId={request.recordId} canAct={request.canAct} aside={aside} submitterId={request.submitter?.id} />;
   let record: React.ReactNode;
   switch (request.kind) {
     case 'DAILY_PLAN':

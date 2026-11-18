@@ -18,6 +18,7 @@ import type { TeamTodayUseCase } from '../application/usecases/teamToday.usecase
 import type {
   leavesQuerySchema,
   memberParamsSchema,
+  memberDayParamsSchema,
   membersQuerySchema,
   ordersQuerySchema,
   stockQuerySchema,
@@ -39,7 +40,7 @@ const query = <S extends z.ZodTypeAny>(req: Request): z.output<S> =>
   req.query as unknown as z.output<S>;
 
 export type TeamHandlers = Record<
-  'members' | 'summary' | 'memberDays' | 'memberAttendance' | 'memberDoctors' | 'doctor' | 'today' | 'day' | 'plans' | 'leaves' | 'orders' | 'stock' | 'expenses',
+  'members' | 'summary' | 'memberDays' | 'memberDay' | 'memberAttendance' | 'memberDoctors' | 'doctor' | 'today' | 'day' | 'plans' | 'leaves' | 'orders' | 'stock' | 'expenses',
   RequestHandler
 >;
 
@@ -114,6 +115,10 @@ export function makeTeamControllers(u: {
         200,
       ),
     ),
+    memberDay: asyncHandler(async (req, res) => {
+      const { id, date } = req.params as unknown as z.output<typeof memberDayParamsSchema>;
+      sendSuccess(req, res, await u.memberDays.day(callerId(req), id, date), 'Their day.', 200);
+    }),
     memberDays: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await u.memberDays.execute(callerId(req), (req.params as unknown as z.output<typeof memberParamsSchema>).id, query<typeof daysQuerySchema>(req).month), 'Their days.', 200),
     ),

@@ -15,6 +15,7 @@ import { Notice } from './notice';
 import { PrimaryButton } from './primary-button';
 import { SkeletonLines } from './skeleton';
 import { TextField } from './text-field';
+import { DoctorsToday } from './team/doctors-today';
 import { ThemedText } from './themed-text';
 
 const sym = (ios: string, android: string): SymbolViewProps['name'] => ({ ios, android, web: android }) as SymbolViewProps['name'];
@@ -246,7 +247,7 @@ function CallCard({
  * Accept button for flagged ones, follow-ups, and the expenses. On a tablet the calls sit on the left and the expenses (and
  * `aside`, the request's history) on the right.
  */
-export function DcrSummary({ recordId, canAct, aside }: { recordId: string; canAct: boolean; aside?: ReactNode }) {
+export function DcrSummary({ recordId, canAct, aside, submitterId }: { recordId: string; canAct: boolean; aside?: ReactNode; submitterId?: string | undefined }) {
   const theme = useTheme();
   const { isTablet } = useResponsive();
   const [reloadKey, setReloadKey] = useState(0);
@@ -287,6 +288,7 @@ export function DcrSummary({ recordId, canAct, aside }: { recordId: string; canA
 
   const main = (
     <View style={styles.stack}>
+      {submitterId ? <DoctorsToday userId={submitterId} date={data.reportDate} /> : null}
       {data.doctorCalls.length > 0 ? (
         <Card icon={ICON.doctor} accent="teal" title="Doctor calls" count={data.doctorCalls.length}>
           {data.doctorCalls.map((c) => (

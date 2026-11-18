@@ -2864,3 +2864,8 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 - Planning's contract gained `listMonthlyPlanDays`; Field Activity's `getExpenseStatement`; HR's `listLeaveDays` is read by Reports; Team's doctors read `carriedSince` and `totals`.
 - Phone downloads save to a remembered folder (picked the first time) instead of opening the share sheet; Open and Share are offered after saving.
 - Local demo data: `seed:work-demo` (written directly as approved).
+
+
+## 2026-11-18: The day in doctors (carried in, missed, carried on) for the manager's daily report view
+
+- The carry-over loop is one shared pure function used by the Monthly Work report and the new team day read, so the two always agree. A manager sees it on the daily report (Approvals) and in each day of a person's Reports tab; today's carry-on is "so far".

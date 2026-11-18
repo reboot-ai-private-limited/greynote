@@ -55,6 +55,7 @@ export const leavesQuerySchema = z.object({
 });
 
 export const memberParamsSchema = z.object({ id: userId });
+export const memberDayParamsSchema = z.object({ id: userId, date: calendarDateSchema });
 
 export const summaryQuerySchema = z.object({
   /** The month the figures cover; this month when omitted. */

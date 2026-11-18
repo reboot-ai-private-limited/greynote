@@ -147,8 +147,24 @@ export type TeamMemberDay = {
   doctors: { planned: DoctorLine[]; alsoVisited: DoctorLine[] };
   report: { status: string; doctorCalls: number; chemistCalls: number; followups: number } | null;
   summary: { planned: number; visited: number; missed: number };
+  /** Doctors carried in, missed that day and carried on; `null` for a day after today. Absent from older servers. */
+  carry?: { carriedIn: number; missed: number; carriedOn: number; final: boolean } | null;
 };
 export type TeamMemberDays = { month: string; monthlyPlanStatus: string | null; items: TeamMemberDay[] };
+/** One day of one person in doctors: planned, visited, missed, carried in (since when) and carried on, and the month so far. */
+export type TeamMemberDayDetail = {
+  date: string;
+  final: boolean;
+  report: { status: string } | null;
+  planned: DoctorLine[];
+  alsoVisited: DoctorLine[];
+  missedToday: { id: string; name: string }[];
+  carriedIn: { id: string; name: string; since: string }[];
+  carriedOn: { id: string; name: string; since: string }[];
+  month: { doctorCalls: number; missedDays: number; carriedNow: number };
+};
+export const getTeamMemberDay = (userId: string, date: string) => apiGet<TeamMemberDayDetail>(`/team/members/${userId}/days/${date}`, { auth: true, fy: true });
+
 export const getTeamMemberDays = (userId: string, month: string) => apiGet<TeamMemberDays>(`/team/members/${userId}/days${query({ month })}`, { auth: true, fy: true });
 
 /* ── one person's attendance, doctors; one doctor ── */

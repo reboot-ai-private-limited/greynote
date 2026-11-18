@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Spacing } from '@/constants/theme';
@@ -19,6 +20,7 @@ import { ThemedText } from '../../themed-text';
 import { InfoCard, Pill } from '../../ui-cards';
 import { StockCountsCard } from '../../stock-counts-card';
 import { DoctorLines } from '../doctor-lines';
+import { DoctorsToday } from '../doctors-today';
 import { DayLines } from './day-lines';
 import { tourWordsOn, useTourPlan } from './tour-plan-data';
 
@@ -99,6 +101,23 @@ function SecondaryMonth({ userId, month }: { userId: string; month: string }) {
   );
 }
 
+/** One line on a day's report: missed, carried in and carried on; tap for the doctors by name (the manager's "Doctors today" card). */
+function DayCarry({ userId, date, carry }: { userId: string; date: string; carry: { carriedIn: number; missed: number; carriedOn: number; final: boolean } | null }) {
+  const [open, setOpen] = useState(false);
+  if (!carry || (carry.carriedIn === 0 && carry.missed === 0 && carry.carriedOn === 0)) return null;
+  return (
+    <>
+      <PrimaryButton
+        label={`${open ? '▴' : '▾'} Missed ${carry.missed} · carried in ${carry.carriedIn} · carried ${carry.final ? 'on' : 'on so far'} ${carry.carriedOn}`}
+        variant="text"
+        onPress={() => setOpen((o) => !o)}
+        style={styles.carry}
+      />
+      {open ? <DoctorsToday userId={userId} date={date} /> : null}
+    </>
+  );
+}
+
 /** The person's daily reports, one row per day with its status and what it holds. */
 export function ReportsTab({ userId, month, focusDate }: { userId: string; month: string; focusDate?: string | null }) {
   const online = useOnline();
@@ -130,6 +149,7 @@ export function ReportsTab({ userId, month, focusDate }: { userId: string; month
               <ThemedText type="small">{`${r.doctorCalls} doctor and ${r.chemistCalls} chemist calls · ${r.followups} follow-up${r.followups === 1 ? '' : 's'}`}</ThemedText>
               {d.summary.planned > 0 ? <ThemedText type="small" themeColor={d.summary.missed > 0 ? 'danger' : 'textSecondary'}>{`Visited ${d.summary.visited} of ${d.summary.planned} planned doctors${d.summary.missed > 0 ? `, ${d.summary.missed} missed` : ''}`}</ThemedText> : null}
               <DoctorLines planned={d.doctors.planned} alsoVisited={d.doctors.alsoVisited} past />
+              <DayCarry userId={userId} date={d.date} carry={d.carry ?? null} />
             </InfoCard>
           </NumberedRow>
         );
@@ -139,6 +159,7 @@ export function ReportsTab({ userId, month, focusDate }: { userId: string; month
 }
 
 const styles = StyleSheet.create({
+  carry: { alignSelf: 'flex-start' },
   stack: { gap: Spacing.two },
   head: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   grow: { flex: 1 },

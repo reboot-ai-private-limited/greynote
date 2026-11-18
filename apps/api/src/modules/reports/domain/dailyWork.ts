@@ -4,6 +4,8 @@
  * so the app and the Excel agree. Only calls on a **submitted or approved** report count (as in the visit report and the carry-over); only an
  * **approved** Daily Plan makes a doctor planned. A doctor planned and not called is owed from the next day, until a call (the month's carry-over).
  */
+import { carryByDay } from '@/shared/carryOver/carryByDay.js';
+
 const SUBMITTED = ['SUBMITTED', 'MANAGER_APPROVED', 'APPROVED'];
 const APPROVED = ['APPROVED', 'MANAGER_APPROVED'];
 
@@ -124,7 +126,19 @@ export function buildDailyWork(input: {
   const through = addDays(input.today, -1) < input.dates[input.dates.length - 1]! ? addDays(input.today, -1) : input.dates[input.dates.length - 1]!;
   const nameOf = (id: string) => input.names.get(id) ?? '(doctor)';
 
-  const owed = new Set<string>();
+  // The carry-over for every counted day, from the one shared calculation.
+  const carry = new Map(
+    carryByDay(
+      input.dates
+        .filter((date) => date <= through)
+        .map((date) => {
+          const d = byDate.get(date);
+          const submitted = !!d?.report && SUBMITTED.includes(d.report.status);
+          const approved = !!d?.plan && APPROVED.includes(d.plan.status);
+          return { date, plannedIds: approved ? d!.plan!.doctorIds : [], calledIds: submitted ? d!.calls.doctorIds : [] };
+        }),
+    ).map((r) => [r.date, r]),
+  );
   const visitsBy = new Map<string, { n: number; last: string | null }>();
   const routeAgg = new Map<string, { days: number; doctorCalls: number }>();
   const rows: DayRow[] = [];
@@ -154,13 +168,10 @@ export function buildDailyWork(input: {
     let missedIds: string[] = [];
     let also = 0;
     if (counted) {
-      carriedIn = owed.size;
+      carriedIn = carry.get(date)!.carriedIn.length;
       visitedIds = plannedIds.filter((x) => calledIds.includes(x));
       missedIds = plannedIds.filter((x) => !calledIds.includes(x));
       also = calledIds.filter((x) => !plannedIds.includes(x)).length;
-      // A doctor planned and not called is owed from the next day; any call clears one.
-      for (const m of missedIds) owed.add(m);
-      for (const c of calledIds) owed.delete(c);
       for (const c of submitted ? d!.calls.doctorIds : []) {
         const v = visitsBy.get(c) ?? { n: 0, last: null };
         v.n += 1;
@@ -230,7 +241,7 @@ export function buildDailyWork(input: {
       visited: counted ? visitedIds.length : null,
       missed: counted ? missedIds.length : null,
       carriedIn,
-      carriedTotal: counted ? owed.size : null,
+      carriedTotal: counted ? carry.get(date)!.carriedOn.length : null,
       alsoVisited: counted ? also : null,
       visitedNames: visitedIds.map(nameOf),
       missedNames: missedIds.map(nameOf),
