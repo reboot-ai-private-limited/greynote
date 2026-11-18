@@ -112,7 +112,7 @@ export function LoginScreen() {
           </Button>
           <p className="text-sm">
             <Link href="/forgot-password" className="text-accent hover:underline">
-              Forgot password? (Admin)
+              Forgot password?
             </Link>
           </p>
         </form>
