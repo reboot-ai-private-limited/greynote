@@ -2830,3 +2830,10 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 
 - One Team screen (the board with the list's actions). "Plan not sent" removed: a draft Daily Plan is the Tour Plan's day, shown as "Tour Plan: route"; "Daily plan not submitted" only after the submit time. Wording: Tour Plan (month) / Daily plan (day).
 - The person's Plans tab shows the Tour Plan and its download; Doctors, Chemists and Distributors are separate tabs and, for a manager, cover the people below them.
+
+
+## 2026-11-18: Team board controls, gifts on doctors, secondary on the person page
+
+- Board: one day picker, two dropdown filters and one expand/collapse toggle; tiles show done/total (`plansSubmitted`). Plans tab drops the "not sent" list.
+- Gifts are read per doctor for managers (Field Activity `listGiftsForDoctors`); secondary sales on the person page reuse the existing stock read instead of a new team route.
+- Managers land on Team requests in Services.

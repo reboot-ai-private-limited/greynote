@@ -102,7 +102,9 @@ export default function ServicesScreen() {
   // One list, newest first, with one filter row (decision 2026-11-18). A manager's list holds their own requests and the team's.
   const me = useSessionUser();
   // A manager has two tabs: their own requests and the team's (decision 2026-11-18). An MR has only their own.
-  const [tab, setTab] = useState<'MINE' | 'TEAM'>('MINE');
+  // A manager lands on the team's requests (decision 2026-11-18); until they pick a tab themselves the default follows the role, which may load a moment late.
+  const [picked, setTab] = useState<'MINE' | 'TEAM' | null>(null);
+  const tab: 'MINE' | 'TEAM' = picked ?? (isManager ? 'TEAM' : 'MINE');
   const [filter, setFilter] = useState<'ALL' | 'WAITING' | 'TODO' | 'DONE' | 'REJECTED'>('ALL');
   const [search, setSearch] = useState('');
   const term = useDebounced(search.trim().toLowerCase(), 300);

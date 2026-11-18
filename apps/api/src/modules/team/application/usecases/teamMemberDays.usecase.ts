@@ -2,7 +2,7 @@ import { narrowToTeam } from '@/shared/access/teamScope.js';
 import { monthRange } from '@/shared/time/businessTime.js';
 import type { NamedPerson, TeamDirectoryPort, TeamFieldActivityPort, TeamMasterPort, TeamPlanningPort, TeamPlanRoute, TeamRoutesPort } from '../../domain/ports.js';
 import { makeRouteNamer } from '../planRoutes.js';
-import { TeamClock } from '../teamClock.js';
+import type { TeamClock } from '../teamClock.js';
 import type { TeamDoctorLine } from './teamDay.usecase.js';
 
 export interface TeamMemberDay {

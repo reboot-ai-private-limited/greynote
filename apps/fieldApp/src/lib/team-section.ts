@@ -133,7 +133,7 @@ export type BoardRow = {
 export type TeamBoard = Paged<BoardRow> & {
   date: string;
   past: boolean;
-  totals: { people: number; plannedDoctors: number; visitedDoctors: number; plansWaiting?: number; planNotApproved: number; reportsIn: number; onLeave: number };
+  totals: { people: number; plannedDoctors: number; visitedDoctors: number; plansWaiting?: number; plansSubmitted?: number; planNotApproved: number; reportsIn: number; onLeave: number };
 };
 export type DayFilter = 'PLAN_NOT_APPROVED' | 'NO_CALLS' | 'REPORT_NOT_SENT';
 
@@ -158,6 +158,7 @@ export type AttendanceMonth = { userId: string; month: string; days: { date: str
 export const getMemberAttendance = (userId: string, month: string) => apiGet<AttendanceMonth>(`/team/members/${userId}/attendance${query({ month })}`, { auth: true, fy: true });
 
 export type ServiceTotals = { count: number; totalPaise: number; waiting: number; toDo: number; done: number; rejected: number };
+export type GiftTotals = { count: number; pending: number; done: number; totalPaise: number };
 export type MemberDoctor = {
   id: string;
   name: string;
@@ -170,6 +171,8 @@ export type MemberDoctor = {
   visitsThisMonth: number;
   lastVisit: string | null;
   services: ServiceTotals;
+  /** Gifts set aside for the doctor and how many are handed over. Absent from older servers. */
+  gifts?: GiftTotals;
 };
 export const getMemberDoctors = (userId: string, month: string) => apiGet<{ month: string; items: MemberDoctor[] }>(`/team/members/${userId}/doctors${query({ month })}`, { auth: true, fy: true });
 
@@ -179,9 +182,14 @@ export type TeamDoctorDetail = {
   month: string;
   visitsThisMonth: number;
   calls: { date: string; at: string; remarks: string | null; geofence: string }[];
+  gifts?: { totals: GiftTotals; items: { id: string; productName: string; amountPaise: number; status: 'PENDING' | 'DONE'; allocatedAt: string; completedAt: string | null }[] };
   services: { totals: ServiceTotals; items: { id: string; serviceType: string; amountPaise: number; remarks: string | null; status: string; doneAt: string | null; askedBy: string; createdAt: string }[] };
 };
 export const getTeamDoctor = (doctorId: string, month: string) => apiGet<TeamDoctorDetail>(`/team/doctors/${doctorId}${query({ month })}`, { auth: true, fy: true });
+
+/** The gift line on a doctor's card: given, pending or none. */
+export const giftLine = (g: GiftTotals | undefined): { text: string; given: boolean } =>
+  !g || g.count === 0 ? { text: 'No gift', given: false } : g.pending === 0 ? { text: `Gift given (${g.done}) · ₹${Math.round(g.totalPaise / 100).toLocaleString('en-IN')}`, given: true } : { text: `Gift not given yet (${g.pending} of ${g.count} pending)`, given: false };
 
 /** A service's stage in words, from its approval status and whether it was carried out. */
 export const serviceStageText = (status: string, doneAt: string | null): { text: string; accent: Accent } =>

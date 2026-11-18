@@ -1,7 +1,7 @@
 import { narrowToTeam } from '@/shared/access/teamScope.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import { monthRange } from '@/shared/time/businessTime.js';
-import type { TeamDirectoryPort, TeamDoctorService, TeamFieldActivityPort, TeamMasterPort, TeamRoutesPort } from '../../domain/ports.js';
+import type { TeamDirectoryPort, TeamDoctorGift, TeamDoctorService, TeamFieldActivityPort, TeamMasterPort, TeamRoutesPort } from '../../domain/ports.js';
 
 export interface ServiceTotals {
   count: number;
@@ -28,6 +28,21 @@ export const totalsOf = (services: TeamDoctorService[]): ServiceTotals => {
   return t;
 };
 
+export interface GiftTotals {
+  count: number;
+  pending: number;
+  done: number;
+  /** What the gifts cost, given or not. */
+  totalPaise: number;
+}
+
+export const giftTotalsOf = (gifts: TeamDoctorGift[]): GiftTotals => ({
+  count: gifts.length,
+  pending: gifts.filter((g) => g.status === 'PENDING').length,
+  done: gifts.filter((g) => g.status === 'DONE').length,
+  totalPaise: gifts.reduce((n, g) => n + g.amountPaise, 0),
+});
+
 const addDays = (iso: string, days: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 
 export interface TeamDoctorRow {
@@ -43,6 +58,8 @@ export interface TeamDoctorRow {
   visitsThisMonth: number;
   lastVisit: string | null;
   services: ServiceTotals;
+  /** Gifts set aside for him: how many, and how many are handed over. */
+  gifts: GiftTotals;
 }
 
 /** A person's doctors with how they are visited and what services were asked for them. Downline only (403 otherwise). */
@@ -50,7 +67,7 @@ export class TeamMemberDoctorsUseCase {
   constructor(
     private readonly directory: TeamDirectoryPort,
     private readonly master: Pick<TeamMasterPort, 'listAssignedDoctors'>,
-    private readonly fieldActivity: Pick<TeamFieldActivityPort, 'getActivityRange' | 'listServicesForDoctors'>,
+    private readonly fieldActivity: Pick<TeamFieldActivityPort, 'getActivityRange' | 'listServicesForDoctors' | 'listGiftsForDoctors'>,
     private readonly routes: TeamRoutesPort,
   ) {}
 
@@ -62,9 +79,10 @@ export class TeamMemberDoctorsUseCase {
     const people = [{ id: userId, name: '' }, ...below.map((m) => ({ id: m.id, name: m.name }))];
     const names = new Map((await this.directory.namePeople(people.map((p) => p.id))).map((p) => [p.id, p.name]));
     const held = (await Promise.all(people.map(async (p) => (await this.master.listAssignedDoctors(p.id)).filter((d) => d.status === 'active').map((d) => ({ d, by: p.id }))))).flat();
-    const [activityByPerson, services] = await Promise.all([
+    const [activityByPerson, services, gifts] = await Promise.all([
       Promise.all(people.map(async (p) => [p.id, await this.fieldActivity.getActivityRange(p.id, { from: addDays(range.from, -62), to: range.to })] as const)),
       this.fieldActivity.listServicesForDoctors(held.map((h) => h.d.id)),
+      this.fieldActivity.listGiftsForDoctors(held.map((h) => h.d.id)),
     ]);
     const visits = new Map<string, { month: number; last: string | null }>();
     for (const [, activity] of activityByPerson) {
@@ -79,6 +97,8 @@ export class TeamMemberDoctorsUseCase {
     }
     const byDoctor = new Map<string, TeamDoctorService[]>();
     for (const s of services) byDoctor.set(s.doctorId, [...(byDoctor.get(s.doctorId) ?? []), s]);
+    const giftsByDoctor = new Map<string, TeamDoctorGift[]>();
+    for (const g of gifts) giftsByDoctor.set(g.doctorId, [...(giftsByDoctor.get(g.doctorId) ?? []), g]);
     const routeNames = new Map<string, string | null>();
     for (const id of new Set(held.map((h) => h.d.routeId))) routeNames.set(id, (await this.routes.getRoute(id))?.name ?? null);
     const items = held
@@ -93,6 +113,7 @@ export class TeamMemberDoctorsUseCase {
         visitsThisMonth: visits.get(d.id)?.month ?? 0,
         lastVisit: visits.get(d.id)?.last ?? null,
         services: totalsOf(byDoctor.get(d.id) ?? []),
+        gifts: giftTotalsOf(giftsByDoctor.get(d.id) ?? []),
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
     return { month, items };
@@ -104,7 +125,7 @@ export class TeamDoctorUseCase {
   constructor(
     private readonly directory: TeamDirectoryPort,
     private readonly master: Pick<TeamMasterPort, 'getDoctor' | 'getAssignedUserId'>,
-    private readonly fieldActivity: Pick<TeamFieldActivityPort, 'getActivityRange' | 'listServicesForDoctors'>,
+    private readonly fieldActivity: Pick<TeamFieldActivityPort, 'getActivityRange' | 'listServicesForDoctors' | 'listGiftsForDoctors'>,
     private readonly routes: TeamRoutesPort,
   ) {}
 
@@ -115,9 +136,10 @@ export class TeamDoctorUseCase {
     const person = downline.find((m) => m.id === holder);
     if (!doctor || !holder || !person) throw AppError.notFound('No such doctor.');
     const range = monthRange(month);
-    const [activity, services] = await Promise.all([
+    const [activity, services, gifts] = await Promise.all([
       this.fieldActivity.getActivityRange(holder, { from: addDays(range.from, -62), to: range.to }),
       this.fieldActivity.listServicesForDoctors([doctorId]),
+      this.fieldActivity.listGiftsForDoctors([doctorId]),
     ]);
     const calls = activity
       .flatMap((a) => a.doctorCalls.filter((c) => c.doctorId === doctorId).map((c) => ({ date: a.date, at: c.recordedAt.toISOString(), remarks: c.remarks, geofence: c.geofence })))
@@ -128,6 +150,7 @@ export class TeamDoctorUseCase {
       month,
       visitsThisMonth: calls.filter((c) => c.date >= range.from && c.date <= range.to).length,
       calls: calls.slice(0, 30),
+      gifts: { totals: giftTotalsOf(gifts), items: gifts.map((g) => ({ id: g.id, productName: g.productName, amountPaise: g.amountPaise, status: g.status, allocatedAt: g.allocatedAt.toISOString(), completedAt: g.completedAt ? g.completedAt.toISOString() : null })) },
       services: { totals: totalsOf(services), items: services.map((s) => ({ id: s.id, serviceType: s.serviceType, amountPaise: s.amountPaise, remarks: s.remarks, status: s.status, doneAt: s.doneAt ? s.doneAt.toISOString() : null, askedBy: s.userName ?? '', createdAt: s.createdAt.toISOString() })) },
     };
   }

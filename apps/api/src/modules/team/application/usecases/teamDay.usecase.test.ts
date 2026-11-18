@@ -50,6 +50,8 @@ describe('the team board for a day', () => {
   it('counts the level and filters: plan not approved, and report not sent', async () => {
     const all = await board.execute('rsm', { ...base, date: '2026-11-17' });
     expect(all.totals).toMatchObject({ people: 4, plannedDoctors: 4, visitedDoctors: 1, reportsIn: 1, plansWaiting: 1 });
+    expect(all.totals.plansSubmitted).toBeGreaterThanOrEqual(1);
+    expect(all.totals.plansSubmitted).toBeLessThanOrEqual(all.totals.people);
     // only a plan someone SENT and nobody has decided is waiting; a draft (or no plan) is not a status
     const unapproved = await board.execute('rsm', { ...base, date: '2026-11-17', filter: 'PLAN_NOT_APPROVED' });
     expect(unapproved.items.map((r) => r.user.id)).toEqual(['mr2']);

@@ -12,7 +12,7 @@ import { CardSection, InfoCard, Pill, SummaryStrip, sym } from '@/components/ui-
 import { Spacing } from '@/constants/theme';
 import { useFinancialYear } from '@/lib/financial-year';
 import { formatRupees } from '@/lib/money';
-import { getTeamDoctor, serviceStageText, type TeamDoctorDetail } from '@/lib/team-section';
+import { getTeamDoctor, giftLine, serviceStageText, type TeamDoctorDetail } from '@/lib/team-section';
 import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
 import { monthOf, prettyDay } from '@/offline/day';
@@ -56,6 +56,18 @@ export default function TeamDoctorScreen() {
               { label: 'Services ₹', value: formatRupees(d.services.totals.totalPaise), accent: 'green' },
             ]}
           />
+          <CardSection icon={sym('gift', 'redeem')} accent="amber" title="Gifts for this doctor" count={d.gifts?.items.length || undefined}>
+            <ThemedText type="small" themeColor="textSecondary">{giftLine(d.gifts?.totals).text}</ThemedText>
+            {(d.gifts?.items ?? []).map((g) => (
+              <InfoCard key={g.id}>
+                <View style={styles.head}>
+                  <ThemedText type="smallBold" style={styles.grow}>{`${g.productName} · ${formatRupees(g.amountPaise)}`}</ThemedText>
+                  <Pill text={g.status === 'DONE' ? 'Given' : 'Not given yet'} accent={g.status === 'DONE' ? 'green' : 'amber'} />
+                </View>
+                <ThemedText type="small" themeColor="textSecondary">{g.completedAt ? `Given on ${prettyDay(g.completedAt.slice(0, 10))}` : `Set aside on ${prettyDay(g.allocatedAt.slice(0, 10))}`}</ThemedText>
+              </InfoCard>
+            ))}
+          </CardSection>
           <CardSection icon={sym('briefcase', 'work')} accent="purple" title="Services asked for this doctor" count={d.services.items.length || undefined}>
             {d.services.items.length === 0 ? <Notice tone="info">No service has been asked for this doctor.</Notice> : null}
             {d.services.items.map((s) => {

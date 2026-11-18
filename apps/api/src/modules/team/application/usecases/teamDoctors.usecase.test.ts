@@ -13,6 +13,7 @@ describe('a manager reads a person’s doctors and a doctor', () => {
     kit = new FakeTeam();
     kit.held.set('mr1', [doctor('d1', 'Dr Rao'), doctor('d2', 'Dr Sen'), doctor('d3', 'Dr Old', { status: 'inactive' })]);
     kit.services = [svc('s1', 'd1', 450_000, 'APPROVED'), svc('s2', 'd1', 90_000, 'SUBMITTED'), svc('s3', 'd1', 30_000, 'REJECTED'), svc('s4', 'd1', 120_000, 'APPROVED', { doneAt: new Date('2026-11-12T00:00:00Z') })];
+    kit.gifts = [{ id: 'g1', doctorId: 'd1', productName: 'Pen set', amountPaise: 50_000, status: 'DONE', allocatedAt: new Date('2026-11-01T00:00:00Z'), completedAt: new Date('2026-11-05T00:00:00Z') }, { id: 'g2', doctorId: 'd1', productName: 'Bag', amountPaise: 80_000, status: 'PENDING', allocatedAt: new Date('2026-11-10T00:00:00Z'), completedAt: null }];
     kit.day.set('mr1|2026-11-16', { userId: 'mr1', date: '2026-11-16', reportStatus: 'APPROVED', doctorCalls: [{ doctorId: 'd1', recordedAt: new Date('2026-11-16T05:00:00Z'), remarks: 'ok', geofence: 'PASS' }], chemistCalls: [], followups: 0 });
     kit.day.set('mr1|2026-10-20', { userId: 'mr1', date: '2026-10-20', reportStatus: 'APPROVED', doctorCalls: [{ doctorId: 'd2', recordedAt: new Date('2026-10-20T05:00:00Z'), remarks: null, geofence: 'PASS' }], chemistCalls: [], followups: 0 });
   });
@@ -22,6 +23,8 @@ describe('a manager reads a person’s doctors and a doctor', () => {
     expect(out.items.map((d) => d.name)).toEqual(['Dr Rao', 'Dr Sen']);
     expect(out.items[0]).toMatchObject({ visitsThisMonth: 1, lastVisit: '2026-11-16', routeName: 'Route r1' });
     expect(out.items[0]?.services).toEqual({ count: 4, totalPaise: 450_000 + 90_000 + 120_000, waiting: 1, toDo: 1, done: 1, rejected: 1 });
+    expect(out.items[0]?.gifts).toEqual({ count: 2, pending: 1, done: 1, totalPaise: 130_000 });
+    expect(out.items[1]?.gifts).toEqual({ count: 0, pending: 0, done: 0, totalPaise: 0 });
     expect(out.items[1]).toMatchObject({ visitsThisMonth: 0, lastVisit: '2026-10-20', services: { count: 0, totalPaise: 0 } });
   });
 
@@ -30,6 +33,7 @@ describe('a manager reads a person’s doctors and a doctor', () => {
     const out = await doc.execute('rsm', 'd1', '2026-11');
     expect(out).toMatchObject({ doctor: { name: 'Dr Rao' }, heldBy: { id: 'mr1' }, visitsThisMonth: 1 });
     expect(out.services.items).toHaveLength(4);
+    expect(out.gifts.totals).toMatchObject({ count: 2, pending: 1, done: 1 });
     kit.held.set('stranger', [doctor('d9', 'Dr Far')]);
     await expect(doc.execute('rsm', 'd9', '2026-11')).rejects.toMatchObject({ statusCode: 404 });
     await expect(doc.execute('rsm', 'nope', '2026-11')).rejects.toMatchObject({ statusCode: 404 });

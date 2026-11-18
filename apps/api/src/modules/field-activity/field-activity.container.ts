@@ -239,6 +239,10 @@ export function buildFieldActivityContainer(
       getDayActivity: (userIds, date) => dayActivity.execute(userIds, date),
       getActivityRange: (userId, range) => dayActivity.range(userId, range),
       listServicesForDoctors: (doctorIds) => new ListServicesForDoctorsUseCase(services, approvals, master, users).execute(doctorIds),
+      listGiftsForDoctors: async (doctorIds) =>
+        doctorIds.length === 0
+          ? []
+          : (await gifts.list({ doctorIds }, 5000)).map((g) => ({ id: g.id, doctorId: g.doctorId, productName: g.productName, amountPaise: g.amountPaise, status: g.status, allocatedAt: g.allocatedAt, completedAt: g.completedAt })),
     },
     buildRouter: () =>
       buildFieldActivityRouter(

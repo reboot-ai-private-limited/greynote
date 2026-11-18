@@ -83,6 +83,7 @@ export interface TeamPlanningPort {
 /** Team's narrow view of Field Activity; `fieldActivity.contract` satisfies it structurally. */
 export interface TeamFieldActivityPort {
   listServicesForDoctors(doctorIds: string[]): Promise<TeamDoctorService[]>;
+  listGiftsForDoctors(doctorIds: string[]): Promise<TeamDoctorGift[]>;
   getDayActivity(userIds: string[], date: string): Promise<TeamDayActivity[]>;
   getActivityRange(userId: string, range: { from: string; to: string }): Promise<TeamDayActivity[]>;
   getDcrSummary(
@@ -104,6 +105,17 @@ export interface TeamDoctorInfo {
   routeId: string;
   visitFrequency: number | null;
   status: string;
+}
+
+/** A gift set aside for a doctor (Field Activity's `listGiftsForDoctors`). `DONE` = handed over. */
+export interface TeamDoctorGift {
+  id: string;
+  doctorId: string;
+  productName: string;
+  amountPaise: number;
+  status: 'PENDING' | 'DONE';
+  allocatedAt: Date;
+  completedAt: Date | null;
 }
 
 /** A service asked for a doctor, with its stage (Field Activity's `listServicesForDoctors`). */

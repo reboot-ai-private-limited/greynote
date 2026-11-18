@@ -3,6 +3,7 @@ import type {
   TeamBlockPort,
   TeamConfigPort,
   TeamDoctorInfo,
+  TeamDoctorGift,
   TeamDoctorService,
   TeamDayActivity,
   TeamDirectoryPort,
@@ -134,6 +135,10 @@ export class FakeTeam
   /** Doctors by holder, and the services asked for doctors (the manager's doctor lists). */
   held = new Map<string, TeamDoctorInfo[]>();
   services: TeamDoctorService[] = [];
+  gifts: TeamDoctorGift[] = [];
+  async listGiftsForDoctors(ids: string[]) {
+    return this.gifts.filter((g) => ids.includes(g.doctorId));
+  }
   async listAssignedDoctors(userId: string) {
     return this.held.get(userId) ?? [];
   }

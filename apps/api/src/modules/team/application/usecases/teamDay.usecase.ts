@@ -2,7 +2,7 @@ import { buildPaginatedResult, type PaginatedResult } from '@/shared/http/pagina
 import type { NamedPerson, TeamDayActivity, TeamDirectoryPort, TeamFieldActivityPort, TeamHrPort, TeamMasterPort, TeamPlanningPort, TeamPlanRoute, TeamRoutesPort, TeamSalesPort } from '../../domain/ports.js';
 import { mapInChunks } from '../inChunks.js';
 import { makeRouteNamer } from '../planRoutes.js';
-import { TeamClock } from '../teamClock.js';
+import type { TeamClock } from '../teamClock.js';
 import { activeMembers, type TeamLevel } from '../teamScope.js';
 
 export interface TeamDayQuery {
@@ -58,10 +58,9 @@ export interface TeamDayResult extends PaginatedResult<TeamDayRow> {
   /** The day is before today: a doctor not called is `missed`, not "not yet". */
   past: boolean;
   /** Everyone at the level, whatever the filter or page. */
-  totals: { people: number; plannedDoctors: number; visitedDoctors: number; plansWaiting: number; /** Same as `plansWaiting`; kept for older phones. */ planNotApproved: number; reportsIn: number; onLeave: number };
+  totals: { people: number; plannedDoctors: number; visitedDoctors: number; plansWaiting: number; /** People whose Daily Plan was sent (waiting, approved or sent back): not a draft, not missing. */ plansSubmitted: number; /** Same as `plansWaiting`; kept for older phones. */ planNotApproved: number; reportsIn: number; onLeave: number };
 }
 
-const APPROVED = new Set(['APPROVED', 'MANAGER_APPROVED']);
 /** A plan someone sent that waits for a decision or came back: what a manager acts on. A draft is not one. */
 const WAITING = new Set(['SUBMITTED', 'REJECTED', 'REOPENED', 'WITHDRAWN']);
 const REPORT_IN = new Set(['SUBMITTED', 'MANAGER_APPROVED', 'APPROVED']);
@@ -141,6 +140,7 @@ export class TeamDayUseCase {
       plannedDoctors: rows.reduce((n, r) => n + r.summary.planned, 0),
       visitedDoctors: rows.reduce((n, r) => n + r.summary.visited, 0),
       plansWaiting: rows.filter(waiting).length,
+      plansSubmitted: rows.filter((r) => !!r.plan && r.plan.status !== 'DRAFT').length,
       planNotApproved: rows.filter(waiting).length,
       reportsIn: rows.filter((r) => r.report && REPORT_IN.has(r.report.status)).length,
       onLeave: rows.filter((r) => r.onLeave).length,

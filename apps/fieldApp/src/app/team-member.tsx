@@ -1,30 +1,29 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { MonthStepper } from '@/components/month-stepper';
 import { Notice } from '@/components/notice';
-import { PrimaryButton } from '@/components/primary-button';
 import { ScreenShell } from '@/components/screen-shell';
 import { Skeleton } from '@/components/skeleton';
 import { PlansTab, ReportsTab, usePersonDays } from '@/components/team/member/plans-tab';
 import { ChoiceChips } from '@/components/choice-chips';
-import { DoctorLines } from '@/components/team/doctor-lines';
+import { TodayHeader } from '@/components/team/member/today-header';
 import { ChemistsTab, DistributorsTab, DoctorsTab, ExpensesTab, LeaveTab, OrdersTab } from '@/components/team/member/more-tabs';
 import { ThemedText } from '@/components/themed-text';
-import { Avatar, CardSection, InfoCard, Meter, Pill, RowCard, SummaryStrip, sym } from '@/components/ui-cards';
+import { Avatar, CardSection, InfoCard, Meter, Pill, SummaryStrip, sym } from '@/components/ui-cards';
 import { Spacing, type Accent } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useFinancialYear } from '@/lib/financial-year';
 import { formatRupees } from '@/lib/money';
-import { NOT_IN_TEAM_TEXT, dailyPlanChip, getTeamDay, getTeamMemberSummary, tourPlanChip, type TeamBoard, type TeamMemberSummary } from '@/lib/team-section';
+import { NOT_IN_TEAM_TEXT, dailyPlanChip, getTeamDay, getTeamMemberSummary, type TeamBoard, type TeamMemberSummary } from '@/lib/team-section';
 import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
-import { monthOf, prettyDay, prettyMonth } from '@/offline/day';
+import { monthOf, prettyMonth } from '@/offline/day';
 
 /**
  * One person of your team (docs/mobile/team.md), as tabs: Overview, Plans, Reports and More (the rest of their records). The header says who they
- * are and how today looks; the Actions menu holds Unblock, a late exception and the downloads. A person outside your downline is refused (403).
+ * are and how today looks; Unblock and late exceptions are on the Team board and in Team → Reports. A person outside your downline is refused (403).
  */
 export default function TeamMemberScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -35,7 +34,8 @@ export default function TeamMemberScreen() {
   const [picked, setMonth] = useState<string | null>(null);
   const month = clamp(picked ?? lastMonth);
   const [tab, setTab] = useState<'overview' | 'plans' | 'reports' | 'expenses' | 'leave' | 'doctors' | 'chemists' | 'distributors' | 'orders'>('overview');
-  const [menu, setMenu] = useState(false);
+  // Set when the header's "Daily report: Yes" is tapped: that day's report is shown first in the Reports tab.
+  const [focusDate, setFocusDate] = useState<string | null>(null);
 
   const { today } = useDayGate();
   const todayRow = useCachedFetch<TeamBoard>(`team-day-one:${fy.year}:${id}:${today}`, () => getTeamDay({ date: today, userId: String(id) }));
@@ -45,12 +45,8 @@ export default function TeamMemberScreen() {
   const data = list.data;
   const denied = list.error && /403|not in your team|forbidden/i.test(list.error);
   const o = data?.overview ?? null;
-  // Each link opens an existing screen already filtered to this person.
-  const go = (pathname: '/unblock' | '/late-grants' | '/team-doctors' | '/team-reports' | '/team-plans' | '/team-leaves' | '/team-orders' | '/team-stock') =>
-    router.push({ pathname, params: { userId: String(id) } });
   const percent = o && o.targetPaise > 0 && o.achievedPaise !== null ? Math.round((o.achievedPaise / o.targetPaise) * 100) : null;
   const chip = row ? (row.onLeave ? { text: 'On leave', accent: 'purple' as Accent } : dailyPlanChip(row.plan)) : null;
-  const tour = tourPlanChip(days.data?.monthlyPlanStatus);
 
   return (
     <ScreenShell title={data?.member.name ?? 'Person'} subtitle={data ? `${data.member.employeeCode}${data.member.designation ? ` · ${data.member.designation}` : ''}` : undefined} onRefresh={list.reload} refreshing={list.refreshing}>
@@ -69,28 +65,20 @@ export default function TeamMemberScreen() {
               </View>
               {data.today?.blocked ? <Pill text="Blocked" accent="red" /> : chip ? <Pill text={chip.text} accent={chip.accent} /> : null}
             </View>
-            {row && !row.onLeave ? (
-              <>
-                <ThemedText type="small" themeColor={row.plan?.fromTourPlan ? 'textSecondary' : 'text'}>
-                  {`${prettyDay(today)} · ${row.plan?.fromTourPlan ? 'Tour Plan: ' : ''}${row.plan ? (row.plan.routes.length > 0 ? row.plan.routes.map((r) => r.name).join(', ') : row.plan.workingType.replace(/_/g, ' ').toLowerCase()) : 'no plan for today'}`}
-                </ThemedText>
-                <DoctorLines planned={row.doctors.planned} alsoVisited={row.doctors.alsoVisited} past={false} />
-              </>
-            ) : null}
-            <View style={styles.row}>
-              <Pill text={tour.text} accent={tour.accent} />
-            </View>
-            <PrimaryButton label={menu ? 'Hide actions ▴' : 'Actions ⋯'} variant="text" onPress={() => setMenu((m) => !m)} style={styles.link} />
+            <TodayHeader
+              row={row}
+              today={today}
+              tourStatus={days.data?.monthlyPlanStatus}
+              onOpenReport={() => {
+                setMonth(monthOf(today));
+                setFocusDate(today);
+                setTab('reports');
+              }}
+            />
           </InfoCard>
-          {menu ? (
-            <View style={styles.group}>
-              <RowCard icon={sym('lock.open', 'lock_open')} accent="purple" title={data.today?.blocked ? 'Unblock now' : 'Unblock'} subtitle="Clear a block for a missed report" right={chevron} onPress={() => go('/unblock')} />
-              <RowCard icon={sym('clock.badge.checkmark', 'schedule')} accent="amber" title="Allow a late plan or expenses" subtitle="One exception, for a time you choose" right={chevron} onPress={() => go('/late-grants')} />
-            </View>
-          ) : null}
           {data.today?.blocked ? (
             <Notice tone="warning" title="Blocked">
-              {`${data.member.name} missed a daily report and can’t log or submit anything until you unblock them.`}
+              {`${data.member.name} missed a daily report and can’t log or submit anything until you unblock them. Unblock them from the Team board, or from Team → Reports → Unblock.`}
             </Notice>
           ) : null}
 
@@ -107,7 +95,10 @@ export default function TeamMemberScreen() {
               { value: 'orders', label: 'Orders' },
             ]}
             value={tab}
-            onChange={setTab}
+            onChange={(t) => {
+              setFocusDate(null);
+              setTab(t);
+            }}
           />
           <InfoCard>
             <ThemedText type="smallBold">Month</ThemedText>
@@ -143,7 +134,7 @@ export default function TeamMemberScreen() {
             )
           ) : null}
           {tab === 'plans' ? <PlansTab userId={String(id)} month={month} person={{ name: data.member.name, employeeCode: data.member.employeeCode, designation: data.member.designation }} /> : null}
-          {tab === 'reports' ? <ReportsTab userId={String(id)} month={month} /> : null}
+          {tab === 'reports' ? <ReportsTab userId={String(id)} month={month} focusDate={focusDate} /> : null}
           {tab === 'expenses' ? <ExpensesTab userId={String(id)} month={month} person={{ name: data.member.name, employeeCode: data.member.employeeCode, designation: data.member.designation }} /> : null}
           {tab === 'leave' ? <LeaveTab userId={String(id)} month={month} /> : null}
           {tab === 'doctors' ? <DoctorsTab userId={String(id)} month={month} /> : null}
@@ -159,13 +150,5 @@ export default function TeamMemberScreen() {
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   grow: { flex: 1, gap: 2 },
-  group: { gap: Spacing.two },
-  groupTitle: { fontSize: 16, lineHeight: 22 },
-  link: { alignSelf: 'flex-start' },
 });
 
-const chevron = (
-  <ThemedText type="smallBold" themeColor="textSecondary">
-    ›
-  </ThemedText>
-);

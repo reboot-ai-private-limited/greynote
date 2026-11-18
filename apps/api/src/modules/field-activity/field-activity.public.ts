@@ -65,4 +65,6 @@ export interface FieldActivityPublicContract {
   getActivityRange(userId: string, range: { from: string; to: string }): Promise<DayActivity[]>;
   /** The services asked for these doctors by anyone, with their stage (`status`, `doneAt`), amount and requester: a manager's doctor lists. */
   listServicesForDoctors(doctorIds: string[]): Promise<DoctorServiceView[]>;
+  /** The gifts Admin set aside for these doctors, given (`DONE`) or not (`PENDING`), newest first: a manager's doctor lists. */
+  listGiftsForDoctors(doctorIds: string[]): Promise<Array<{ id: string; doctorId: string; productName: string; amountPaise: number; status: 'PENDING' | 'DONE'; allocatedAt: Date; completedAt: Date | null }>>;
 }

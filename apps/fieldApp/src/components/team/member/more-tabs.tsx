@@ -9,6 +9,7 @@ import { formatRupees } from '@/lib/money';
 import { getStatement, STATUS_TEXT, type ExpenseStatement } from '@/lib/expense-months';
 import {
   getMemberAttendance,
+  giftLine,
   getMemberDoctors,
   getTeamLeaves,
   getTeamOrders,
@@ -196,6 +197,7 @@ export function DoctorsTab({ userId, month }: { userId: string; month: string })
             <ThemedText type="small">
               {`Visits this month ${d.visitsThisMonth}${d.visitFrequency ? ` of ${d.visitFrequency}` : ''} · last visit ${d.lastVisit ? prettyDay(d.lastVisit) : 'not recently'}`}
             </ThemedText>
+            <ThemedText type="small" themeColor={giftLine(d.gifts).given ? 'text' : 'textSecondary'}>{`🎁 ${giftLine(d.gifts).text}`}</ThemedText>
             <ThemedText type="small" themeColor={d.services.count > 0 ? 'text' : 'textSecondary'}>
               {d.services.count > 0 ? `Services ${formatRupees(d.services.totalPaise)} · ${d.services.count} asked (${[d.services.waiting && `${d.services.waiting} waiting`, d.services.toDo && `${d.services.toDo} to do`, d.services.done && `${d.services.done} done`, d.services.rejected && `${d.services.rejected} rejected`].filter(Boolean).join(', ')})` : 'No services asked'}
             </ThemedText>

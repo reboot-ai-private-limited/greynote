@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Accents, Spacing, type Accent } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
+import { useTheme } from '@/hooks/use-theme';
 import { useTeamBoard } from '@/hooks/use-team-board';
 import { useWindowed } from '@/hooks/use-windowed';
 import { useFinancialYear } from '@/lib/financial-year';
@@ -13,10 +14,10 @@ import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
 import { addDays, formatWhen } from '@/offline/day';
 
-import { ChoiceChips } from '../choice-chips';
-import { DateStepper } from '../date-stepper';
+import { DayPicker } from '../day-picker';
 import { Notice } from '../notice';
 import { PrimaryButton } from '../primary-button';
+import { SelectField } from '../select-field';
 import { Skeleton } from '../skeleton';
 import { TextField } from '../text-field';
 import { ThemedText } from '../themed-text';
@@ -85,6 +86,7 @@ function Tile({ label, value, accent, active, onPress }: { label: string; value:
  * Unblock, "You decide / View only", a manager's team opening under them, the roll-up, search, role and focus filters, and the tiles.
  */
 export function PeoplePanel({ onShowApprovals }: { onShowApprovals: () => void }) {
+  const theme = useTheme();
   const online = useOnline();
   const board = useTeamBoard();
   const pending = useApprovalSummary();
@@ -112,6 +114,8 @@ export function PeoplePanel({ onShowApprovals }: { onShowApprovals: () => void }
       else next.add(id);
       return next;
     });
+  const folders = all.filter((n) => n.children.length > 0);
+  const allOpen = folders.length > 0 && folders.every((n) => open.has(n.member.id));
   const expandAll = () => setOpen(new Set(all.filter((n) => n.children.length > 0).map((n) => n.member.id)));
 
   const treeRows = (nodes: TeamNode[], level: number): { node: TeamNode; level: number }[] =>
@@ -149,12 +153,12 @@ export function PeoplePanel({ onShowApprovals }: { onShowApprovals: () => void }
       {dayRows.error && online ? <Notice tone="danger">{dayRows.error}</Notice> : null}
       {board.loading ? <Skeleton cards={3} lines={2} /> : null}
 
-      <DateStepper label="Day" value={date} onChange={(d) => setDate(d > tomorrow ? tomorrow : d)} {...(min ? { min } : {})} weekSteps />
+      <DayPicker value={date} onChange={(d) => setDate(d > tomorrow ? tomorrow : d)} min={min} max={tomorrow} />
 
       {t ? (
         <View style={styles.tiles}>
           <Tile label="Pending approvals" value={pending.summary ? pending.summary.total : '–'} accent={pending.summary && pending.summary.total > 0 ? 'amber' : 'slate'} active={false} onPress={onShowApprovals} />
-          <Tile label="Daily plans waiting" value={waiting ?? '–'} accent={waiting ? 'amber' : 'slate'} active={focus === 'PLAN'} onPress={() => pick('PLAN')} />
+          <Tile label="Daily plans submitted" value={dt && dt.plansSubmitted !== undefined ? `${dt.plansSubmitted}/${dt.people}` : (waiting ?? '–')} accent={waiting ? 'amber' : 'teal'} active={focus === 'PLAN'} onPress={() => pick('PLAN')} />
           <Tile label="Reports in" value={dt ? `${dt.reportsIn}/${dt.people}` : '–'} accent="teal" active={focus === 'REPORT'} onPress={() => pick('REPORT')} />
           <Tile label="On leave" value={dt ? dt.onLeave : (t.ON_LEAVE ?? 0)} accent={(dt ? dt.onLeave : (t.ON_LEAVE ?? 0)) > 0 ? 'purple' : 'slate'} active={focus === 'ON_LEAVE'} onPress={() => pick('ON_LEAVE')} />
           <Tile label="Blocked" value={t.blocked} accent={t.blocked > 0 ? 'red' : 'slate'} active={focus === 'BLOCKED'} onPress={() => pick('BLOCKED')} />
@@ -162,27 +166,24 @@ export function PeoplePanel({ onShowApprovals }: { onShowApprovals: () => void }
       ) : null}
 
       <TextField label="Search by name or code" value={search} onChangeText={setSearch} autoCapitalize="none" autoCorrect={false} />
-      <ChoiceChips options={FOCUS} value={focus} onChange={setFocus} />
-      {designations.length > 1 ? (
-        <ChoiceChips options={[{ value: 'ALL', label: 'All roles' }, ...designations.map((d) => ({ value: d, label: d }))]} value={designation} onChange={setDesignation} />
-      ) : null}
+      <View style={styles.filters}>
+        <SelectField label="Show" options={FOCUS} value={focus} onChange={setFocus} />
+        {designations.length > 1 ? (
+          <SelectField label="Role" options={[{ value: 'ALL', label: 'All roles' }, ...designations.map((d) => ({ value: d, label: d }))]} value={designation} onChange={setDesignation} />
+        ) : null}
+        {hasManagers ? (
+          <Pressable accessibilityRole="button" accessibilityLabel={allOpen ? 'Collapse all' : 'Expand all'} onPress={allOpen ? () => setOpen(new Set()) : expandAll} style={[styles.toggle, { borderColor: theme.border, backgroundColor: theme.background }]}>
+            <ThemedText type="small" themeColor="primary">{allOpen ? 'Collapse all' : 'Expand all'}</ThemedText>
+          </Pressable>
+        ) : null}
+      </View>
 
-      {!flat ? (
-        <View style={styles.trail}>
-          <ThemedText type="small" themeColor="text">My team</ThemedText>
-          {hasManagers ? (
-            <View style={styles.actions}>
-              <PrimaryButton label="Expand all" variant="text" onPress={expandAll} />
-              <PrimaryButton label="Collapse all" variant="text" onPress={() => setOpen(new Set())} />
-            </View>
-          ) : null}
-        </View>
-      ) : (
+      {flat ? (
         <View style={styles.trail}>
           <ThemedText type="small" themeColor="textSecondary">{`${shown.length} of ${board.count} in your team`}</ThemedText>
           <PrimaryButton label="Clear filters" variant="text" onPress={clear} />
         </View>
-      )}
+      ) : null}
 
       {!board.loading && (flat ? shown.length === 0 : board.roots.length === 0) ? <Notice tone="info">{flat ? 'Nobody matches.' : 'You have nobody in your team yet.'}</Notice> : null}
       {visible.map(({ node, level, key }) => {
@@ -224,6 +225,8 @@ const styles = StyleSheet.create({
   tiles: { flexDirection: 'row', gap: Spacing.two },
   tile: { flex: 1, borderRadius: Spacing.three, padding: Spacing.two, gap: 2, minHeight: 74, justifyContent: 'space-between' },
   tileLabel: { fontSize: 11, lineHeight: 14 },
+  filters: { flexDirection: 'row', gap: Spacing.two, alignItems: 'flex-start' },
+  toggle: { alignSelf: 'flex-start', borderWidth: 1, borderRadius: Spacing.three, paddingHorizontal: Spacing.three, minHeight: 52, justifyContent: 'center' },
   trail: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' },
   actions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, flexWrap: 'wrap' },
 });
