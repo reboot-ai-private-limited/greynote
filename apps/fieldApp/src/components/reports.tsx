@@ -5,17 +5,11 @@ import { StyleSheet, View } from 'react-native';
 import { Spacing, type Accent } from '@/constants/theme';
 import { apiGet } from '@/lib/api';
 import { STATUS_LABEL, statusLabel, type ApprovalStatus } from '@/lib/approvals';
-import { listStock, orderValue, type OrderView, type StockRow } from '@/lib/marketing';
 import { formatRupees } from '@/lib/money';
 import { getMyDcrCoverage, getMyDcrYear, getMyTaDaDays, getMyTaDaYear, type TaDaDay } from '@/lib/my-reports';
 import { getRejectionReason, workingTypeLabel, type DailyPlanDetail, type MonthlyPlanDetail } from '@/lib/planning';
-import { getEmployeeSalesReport, type EmployeeSalesReport } from '@/lib/sales';
-import { useSessionUser } from '@/lib/session';
-import { STOCK_COUNT_STATUS_ACCENT, STOCK_COUNT_STATUS_TEXT, getStockCounts, type StockCountsMonth } from '@/lib/stock-counts';
-import { useCachedSource } from '@/offline/cache';
 import { useCachedFetch } from '@/offline/cached-fetch';
-import { businessToday, datesInMonth, formatWhen, monthOf, prettyDay, prettyMonth } from '@/offline/day';
-import type { ConfigSnapshot, FieldMasterDataSnapshot } from '@/types/sync';
+import { datesInMonth, formatWhen, prettyDay, prettyMonth } from '@/offline/day';
 
 import { Notice } from './notice';
 import { PrimaryButton } from './primary-button';
@@ -44,14 +38,6 @@ function Stale({ fetchedAt, stale, error }: { fetchedAt: string | null; stale: b
 }
 
 /** A small heading above one of a report's tables. */
-function TableTitle({ children }: { children: string }) {
-  return (
-    <ThemedText type="smallBold" style={styles.tableTitle}>
-      {children}
-    </ThemedText>
-  );
-}
-
 /* ───────────────────────────────── DCR Report ───────────────────────────────── */
 
 type DcrRow = { id: string; reportDate: string; status: string };
@@ -254,192 +240,6 @@ export function DailyPlanReport({ month, year }: { month: string; year: number }
           ]}
           onRowPress={(d) => router.push({ pathname: '/daily-plan-detail', params: { date: d.planDate } })}
           totals={[{ label: 'Days planned', value: String(days.length) }]}
-        />
-      )}
-    </View>
-  );
-}
-
-/* ─────────────────────────────── Gift & Sales Report ─────────────────────────────── */
-
-type GiftRow = { id: string; doctorName: string; productName: string; amountPaise: number; completedAt: string | null };
-type StatusLine = { status: string; count: number; value: number };
-
-const percent = (value: number | null) => (value === null ? 'No target' : `${value}%`);
-
-/**
- * What you sold, ordered, counted and gave in the month, as cards: your secondary against target by product, orders by status,
- * how many of your outlets have a stock count, the gifts you handed over, and the samples given so far (a running total — the phone
- * only knows what is left of each allocation, not when it was given).
- */
-export function SalesReport({ month, year }: { month: string; year: number }) {
-  const me = useSessionUser();
-  const config = useCachedSource<ConfigSnapshot>('config');
-  const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
-  const { from, to } = bounds(month);
-  const secondary = useCachedFetch<EmployeeSalesReport>(`rep-sec:${year}:${month}`, () => getEmployeeSalesReport(me?.id ?? '', month, month));
-  const stockMonth = useCachedFetch<StockCountsMonth | null>(`rep-secstock:${year}:${month}`, async () => (me ? getStockCounts(me.id, month) : null));
-  const stockDistributors = (stockMonth.data?.distributors ?? []).filter((d) => d.status !== 'NOT_ENTERED' || d.totals.issuedQty > 0);
-  const orders = useCachedFetch<OrderView[]>(`rep-ord:${year}:${month}`, () => apiGet<OrderView[]>(`/sales/orders?from=${from}&to=${to}`, { auth: true, fy: true }));
-  const stock = useCachedFetch<StockRow[]>(`rep-stock:${month}`, () => listStock(month));
-  const gifts = useCachedFetch<GiftRow[]>('rep-gifts', () => apiGet<GiftRow[]>('/field-activity/doctor-gifts?status=DONE', { auth: true }));
-  const zone = config.data?.settings.BUSINESS_TIMEZONE;
-
-  const mine = (orders.data ?? []).filter((o) => !me || o.userId === me.id);
-  const by = (s: OrderView['status']) => mine.filter((o) => o.status === s);
-  const sum = (list: OrderView[]) => list.reduce((t, o) => t + orderValue(o), 0);
-  const orderLines: StatusLine[] = [
-    { status: 'Placed', count: by('PLACED').length, value: sum(by('PLACED')) },
-    { status: 'Done', count: by('DONE').length, value: sum(by('DONE')) },
-    { status: 'Cancelled', count: by('CANCELLED').length, value: sum(by('CANCELLED')) },
-  ];
-
-  const outlets = [...(master.data?.chemists ?? []).map((c) => `CHEMIST:${c.id}`), ...(master.data?.distributors ?? []).map((d) => `DISTRIBUTOR:${d.id}`)];
-  const counted = new Set((stock.data ?? []).map((r) => `${r.outlet.type}:${r.outlet.id}`));
-  const countedMine = outlets.filter((o) => counted.has(o)).length;
-
-  const giftsThisMonth = (gifts.data ?? []).filter((g) => g.completedAt && monthOf(businessToday(zone, new Date(g.completedAt), config.data?.settings.DAY_START_TIME)) === month);
-
-  const given = new Map<string, number>();
-  for (const a of master.data?.sampleAllocations ?? []) given.set(a.productId, (given.get(a.productId) ?? 0) + (a.quantityAllocated - a.quantityRemaining));
-  const productName = (id: string) => master.data?.products.find((p) => p.id === id)?.name ?? 'Product';
-  const samples = [...given.entries()].filter(([, qty]) => qty > 0).map(([id, qty]) => ({ name: productName(id), qty }));
-
-  const sec = secondary.data;
-  const secondaryRows = (sec?.products ?? []).filter((p) => p.secondaryQty > 0 || p.targetPaise > 0 || p.primaryQty > 0);
-
-  return (
-    <View style={styles.stack}>
-      <Stale fetchedAt={secondary.fetchedAt} stale={secondary.stale} error={secondary.error} />
-      <Stale fetchedAt={orders.fetchedAt} stale={orders.stale} error={orders.error} />
-
-      <TableTitle>{`Sales and achievement · ${prettyMonth(month)}`}</TableTitle>
-      {secondary.loading && !sec ? (
-        <Notice tone="info">Loading…</Notice>
-      ) : secondaryRows.length === 0 ? (
-        <Notice tone="info">{sec ? 'No secondary sales, primary or target for this month.' : 'Connect once to load your sales.'}</Notice>
-      ) : (
-        <>
-          <ReportCards
-            rows={secondaryRows}
-            rowKey={(r) => r.product.id}
-            title={(r) => r.product.name}
-            right={(r) => <ThemedText type="smallBold">{percent(r.achievementPercent)}</ThemedText>}
-            fields={(r) => [
-              { label: 'Primary (units)', value: String(r.primaryQty) },
-              { label: 'Achieved (units)', value: String(r.secondaryQty) },
-              { label: 'Achieved value', value: formatRupees(r.secondaryPaise) },
-              { label: 'Target', value: formatRupees(r.targetPaise) },
-            ]}
-            totals={[
-              { label: 'Primary (units)', value: String(secondaryRows.reduce((n, r) => n + r.primaryQty, 0)) },
-              { label: 'Achieved (units)', value: String(secondaryRows.reduce((n, r) => n + r.secondaryQty, 0)) },
-              { label: 'Achieved value', value: formatRupees(sec!.totals.secondaryPaise) },
-              { label: 'Target', value: formatRupees(sec!.totals.targetPaise) },
-              { label: 'Achieved', value: percent(sec!.totals.achievementPercent) },
-            ]}
-          />
-          <ThemedText type="small" themeColor="textSecondary">
-            Secondary and achievement here count only your approved Secondary Sales, at PTS. They show 0 until your month is approved.
-          </ThemedText>
-        </>
-      )}
-
-      <Stale fetchedAt={stockMonth.fetchedAt} stale={stockMonth.stale} error={stockMonth.error} />
-      {stockDistributors.length > 0 ? (
-        <>
-          <TableTitle>{`My secondary stock · ${prettyMonth(month)}`}</TableTitle>
-          <ReportCards
-            rows={stockDistributors}
-            rowKey={(d) => d.distributorId}
-            title={(d) => d.name}
-            right={(d) => <Pill text={STOCK_COUNT_STATUS_TEXT[d.status]} accent={STOCK_COUNT_STATUS_ACCENT[d.status]} />}
-            fields={(d) => [
-              { label: 'Opening', value: String(d.totals.openingQty) },
-              { label: 'Primary', value: String(d.totals.primaryQty) },
-              { label: 'Secondary', value: String(d.totals.issuedQty) },
-              { label: 'Closing', value: String(d.totals.closingQty) },
-              { label: 'Secondary value', value: formatRupees(d.totals.issuedAmountPaise) },
-            ]}
-            totals={[
-              { label: 'Secondary (units)', value: String(stockMonth.data?.totals.issuedQty ?? 0) },
-              { label: 'Secondary value', value: formatRupees(stockMonth.data?.totals.issuedAmountPaise ?? 0) },
-              { label: 'Month status', value: STOCK_COUNT_STATUS_TEXT[stockMonth.data?.status ?? 'NOT_ENTERED'] },
-            ]}
-          />
-        </>
-      ) : null}
-
-      {sec?.distributors && sec.distributors.length > 0 ? (
-        <>
-          <TableTitle>Done orders by distributor</TableTitle>
-          <ReportCards
-            rows={sec.distributors}
-            rowKey={(r) => r.distributor.id}
-            title={(r) => r.distributor.name}
-            right={(r) => <ThemedText type="smallBold">{formatRupees(r.orderPaise)}</ThemedText>}
-            fields={(r) => [{ label: 'Units on Done orders', value: String(r.orderQty) }]}
-            totals={[
-              { label: 'Units', value: String(sec.distributors.reduce((n, r) => n + r.orderQty, 0)) },
-              { label: 'Order value', value: formatRupees(sec.distributors.reduce((n, r) => n + r.orderPaise, 0)) },
-            ]}
-          />
-        </>
-      ) : null}
-
-      <TableTitle>Orders</TableTitle>
-      {orders.loading && !orders.data ? (
-        <Notice tone="info">Loading…</Notice>
-      ) : (
-        <ReportCards
-          rows={orderLines}
-          rowKey={(r) => r.status}
-          title={(r) => r.status}
-          right={(r) => <ThemedText type="smallBold">{formatRupees(r.value)}</ThemedText>}
-          fields={(r) => [{ label: 'Orders', value: String(r.count) }]}
-          totals={[
-            { label: 'Orders placed and done', value: String(by('PLACED').length + by('DONE').length) },
-            { label: 'Sales (placed and done)', value: formatRupees(sum(by('PLACED')) + sum(by('DONE'))) },
-          ]}
-        />
-      )}
-
-      <ThemedView type="backgroundElement" style={styles.card}>
-        <ThemedText type="smallBold">Stock counts</ThemedText>
-        <ThemedText type="small">{stock.data ? `${countedMine} of ${outlets.length} outlets counted for ${prettyMonth(month)}` : stock.loading ? 'Loading…' : 'Connect once to load the counts.'}</ThemedText>
-      </ThemedView>
-
-      <TableTitle>Gifts given</TableTitle>
-      {gifts.data ? (
-        giftsThisMonth.length === 0 ? (
-          <Notice tone="info">No gifts given this month.</Notice>
-        ) : (
-          <ReportCards
-            rows={giftsThisMonth}
-            rowKey={(g) => g.id}
-            title={(g) => g.productName}
-            right={(g) => <ThemedText type="smallBold">{formatRupees(g.amountPaise)}</ThemedText>}
-            fields={(g) => [{ label: 'Given to', value: g.doctorName }]}
-            totals={[
-              { label: 'Gifts given', value: String(giftsThisMonth.length) },
-              { label: 'Total value', value: formatRupees(giftsThisMonth.reduce((t, g) => t + g.amountPaise, 0)) },
-            ]}
-          />
-        )
-      ) : (
-        <Notice tone="info">{gifts.loading ? 'Loading…' : 'Connect once to load the gifts.'}</Notice>
-      )}
-
-      <TableTitle>Samples given so far</TableTitle>
-      {samples.length === 0 ? (
-        <Notice tone="info">No samples given yet.</Notice>
-      ) : (
-        <ReportCards
-          rows={samples}
-          rowKey={(r) => r.name}
-          title={(r) => r.name}
-          right={(r) => <ThemedText type="smallBold">{`${r.qty} given`}</ThemedText>}
-          totals={[{ label: 'Total samples given', value: String(samples.reduce((n, r) => n + r.qty, 0)) }]}
         />
       )}
     </View>

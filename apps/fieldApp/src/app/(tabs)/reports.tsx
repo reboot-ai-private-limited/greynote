@@ -8,7 +8,7 @@ import { FyBanner } from '@/components/fy-banner';
 import { MonthStepper } from '@/components/month-stepper';
 import { MonthReport } from '@/components/month-report';
 import { OwnDownloads } from '@/components/own-downloads';
-import { DailyPlanReport, DcrReport, SalesReport, TaDaReport, TpReport } from '@/components/reports';
+import { DailyPlanReport, DcrReport, TaDaReport, TpReport } from '@/components/reports';
 import { RowCard, sym } from '@/components/ui-cards';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -16,14 +16,12 @@ import { BottomTabInset, Spacing, WideContentWidth } from '@/constants/theme';
 import { useFinancialYear } from '@/lib/financial-year';
 import { monthOf } from '@/offline/day';
 
-type Report = 'month' | 'dcr' | 'plan' | 'tp' | 'tada' | 'sales' | 'more';
+type Report = 'month' | 'dcr' | 'plans' | 'tada' | 'more';
 const REPORTS: { value: Report; label: string }[] = [
   { value: 'month', label: 'Month' },
   { value: 'dcr', label: 'DCR' },
-  { value: 'plan', label: 'Daily plan' },
-  { value: 'tp', label: 'Tour Plan' },
+  { value: 'plans', label: 'Plans' },
   { value: 'tada', label: 'TA / DA' },
-  { value: 'sales', label: 'Gift & Sales' },
   { value: 'more', label: 'More' },
 ];
 
@@ -61,9 +59,12 @@ export default function ReportsScreen() {
           {report === 'month' ? <MonthReport month={month} year={fy.year} /> : null}
           {report === 'dcr' ? <DcrReport month={month} year={fy.year} /> : null}
           {report === 'tada' ? <TaDaReport month={month} year={fy.year} /> : null}
-          {report === 'plan' ? <DailyPlanReport month={month} year={fy.year} /> : null}
-          {report === 'tp' ? <TpReport month={month} year={fy.year} /> : null}
-          {report === 'sales' ? <SalesReport month={month} year={fy.year} /> : null}
+          {report === 'plans' ? (
+            <>
+              <TpReport month={month} year={fy.year} />
+              <DailyPlanReport month={month} year={fy.year} />
+            </>
+          ) : null}
           {report === 'more' ? (
             <View style={styles.more}>
               {MORE.map((m) => (
