@@ -1,6 +1,5 @@
 /**
- * The Secondary Sales performance sheet (the Excel the company keeps): for one financial year, one sheet per MR and one roll-up per manager,
- * products down the side and, across, each month's target and secondary (units) with the quarters, halves and the year. This is its plain data;
+ * The Secondary Sales performance sheet (the Excel the company keeps) of one employee for one financial year: products down the side and, across, each month's target and secondary (units) with the quarters, halves and the year. This is its plain data;
  * `secondarySheetXlsx.ts` turns it into the file.
  */
 export interface SheetRow {
@@ -36,13 +35,8 @@ export interface SecondarySheetModel {
   label: string;
   /** The twelve months, `YYYY-MM`, first month first. */
   months: string[];
-  /** Whose workbook it is: "Whole company" or the manager's name. */
-  scopeName: string;
-  /** Roll-ups first (top of the hierarchy down), then MRs. */
-  people: SheetPerson[];
-  /** MRs in the scope, and how many of them have any approved secondary this year. */
-  mrCount: number;
-  mrsWithApproved: number;
+  /** The one employee the sheet is for: an MR's own figures, or a manager's as the sum of the MRs below them. */
+  person: SheetPerson;
 }
 
 /** "2026-27" for the year starting in 2026 (a calendar-year financial year, starting in January, is just "2026"). */

@@ -5,7 +5,7 @@ import { MrStockFigures } from './mrStockFigures.js';
 import { SecondarySheetReport } from './secondarySheetReport.js';
 import { buildSecondarySheetWorkbook, colName } from './secondarySheetXlsx.js';
 
-const config = { async get(key: string) { return key === 'FY_START_MONTH' ? 'APRIL' : null; } } as never;
+const config = { async get(key: string) { return key === 'FY_START_MONTH' ? 'APRIL' : key === 'BUSINESS_TIMEZONE' ? 'Asia/Kolkata' : key === 'DAY_START_TIME' ? '00:00' : null; } } as never;
 const months = ['2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12', '2027-01', '2027-02', '2027-03'];
 
 describe('the sheet’s small pieces', () => {
@@ -41,7 +41,7 @@ const people = [
 ];
 const build = () =>
   new SecondarySheetReport(
-    { async listTargetShares(ids) { return ids.includes('mr1') ? [{ id: 't', userId: 'mr1', productId: 'p1', fromMonth: '2026-04', toMonth: '2026-06', amountPaise: 0, qty: 90, sharePaise: 0, shareQty: 90 }] : []; } },
+    { async listTargetShares(ids) { return ids.includes('mr1') ? [{ id: 't', userId: 'mr1', productId: 'p1', fromMonth: '2026-04', toMonth: '2026-06', amountPaise: 0, qty: 90, sharePaise: 0, shareQty: 90 }, { id: 'g', userId: 'mr1', productId: null, fromMonth: '2026-04', toMonth: '2027-03', amountPaise: 500_000, qty: null, sharePaise: 0, shareQty: null }] : []; } },
     { async listNames() { return { distributors: [], chemists: [], products: [{ id: 'p1', name: 'NEEDPRO BN', sku: '02', ptrPaise: 0, ptsPaise: 50_000 }, { id: 'p2', name: 'ALBU', sku: '01', ptrPaise: 0, ptsPaise: null }] }; }, async listAssignedDoctors() { return []; }, async listActiveOutlets() { return { distributors: [], chemists: [] }; }, async listDistributorAssignees() { return []; } },
     {
       async getUserSummaries() { return []; },
@@ -51,51 +51,60 @@ const build = () =>
     },
     config,
     new MrStockFigures({ listSecondaryLines: async (f) => lines.filter((l) => (!f.userIds || f.userIds.includes(l.userId)) && l.month >= f.fromMonth && l.month <= f.toMonth) }),
+    () => new Date('2026-11-18T05:00:00Z'),
   );
+const asAdmin = { id: 'admin', role: 'ADMIN' };
 
-describe('the Secondary Sales sheet data', () => {
-  it('a manager gets their team: an MR sheet each, and themselves as the sum of the MRs below them', async () => {
-    const m = await build().read({ actor: { id: 'asm', role: 'FIELD' }, year: 2026 });
+describe('one employee’s Secondary Sales sheet data', () => {
+  it('an MR: a row for every product with a target or sales (targets in units per month, approved secondary, last year for growth)', async () => {
+    const m = await build().read({ actor: asAdmin, userId: 'mr1', year: 2026 });
     expect(m.label).toBe('2026-27');
-    expect(m.scopeName).toBe('Anita');
-    expect(m.people.map((p) => [p.kind, p.code])).toEqual([['TEAM', 'ASM1'], ['MR', 'MR1'], ['MR', 'MR2']]);
-    const ravi = m.people.find((p) => p.code === 'MR1')!;
-    expect(ravi.rows).toHaveLength(1);
-    expect(ravi.rows[0]).toMatchObject({ name: 'NEEDPRO BN', nsrPaise: 50_000, tgt: [30, 30, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0], prevSec: 60 });
-    expect(ravi.rows[0]!.sec.slice(0, 3)).toEqual([50, 40, 0]);
-    const team = m.people[0]!;
-    expect(team.members).toBe(2);
-    expect(team.rows.map((r) => r.name)).toEqual(['ALBU', 'NEEDPRO BN']);
-    expect(team.rows.find((r) => r.name === 'NEEDPRO BN')!.sec[0]).toBe(60);
-    expect(m.mrCount).toBe(2);
-    expect(m.mrsWithApproved).toBe(2);
+    expect(m.person).toMatchObject({ kind: 'MR', code: 'MR1', members: 1 });
+    expect(m.person.rows).toHaveLength(1);
+    expect(m.person.rows[0]).toMatchObject({ name: 'NEEDPRO BN', nsrPaise: 50_000, tgt: [30, 30, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0], prevSec: 60 });
+    expect(m.person.rows[0]!.sec.slice(0, 3)).toEqual([50, 40, 0]);
   });
 
-  it('who may ask: the office anyone, a manager only their own team, an MR nobody', async () => {
-    expect((await build().read({ actor: { id: 'admin', role: 'ADMIN' }, year: 2026 })).mrCount).toBe(3);
-    expect((await build().read({ actor: { id: 'admin', role: 'ADMIN' }, year: 2026, managerId: 'asm' })).mrCount).toBe(2);
-    await expect(build().read({ actor: { id: 'asm', role: 'FIELD' }, year: 2026, managerId: 'other' })).rejects.toMatchObject({ statusCode: 403 });
-    await expect(build().read({ actor: { id: 'mr1', role: 'FIELD' }, year: 2026 })).rejects.toMatchObject({ statusCode: 403 });
-    await expect(build().read({ actor: { id: 'x', role: 'EMPLOYEE' as never }, year: 2026 })).rejects.toMatchObject({ statusCode: 403 });
+  it('sold outside the targeted products still gets its row, so the total is whole', async () => {
+    const m = await build().read({ actor: asAdmin, userId: 'mr2', year: 2026 });
+    expect(m.person.rows.map((r) => [r.name, r.tgt.every((v) => v === 0), r.sec.reduce((a, b) => a + b, 0)])).toEqual([['ALBU', true, 7], ['NEEDPRO BN', true, 10]]);
+  });
+
+  it('a manager is the sum of the MRs below them', async () => {
+    const m = await build().read({ actor: { id: 'asm', role: 'FIELD' }, userId: 'asm', year: 2026 });
+    expect(m.person).toMatchObject({ kind: 'TEAM', code: 'ASM1', members: 2 });
+    expect(m.person.rows.map((r) => r.name)).toEqual(['ALBU', 'NEEDPRO BN']);
+    expect(m.person.rows.find((r) => r.name === 'NEEDPRO BN')!.sec[0]).toBe(60);
+  });
+
+  it('no year means the financial year that holds today', async () => {
+    expect((await build().read({ actor: asAdmin, userId: 'mr1' })).label).toBe('2026-27');
+  });
+
+  it('who may ask: the office anyone, an employee themselves, a manager their downline, nobody else', async () => {
+    await expect(build().read({ actor: { id: 'mr1', role: 'FIELD' }, userId: 'mr1', year: 2026 })).resolves.toBeTruthy();
+    await expect(build().read({ actor: { id: 'asm', role: 'FIELD' }, userId: 'mr2', year: 2026 })).resolves.toBeTruthy();
+    await expect(build().read({ actor: { id: 'asm', role: 'FIELD' }, userId: 'other', year: 2026 })).rejects.toMatchObject({ statusCode: 403 });
+    await expect(build().read({ actor: { id: 'mr1', role: 'FIELD' }, userId: 'mr2', year: 2026 })).rejects.toMatchObject({ statusCode: 403 });
+    await expect(build().read({ actor: { id: 'x', role: 'EMPLOYEE' as never }, userId: 'mr1', year: 2026 })).rejects.toMatchObject({ statusCode: 403 });
   });
 });
 
 describe('the workbook', () => {
-  it('has a Summary, a roll-up and an MR sheet laid out like the company’s file, with figures that add up', async () => {
-    const model = await build().read({ actor: { id: 'asm', role: 'FIELD' }, year: 2026 });
+  it('is one sheet laid out like the company’s file, with figures that add up', async () => {
+    const model = await build().read({ actor: asAdmin, userId: 'mr1', year: 2026 });
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load((await buildSecondarySheetWorkbook(model)) as never);
-    expect(wb.worksheets.map((w) => w.name)).toEqual(['Summary', 'ASM1 TEAM', 'Ravi (MR1)', 'Sunita (MR2)']);
-    const ws = wb.getWorksheet('Ravi (MR1)')!;
+    expect(wb.worksheets.map((w) => w.name)).toEqual(['Ravi']);
+    const ws = wb.getWorksheet('Ravi')!;
     expect(ws.getCell('A1').value).toBe('2026-27 Performance Sheet');
     expect(ws.getCell('J4').value).toBe("APRIL '26");
     expect(ws.getCell('V4').value).toBe('QTR - 1');
     expect(ws.getCell('AP4').value).toBe('1ST HALF');
     expect(ws.getCell('CD4').value).toBe('ANNUAL 2026 - 27');
-    expect(ws.getCell('B5').value).toBe('PRODUCT');
     expect(ws.getCell('B6').value).toBe('NEEDPRO BN');
     expect(ws.getCell('C6').value).toBe(500);
-    // April: target 30, secondary 50 -> 166.7 %; the first quarter adds April to June.
+    // April: target 30, secondary 50; the first quarter adds April to June.
     expect(ws.getCell('J6').value).toBe(30);
     expect(ws.getCell('K6').value).toBe(50);
     expect((ws.getCell('M6').value as { result: number }).result).toBeCloseTo(166.67, 1);
@@ -108,13 +117,15 @@ describe('the workbook', () => {
     expect(ws.getCell('B7').value).toBe('GRAND TOTAL (₹ lakh)');
     expect((ws.getCell('E7').value as { result: number }).result).toBeCloseTo(0.45, 6);
     expect(colName(85)).toBe('CG');
-    // The manager's roll-up is the sum of the MRs.
-    const team = wb.getWorksheet('ASM1 TEAM')!;
-    expect(team.getCell('C3').value).toBe(2);
-    const rows = [6, 7].map((r) => [team.getCell(`B${r}`).value, (team.getCell(`E${r}`).value as { result: number }).result]);
-    expect(rows).toEqual([['ALBU', 7], ['NEEDPRO BN', 100]]);
-    // The summary adds the MRs only.
-    const summary = wb.getWorksheet('Summary')!;
-    expect(String(summary.getCell('A2').value)).toContain('2 MRs');
+  });
+
+  it('a manager’s sheet says how many MRs it adds up', async () => {
+    const model = await build().read({ actor: asAdmin, userId: 'asm', year: 2026 });
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load((await buildSecondarySheetWorkbook(model)) as never);
+    const ws = wb.getWorksheet('Anita')!;
+    expect(ws.getCell('A2').value).toBe('NAME OF THE MANAGER:');
+    expect(ws.getCell('C3').value).toBe(2);
+    expect([6, 7].map((r) => [ws.getCell(`B${r}`).value, (ws.getCell(`E${r}`).value as { result: number }).result])).toEqual([['ALBU', 7], ['NEEDPRO BN', 100]]);
   });
 });

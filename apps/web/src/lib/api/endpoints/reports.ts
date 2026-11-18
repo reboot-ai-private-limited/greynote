@@ -40,8 +40,8 @@ export const reportsApi = {
   /** Admin, the employee, or their manager: targets, primary and secondary by product over a run of months. */
   employeeSales: (token: string, query: EmployeeSalesQuery, signal?: AbortSignal) => request<EmployeeSalesReportDto>('/reports/employee-sales', { token, query: { ...query }, signal }),
   /** Admin, or a manager over their downline: the field force over a date range, one page of employees plus the totals of all of them. */
-  /** The Secondary Sales performance sheet (Excel) for the selected financial year: the whole company for the office, or one manager's team. */
-  secondarySheet: (token: string, query: { managerId?: string | undefined } = {}, signal?: AbortSignal) => requestFile('/reports/secondary-sheet', { token, query: { ...query }, signal }),
+  /** One employee's Secondary Sales performance sheet (Excel) for a financial year (the start year; the current one when left out). */
+  secondarySheet: (token: string, query: { userId: string; year?: number | undefined }, signal?: AbortSignal) => requestFile('/reports/secondary-sheet', { token, query: { ...query }, signal }),
   salesDashboard: (token: string, query: SalesDashboardQuery, signal?: AbortSignal) => request<SalesDashboardDto>('/reports/sales-dashboard', { token, query: { ...query }, signal }),
 
   /** Admin only. A month of orders by order date, with names and totals by status. */

@@ -16,7 +16,10 @@ import { StatTile } from '@/components/ui/StatTile';
 import { toErrorState } from '@/lib/api/toErrorState';
 import { useSession } from '@/lib/auth/SessionProvider';
 import { istDate } from '@/lib/dates';
-import { financialYearOf } from '@/lib/financial-year';
+import { financialYearLabel, financialYearOf } from '@/lib/financial-year';
+import { withAuth } from '@/lib/auth/session';
+import { reportsApi } from '@/lib/api/endpoints/reports';
+import { downloadBlob } from '@/lib/download';
 import { formatMoney } from '@/lib/format';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { monthLabel } from '@/features/payroll/lib/payroll';
@@ -53,6 +56,22 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
   const bad = range.to < range.from ? 'The last month cannot be before the first.' : undefined;
   const query = useEmployeeSalesReport({ userId, ...range }, !bad);
   const data = query.data;
+  const sheetYear = year ?? financialYearOf(today);
+  const [sheetBusy, setSheetBusy] = useState(false);
+  const [sheetError, setSheetError] = useState<string | null>(null);
+  // The Excel of this employee for the financial year selected at the top of the page (not a fixed year): the company's performance sheet.
+  const downloadSheet = async () => {
+    setSheetBusy(true);
+    setSheetError(null);
+    try {
+      const file = await withAuth((token) => reportsApi.secondarySheet(token, { userId, year: sheetYear }));
+      downloadBlob(`GREYNOTE SECONDARY SALES ${financialYearLabel(sheetYear).replace('–', '-')} ${data?.employee.name ?? ''}.xlsx`.replace(/\s+\.xlsx$/, '.xlsx'), file);
+    } catch (err) {
+      setSheetError(err instanceof Error ? err.message : 'Could not make the file. Try again.');
+    } finally {
+      setSheetBusy(false);
+    }
+  };
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<EmployeeTargetFigureDto | null>(null);
   const [removing, setRemoving] = useState<EmployeeTargetFigureDto | null>(null);
@@ -131,13 +150,19 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
             : 'Targets, primary and secondary.'
         }
         actions={
-          canSetTargets ? (
-            <Button disabled={readOnly} onClick={() => setAdding(true)}>
-              <Plus aria-hidden className="size-4" /> Set a target
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" disabled={sheetBusy} onClick={() => void downloadSheet()}>
+              {sheetBusy ? 'Preparing…' : `Download Excel · ${financialYearLabel(sheetYear)}`}
             </Button>
-          ) : undefined
+            {canSetTargets ? (
+              <Button disabled={readOnly} onClick={() => setAdding(true)}>
+                <Plus aria-hidden className="size-4" /> Set a target
+              </Button>
+            ) : null}
+          </div>
         }
       />
+      {sheetError ? <p role="alert" className="mb-3 text-[13px] text-danger">{sheetError}</p> : null}
 
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <div className="w-48">

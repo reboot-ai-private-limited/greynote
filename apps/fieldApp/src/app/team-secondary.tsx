@@ -1,6 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 
+import { DownloadMenu } from '@/components/download-menu';
 import { FyBanner } from '@/components/fy-banner';
 import { MonthStepper } from '@/components/month-stepper';
 import { Notice } from '@/components/notice';
@@ -9,6 +10,7 @@ import { StockCountsCard } from '@/components/stock-counts-card';
 import { ThemedText } from '@/components/themed-text';
 import { InfoCard } from '@/components/ui-cards';
 import { useFinancialYear } from '@/lib/financial-year';
+import { downloadSecondarySheet } from '@/lib/secondary-sheet';
 import { getStockCounts, type StockCountsMonth } from '@/lib/stock-counts';
 import { useCachedFetch } from '@/offline/cached-fetch';
 import { monthOf } from '@/offline/day';
@@ -35,6 +37,15 @@ export default function TeamSecondaryScreen() {
         <ThemedText type="smallBold">Month</ThemedText>
         <MonthStepper value={month} onChange={setMonth} min={fy.firstMonth} max={lastMonth} />
       </InfoCard>
+      <DownloadMenu
+        items={[
+          {
+            key: 'sheet',
+            label: `Download Excel · ${fy.label.replace(/^FY /, '')}`,
+            build: async () => ({ delivered: await downloadSecondarySheet({ id: String(userId), name }, fy.year, fy.label.replace(/^FY /, '')) }),
+          },
+        ]}
+      />
       {counts.error ? <Notice tone="danger">{counts.error}</Notice> : null}
       {data ? (
         <InfoCard>

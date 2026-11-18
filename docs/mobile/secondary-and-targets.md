@@ -135,12 +135,11 @@ An employee's **achievement per product is the sum, over the distributors handed
 
 [`LLD/sales-and-orders.md`](../LLD/sales-and-orders.md), [`LLD/marketing.md`](../LLD/marketing.md), [`orders-and-stock.md`](orders-and-stock.md), sign-off E1.
 
-## 2e. The Secondary Sales sheet (Excel), 2026-11-18
+## 2e. The Secondary Sales sheet (Excel), per employee, 2026-11-18
 
-The company's own format (`GREYNOTE H C SECONDARY SALES FORMAT 2022-2023`) as a download for **any financial year** (the one the app's selector shows; the web header and the phone send it, the server defaults to the current one). `GET /reports/secondary-sheet[?year=][&managerId=]` returns an `.xlsx`:
+The company's own format (`GREYNOTE H C SECONDARY SALES FORMAT 2022-2023`, one employee's sheet) as a download for **any financial year** (the one the app's selector shows). `GET /reports/secondary-sheet?userId=[&year=]` returns an `.xlsx` with **one sheet**: that employee's performance sheet. `year` is the year the financial year starts in; left out, it is the financial year that holds today.
 
-- **Summary** first (MRs, how many have approved secondary, target and secondary in ₹ lakh per person, links to the sheets), then a **roll-up sheet per manager** (the sum of the MRs below them, "No. of BEs" = their MRs) and a **sheet per MR**.
-- Each sheet: products down the side with **N.S.R.** (the product's PTS), the year's target and achievement and % ACH and **% GR.** (against the year before), then for each month **TGT / SEC / % ACH**, with **QTR 1-4**, **1ST HALF / 2ND HALF** and **ANNUAL** blocks in between, and a **GRAND TOTAL in ₹ lakh** (units x N.S.R. / 1,00,000). Quarters, halves, the year, percentages and totals are real Excel formulas with their values saved.
-- **TGT** is the person's product targets in units, each spread evenly over the months it covers; a target for all products (in rupees) is not shown. **SEC** is **approved** secondary only (units issued onward): a draft or waiting month shows 0. A manager's sheet is the sum of the MR sheets, so it adds up on the page.
-- **Who:** Admin, Accountant and HR get the whole company (or `managerId` for one team); a manager gets their own downline; an MR is refused (403). At most 400 people per file.
-- **Where:** Admin web, Reports → Secondary sales → *Download Excel · FY*; the phone, Team → Reports → Secondary sales → Download → *Excel sheet*.
+- Products down the side with **N.S.R.** (the product's PTS), the year's target and achievement, % ACH and **% GR.** (against the year before); across, each month's **TGT / SEC / % ACH**, with **QTR 1-4**, **1ST HALF / 2ND HALF** and **ANNUAL** blocks in between; a **GRAND TOTAL in ₹ lakh** (units x N.S.R. / 1,00,000). Quarters, halves, the year, percentages and totals are real Excel formulas with their values saved.
+- **TGT** is the product targets in units, each spread evenly over the months it covers; a target for all products (in rupees) is not shown. **SEC** is **approved** secondary only (units issued onward): a draft or waiting month shows 0. Every product the person has a target for or sold has its row, so what they sold outside their targets is in the total.
+- An MR's sheet is their own figures; a manager's is **the sum of the MRs below them** ("No. of BEs" = their MRs). Same rule as the employee report: the office any employee, the employee themselves, a manager their downline (403 otherwise).
+- **Where:** Admin web, Reports → Sales dashboard → open an employee → *Download Excel*; the phone, a person's page → Download → *Secondary sales (Excel)*, and Team → Reports → Secondary sales → a person → *Download Excel*. No CSV for this report.

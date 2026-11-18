@@ -2,7 +2,6 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { DownloadMenu } from '@/components/download-menu';
 import { FyBanner } from '@/components/fy-banner';
 import { MonthStepper } from '@/components/month-stepper';
 import { Notice } from '@/components/notice';
@@ -12,14 +11,11 @@ import { Skeleton } from '@/components/skeleton';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar, InfoCard, Pill } from '@/components/ui-cards';
 import { Spacing, type Accent } from '@/constants/theme';
-import { toCsv } from '@/lib/csv';
-import { teamFileName } from '@/lib/exports';
-import { downloadSecondarySheet } from '@/lib/secondary-sheet';
 import { useFinancialYear } from '@/lib/financial-year';
 import { SECONDARY_STATE_TEXT, getTeamStock, type SecondaryState, type TeamStock } from '@/lib/team-section';
 import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
-import { monthOf, prettyMonth } from '@/offline/day';
+import { monthOf } from '@/offline/day';
 
 const STATE_ACCENT: Record<SecondaryState, Accent> = { NOT_ENTERED: 'slate', DRAFT: 'slate', PENDING: 'amber', APPROVED: 'green', REJECTED: 'red' };
 
@@ -35,7 +31,7 @@ const matches = (s: SecondaryState, show: Show) => (show === 'ALL' ? true : show
 
 /**
  * Team → Secondary sales (docs/mobile/team.md): for a month, who has sent their secondary and who has not, with the chemists and distributors that still
- * have no stock count. Tap a person for their secondary stock. A month a direct report sent is decided in Approvals. One Download gives the list as a CSV.
+ * have no stock count. Tap a person for their secondary stock. A month a direct report sent is decided in Approvals.
  */
 export default function TeamStockScreen() {
   const online = useOnline();
@@ -59,31 +55,6 @@ export default function TeamStockScreen() {
       {!online ? <Notice tone="info">You’re offline. Connect to see your team’s secondary sales.</Notice> : null}
       {list.error && online ? <Notice tone="danger">{list.error}</Notice> : null}
       {list.loading && !data ? <Skeleton cards={3} lines={2} /> : null}
-      {data && data.items.length > 0 ? (
-        <DownloadMenu
-          items={[
-            {
-              key: 'secondary',
-              label: 'Status list (CSV)',
-              hint: `Who has sent ${prettyMonth(month)}, outlets without a count`,
-              build: async () => ({
-                fileName: teamFileName('secondary', month),
-                title: `Secondary sales · ${prettyMonth(month)}`,
-                csv: toCsv(
-                  ['Name', 'Code', 'Status', 'Outlets with no stock count', 'Secondary units (approved)'],
-                  data.items.map((r) => [r.user.name, r.user.employeeCode, SECONDARY_STATE_TEXT[r.secondary], r.missingOutlets.length, r.secondaryUnits ?? 0]),
-                ),
-              }),
-            },
-            {
-              key: 'sheet',
-              label: `Excel sheet · ${fy.label.replace(/^FY /, '')}`,
-              hint: 'Targets and secondary by product and month: a sheet per MR, a roll-up per manager',
-              build: async () => ({ delivered: await downloadSecondarySheet(fy.label.replace(/^FY /, '')) }),
-            },
-          ]}
-        />
-      ) : null}
       {data && rows.length === 0 ? <Notice tone="info">{show === 'ALL' ? 'Nobody in your team yet.' : 'Nothing matches.'}</Notice> : null}
       {data && rows.length > 0 ? <ThemedText type="small" themeColor="textSecondary">{`Total ${rows.length}`}</ThemedText> : null}
 

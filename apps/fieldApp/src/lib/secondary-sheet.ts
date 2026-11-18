@@ -2,11 +2,12 @@ import { apiGetFile } from './api';
 import { deliverXlsx } from './csv';
 
 /**
- * The Secondary Sales performance sheet (Excel) for the financial year the app is showing: a sheet per MR of the manager's team and a roll-up per
- * manager, targets and approved secondary by product and month, with quarters, halves and the year. The server builds it (a manager gets their own
- * team); `fyLabel` is only the file name ("2026-27").
+ * One employee's Secondary Sales performance sheet (Excel) for a financial year: products down the side, each month's target and approved secondary,
+ * with quarters, halves and the year (a manager's is the sum of their MRs). The server builds it; `year` is the year the financial year starts in
+ * and `label` ("2026-27") only names the file.
  */
-export async function downloadSecondarySheet(fyLabel: string): Promise<string | null> {
-  const bytes = await apiGetFile('/reports/secondary-sheet');
-  return deliverXlsx(`GREYNOTE SECONDARY SALES ${fyLabel}.xlsx`, bytes, `Secondary sales ${fyLabel}`);
+export async function downloadSecondarySheet(person: { id: string; name: string }, year: number, label: string): Promise<string | null> {
+  const bytes = await apiGetFile(`/reports/secondary-sheet?userId=${person.id}&year=${year}`);
+  const name = person.name.replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  return deliverXlsx(`GREYNOTE SECONDARY SALES ${label} ${name}.xlsx`, bytes, `${person.name} · Secondary sales ${label}`);
 }

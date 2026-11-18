@@ -3,6 +3,8 @@ import { prettyMonth } from '@/offline/day';
 import { getStatement } from '@/lib/expense-months';
 import { dailyPlansCsv, exportFileName, expensesCsv, tourPlanCsv } from '@/lib/exports';
 import { getTeamMemberTourPlan, offDayLabel } from '@/lib/planning';
+import { downloadSecondarySheet } from '@/lib/secondary-sheet';
+import { useFinancialYear } from '@/lib/financial-year';
 import { getTeamMemberDays } from '@/lib/team-section';
 
 import { DownloadMenu, type DownloadItem } from '../../download-menu';
@@ -16,6 +18,8 @@ type Person = { id: string; name: string; employeeCode: string; designation: str
  */
 export function PersonDownloads({ person, month }: { person: Person; month: string }) {
   const { colleagues } = useColleagues();
+  const fy = useFinancialYear();
+  const fyLabel = fy.label.replace(/^FY /, '');
   const tour = useTourPlan(person.id, month);
   const who = { name: person.name, designation: person.designation, employeeCode: person.employeeCode };
   const title = (what: string) => `${person.name} · ${what} · ${prettyMonth(month)}`;
@@ -61,6 +65,12 @@ export function PersonDownloads({ person, month }: { person: Person; month: stri
         if (statement.days.length === 0) return { empty: `${person.name} has no expenses for ${prettyMonth(month)}.` };
         return { fileName: exportFileName('expenses', who, month), csv: expensesCsv(statement), title: title('Expenses') };
       },
+    },
+    {
+      key: 'secondary',
+      label: `Secondary sales (Excel) · ${fyLabel}`,
+      hint: 'Targets and approved secondary by product and month, for the financial year',
+      build: async () => ({ delivered: await downloadSecondarySheet({ id: person.id, name: person.name }, fy.year, fyLabel) }),
     },
   ];
   return <DownloadMenu items={items} />;

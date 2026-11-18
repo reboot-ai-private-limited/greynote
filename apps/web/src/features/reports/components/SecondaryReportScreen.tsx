@@ -5,7 +5,6 @@ import { Fragment, useState } from 'react';
 import type { SecondaryReportLineDto } from '@greynote/contracts';
 import { Card } from '@/components/ui/Card';
 import { DataState } from '@/components/ui/DataState';
-import { Button } from '@/components/ui/Button';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Select } from '@/components/ui/Select';
 import { StatTile } from '@/components/ui/StatTile';
@@ -13,10 +12,7 @@ import { monthsInYear } from '@/features/attendance/lib/attendance';
 import { monthLabel } from '@/features/payroll/lib/payroll';
 import { toErrorState } from '@/lib/api/toErrorState';
 import { istDate } from '@/lib/dates';
-import { financialYearLabel, financialYearOf } from '@/lib/financial-year';
-import { withAuth } from '@/lib/auth/session';
-import { reportsApi } from '@/lib/api/endpoints/reports';
-import { downloadBlob } from '@/lib/download';
+import { financialYearOf } from '@/lib/financial-year';
 import { formatMoney } from '@/lib/format';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useFinancialYear } from '@/lib/useFinancialYear';
@@ -68,22 +64,6 @@ export function SecondaryReportScreen() {
   const months = monthsInYear(year ?? financialYearOf(istDate()), istDate());
   const month = months.includes(values.month) ? values.month : (months[0] ?? '');
   const query = useSecondaryReport(month);
-  const fy = year ?? financialYearOf(istDate());
-  const [sheetBusy, setSheetBusy] = useState(false);
-  const [sheetError, setSheetError] = useState<string | null>(null);
-  // The Excel of the financial year selected at the top of the page (not a fixed year): a sheet per MR and a roll-up per manager.
-  const downloadSheet = async () => {
-    setSheetBusy(true);
-    setSheetError(null);
-    try {
-      const file = await withAuth((token) => reportsApi.secondarySheet(token));
-      downloadBlob(`GREYNOTE SECONDARY SALES ${financialYearLabel(fy).replace('–', '-')}.xlsx`, file);
-    } catch (err) {
-      setSheetError(err instanceof Error ? err.message : 'Could not make the file. Try again.');
-    } finally {
-      setSheetBusy(false);
-    }
-  };
   const report = query.data;
   const empty = !report || report.distributors.length === 0;
   return (
@@ -91,13 +71,7 @@ export function SecondaryReportScreen() {
       <PageHeader
         title="Secondary sales"
         description="Approved secondary of the MRs, by distributor and product. Closing is opening + primary − secondary; the value is units × PTS."
-        actions={
-          <Button variant="secondary" disabled={sheetBusy} onClick={() => void downloadSheet()}>
-            {sheetBusy ? 'Preparing…' : `Download Excel · ${financialYearLabel(fy)}`}
-          </Button>
-        }
       />
-      {sheetError ? <p role="alert" className="mb-3 text-[13px] text-danger">{sheetError}</p> : null}
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="w-52">
           <Select aria-label="Month" value={month} options={months.map((m) => ({ value: m, label: monthLabel(m) }))} onValueChange={(v) => update({ month: v })} />

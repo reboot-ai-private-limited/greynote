@@ -209,73 +209,12 @@ function sheetName(raw: string, used: Set<string>): string {
   return name;
 }
 
-function annualLakh(p: SheetPerson): { tgt: number; sec: number } {
-  const tgt = p.rows.reduce((n, r) => n + r.tgt.reduce((a, b) => a + b, 0) * rupees(r.nsrPaise), 0) / 100_000;
-  const sec = p.rows.reduce((n, r) => n + r.sec.reduce((a, b) => a + b, 0) * rupees(r.nsrPaise), 0) / 100_000;
-  return { tgt, sec };
-}
-
-function writeSummary(ws: ExcelJS.Worksheet, model: SecondarySheetModel, names: Map<string, string>): void {
-  ws.getCell('A1').value = `${model.label} Secondary Sales · ${model.scopeName}`;
-  ws.getCell('A1').font = { bold: true, size: 14 };
-  ws.getCell('A2').value = `${model.mrCount} MRs, ${model.mrsWithApproved} with approved secondary this year. Figures in ₹ lakh at N.S.R.; only approved secondary counts.`;
-  const heads = ['NAME', 'CODE', 'ROLE', 'MRs', 'TGT (₹ lakh)', 'SEC (₹ lakh)', '% ACH', 'SHEET'];
-  heads.forEach((h, i) => {
-    const c = ws.getCell(4, i + 1);
-    c.value = h;
-    c.font = { bold: true };
-    c.fill = HEAD_FILL;
-    c.border = THIN;
-  });
-  let r = 5;
-  let mrTgt = 0;
-  let mrSec = 0;
-  for (const p of model.people) {
-    const t = annualLakh(p);
-    if (p.kind === 'MR') {
-      mrTgt += t.tgt;
-      mrSec += t.sec;
-    }
-    ws.getCell(r, 1).value = p.name;
-    ws.getCell(r, 2).value = p.code;
-    ws.getCell(r, 3).value = p.kind === 'TEAM' ? `${p.designation ?? 'Manager'} (roll-up)` : (p.designation ?? 'MR');
-    ws.getCell(r, 4).value = p.members;
-    ws.getCell(r, 5).value = t.tgt;
-    ws.getCell(r, 6).value = t.sec;
-    ws.getCell(r, 7).value = { formula: `IF(E${r}=0,0,F${r}/E${r}*100)`, result: pct(t.sec, t.tgt) };
-    const sheet = names.get(p.id)!;
-    ws.getCell(r, 8).value = { text: sheet, hyperlink: `#'${sheet.replace(/'/g, "''")}'!A1` };
-    for (const col of [5, 6]) ws.getCell(r, col).numFmt = '0.00';
-    ws.getCell(r, 7).numFmt = '0.0';
-    r += 1;
-  }
-  ws.getCell(r, 1).value = 'TOTAL OF THE MRs (managers are sums of these, so they are not added again)';
-  ws.getCell(r, 5).value = mrTgt;
-  ws.getCell(r, 6).value = mrSec;
-  ws.getCell(r, 7).value = { formula: `IF(E${r}=0,0,F${r}/E${r}*100)`, result: pct(mrSec, mrTgt) };
-  for (const col of [5, 6]) ws.getCell(r, col).numFmt = '0.00';
-  ws.getCell(r, 7).numFmt = '0.0';
-  for (let c = 1; c <= 8; c++) {
-    ws.getCell(r, c).font = { bold: true };
-    ws.getCell(r, c).fill = TOTAL_FILL;
-  }
-  [26, 12, 22, 7, 14, 14, 9, 30].forEach((w, i) => (ws.getColumn(i + 1).width = w));
-}
-
-/** The workbook: a Summary first, then a roll-up per manager and a sheet per MR, as in the company's file. */
+/** The workbook: one sheet, the employee's performance sheet, as in the company's file. */
 export async function buildSecondarySheetWorkbook(model: SecondarySheetModel): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Greynote';
   wb.created = new Date();
-  const used = new Set<string>(['summary']);
-  const summary = wb.addWorksheet('Summary');
-  const names = new Map<string, string>();
-  const sheets = model.people.map((p) => {
-    const name = sheetName(p.kind === 'TEAM' ? `${p.code} TEAM` : `${p.name} (${p.code})`, used);
-    names.set(p.id, name);
-    return { p, ws: wb.addWorksheet(name) };
-  });
-  writeSummary(summary, model, names);
-  for (const { p, ws } of sheets) writePerson(ws, p, model);
+  const ws = wb.addWorksheet(sheetName(model.person.name, new Set()));
+  writePerson(ws, model.person, model);
   return Buffer.from(await wb.xlsx.writeBuffer());
 }

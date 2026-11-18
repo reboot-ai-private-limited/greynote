@@ -93,7 +93,7 @@ export function makeReportsControllers(orders: OrdersReport, sales: SalesReport,
     secondarySheet: asyncHandler(async (req, res) => {
       if (!req.user) throw AppError.unauthenticated();
       const q = req.query as unknown as z.output<typeof secondarySheetQuerySchema>;
-      const model = await secondarySheet.read({ actor: { id: req.user.sub, role: req.user.role }, year: q.year, managerId: q.managerId });
+      const model = await secondarySheet.read({ actor: { id: req.user.sub, role: req.user.role }, userId: q.userId, year: q.year });
       const file = await buildSecondarySheetWorkbook(model);
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="GREYNOTE SECONDARY SALES ${model.label}.xlsx"`);

@@ -76,7 +76,6 @@ const SCOPED = [
   '/api/reports/me/dcr',
   '/api/reports/me/dcr/coverage',
   '/api/reports/salary',
-  '/api/reports/secondary-sheet',
   '/api/reports/sales-dashboard',
   '/api/reports/team/overview',
   '/api/approvals/inbox',
@@ -201,6 +200,7 @@ const TIMELESS = [
   '/api/team/orders', // a short window the phone chooses (at most 93 days)
   '/api/team/stock', // takes its own month
   '/api/team/expenses', // takes its own month
+  '/api/reports/secondary-sheet', // takes its own year (and defaults to the current one)
   '/api/team/leaves', // a short window the phone chooses (at most 93 days)
   '/api/inbox/messages',
   // Background sync: the phone never sends the year header on it (decision-log 2026-09-30).
