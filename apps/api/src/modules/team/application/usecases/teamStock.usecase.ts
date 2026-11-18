@@ -22,6 +22,8 @@ export interface TeamStockRow {
   /** Outlets (chemists and distributors on their routes) with no stock count for the month. */
   missingOutlets: Array<{ type: 'CHEMIST' | 'DISTRIBUTOR'; id: string; name: string }>;
   secondary: SecondaryState;
+  /** Units they issued onward in the month, from the rows that are approved (0 until then). */
+  secondaryUnits: number;
   /** Their month is waiting on the caller: sent by a direct report and not yet decided. Decide it in Approvals. */
   waitingOnYou: boolean;
 }
@@ -45,10 +47,13 @@ export class TeamStockUseCase {
   async execute(managerId: string, query: TeamStockQuery): Promise<TeamStockResult> {
     const members = await activeMembers(this.directory, managerId, query.scope, query.userId);
     const ids = members.map((m) => m.id);
-    const [missing, secondary] = await Promise.all([
+    const [missing, secondary, lines] = await Promise.all([
       this.sales.listMissingStock(query.month, ids),
       this.sales.listSecondaryStatus(query.month, ids),
+      this.sales.listSecondaryLines({ fromMonth: query.month, toMonth: query.month, userIds: ids }),
     ]);
+    const unitsOf = new Map<string, number>();
+    for (const l of lines) unitsOf.set(l.userId, (unitsOf.get(l.userId) ?? 0) + l.issuedQty);
     const missingOf = new Map(missing.map((m) => [m.userId, m.outlets]));
     const secondaryOf = new Map(secondary.map((s) => [s.userId, s.status]));
 
@@ -58,6 +63,7 @@ export class TeamStockUseCase {
         user: { id: m.id, employeeCode: m.employeeCode, name: m.name, depth: m.depth },
         missingOutlets: missingOf.get(m.id) ?? [],
         secondary: state,
+        secondaryUnits: unitsOf.get(m.id) ?? 0,
         waitingOnYou: state === 'PENDING' && m.depth === 1,
       };
     });

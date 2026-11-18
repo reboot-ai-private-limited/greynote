@@ -1,17 +1,16 @@
-import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Spacing } from '@/constants/theme';
 import { useFinancialYear } from '@/lib/financial-year';
 import { getStockCounts, STOCK_COUNT_STATUS_ACCENT, STOCK_COUNT_STATUS_TEXT, type StockCountsMonth } from '@/lib/stock-counts';
 import { router } from 'expo-router';
-import { dailyPlanChip, getTeamMemberDays, reportChip, type TeamMemberDay, type TeamMemberDays } from '@/lib/team-section';
+import { getTeamMemberDays, reportChip, type TeamMemberDays } from '@/lib/team-section';
 import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
 import { prettyDay } from '@/offline/day';
+import { useDayGate } from '@/hooks/use-day-gate';
 import { useWindowed } from '@/hooks/use-windowed';
 
-import { SelectField } from '../../select-field';
 import { Notice } from '../../notice';
 import { NumberedRow } from '../../numbered-row';
 import { PrimaryButton } from '../../primary-button';
@@ -20,16 +19,8 @@ import { ThemedText } from '../../themed-text';
 import { InfoCard, Pill } from '../../ui-cards';
 import { StockCountsCard } from '../../stock-counts-card';
 import { DoctorLines } from '../doctor-lines';
-import { TourPlanCard } from './tour-plan-card';
-
-type Filter = 'ALL' | 'APPROVED' | 'WAITING' | 'OTHER';
-const FILTERS: { value: Filter; label: string }[] = [
-  { value: 'ALL', label: 'All' },
-  { value: 'APPROVED', label: 'Approved' },
-  { value: 'WAITING', label: 'Waiting' },
-  { value: 'OTHER', label: 'Sent back or reopened' },
-];
-const group = (s: string | undefined): Filter => (s === 'APPROVED' || s === 'MANAGER_APPROVED' ? 'APPROVED' : s === 'SUBMITTED' ? 'WAITING' : 'OTHER');
+import { DayLines } from './day-lines';
+import { tourWordsOn, useTourPlan } from './tour-plan-data';
 
 /** The person's month, day by day: the Daily Plan (routes and doctors by name, remarks, status) and, under it, what was done. Newest first. */
 export function usePersonDays(userId: string, month: string) {
@@ -40,51 +31,49 @@ export function usePersonDays(userId: string, month: string) {
 
 export type Person = { name: string; employeeCode: string; designation: string | null };
 
-/** The Tour Plan (the month) with its download, then the Daily Plans that were sent (waiting, approved, sent back). A draft is only what the Tour Plan wrote, so drafts are folded under one line. */
-export function PlansTab({ userId, month, person }: { userId: string; month: string; person: Person }) {
+/**
+ * The person's month as day blocks, newest first, each in the same three lines as the page's header (Tour Plan, Daily plan, Daily report). The days are
+ * the Tour Plan's and every day that has a Daily Plan or a report. The one Download for the month is on the page, above the tabs.
+ */
+export function PlansTab({ userId, month, onOpenReport }: { userId: string; month: string; onOpenReport: (date: string) => void }) {
   const online = useOnline();
+  const { today } = useDayGate();
   const days = usePersonDays(userId, month);
-  const [filter, setFilter] = useState<Filter>('ALL');
+  const tour = useTourPlan(userId, month);
   const data = days.data;
-  const all = (data?.items ?? []).filter((d) => d.plan !== null);
-  const rows = all.filter((d) => d.plan!.status !== 'DRAFT' && (filter === 'ALL' || group(d.plan!.status) === filter));
-  const { visible } = useWindowed(rows, `${userId}|${month}|${filter}`);
+  const byDate = new Map((data?.items ?? []).map((d) => [d.date, d]));
+  const dates = [...new Set([...byDate.keys(), ...(tour.data?.entries ?? []).map((e) => e.planDate)])].sort().reverse();
+  const { visible } = useWindowed(dates, `${userId}|${month}`);
+  const loading = (days.loading && !data) || (tour.loading && tour.data === undefined);
   return (
     <View style={styles.stack}>
-      <TourPlanCard userId={userId} month={month} name={person.name} employeeCode={person.employeeCode} designation={person.designation} />
-      <ThemedText type="smallBold">Daily plans</ThemedText>
-      <SelectField label="Show daily plans" options={FILTERS} value={filter} onChange={setFilter} />
       {!online && !data ? <Notice tone="info">Connect to see this person’s plans.</Notice> : null}
       {days.error && online ? <Notice tone="danger">{days.error}</Notice> : null}
-      {days.loading && !data ? <Skeleton cards={3} lines={3} /> : null}
-      {data && rows.length === 0 ? <Notice tone="info">No daily plan has been sent for this month.</Notice> : null}
-      {data ? <ThemedText type="small" themeColor="textSecondary">{`Total ${rows.length}`}</ThemedText> : null}
-      {visible.map((d, i) => (
-        <NumberedRow key={d.date} n={i + 1}>
-          <DayPlanCard day={d} />
-        </NumberedRow>
-      ))}
+      {loading ? <Skeleton cards={3} lines={3} /> : null}
+      {data && dates.length === 0 ? <Notice tone="info">Nothing is planned or reported for this month.</Notice> : null}
+      {data ? <ThemedText type="small" themeColor="textSecondary">{`Total ${dates.length} days`}</ThemedText> : null}
+      {visible.map((date, i) => {
+        const d = byDate.get(date);
+        const plan = d?.plan ?? null;
+        return (
+          <NumberedRow key={date} n={i + 1}>
+            <InfoCard>
+              <DayLines
+                date={date}
+                showDate
+                tourWords={tourWordsOn(tour.data, date)}
+                tourStatus={data?.monthlyPlanStatus}
+                plan={plan}
+                deadlinePassed={date < today}
+                doctors={d?.doctors ?? { planned: [], alsoVisited: [] }}
+                report={d?.report ?? null}
+                onOpenReport={() => onOpenReport(date)}
+              />
+            </InfoCard>
+          </NumberedRow>
+        );
+      })}
     </View>
-  );
-}
-
-function DayPlanCard({ day }: { day: TeamMemberDay }) {
-  const plan = day.plan!;
-  const chip = dailyPlanChip(plan);
-  const field = !['MEETING', 'CONFERENCE', 'STRIKE'].includes(plan.workingType);
-  const past = day.summary.missed > 0 || day.report !== null;
-  return (
-    <InfoCard>
-      <View style={styles.head}>
-        <ThemedText type="smallBold" style={styles.grow}>{prettyDay(day.date)}</ThemedText>
-        {chip ? <Pill text={chip.text} accent={chip.accent} /> : null}
-      </View>
-      <ThemedText type="small">{field ? (plan.routes.length > 0 ? plan.routes.map((r) => r.name).join(', ') : 'No route') : plan.workingType.replace(/_/g, ' ').toLowerCase()}</ThemedText>
-      {plan.workWith.length > 0 ? <ThemedText type="small" themeColor="textSecondary">{`With ${plan.workWith.map((p) => p.label).join(', ')}`}</ThemedText> : null}
-      {plan.remarks ? <ThemedText type="small" themeColor="textSecondary">{`“${plan.remarks}”`}</ThemedText> : null}
-      {plan.changedFromMonthly ? <ThemedText type="small" themeColor="warning">Changed from the Tour Plan</ThemedText> : null}
-      {field ? <DoctorLines planned={day.doctors.planned} alsoVisited={day.doctors.alsoVisited} past={past} /> : null}
-    </InfoCard>
   );
 }
 

@@ -31,7 +31,6 @@ import { PrimaryButton } from '../../primary-button';
 import { Skeleton } from '../../skeleton';
 import { ThemedText } from '../../themed-text';
 import { CardSection, InfoCard, Pill, SummaryStrip, sym } from '../../ui-cards';
-import { MemberDownloads } from '../member-downloads';
 import { AttendanceCalendar } from './attendance-calendar';
 
 const monthEnd = (month: string) => {
@@ -42,7 +41,7 @@ const monthEnd = (month: string) => {
 const Offline = ({ what }: { what: string }) => <Notice tone="info">{`Connect to see ${what}.`}</Notice>;
 
 /** The month's TA/DA statement of the person: totals, status, and each day. Read only. */
-export function ExpensesTab({ userId, month, person }: { userId: string; month: string; person: { name: string; employeeCode: string; designation: string | null } }) {
+export function ExpensesTab({ userId, month }: { userId: string; month: string }) {
   const online = useOnline();
   const fy = useFinancialYear();
   const q = useCachedFetch<ExpenseStatement>(`team-member-expenses:${fy.year}:${userId}:${month}`, () => getStatement(month, userId));
@@ -51,7 +50,6 @@ export function ExpensesTab({ userId, month, person }: { userId: string; month: 
   const { visible } = useWindowed(rows, `${userId}|${month}`);
   return (
     <View style={styles.stack}>
-      <MemberDownloads userId={userId} employeeCode={person.employeeCode} name={person.name} designation={person.designation} month={month} only="expenses" />
       {!online && !st ? <Offline what="this person’s expenses" /> : null}
       {q.error && online ? <Notice tone="danger">{q.error}</Notice> : null}
       {q.loading && !st ? <Skeleton cards={2} lines={3} /> : null}

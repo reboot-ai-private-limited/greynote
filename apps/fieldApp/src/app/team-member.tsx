@@ -6,9 +6,12 @@ import { MonthStepper } from '@/components/month-stepper';
 import { Notice } from '@/components/notice';
 import { ScreenShell } from '@/components/screen-shell';
 import { Skeleton } from '@/components/skeleton';
-import { PlansTab, ReportsTab, usePersonDays } from '@/components/team/member/plans-tab';
+import { PlansTab, ReportsTab } from '@/components/team/member/plans-tab';
 import { ChoiceChips } from '@/components/choice-chips';
-import { TodayHeader } from '@/components/team/member/today-header';
+import { DayPicker } from '@/components/day-picker';
+import { DayLines } from '@/components/team/member/day-lines';
+import { PersonDownloads } from '@/components/team/member/person-downloads';
+import { tourWordsOn, useTourPlan } from '@/components/team/member/tour-plan-data';
 import { ChemistsTab, DistributorsTab, DoctorsTab, ExpensesTab, LeaveTab, OrdersTab } from '@/components/team/member/more-tabs';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar, CardSection, InfoCard, Meter, Pill, SummaryStrip, sym } from '@/components/ui-cards';
@@ -19,28 +22,35 @@ import { formatRupees } from '@/lib/money';
 import { NOT_IN_TEAM_TEXT, dailyPlanChip, getTeamDay, getTeamMemberSummary, type TeamBoard, type TeamMemberSummary } from '@/lib/team-section';
 import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
-import { monthOf, prettyMonth } from '@/offline/day';
+import { addDays, monthOf, prettyMonth } from '@/offline/day';
 
 /**
  * One person of your team (docs/mobile/team.md), as tabs: Overview, Plans, Reports and More (the rest of their records). The header says who they
  * are and how today looks; Unblock and late exceptions are on the Team board and in Team → Reports. A person outside your downline is refused (403).
  */
 export default function TeamMemberScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, tab: tabParam, month: monthParam } = useLocalSearchParams<{ id: string; tab?: string; month?: string }>();
   const online = useOnline();
   const fy = useFinancialYear();
   const lastMonth = fy.isPast ? fy.lastMonth : monthOf(fy.today);
   const clamp = (m: string) => (m < fy.firstMonth ? fy.firstMonth : m > lastMonth ? lastMonth : m);
-  const [picked, setMonth] = useState<string | null>(null);
+  const [picked, setMonth] = useState<string | null>(typeof monthParam === 'string' && /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : null);
   const month = clamp(picked ?? lastMonth);
-  const [tab, setTab] = useState<'overview' | 'plans' | 'reports' | 'expenses' | 'leave' | 'doctors' | 'chemists' | 'distributors' | 'orders'>('overview');
+  type Tab = 'overview' | 'plans' | 'reports' | 'expenses' | 'leave' | 'doctors' | 'chemists' | 'distributors' | 'orders';
+  const TABS: Tab[] = ['overview', 'plans', 'reports', 'expenses', 'leave', 'doctors', 'chemists', 'distributors', 'orders'];
+  // A screen can open the person on a tab (Team → Expenses opens their Expenses).
+  const [tab, setTab] = useState<Tab>(TABS.find((t) => t === tabParam) ?? 'overview');
   // Set when the header's "Daily report: Yes" is tapped: that day's report is shown first in the Reports tab.
   const [focusDate, setFocusDate] = useState<string | null>(null);
 
   const { today } = useDayGate();
-  const todayRow = useCachedFetch<TeamBoard>(`team-day-one:${fy.year}:${id}:${today}`, () => getTeamDay({ date: today, userId: String(id) }));
-  const days = usePersonDays(String(id), monthOf(today));
-  const row = todayRow.data?.items[0] ?? null;
+  // The header shows one day: today until it is changed here.
+  const [dayPicked, setDay] = useState<string | null>(null);
+  const day = dayPicked ?? today;
+  const tomorrow = addDays(today, 1);
+  const dayRow = useCachedFetch<TeamBoard>(`team-day-one:${fy.year}:${id}:${day}`, () => getTeamDay({ date: day, userId: String(id) }));
+  const tourPlan = useTourPlan(String(id), monthOf(day));
+  const row = dayRow.data?.items[0] ?? null;
   const list = useCachedFetch<TeamMemberSummary>(`team-member:${id}:${month}`, () => getTeamMemberSummary(String(id), month));
   const data = list.data;
   const denied = list.error && /403|not in your team|forbidden/i.test(list.error);
@@ -65,16 +75,26 @@ export default function TeamMemberScreen() {
               </View>
               {data.today?.blocked ? <Pill text="Blocked" accent="red" /> : chip ? <Pill text={chip.text} accent={chip.accent} /> : null}
             </View>
-            <TodayHeader
-              row={row}
-              today={today}
-              tourStatus={days.data?.monthlyPlanStatus}
-              onOpenReport={() => {
-                setMonth(monthOf(today));
-                setFocusDate(today);
-                setTab('reports');
-              }}
-            />
+            <DayPicker value={day} onChange={(d) => setDay(d > tomorrow ? tomorrow : d)} min={fy.firstMonth ? `${fy.firstMonth}-01` : undefined} max={tomorrow} />
+            {row ? (
+              <DayLines
+                date={day}
+                tourWords={tourWordsOn(tourPlan.data, day)}
+                tourStatus={tourPlan.data?.status}
+                plan={row.plan}
+                deadlinePassed={day < today || row.plan?.deadlinePassed === true}
+                doctors={row.doctors}
+                report={row.report}
+                onLeave={row.onLeave}
+                onOpenReport={() => {
+                  setMonth(monthOf(day));
+                  setFocusDate(day);
+                  setTab('reports');
+                }}
+              />
+            ) : (
+              <Skeleton cards={1} lines={3} />
+            )}
           </InfoCard>
           {data.today?.blocked ? (
             <Notice tone="warning" title="Blocked">
@@ -103,6 +123,7 @@ export default function TeamMemberScreen() {
           <InfoCard>
             <ThemedText type="smallBold">Month</ThemedText>
             <MonthStepper value={month} onChange={setMonth} min={fy.firstMonth} max={lastMonth} />
+            <PersonDownloads person={{ id: String(id), name: data.member.name, employeeCode: data.member.employeeCode, designation: data.member.designation }} month={month} />
           </InfoCard>
 
           {tab === 'overview' ? (
@@ -133,9 +154,9 @@ export default function TeamMemberScreen() {
               <Notice tone="info">No figures for this month. This person may have left or not started yet.</Notice>
             )
           ) : null}
-          {tab === 'plans' ? <PlansTab userId={String(id)} month={month} person={{ name: data.member.name, employeeCode: data.member.employeeCode, designation: data.member.designation }} /> : null}
+          {tab === 'plans' ? <PlansTab userId={String(id)} month={month} onOpenReport={(d) => { setMonth(monthOf(d)); setFocusDate(d); setTab('reports'); }} /> : null}
           {tab === 'reports' ? <ReportsTab userId={String(id)} month={month} focusDate={focusDate} /> : null}
-          {tab === 'expenses' ? <ExpensesTab userId={String(id)} month={month} person={{ name: data.member.name, employeeCode: data.member.employeeCode, designation: data.member.designation }} /> : null}
+          {tab === 'expenses' ? <ExpensesTab userId={String(id)} month={month} /> : null}
           {tab === 'leave' ? <LeaveTab userId={String(id)} month={month} /> : null}
           {tab === 'doctors' ? <DoctorsTab userId={String(id)} month={month} /> : null}
           {tab === 'chemists' ? <ChemistsTab userId={String(id)} /> : null}

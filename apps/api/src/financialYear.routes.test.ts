@@ -199,6 +199,7 @@ const TIMELESS = [
   '/api/team/doctors/:id', // one doctor held below the manager
   '/api/team/orders', // a short window the phone chooses (at most 93 days)
   '/api/team/stock', // takes its own month
+  '/api/team/expenses', // takes its own month
   '/api/team/leaves', // a short window the phone chooses (at most 93 days)
   '/api/inbox/messages',
   // Background sync: the phone never sends the year header on it (decision-log 2026-09-30).

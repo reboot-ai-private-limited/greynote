@@ -96,6 +96,10 @@ export class FakeTeam
       .filter(([id]) => !userIds || userIds.includes(id))
       .map(([userId, outlets]) => ({ userId, outlets }));
   }
+  secondaryLines: Array<{ userId: string; issuedQty: number }> = [];
+  async listSecondaryLines(f: { userIds?: string[] }) {
+    return this.secondaryLines.filter((l) => !f.userIds || f.userIds.includes(l.userId));
+  }
   async listSecondaryStatus(_month: string, userIds: string[]) {
     return userIds.map((userId) => ({
       userId,
@@ -136,6 +140,13 @@ export class FakeTeam
   held = new Map<string, TeamDoctorInfo[]>();
   services: TeamDoctorService[] = [];
   gifts: TeamDoctorGift[] = [];
+  expenseMonths = new Map<string, { status: 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED'; taPaise: number; daPaise: number; otherPaise: number }>();
+  async listExpenseMonthSummaries(userIds: string[], _month: string) {
+    return userIds.map((userId) => {
+      const e = this.expenseMonths.get(userId) ?? { status: 'DRAFT' as const, taPaise: 0, daPaise: 0, otherPaise: 0 };
+      return { userId, ...e, totalPaise: e.taPaise + e.daPaise + e.otherPaise };
+    });
+  }
   async listGiftsForDoctors(ids: string[]) {
     return this.gifts.filter((g) => ids.includes(g.doctorId));
   }

@@ -1,26 +1,21 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { ChoiceChips } from '@/components/choice-chips';
-import { UserFilterBanner, useUserFilter } from '@/components/team/user-filter';
+import { FyBanner } from '@/components/fy-banner';
 import { MonthStepper } from '@/components/month-stepper';
 import { Notice } from '@/components/notice';
 import { ScreenShell } from '@/components/screen-shell';
+import { SelectField } from '@/components/select-field';
 import { Skeleton } from '@/components/skeleton';
 import { ThemedText } from '@/components/themed-text';
-import { Avatar, InfoCard, Pill, SummaryStrip } from '@/components/ui-cards';
+import { Avatar, InfoCard, Pill } from '@/components/ui-cards';
 import { Spacing, type Accent } from '@/constants/theme';
 import { useFinancialYear } from '@/lib/financial-year';
-import { getTeamLeaves, type TeamLeave, type TeamScopeFilter } from '@/lib/team-section';
+import { getTeamLeaves, type TeamLeave } from '@/lib/team-section';
 import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
 import { datesInMonth, monthOf, prettyDay } from '@/offline/day';
-
-const SCOPES: { value: TeamScopeFilter; label: string }[] = [
-  { value: 'all', label: 'All my team' },
-  { value: 'direct', label: 'My direct reports' },
-  { value: 'indirect', label: 'Their teams' },
-];
 
 const STATUS: Record<TeamLeave['status'], { text: string; accent: Accent }> = {
   SUBMITTED: { text: 'Waiting', accent: 'amber' },
@@ -28,9 +23,16 @@ const STATUS: Record<TeamLeave['status'], { text: string; accent: Accent }> = {
   APPROVED: { text: 'Approved', accent: 'green' },
 };
 
+type Show = 'ALL' | 'WAITING' | 'APPROVED';
+const SHOW: { value: Show; label: string }[] = [
+  { value: 'ALL', label: 'All requests' },
+  { value: 'WAITING', label: 'Waiting' },
+  { value: 'APPROVED', label: 'Approved' },
+];
+
 /**
- * Team → Leave calendar (docs/mobile/team.md): who is on leave in a month: waiting, manager-approved or approved leave
- * (rejected and withdrawn are left out). A calendar to plan around, not the decision queue (that is the Team tab's list).
+ * Team → Leave requests (docs/mobile/team.md): the leave your team asked for in a month, waiting ones first. Rejected and withdrawn are left out.
+ * Read only; a direct report's waiting request is decided in Approvals.
  */
 export default function TeamLeavesScreen() {
   const online = useOnline();
@@ -38,28 +40,29 @@ export default function TeamLeavesScreen() {
   const lastMonth = fy.isPast ? fy.lastMonth : monthOf(fy.today);
   const [picked, setMonth] = useState<string | null>(null);
   const month = picked && picked >= fy.firstMonth && picked <= fy.lastMonth ? picked : lastMonth;
-  const [scope, setScope] = useState<TeamScopeFilter>('all');
+  const [show, setShow] = useState<Show>('ALL');
 
   const days = datesInMonth(month);
   const from = days[0]!;
   const to = days[days.length - 1]!;
-  const { userId, clear } = useUserFilter();
-  const list = useCachedFetch<{ from: string; to: string; items: TeamLeave[] }>(`team-leaves:${fy.year}:${month}:${scope}:${userId ?? ''}`, () => getTeamLeaves({ from, to, scope, userId }));
-  const items = [...(list.data?.items ?? [])].sort((a, b) => a.startDate.localeCompare(b.startDate));
-  const count = (s: TeamLeave['status']) => items.filter((i) => i.status === s).length;
+  const list = useCachedFetch<{ from: string; to: string; items: TeamLeave[] }>(`team-leaves:${fy.year}:${month}`, () => getTeamLeaves({ from, to, scope: 'all' }));
+  const waiting = (l: TeamLeave) => l.status === 'SUBMITTED';
+  const items = [...(list.data?.items ?? [])]
+    .filter((l) => (show === 'ALL' ? true : show === 'WAITING' ? waiting(l) : !waiting(l)))
+    .sort((a, b) => Number(waiting(b)) - Number(waiting(a)) || a.startDate.localeCompare(b.startDate));
 
   return (
-    <ScreenShell title="Leave calendar" subtitle="Who is away this month" onRefresh={list.reload} refreshing={list.refreshing}>
-      <UserFilterBanner userId={userId} onClear={clear} />
+    <ScreenShell title="Leave requests" subtitle="What your team has asked for" onRefresh={list.reload} refreshing={list.refreshing}>
+      <FyBanner />
       <MonthStepper value={month} onChange={setMonth} min={fy.firstMonth} max={fy.lastMonth} />
-      {userId ? null : <ChoiceChips options={SCOPES} value={scope} onChange={setScope} />}
+      <View style={styles.filters}>
+        <SelectField label="Show" options={SHOW} value={show} onChange={setShow} />
+      </View>
       {!online ? <Notice tone="info">You’re offline. Connect to see your team’s leave.</Notice> : null}
       {list.error && online ? <Notice tone="danger">{list.error}</Notice> : null}
       {list.loading && !list.data ? <Skeleton cards={3} lines={2} /> : null}
-      {list.data ? (
-        <SummaryStrip items={[{ label: 'Approved', value: count('APPROVED') + count('MANAGER_APPROVED'), accent: 'green' }, { label: 'Waiting', value: count('SUBMITTED'), accent: 'amber' }]} />
-      ) : null}
-      {list.data && items.length === 0 ? <Notice tone="info">Nobody is on leave this month.</Notice> : null}
+      {list.data && items.length === 0 ? <Notice tone="info">{show === 'ALL' ? 'No leave requests this month.' : 'Nothing matches.'}</Notice> : null}
+      {list.data && items.length > 0 ? <ThemedText type="small" themeColor="textSecondary">{`Total ${items.length}`}</ThemedText> : null}
       {items.map((l) => (
         <InfoCard key={l.leaveId}>
           <View style={styles.row}>
@@ -72,6 +75,11 @@ export default function TeamLeavesScreen() {
             </View>
             <Pill text={STATUS[l.status].text} accent={STATUS[l.status].accent} />
           </View>
+          {waiting(l) && l.user.depth === 1 ? (
+            <ThemedText type="small" themeColor="primary" onPress={() => router.push('/(tabs)/team')}>
+              Decide in Approvals →
+            </ThemedText>
+          ) : null}
         </InfoCard>
       ))}
     </ScreenShell>
@@ -79,6 +87,7 @@ export default function TeamLeavesScreen() {
 }
 
 const styles = StyleSheet.create({
+  filters: { flexDirection: 'row' },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   grow: { flex: 1, gap: 2 },
 });

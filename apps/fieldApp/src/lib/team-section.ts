@@ -299,6 +299,8 @@ export const getTeamOrders = (p: { from: string; to: string; scope?: TeamScopeFi
 export type SecondaryState = 'NOT_ENTERED' | 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export type TeamStockRow = {
+  /** Units issued onward in the month, from approved rows. Absent from older servers. */
+  secondaryUnits?: number;
   user: TeamUser;
   missingOutlets: { type: 'CHEMIST' | 'DISTRIBUTOR'; id: string; name: string }[];
   secondary: SecondaryState;
@@ -394,3 +396,26 @@ export const SECONDARY_STATE_TEXT: Record<SecondaryState, string> = {
 
 /** A person outside the downline is a 403, never an empty list. */
 export const NOT_IN_TEAM_TEXT = 'This person is not in your team.';
+
+/* ── the team's expenses for a month ── */
+
+export type ExpenseState = 'NOT_SENT' | 'WAITING' | 'APPROVED' | 'SENT_BACK';
+export type TeamExpenseRow = {
+  user: TeamUser;
+  status: ExpenseState;
+  taPaise: number;
+  daPaise: number;
+  otherPaise: number;
+  totalPaise: number;
+  /** A direct report's sent month: decide it in Approvals. */
+  waitingOnYou: boolean;
+};
+export const getTeamExpenses = (p: { month: string; status?: ExpenseState }) =>
+  apiGet<{ month: string; total: number; items: TeamExpenseRow[] }>(`/team/expenses${query(p)}`, { auth: true, fy: true });
+
+export const EXPENSE_STATE_TEXT: Record<ExpenseState, { text: string; accent: Accent }> = {
+  NOT_SENT: { text: 'Not sent', accent: 'slate' },
+  WAITING: { text: 'Waiting', accent: 'amber' },
+  APPROVED: { text: 'Approved', accent: 'green' },
+  SENT_BACK: { text: 'Sent back', accent: 'red' },
+};

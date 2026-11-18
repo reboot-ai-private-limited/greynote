@@ -15,7 +15,7 @@ import { MongoExpenseAdjustmentAdapter } from './infrastructure/mongoExpenseAdju
 import { FinalizeExpenseMonthsUseCase } from './application/usecases/expenseFinalize.usecase.js';
 import { AdjustExpenseService } from './application/usecases/expenseAdjust.usecase.js';
 import { ExpenseOverviewUseCase, ExpenseReviewService } from './application/usecases/expenseReview.usecase.js';
-import { EXPENSE_MONTH_KIND, ExpenseMonthService } from './application/usecases/expenseMonth.usecase.js';
+import { EXPENSE_MONTH_KIND, ExpenseMonthService, expenseMonthStatusOf } from './application/usecases/expenseMonth.usecase.js';
 import { ExpenseMonthDeadlines } from './application/expenseMonthDeadlines.js';
 import { GrantExpenseMonthUseCase, ListExpenseMonthGrantsUseCase, RevokeExpenseMonthGrantUseCase, monthHasPaidRows } from './application/usecases/expenseMonthGrants.usecase.js';
 import { DcrSubmitDeadline } from './application/dcrSubmitDeadline.js';
@@ -215,6 +215,22 @@ export function buildFieldActivityContainer(
       listReportedDates: (userId, from, to) => listReportedDates.execute(userId, from, to),
       getPaidTaDaTotal: (userId, month) => paidTaDa.execute(userId, month),
       summarizeExpenses: (range) => expenses.summarizeByMonth(range),
+      listExpenseMonthSummaries: async (userIds, month) => {
+        if (userIds.length === 0) return [];
+        const sums = new Map((await expenses.summarizeClaimedByMonth(monthRange(month))).filter((s) => s.month === month).map((s) => [s.userId, s]));
+        const records = await expenseMonths.listForUsers(userIds, month);
+        const requests = await approvals.listForRecords(EXPENSE_MONTH_KIND, records.map((r) => r.id));
+        const requestOf = new Map(requests.map((r) => [r.recordId, r]));
+        const recordOf = new Map(records.map((r) => [r.userId, r]));
+        return userIds.map((userId) => {
+          const s = sums.get(userId);
+          const record = recordOf.get(userId);
+          const taPaise = s?.taPaise ?? 0;
+          const daPaise = s?.daPaise ?? 0;
+          const otherPaise = s?.reimbursementPaise ?? 0;
+          return { userId, status: record ? expenseMonthStatusOf(requestOf.get(record.id) ?? null) : ('DRAFT' as const), taPaise, daPaise, otherPaise, totalPaise: taPaise + daPaise + otherPaise };
+        });
+      },
       getExpenseMonthState: async (userId, month) => {
         const [record, rows] = await Promise.all([expenseMonths.find(userId, month), monthHasPaidRows(expenses, userId, month)]);
         return { submitted: record?.status === 'SUBMITTED', finalized: Boolean(record?.finalizedAt), hasPaid: rows };

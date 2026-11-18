@@ -43,6 +43,8 @@ export interface FieldActivityPublicContract {
   listUnsubmittedExpenseUsers(month: string, userIds: string[]): Promise<string[]>;
   /** The accepted expenses by employee and report month over a date range (both ends inclusive): TA, DA, manual claims, paid and unpaid — the TA/DA report's input. */
   summarizeExpenses(range: { from: string; to: string }): Promise<ExpenseMonthSummary[]>;
+  /** Where each of these employees' month of expenses stands (`DRAFT` = not sent, `SUBMITTED` = with the approver, `APPROVED`, `REJECTED`) with the TA, DA and other claimed in it: a manager's team expense report. Everyone asked for is answered. */
+  listExpenseMonthSummaries(userIds: string[], month: string): Promise<Array<{ userId: string; status: 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED'; taPaise: number; daPaise: number; otherPaise: number; totalPaise: number }>>;
   /** The accepted TA and DA of each employee over a date range (both ends inclusive), paid and unpaid together, cancelled left out — the Sales Dashboard's TA and DA columns. */
   summarizeTaDaByUser(range: { from: string; to: string }): Promise<Array<{ userId: string; taPaise: number; daPaise: number }>>;
   /** The accepted expense rows in a date range, oldest day first, at most `limit` (default 2000); optionally one employee's — the report's day-by-day drill-down. */

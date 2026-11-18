@@ -2842,3 +2842,9 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 ## 2026-11-18: Team → Reports cut to six rows
 
 - Today board, Plans and Daily reports removed from Team → Reports because the Team board and the person page cover them. The rest stays; the rarely used four sit behind "More". Server routes unchanged.
+
+
+## 2026-11-18: Team → Reports reduced to Expenses, Secondary sales, Leave requests; one Download on the person page
+
+- Team overview, Sales & compliance and Team orders removed (repeat the board and the person page). New team Expenses read; `secondaryUnits` added to team stock rows; Field Activity's contract gained `listExpenseMonthSummaries`.
+- Person page: day picker for the header, Plans tab as day blocks, one Download (Tour Plan, Daily plans, Expenses).

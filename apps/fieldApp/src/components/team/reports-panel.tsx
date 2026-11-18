@@ -10,11 +10,9 @@ import { RowCard, sym } from '../ui-cards';
 type Item = { title: string; about: string; href: Href; icon: ReturnType<typeof sym>; accent: Accent };
 
 const ITEMS: Item[] = [
-  { title: 'Monthly overview', about: 'Per person: plans, reports, calls, TA/DA, sales', href: '/team-overview', icon: sym('chart.pie', 'pie_chart'), accent: 'indigo' },
-  { title: 'Sales & compliance', about: 'Targets, achievement, plans and reports in', href: '/team-reports', icon: sym('chart.bar', 'bar_chart'), accent: 'blue' },
-  { title: 'Stock & secondary', about: 'Who still has to send their month', href: '/team-stock', icon: sym('shippingbox', 'inventory_2'), accent: 'lime' },
-  { title: 'Leave calendar', about: 'Who is away this month', href: '/team-leaves', icon: sym('calendar.badge.clock', 'event_busy'), accent: 'pink' },
-  { title: 'Orders', about: 'Orders placed by your team', href: '/team-orders', icon: sym('cart', 'shopping_cart'), accent: 'orange' },
+  { title: 'Expenses', about: 'TA, DA and other claims by person, who has not sent', href: '/team-expenses', icon: sym('indianrupeesign.circle', 'payments'), accent: 'amber' },
+  { title: 'Secondary sales', about: 'Who has sent their month, who has not', href: '/team-stock', icon: sym('shippingbox', 'inventory_2'), accent: 'lime' },
+  { title: 'Leave requests', about: 'Waiting and approved, from your team', href: '/team-leaves', icon: sym('calendar.badge.clock', 'event_busy'), accent: 'pink' },
 ];
 
 /** Used now and then, so they sit behind one "More" row. */
@@ -28,7 +26,7 @@ const MORE: Item[] = [
 const chevron = <ThemedText type="smallBold" themeColor="textSecondary">›</ThemedText>;
 
 /**
- * Team → Reports: the month's team-wide reports as one short list. Today's state, plans and daily reports are on the Team board and on each
+ * Team → Reports: three month reports (expenses, secondary sales, leave requests) and a "More" row. Today's state, plans and daily reports are on the Team board and on each
  * person's page, so they are not repeated here. The few things used now and then are behind "More".
  */
 export function ReportsPanel() {

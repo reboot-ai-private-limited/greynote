@@ -7,6 +7,7 @@ import type { ListTeamMembersUseCase } from '../application/usecases/listTeamMem
 import type { TeamMemberSummaryUseCase } from '../application/usecases/teamMemberSummary.usecase.js';
 import type { TeamLeavesUseCase } from '../application/usecases/teamLeaves.usecase.js';
 import type { TeamOrdersUseCase } from '../application/usecases/teamOrders.usecase.js';
+import type { TeamExpensesUseCase } from '../application/usecases/teamExpenses.usecase.js';
 import type { TeamStockUseCase } from '../application/usecases/teamStock.usecase.js';
 import type { TeamDoctorUseCase, TeamMemberDoctorsUseCase } from '../application/usecases/teamDoctors.usecase.js';
 import type { TeamMemberAttendanceUseCase } from '../application/usecases/teamMemberAttendance.usecase.js';
@@ -20,6 +21,7 @@ import type {
   membersQuerySchema,
   ordersQuerySchema,
   stockQuerySchema,
+  expensesQuerySchema,
   dayQuerySchema,
   doctorParamsSchema,
   daysQuerySchema,
@@ -37,7 +39,7 @@ const query = <S extends z.ZodTypeAny>(req: Request): z.output<S> =>
   req.query as unknown as z.output<S>;
 
 export type TeamHandlers = Record<
-  'members' | 'summary' | 'memberDays' | 'memberAttendance' | 'memberDoctors' | 'doctor' | 'today' | 'day' | 'plans' | 'leaves' | 'orders' | 'stock',
+  'members' | 'summary' | 'memberDays' | 'memberAttendance' | 'memberDoctors' | 'doctor' | 'today' | 'day' | 'plans' | 'leaves' | 'orders' | 'stock' | 'expenses',
   RequestHandler
 >;
 
@@ -54,6 +56,7 @@ export function makeTeamControllers(u: {
   summary: TeamMemberSummaryUseCase;
   orders: TeamOrdersUseCase;
   stock: TeamStockUseCase;
+  expenses: TeamExpensesUseCase;
 }): TeamHandlers {
   return {
     members: asyncHandler(async (req, res) =>
@@ -81,6 +84,15 @@ export function makeTeamControllers(u: {
         res,
         await u.orders.execute(callerId(req), query<typeof ordersQuerySchema>(req)),
         'Your team’s orders.',
+        200,
+      ),
+    ),
+    expenses: asyncHandler(async (req, res) =>
+      sendSuccess(
+        req,
+        res,
+        await u.expenses.execute(callerId(req), query<typeof expensesQuerySchema>(req)),
+        'Your team’s expenses.',
         200,
       ),
     ),

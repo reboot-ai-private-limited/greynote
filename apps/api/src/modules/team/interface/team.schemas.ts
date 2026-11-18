@@ -86,3 +86,8 @@ export const stockQuerySchema = z.object({
     .optional(),
   secondary: z.enum(['NOT_ENTERED', 'DRAFT', 'PENDING', 'APPROVED', 'REJECTED']).optional(),
 });
+
+export const expensesQuerySchema = z.object({
+  month: calendarMonthSchema,
+  status: z.enum(['NOT_SENT', 'WAITING', 'APPROVED', 'SENT_BACK']).optional(),
+});

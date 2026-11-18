@@ -1,0 +1,67 @@
+import { useColleagues } from '@/offline/colleagues';
+import { prettyMonth } from '@/offline/day';
+import { getStatement } from '@/lib/expense-months';
+import { dailyPlansCsv, exportFileName, expensesCsv, tourPlanCsv } from '@/lib/exports';
+import { getTeamMemberTourPlan, offDayLabel } from '@/lib/planning';
+import { getTeamMemberDays } from '@/lib/team-section';
+
+import { DownloadMenu, type DownloadItem } from '../../download-menu';
+import { useTourPlan } from './tour-plan-data';
+
+type Person = { id: string; name: string; employeeCode: string; designation: string | null };
+
+/**
+ * The person page's one **Download** (month shown above it): the Tour Plan, the Daily plans and the expense statement, each a CSV in the layout the person
+ * gets on their own screens. Built live when tapped. A file with nothing in it says why instead of failing (no Tour Plan for the month).
+ */
+export function PersonDownloads({ person, month }: { person: Person; month: string }) {
+  const { colleagues } = useColleagues();
+  const tour = useTourPlan(person.id, month);
+  const who = { name: person.name, designation: person.designation, employeeCode: person.employeeCode };
+  const title = (what: string) => `${person.name} · ${what} · ${prettyMonth(month)}`;
+
+  const items: DownloadItem[] = [
+    {
+      key: 'tour',
+      label: 'Tour Plan',
+      hint: 'Every day: work type, routes, work with',
+      disabledReason: tour.data === null ? `No Tour Plan for ${prettyMonth(month)}.` : null,
+      build: async () => {
+        const plan = await getTeamMemberTourPlan(person.id, month);
+        if (!plan) return { empty: `${person.name} has no Tour Plan for ${prettyMonth(month)}.` };
+        const offByDate = new Map((plan.offDays ?? []).map((d) => [d.date, d]));
+        const byId = new Map(colleagues.map((c) => [c.id, c.name]));
+        const csv = tourPlanCsv(month, plan.entries, {
+          offLabel: (d) => {
+            const off = offByDate.get(d);
+            return off ? offDayLabel(off) : null;
+          },
+          routes: plan.routes,
+          personName: (id) => byId.get(id) ?? null,
+        });
+        return { fileName: exportFileName('tour-plan', who, month), csv, title: title('Tour Plan') };
+      },
+    },
+    {
+      key: 'daily',
+      label: 'Daily plans',
+      hint: 'Each day: plan, doctors, report status',
+      build: async () => {
+        const days = await getTeamMemberDays(person.id, month);
+        if (days.items.length === 0) return { empty: `${person.name} has no daily plans or reports for ${prettyMonth(month)}.` };
+        return { fileName: exportFileName('daily-plans', who, month), csv: dailyPlansCsv(days.items), title: title('Daily plans') };
+      },
+    },
+    {
+      key: 'expenses',
+      label: 'Expenses (TA/DA)',
+      hint: 'Date by date: TA, DA, other and totals',
+      build: async () => {
+        const statement = await getStatement(month, person.id);
+        if (statement.days.length === 0) return { empty: `${person.name} has no expenses for ${prettyMonth(month)}.` };
+        return { fileName: exportFileName('expenses', who, month), csv: expensesCsv(statement), title: title('Expenses') };
+      },
+    },
+  ];
+  return <DownloadMenu items={items} />;
+}

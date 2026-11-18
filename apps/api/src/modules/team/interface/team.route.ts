@@ -11,6 +11,7 @@ import {
   membersQuerySchema,
   ordersQuerySchema,
   stockQuerySchema,
+  expensesQuerySchema,
   dayQuerySchema,
   doctorParamsSchema,
   daysQuerySchema,
@@ -104,6 +105,7 @@ export function buildTeamRouter(c: TeamHandlers): Router {
   router.get('/day', validate({ query: dayQuerySchema }), c.day);
   router.get('/plans', validate({ query: plansQuerySchema }), c.plans);
   router.get('/orders', validate({ query: ordersQuerySchema }), c.orders);
+  router.get('/expenses', validate({ query: expensesQuerySchema }), c.expenses);
   router.get('/stock', validate({ query: stockQuerySchema }), c.stock);
   router.get('/leaves', validate({ query: leavesQuerySchema }), c.leaves);
   return router;

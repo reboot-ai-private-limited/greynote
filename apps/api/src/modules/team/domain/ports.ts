@@ -84,6 +84,7 @@ export interface TeamPlanningPort {
 export interface TeamFieldActivityPort {
   listServicesForDoctors(doctorIds: string[]): Promise<TeamDoctorService[]>;
   listGiftsForDoctors(doctorIds: string[]): Promise<TeamDoctorGift[]>;
+  listExpenseMonthSummaries(userIds: string[], month: string): Promise<Array<{ userId: string; status: 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED'; taPaise: number; daPaise: number; otherPaise: number; totalPaise: number }>>;
   getDayActivity(userIds: string[], date: string): Promise<TeamDayActivity[]>;
   getActivityRange(userId: string, range: { from: string; to: string }): Promise<TeamDayActivity[]>;
   getDcrSummary(
@@ -205,6 +206,8 @@ export interface TeamSalesPort {
   ): Promise<
     Array<{ userId: string; status: 'NOT_ENTERED' | 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' }>
   >;
+  /** The MRs' **approved** secondary rows for a month (units issued onward); a draft, sent or rejected row never appears. */
+  listSecondaryLines(filter: { fromMonth: string; toMonth: string; userIds?: string[]; limit?: number }): Promise<Array<{ userId: string; issuedQty: number }>>;
 }
 
 /** Team's narrow view of Field Master Data: outlet names. */

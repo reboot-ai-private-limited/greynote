@@ -6,6 +6,7 @@ import { ListTeamMembersUseCase } from './application/usecases/listTeamMembers.u
 import { TeamLeavesUseCase } from './application/usecases/teamLeaves.usecase.js';
 import { TeamMemberSummaryUseCase } from './application/usecases/teamMemberSummary.usecase.js';
 import { TeamOrdersUseCase } from './application/usecases/teamOrders.usecase.js';
+import { TeamExpensesUseCase } from './application/usecases/teamExpenses.usecase.js';
 import { TeamStockUseCase } from './application/usecases/teamStock.usecase.js';
 import { TeamPlansUseCase } from './application/usecases/teamPlans.usecase.js';
 import { TeamDoctorUseCase, TeamMemberDoctorsUseCase } from './application/usecases/teamDoctors.usecase.js';
@@ -72,12 +73,13 @@ export function buildTeamContainer(
   const leaves = new TeamLeavesUseCase(identity, hr);
   const orders = new TeamOrdersUseCase(identity, sales, master);
   const stock = new TeamStockUseCase(identity, sales);
+  const expenses = new TeamExpensesUseCase(identity, fieldActivity);
   const summary = new TeamMemberSummaryUseCase(members, today, reports, clock);
   const alerts = new TeamAlerts(approvals, people, inbox, new MongoAlertMarksAdapter(), config);
   return {
     buildRouter: () =>
       buildTeamRouter(
-        makeTeamControllers({ members, today, plans, day, memberDays, memberAttendance, memberDoctors, doctor, leaves, summary, orders, stock }),
+        makeTeamControllers({ members, today, plans, day, memberDays, memberAttendance, memberDoctors, doctor, leaves, summary, orders, stock, expenses }),
       ),
     runAlerts: () => alerts.runWaiting(),
     notifyBlocked: (blocked) => alerts.notifyBlocked(blocked),

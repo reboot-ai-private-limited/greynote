@@ -119,6 +119,13 @@ describe('TeamStock', () => {
     fake.secondary.set('mr1', 'DRAFT');
   });
 
+  it('adds up the approved secondary units a person issued', async () => {
+    fake.secondaryLines = [{ userId: 'asm2', issuedQty: 30 }, { userId: 'asm2', issuedQty: 12 }];
+    const r = await run();
+    expect(r.items.find((i) => i.user.id === 'asm2')?.secondaryUnits).toBe(42);
+    expect(r.items.find((i) => i.user.id === 'mr1')?.secondaryUnits).toBe(0);
+  });
+
   it('shows each active person’s missing outlets and secondary, chase-first', async () => {
     const r = await run();
     expect(r.items.map((i) => [i.user.id, i.secondary, i.missingOutlets.length])).toEqual([
