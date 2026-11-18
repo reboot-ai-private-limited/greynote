@@ -60,8 +60,14 @@ const range = (model: SecondarySheetModel) => {
   return `${part(first)} - ${part(last)}`;
 };
 
+// The company's file: secondary (SEC) cells are yellow, the percentages and quarters blue, the halves and the year red, the title blue.
+const BLUE = 'FF0000FF';
+const RED = 'FFFF0000';
+const YELLOW: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
 const HEAD_FILL: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCE6F1' } };
 const TOTAL_FILL: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
+/** The font colour of a block: months plain, quarters blue, halves and the year red. */
+const colourOf = (b: Block): string | undefined => (b.kind === 'month' ? undefined : b.kind === 'qtr' ? BLUE : RED);
 const THIN: Partial<ExcelJS.Borders> = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
 
 function writePerson(ws: ExcelJS.Worksheet, p: SheetPerson, model: SecondarySheetModel): void {
@@ -70,12 +76,13 @@ function writePerson(ws: ExcelJS.Worksheet, p: SheetPerson, model: SecondaryShee
   const totalRow = last + 1;
 
   ws.getCell('A1').value = `${model.label} Performance Sheet`;
-  ws.getCell('A1').font = { bold: true, size: 14 };
+  ws.getCell('A1').font = { bold: true, size: 16, color: { argb: BLUE } };
   ws.getCell('A2').value = p.kind === 'TEAM' ? 'NAME OF THE MANAGER:' : 'NAME OF THE BE/ BE-S HQ:';
   ws.getCell('C2').value = `${p.name} · ${p.code}${p.designation ? ` · ${p.designation}` : ''}`;
   ws.getCell('A3').value = 'NO.OF BEs/ BE-Ss :';
   ws.getCell('C3').value = p.members;
-  for (const a of ['A2', 'A3', 'C2', 'C3']) ws.getCell(a).font = { bold: true };
+  for (const a of ['A2', 'A3']) ws.getCell(a).font = { bold: true, size: 12, color: { argb: BLUE } };
+  for (const a of ['C2', 'C3']) ws.getCell(a).font = { bold: true, size: 12, color: { argb: RED } };
 
   // Heads.
   const head = (col: number, text: string) => {
@@ -97,10 +104,13 @@ function writePerson(ws: ExcelJS.Worksheet, p: SheetPerson, model: SecondaryShee
     const col = blockCol(n);
     const title = ws.getCell(4, col);
     title.value = blockTitle(b, model);
-    title.font = { bold: true };
+    title.font = { bold: true, size: 11, ...(colourOf(b) ? { color: { argb: colourOf(b)! } } : {}) };
+    title.alignment = { horizontal: 'center' };
+    ws.mergeCells(4, col, 4, col + 3);
     head(col, 'TGT');
     head(col + 1, 'SEC');
     head(col + 3, '% ACH');
+    for (const c of [col, col + 1, col + 3]) if (colourOf(b)) ws.getCell(HEAD_ROW, c).font = { bold: true, color: { argb: colourOf(b)! } };
   });
 
   // Products.
@@ -140,6 +150,25 @@ function writePerson(ws: ExcelJS.Worksheet, p: SheetPerson, model: SecondaryShee
       ws.getCell(r, 8).value = { formula: `(E${r}/${row.prevSec}-1)*100`, result: (year.sec / row.prevSec - 1) * 100 };
       ws.getCell(r, 8).numFmt = '0.0';
     }
+
+    // Colours, as in the company's file.
+    const font = (colour: string | undefined, bold: boolean): Partial<ExcelJS.Font> => ({ size: 10, bold, ...(colour ? { color: { argb: colour } } : {}) });
+    BLOCKS.forEach((b, n) => {
+      const col = blockCol(n);
+      const colour = colourOf(b);
+      ws.getCell(r, col).font = font(colour, b.kind === 'month');
+      ws.getCell(r, col + 1).font = font(colour, b.kind === 'month');
+      ws.getCell(r, col + 1).fill = YELLOW;
+      ws.getCell(r, col + 3).font = font(colour ?? BLUE, false);
+      for (const c of [col, col + 1, col + 3]) ws.getCell(r, c).border = THIN;
+    });
+    ws.getCell(r, 1).font = font(undefined, true);
+    ws.getCell(r, 2).font = font(undefined, true);
+    ws.getCell(r, 4).font = font(undefined, true);
+    ws.getCell(r, 5).font = font(RED, true);
+    ws.getCell(r, 5).fill = YELLOW;
+    ws.getCell(r, 6).font = font(BLUE, false);
+    for (const c of [1, 2, 3, 4, 5, 6]) ws.getCell(r, c).border = THIN;
   });
 
   // Grand total, in rupees lakh (units x N.S.R. / 1,00,000), the way the company's file shows it.
@@ -167,7 +196,7 @@ function writePerson(ws: ExcelJS.Worksheet, p: SheetPerson, model: SecondaryShee
   ws.getCell(totalRow, 6).numFmt = '0.0';
   for (let c = 1; c <= blockCol(BLOCKS.length - 1) + 3; c++) {
     const cell = ws.getCell(totalRow, c);
-    cell.font = { bold: true };
+    cell.font = { bold: true, size: 11, color: { argb: BLUE } };
     cell.fill = TOTAL_FILL;
   }
 
