@@ -2869,3 +2869,8 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 ## 2026-11-18: The day in doctors (carried in, missed, carried on) for the manager's daily report view
 
 - The carry-over loop is one shared pure function used by the Monthly Work report and the new team day read, so the two always agree. A manager sees it on the daily report (Approvals) and in each day of a person's Reports tab; today's carry-on is "so far".
+
+
+## 2026-11-18: Team polish: Doctors this month page, Monthly work report row, Unblock only blocked people, Distributors, Territory routes in place
+
+- Phone-only changes; the numbers come from the doctors read already added. The team CSV of the expense list is gone (the report is one Excel per person).

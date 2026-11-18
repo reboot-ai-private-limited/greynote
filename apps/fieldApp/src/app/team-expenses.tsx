@@ -2,18 +2,17 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { DownloadMenu } from '@/components/download-menu';
 import { FyBanner } from '@/components/fy-banner';
 import { MonthStepper } from '@/components/month-stepper';
 import { Notice } from '@/components/notice';
+import { PrimaryButton } from '@/components/primary-button';
 import { ScreenShell } from '@/components/screen-shell';
 import { SelectField } from '@/components/select-field';
 import { Skeleton } from '@/components/skeleton';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar, InfoCard, Pill, SummaryStrip } from '@/components/ui-cards';
 import { Spacing } from '@/constants/theme';
-import { rupeesCell, toCsv } from '@/lib/csv';
-import { teamFileName } from '@/lib/exports';
+import { downloadMonthlyWorkReport } from '@/lib/work-reports';
 import { useFinancialYear } from '@/lib/financial-year';
 import { formatRupees } from '@/lib/money';
 import { EXPENSE_STATE_TEXT, getTeamExpenses, type ExpenseState } from '@/lib/team-section';
@@ -31,8 +30,8 @@ const SHOW: { value: Show; label: string }[] = [
 ];
 
 /**
- * Team → Expenses (docs/mobile/team.md): for a month, each person's TA, DA and other claims and whether they sent the month, those not sent first.
- * Tap a person for the day-by-day detail (their Expenses tab). A month a direct report sent is decided in Approvals. One Download gives the list as a CSV.
+ * Team → Monthly work report (docs/mobile/team.md): for a month, each person's expenses (TA, DA, other, and whether they sent the month, those not sent first) with a
+ * Download of **their Monthly work report (Excel)**. Tap a person for the day-by-day expenses (their Expenses tab). A month a direct report sent is decided in Approvals.
  */
 export default function TeamExpensesScreen() {
   const online = useOnline();
@@ -41,6 +40,20 @@ export default function TeamExpensesScreen() {
   const [picked, setMonth] = useState<string | null>(null);
   const month = picked && picked >= fy.firstMonth && picked <= fy.lastMonth ? picked : lastMonth;
   const [show, setShow] = useState<Show>('ALL');
+  const [busy, setBusy] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ tone: 'danger' | 'info'; text: string } | null>(null);
+  const download = async (person: { id: string; name: string }) => {
+    setBusy(person.id);
+    setMsg(null);
+    try {
+      const done = await downloadMonthlyWorkReport(person, month, prettyMonth(month));
+      if (done) setMsg({ tone: 'info', text: done });
+    } catch (err) {
+      setMsg({ tone: 'danger', text: err instanceof Error ? err.message : 'Couldn’t make the file. Please try again.' });
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const list = useCachedFetch(`team-expenses:${fy.year}:${month}`, () => getTeamExpenses({ month }));
   const all = list.data?.items ?? [];
@@ -48,13 +61,14 @@ export default function TeamExpensesScreen() {
   const sum = (pick: (r: (typeof all)[number]) => number) => all.reduce((n, r) => n + pick(r), 0);
 
   return (
-    <ScreenShell title="Expenses" subtitle="TA, DA and other claims by person" onRefresh={list.reload} refreshing={list.refreshing}>
+    <ScreenShell title="Monthly work report" subtitle="Each person’s month: work, DCRs and expenses" onRefresh={list.reload} refreshing={list.refreshing}>
       <FyBanner />
       <MonthStepper value={month} onChange={setMonth} min={fy.firstMonth} max={fy.lastMonth} />
       <View style={styles.filters}>
         <SelectField label="Show" options={SHOW} value={show} onChange={setShow} />
       </View>
-      {!online ? <Notice tone="info">You’re offline. Connect to see your team’s expenses.</Notice> : null}
+      {!online ? <Notice tone="info">You’re offline. Connect to see your team’s month.</Notice> : null}
+      {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
       {list.error && online ? <Notice tone="danger">{list.error}</Notice> : null}
       {list.loading && !list.data ? <Skeleton cards={3} lines={2} /> : null}
       {list.data && all.length > 0 ? (
@@ -64,22 +78,6 @@ export default function TeamExpensesScreen() {
               { label: 'TA', value: formatRupees(sum((r) => r.taPaise)), accent: 'blue' },
               { label: 'DA', value: formatRupees(sum((r) => r.daPaise)), accent: 'teal' },
               { label: 'Total', value: formatRupees(sum((r) => r.totalPaise)), accent: 'green' },
-            ]}
-          />
-          <DownloadMenu
-            items={[
-              {
-                key: 'expenses',
-                label: 'Download',
-                build: async () => ({
-                  fileName: teamFileName('expenses', month),
-                  title: `Team expenses · ${prettyMonth(month)}`,
-                  csv: toCsv(
-                    ['Name', 'Code', 'Status', 'TA', 'DA', 'Other', 'Total'],
-                    all.map((r) => [r.user.name, r.user.employeeCode, EXPENSE_STATE_TEXT[r.status].text, rupeesCell(r.taPaise), rupeesCell(r.daPaise), rupeesCell(r.otherPaise), rupeesCell(r.totalPaise)]),
-                  ),
-                }),
-              },
             ]}
           />
         </>
@@ -102,11 +100,14 @@ export default function TeamExpensesScreen() {
               </View>
               <Pill text={r.waitingOnYou ? 'Waiting for you' : state.text} accent={r.waitingOnYou ? 'amber' : state.accent} />
             </View>
-            {r.waitingOnYou ? (
-              <ThemedText type="small" themeColor="primary" onPress={() => router.push('/(tabs)/team')}>
-                Decide in Approvals →
-              </ThemedText>
-            ) : null}
+            <View style={styles.row}>
+              <PrimaryButton label={busy === r.user.id ? 'Preparing…' : 'Download Excel'} variant="text" disabled={!online || busy !== null} onPress={() => void download({ id: r.user.id, name: r.user.name })} />
+              {r.waitingOnYou ? (
+                <ThemedText type="small" themeColor="primary" onPress={() => router.push('/(tabs)/team')}>
+                  Decide expenses in Approvals →
+                </ThemedText>
+              ) : null}
+            </View>
           </InfoCard>
         );
       })}

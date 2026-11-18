@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Spacing } from '@/constants/theme';
 import { useWindowed } from '@/hooks/use-windowed';
@@ -181,26 +181,24 @@ const DOCTOR_FILTERS: { value: DoctorFilter; label: string }[] = [
   { value: 'CARRIED', label: 'Carried over' },
 ];
 
-/** The person's month in doctors, as numbers: visits made of wanted, missed, not called at all, carried over. Each count opens the Doctors tab on that filter. */
-export function DoctorsMonthCard({ userId, month, doctorCalls, onOpen }: { userId: string; month: string; doctorCalls?: number | undefined; onOpen: (filter: DoctorFilter) => void }) {
+/** The person's month in doctors, in one line; tapping it opens the page of numbers (calls, missed, remaining, carried; total and doctor-wise). */
+export function DoctorsMonthCard({ userId, month, doctorCalls, onOpen }: { userId: string; month: string; doctorCalls?: number | undefined; onOpen: () => void }) {
   const fy = useFinancialYear();
   const q = useCachedFetch<MemberDoctors>(`team-member-doctors:${fy.year}:${userId}:${month}`, () => getMemberDoctors(userId, month));
   const t = q.data?.totals;
   if (!t) return null;
   const now = month >= monthOf(fy.today);
   return (
-    <CardSection icon={sym('stethoscope', 'medical_services')} accent="teal" title={`Doctors this month${now ? ' (so far)' : ''}`}>
-      {t.withTarget === 0 ? (
-        <ThemedText type="small" themeColor="textSecondary">No doctor has a visit target yet.</ThemedText>
-      ) : (
-        <ThemedText type="small">{`${t.withTarget} doctors with a target · ${t.made} of ${t.quota} visits made · ${t.missed} ${now ? 'still to do' : 'missed'}${doctorCalls !== undefined ? ` · ${doctorCalls} doctor calls this month` : ''}`}</ThemedText>
-      )}
-      <View style={styles.counts}>
-        <PrimaryButton label={`${t.notCalled} not called at all`} variant="text" onPress={() => onOpen('NO_CALL')} />
-        <PrimaryButton label={`${t.carried} ${now ? 'carried over' : 'carried at month end'}`} variant="text" onPress={() => onOpen('CARRIED')} />
-        <PrimaryButton label="Behind target →" variant="text" onPress={() => onOpen('BEHIND')} />
-      </View>
-    </CardSection>
+    <Pressable accessibilityRole="button" accessibilityLabel="Doctors this month: open the numbers" onPress={onOpen}>
+      <CardSection icon={sym('stethoscope', 'medical_services')} accent="teal" title={`Doctors this month${now ? ' (so far)' : ''}`}>
+        {t.withTarget === 0 ? (
+          <ThemedText type="small" themeColor="textSecondary">No doctor has a visit target yet.</ThemedText>
+        ) : (
+          <ThemedText type="small">{`${t.made} of ${t.quota} visits made · ${t.missed} ${now ? 'remaining' : 'missed'} · ${t.notCalled} not called at all · ${t.carried} ${now ? 'carried over' : 'carried at month end'}${doctorCalls !== undefined ? ` · ${doctorCalls} doctor calls` : ''}`}</ThemedText>
+        )}
+        <ThemedText type="small" themeColor="primary">See the numbers →</ThemedText>
+      </CardSection>
+    </Pressable>
   );
 }
 

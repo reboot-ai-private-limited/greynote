@@ -5,45 +5,49 @@ import { StyleSheet, View } from 'react-native';
 import { Notice } from '@/components/notice';
 import { PrimaryButton } from '@/components/primary-button';
 import { ScreenShell } from '@/components/screen-shell';
+import { Skeleton } from '@/components/skeleton';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
-import { CardSection, PersonDropdown, sym } from '@/components/ui-cards';
+import { Avatar, InfoCard, Pill } from '@/components/ui-cards';
 import { Accents, Spacing } from '@/constants/theme';
+import { useTeamBoard } from '@/hooks/use-team-board';
 import { ApiError, NetworkError, apiPost } from '@/lib/api';
 import { useOnline } from '@/offline';
-import { useTeam } from '@/offline/team';
 
 const errorText = (err: unknown) =>
   err instanceof ApiError || err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.';
 
 /**
- * Unblock (docs/mobile/dailyplan.md rule 8): a manager clears the block a missed daily report put on someone below them, with a
- * required reason — the reason, who and their role are kept as the audit trail. The employee starts with a clean slate. The phone
- * can't see who is blocked (no endpoint lists it for a manager), so the employee tells you; unblocking someone who isn't blocked
- * changes nothing. Needs a connection.
+ * Unblock (docs/mobile/dailyplan.md rule 8): the people in your team who are blocked right now (a missed daily report blocks someone until you clear it), each with
+ * its own Unblock and the required reason, which is kept with who and their role as the audit trail. Nobody blocked: it says so. Needs a connection.
  */
 export default function UnblockScreen() {
   const online = useOnline();
-  const { team, loaded } = useTeam();
-
-  // Opened from a person (their page, or a blocked row) it starts with them chosen.
+  const board = useTeamBoard();
+  // Opened from a person (a blocked row on the Team board), it shows just them.
   const preset = useLocalSearchParams<{ userId?: string }>().userId;
-  const [userId, setUserId] = useState<string | null>(typeof preset === 'string' && preset !== '' ? preset : null);
+  const only = typeof preset === 'string' && preset !== '' ? preset : null;
+  const [openId, setOpenId] = useState<string | null>(only);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState<Set<string>>(new Set());
   const [msg, setMsg] = useState<{ tone: 'danger' | 'success' | 'warning'; text: string } | null>(null);
 
-  const picked = team.find((t) => t.id === userId) ?? null;
+  const blocked = [...board.byId.values()]
+    .filter((n) => n.day?.blocked === true && !done.has(n.member.id) && (only === null || n.member.id === only))
+    .sort((a, b) => a.member.name.localeCompare(b.member.name));
 
-  async function unblock() {
-    if (!picked) return setMsg({ tone: 'warning', text: 'Pick the employee first.' });
-    if (!reason.trim()) return setMsg({ tone: 'warning', text: 'Give the reason — it is kept with the unblock.' });
+  async function unblock(id: string, name: string) {
+    if (!reason.trim()) return setMsg({ tone: 'warning', text: 'Give the reason: it is kept with the unblock.' });
     setBusy(true);
     setMsg(null);
     try {
-      await apiPost<null>(`/identity/users/${picked.id}/unblock`, { reason: reason.trim() }, { auth: true });
+      await apiPost<null>(`/identity/users/${id}/unblock`, { reason: reason.trim() }, { auth: true });
+      setDone((d) => new Set(d).add(id));
       setReason('');
-      setMsg({ tone: 'success', text: `${picked.name} can work again. Days before now won’t block them again.` });
+      setOpenId(null);
+      setMsg({ tone: 'success', text: `${name} can work again. Days before now won’t block them again.` });
+      board.reload();
     } catch (err) {
       setMsg({ tone: 'danger', text: errorText(err) });
     } finally {
@@ -52,57 +56,52 @@ export default function UnblockScreen() {
   }
 
   return (
-    <ScreenShell
-      title="Unblock"
-      subtitle="Clear a block for a missed daily report"
-      footer={<PrimaryButton label={picked ? `Unblock ${picked.name}` : 'Unblock'} loading={busy} disabled={!online || !picked} onPress={unblock} />}>
-      <View style={[styles.banner, { backgroundColor: Accents.amber.bg, borderColor: Accents.amber.border }]}>
-        <ThemedText type="smallBold">Blocked after a missed daily report</ThemedText>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.small}>
-          A blocked employee can’t log or submit anything until you clear it. Pick them and say why.
-        </ThemedText>
-      </View>
+    <ScreenShell title="Unblock" subtitle="People blocked after a missed daily report" onRefresh={board.reload} refreshing={board.refreshing}>
       {!online ? <Notice tone="info">You’re offline. Connect to the internet to unblock someone.</Notice> : null}
-
-      <CardSection icon={sym('person.2', 'groups')} accent="blue" title="Employee" count={team.length || undefined}>
-        {team.length === 0 ? (
-          <Notice tone="info">{loaded ? 'You have nobody in your team.' : 'Loading your team…'}</Notice>
-        ) : (
-          <PersonDropdown
-            people={team.map((t) => ({ id: t.id, name: t.name, detail: [t.employeeCode, t.designation].filter(Boolean).join(' · ') }))}
-            value={userId}
-            onChange={(id) => {
-              setUserId(id);
-              setMsg(null);
-            }}
-            disabled={busy}
-          />
-        )}
-      </CardSection>
-
-      <CardSection icon={sym('text.bubble', 'chat')} accent="purple" title="Reason">
-        <TextField
-          label="Why are you unblocking them? (required)"
-          value={reason}
-          onChangeText={(t) => {
-            setReason(t);
-            setMsg(null);
-          }}
-          multiline
-          maxLength={500}
-          editable={!busy}
-        />
-        <ThemedText type="small" themeColor="textSecondary" style={styles.small}>
-          The reason, your name and your role are kept as the audit trail.
-        </ThemedText>
-      </CardSection>
-
+      {board.error && online ? <Notice tone="danger">{board.error}</Notice> : null}
+      {board.loading ? <Skeleton cards={2} lines={2} /> : null}
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
+
+      {!board.loading && blocked.length === 0 ? <Notice tone="info">{only ? 'This person is not blocked.' : 'Nobody in your team is blocked.'}</Notice> : null}
+      {blocked.length > 0 ? (
+        <View style={[styles.banner, { backgroundColor: Accents.amber.bg, borderColor: Accents.amber.border }]}>
+          <ThemedText type="smallBold">{`${blocked.length} blocked`}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">A blocked employee can’t log or submit anything until you clear it. Say why.</ThemedText>
+        </View>
+      ) : null}
+
+      {blocked.map((n) => {
+        const open = openId === n.member.id;
+        return (
+          <InfoCard key={n.member.id}>
+            <View style={styles.row}>
+              <Avatar name={n.member.name} accent="red" size={40} />
+              <View style={styles.grow}>
+                <ThemedText type="smallBold" numberOfLines={1}>{n.member.name}</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">{[n.member.employeeCode, n.member.designation].filter(Boolean).join(' · ')}</ThemedText>
+              </View>
+              <Pill text="Blocked" accent="red" />
+            </View>
+            {open ? (
+              <>
+                <TextField label="Why are you unblocking them? (required)" value={reason} onChangeText={(t) => { setReason(t); setMsg(null); }} multiline maxLength={500} editable={!busy} />
+                <ThemedText type="small" themeColor="textSecondary">The reason, your name and your role are kept as the audit trail.</ThemedText>
+                <PrimaryButton label={`Unblock ${n.member.name}`} loading={busy} disabled={!online} onPress={() => void unblock(n.member.id, n.member.name)} />
+                <PrimaryButton label="Cancel" variant="text" disabled={busy} onPress={() => setOpenId(null)} />
+              </>
+            ) : (
+              <PrimaryButton label="Unblock…" variant="text" onPress={() => { setOpenId(n.member.id); setMsg(null); }} style={styles.link} />
+            )}
+          </InfoCard>
+        );
+      })}
     </ScreenShell>
   );
 }
 
 const styles = StyleSheet.create({
   banner: { borderRadius: Spacing.three, borderWidth: 1, padding: Spacing.three, gap: 2 },
-  small: { fontSize: 12, lineHeight: 17 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  grow: { flex: 1, gap: 2 },
+  link: { alignSelf: 'flex-start' },
 });

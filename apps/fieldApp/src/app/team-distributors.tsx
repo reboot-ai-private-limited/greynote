@@ -8,7 +8,7 @@ import { InfoCard, Pill } from '@/components/ui-cards';
 import { Spacing } from '@/constants/theme';
 import { holdersText, listTeamDistributorsPage, type TeamDistributor } from '@/lib/team-visibility';
 
-/** Team distributors (managers): distributors assigned to anyone in your team. Assignees outside your team are never shown. */
+/** Distributors (managers): distributors assigned to anyone in your team. Assignees outside your team are never shown. */
 export default function TeamDistributorsScreen() {
   const { userId } = useLocalSearchParams<{ userId?: string }>();
   return (

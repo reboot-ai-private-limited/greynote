@@ -10,7 +10,7 @@ import { RowCard, sym } from '../ui-cards';
 type Item = { title: string; about: string; href: Href; icon: ReturnType<typeof sym>; accent: Accent };
 
 const ITEMS: Item[] = [
-  { title: 'Expenses', about: 'TA, DA and other claims by person, who has not sent', href: '/team-expenses', icon: sym('indianrupeesign.circle', 'payments'), accent: 'amber' },
+  { title: 'Monthly work report', about: 'Each person’s month: work, DCRs, expenses; download their Excel', href: '/team-expenses', icon: sym('indianrupeesign.circle', 'payments'), accent: 'amber' },
   { title: 'Secondary sales', about: 'Who has sent their month, who has not', href: '/team-stock', icon: sym('shippingbox', 'inventory_2'), accent: 'lime' },
   { title: 'Leave requests', about: 'Waiting and approved, from your team', href: '/team-leaves', icon: sym('calendar.badge.clock', 'event_busy'), accent: 'pink' },
 ];
@@ -19,14 +19,14 @@ const ITEMS: Item[] = [
 const MORE: Item[] = [
   { title: 'Late exceptions', about: 'Let someone send a plan or expenses late', href: '/late-grants', icon: sym('clock.badge.checkmark', 'schedule'), accent: 'amber' },
   { title: 'Unblock', about: 'Clear a block for a missed report', href: '/unblock', icon: sym('lock.open', 'lock_open'), accent: 'purple' },
-  { title: 'Team distributors', about: 'Distributors held by your team', href: '/team-distributors', icon: sym('truck.box', 'local_shipping'), accent: 'orange' },
+  { title: 'Distributors', about: 'Distributors held by your team', href: '/team-distributors', icon: sym('truck.box', 'local_shipping'), accent: 'orange' },
   { title: 'Territory', about: 'Zones, HQs and routes of your team', href: '/team-territory', icon: sym('map', 'map'), accent: 'blue' },
 ];
 
 const chevron = <ThemedText type="smallBold" themeColor="textSecondary">›</ThemedText>;
 
 /**
- * Team → Reports: three month reports (expenses, secondary sales, leave requests) and a "More" row. Today's state, plans and daily reports are on the Team board and on each
+ * Team → Reports: three month reports (monthly work report, secondary sales, leave requests) and a "More" row. Today's state, plans and daily reports are on the Team board and on each
  * person's page, so they are not repeated here. The few things used now and then are behind "More".
  */
 export function ReportsPanel() {
@@ -40,7 +40,7 @@ export function ReportsPanel() {
         icon={sym('ellipsis.circle', 'more_horiz')}
         accent="slate"
         title="More"
-        subtitle="Late exceptions · Unblock · Team distributors · Territory"
+        subtitle="Late exceptions · Unblock · Distributors · Territory"
         right={<ThemedText type="smallBold" themeColor="textSecondary">{more ? '▴' : '▾'}</ThemedText>}
         onPress={() => setMore((m) => !m)}
       />

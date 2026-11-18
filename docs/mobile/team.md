@@ -231,3 +231,10 @@ Daily reports are approved by the system when sent, so they never wait in **To a
 - **One calculation** (`shared/carryOver/carryByDay.ts`) for the carry-over, used by the Monthly Work report and the team's day view: a doctor planned (approved Daily Plan) and not called (sent or approved report) is owed from the next day, with the day first planned, until any later call clears him.
 - `GET /team/members/:id/days/:date` (downline only): planned, visited, missed that day, **carried in** (since when), **carried on** to the next day (so far on today), also called though not planned, and the month so far (doctor calls, missed planned visits, carried now). `GET /team/members/:id/days` rows gain `carry { carriedIn, missed, carriedOn, final }`.
 - **Phone:** the daily report a manager opens (from Approvals) has a **Doctors today** card; each day in a person's **Reports** tab has one line "Missed n · carried in n · carried on n" that opens the same card; the Overview "Doctors this month" card also says how many doctor calls this month.
+
+## Team polish (2026-11-18)
+
+- **Doctors this month** (person Overview) is one tappable card that opens its own page, `team-doctor-metrics`: **Total** (doctor, chemist calls, follow-ups; visits wanted / made / missed or remaining; not called at all; carried over with names) and **Doctor-wise** (each doctor: visited x of y, to go, last visit, carried since; filter). No server change.
+- **Team → Reports**: *Expenses* is now **Monthly work report** (each person's expenses and state, with a **Download Excel** of that person's Monthly work report); *Team distributors* is **Distributors**.
+- **Unblock** lists only the people blocked now (a card each with Unblock and the reason), or says nobody is blocked.
+- **Territory**: *Routes* opens an HQ's routes in place, search on top.
