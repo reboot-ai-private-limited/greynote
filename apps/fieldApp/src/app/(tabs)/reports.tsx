@@ -1,25 +1,39 @@
+import { router, type Href } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChoiceChips } from '@/components/choice-chips';
 import { FyBanner } from '@/components/fy-banner';
 import { MonthStepper } from '@/components/month-stepper';
 import { MonthReport } from '@/components/month-report';
-import { DcrReport, SalesReport, TaDaReport, TpReport } from '@/components/reports';
+import { OwnDownloads } from '@/components/own-downloads';
+import { DailyPlanReport, DcrReport, SalesReport, TaDaReport, TpReport } from '@/components/reports';
+import { RowCard, sym } from '@/components/ui-cards';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Spacing, WideContentWidth } from '@/constants/theme';
 import { useFinancialYear } from '@/lib/financial-year';
 import { monthOf } from '@/offline/day';
 
-type Report = 'month' | 'dcr' | 'tada' | 'tp' | 'sales';
+type Report = 'month' | 'dcr' | 'plan' | 'tp' | 'tada' | 'sales' | 'more';
 const REPORTS: { value: Report; label: string }[] = [
   { value: 'month', label: 'Month' },
   { value: 'dcr', label: 'DCR' },
-  { value: 'tada', label: 'TA / DA' },
+  { value: 'plan', label: 'Daily plan' },
   { value: 'tp', label: 'Tour Plan' },
+  { value: 'tada', label: 'TA / DA' },
   { value: 'sales', label: 'Gift & Sales' },
+  { value: 'more', label: 'More' },
+];
+
+const MORE: { title: string; about: string; href: Href; icon: ReturnType<typeof sym> }[] = [
+  { title: 'Orders', about: 'Your orders, each in detail', href: '/orders', icon: sym('cart', 'shopping_cart') },
+  { title: 'Leave', about: 'Your leave requests and balance', href: '/leave', icon: sym('calendar.badge.clock', 'event_busy') },
+  { title: 'Gifts', about: 'Gifts set aside for your doctors', href: '/gifts', icon: sym('gift', 'redeem') },
+  { title: 'Services', about: 'Doctor service requests', href: '/services', icon: sym('briefcase', 'work') },
+  { title: 'Visit targets', about: 'How many visits each doctor still needs', href: '/missed-calls', icon: sym('phone.arrow.up.right', 'call_made') },
+  { title: 'Targets', about: 'Your sales targets and achievement', href: '/targets', icon: sym('target', 'track_changes') },
 ];
 
 /**
@@ -43,11 +57,20 @@ export default function ReportsScreen() {
           <FyBanner />
           <ChoiceChips options={REPORTS} value={report} onChange={setReport} />
           <MonthStepper value={month} onChange={setPicked} min={fy.firstMonth} max={fy.lastMonth} />
+          {report === 'more' ? null : <OwnDownloads month={month} />}
           {report === 'month' ? <MonthReport month={month} year={fy.year} /> : null}
           {report === 'dcr' ? <DcrReport month={month} year={fy.year} /> : null}
           {report === 'tada' ? <TaDaReport month={month} year={fy.year} /> : null}
+          {report === 'plan' ? <DailyPlanReport month={month} year={fy.year} /> : null}
           {report === 'tp' ? <TpReport month={month} year={fy.year} /> : null}
           {report === 'sales' ? <SalesReport month={month} year={fy.year} /> : null}
+          {report === 'more' ? (
+            <View style={styles.more}>
+              {MORE.map((m) => (
+                <RowCard key={m.title} icon={m.icon} accent="blue" title={m.title} subtitle={m.about} right={<ThemedText type="smallBold" themeColor="textSecondary">›</ThemedText>} onPress={() => router.push(m.href)} />
+              ))}
+            </View>
+          ) : null}
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
@@ -55,6 +78,7 @@ export default function ReportsScreen() {
 }
 
 const styles = StyleSheet.create({
+  more: { gap: Spacing.two },
   container: { flex: 1 },
   safe: { flex: 1 },
   content: {

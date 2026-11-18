@@ -31,3 +31,8 @@ How an employee reads back **their own** daily report (DCR), secondary sales, or
 
 - There is no single "day at a glance" endpoint: the day screen makes up to four reads (DCR, orders for the date, plan, expense lines). If that proves slow on a real phone, add one.
 - The reports above are read live; there is no export or PDF on the phone.
+
+## Your own Reports page, 2026-11-18
+
+- **Downloads** under the month stepper: the **Monthly work report (Excel)** for the month shown and the **Secondary sales (Excel)** for the financial year (both built by the server for you; saved on the phone, see the download behaviour in `docs/mobile/team.md`).
+- Chips: **Month · DCR · Daily plan · Tour Plan · TA / DA · Gift & Sales · More**. **DCR** rows open the full daily report. **Daily plan** lists the month's days; a tap opens **Daily plan in detail** (`daily-plan-detail`): the doctors by name (those carried from an earlier day marked), routes, works with, remarks, status and the approval history. **Tour Plan** is the month's plan and its status. **More** links to Orders, Leave, Gifts, Services, Visit targets and Targets.

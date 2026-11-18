@@ -194,12 +194,9 @@ export function TaDaReport({ month, year }: { month: string; year: number }) {
 
 /** Your Monthly Plan and daily plans for the month, and where each stands. A rejected one can show its reason. */
 export function TpReport({ month, year }: { month: string; year: number }) {
-  const { from, to } = bounds(month);
   const monthly = useCachedFetch<MonthlyPlanDetail[]>(`rep-tpm:${year}:${month}`, () => apiGet<MonthlyPlanDetail[]>(`/planning/monthly?from=${month}&to=${month}`, { auth: true, fy: true }));
-  const daily = useCachedFetch<DailyPlanDetail[]>(`rep-tpd:${year}:${month}`, () => apiGet<DailyPlanDetail[]>(`/planning/daily?from=${from}&to=${to}`, { auth: true, fy: true }));
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const plan = (monthly.data ?? []).find((m) => m.planMonth === month) ?? null;
-  const days = [...(daily.data ?? [])].sort((a, b) => a.planDate.localeCompare(b.planDate));
 
   const showReason = async (key: string, requestId: string) => {
     try {
@@ -213,7 +210,7 @@ export function TpReport({ month, year }: { month: string; year: number }) {
 
   return (
     <View style={styles.stack}>
-      <Stale {...daily} />
+      <Stale {...monthly} />
       <ThemedView type="backgroundElement" style={styles.card}>
         <ThemedText type="smallBold">{`Tour Plan · ${prettyMonth(month)}`}</ThemedText>
         <ThemedText type="small" themeColor={plan?.status === 'REJECTED' ? 'danger' : 'textSecondary'}>
@@ -228,6 +225,19 @@ export function TpReport({ month, year }: { month: string; year: number }) {
         ) : null}
       </ThemedView>
 
+    </View>
+  );
+}
+
+
+/** Your Daily Plans of the month, one card a day; tap a day for it in detail (routes, doctors by name, status, approval history). */
+export function DailyPlanReport({ month, year }: { month: string; year: number }) {
+  const { from, to } = bounds(month);
+  const daily = useCachedFetch<DailyPlanDetail[]>(`rep-tpd:${year}:${month}`, () => apiGet<DailyPlanDetail[]>(`/planning/daily?from=${from}&to=${to}`, { auth: true, fy: true }));
+  const days = [...(daily.data ?? [])].sort((a, b) => b.planDate.localeCompare(a.planDate));
+  return (
+    <View style={styles.stack}>
+      <Stale {...daily} />
       {daily.loading && !daily.data ? (
         <Notice tone="info">Loading…</Notice>
       ) : days.length === 0 ? (
@@ -239,21 +249,10 @@ export function TpReport({ month, year }: { month: string; year: number }) {
           title={(d) => `${prettyDay(d.planDate)} · ${workingTypeLabel(d.workingType)}`}
           right={(d) => <Pill text={planStatusText(d.status)} accent={d.status === 'MANAGER_APPROVED' ? 'green' : (REPORT_ACCENT[d.status] ?? 'slate')} />}
           fields={(d) => [
+            { label: 'Doctors planned', value: d.doctors ? String(d.doctors.length) : '' },
             { label: 'Remarks', value: d.remarks ?? '' },
-            {
-              label: 'Reason',
-              value:
-                d.status === 'REJECTED' && d.approval ? (
-                  reasons[d.planDate] ? (
-                    reasons[d.planDate]!
-                  ) : (
-                    <PrimaryButton label="See the reason" variant="text" onPress={() => showReason(d.planDate, d.approval!.requestId)} />
-                  )
-                ) : (
-                  ''
-                ),
-            },
           ]}
+          onRowPress={(d) => router.push({ pathname: '/daily-plan-detail', params: { date: d.planDate } })}
           totals={[{ label: 'Days planned', value: String(days.length) }]}
         />
       )}
