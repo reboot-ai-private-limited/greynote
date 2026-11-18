@@ -1,3 +1,4 @@
+import { logger } from '@/shared/logging/logger.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import { computeUserStatus } from '../../domain/onboarding.js';
 import type { Address, BankDetails, EmployeeProfile, PreviousEmployment, Qualification } from '../../domain/employeeProfile.entity.js';
@@ -26,6 +27,8 @@ import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
  * over. An `inactive` account stays inactive here: `computeUserStatus` never upgrades it as a side effect of a later edit.
  */
 export interface UpdateUserInput {
+  /** The address password reset codes go to: a valid email (trimmed, lower-cased, unique across users), or `null` to clear it. */
+  email?: string | null;
   basicDetails?: {
     name?: string;
     mobileNumber?: string;
@@ -158,6 +161,18 @@ export class UpdateUserUseCase {
     }
 
     const userPatch: Partial<Omit<User, 'id'>> = { status };
+    if (input.email !== undefined) {
+      const next = input.email === null ? null : input.email.trim().toLowerCase();
+      if (next !== (existing.email ?? null)) {
+        if (next !== null) {
+          const taken = await this.userRepository.findByEmail(next);
+          if (taken && taken.id !== targetUserId) throw AppError.conflict('That email is already in use.', { field: 'email' });
+        }
+        userPatch.email = next;
+        // Reset codes go to this address, so who it points at is worth a line in the log.
+        logger.info({ userId: targetUserId, employeeCode: existing.employeeCode, from: existing.email ?? null, to: next, reason: 'USER_EMAIL_CHANGED' }, 'An employee email was changed.');
+      }
+    }
     if (input.basicDetails?.name !== undefined) userPatch.name = input.basicDetails.name;
 
     const updated = await this.userRepository.update(targetUserId, userPatch);

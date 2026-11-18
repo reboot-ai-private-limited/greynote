@@ -46,6 +46,7 @@ export function EmployeesScreen() {
     'status',
     'designationId',
     'blocked',
+    'noEmail',
     'ids',
     'missing',
   ]);
@@ -64,6 +65,7 @@ export function EmployeesScreen() {
     ...(values.role && { role: values.role as UserListItemDto['role'] }),
     ...(values.status && { status: values.status as UserListStatus }),
     ...(values.blocked && { isBlocked: true as const }),
+    ...(values.noEmail && { noEmail: 'true' as const }),
     ...(values.ids && { ids: values.ids }),
     ...(values.designationId && { designationId: values.designationId }),
   });
@@ -217,6 +219,15 @@ export function EmployeesScreen() {
             Blocked {counts.blocked} ✕
           </button>
         ) : null}
+        <button
+          type="button"
+          aria-pressed={Boolean(values.noEmail)}
+          title="Employees with no email saved cannot reset a forgotten password with a code"
+          onClick={() => update({ noEmail: values.noEmail ? '' : 'true' })}
+          className={`rounded-full border px-3 py-1 text-sm transition-colors focus-visible:shadow-focus focus-visible:outline-none ${values.noEmail ? 'border-accent bg-accent-soft font-medium text-accent-soft-text' : 'border-border text-text-muted hover:bg-surface-hover'}`}
+        >
+          No email{values.noEmail ? ' ✕' : ''}
+        </button>
       </div>
       <ListToolbar>
         <SearchInput

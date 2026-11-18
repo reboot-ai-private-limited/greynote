@@ -76,7 +76,7 @@ export function EmployeeCreateScreen() {
               error={errors['password']}
               onChange={set('password')}
             />
-            <FormField label="Email (optional)" htmlFor="user-email" error={errors['email']}>
+            <FormField label="Email (optional)" htmlFor="user-email" error={errors['email']} hint="Password reset codes are sent here. Without one, the person must ask an Admin to reset a forgotten password.">
               <Input id="user-email" type="email" value={draft.email} onChange={(e) => set('email')(e.target.value)} aria-invalid={invalid('email')} />
             </FormField>
             <FormField label="Phone (optional)" htmlFor="user-phone">

@@ -166,6 +166,8 @@ export interface UserDetailDto {
 
 /** Body of `PATCH /identity/users/:id` — every section optional; an address or bank object is sent whole. */
 export interface UpdateUserDto {
+  /** The address password reset codes go to; `null` clears it. */
+  email?: string | null;
   basicDetails?: {
     name?: string;
     mobileNumber?: string;

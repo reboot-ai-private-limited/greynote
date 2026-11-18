@@ -68,6 +68,8 @@ const basicDetailsPatchSchema = z.object({
 
 /** Every section optional — the incremental-onboarding PATCH (decision 13). */
 export const updateUserBodySchema = z.object({
+  /** The address password reset codes go to; `null` clears it. */
+  email: z.string().trim().toLowerCase().email('Enter a valid email address.').nullable().optional(),
   basicDetails: basicDetailsPatchSchema.optional(),
   bankDetails: bankDetailsSchema.optional(),
   designationId: z.string().min(1).optional(),
@@ -93,6 +95,8 @@ export const listUsersQuerySchema = paginationQuerySchema.extend({
   managerId: z.string().min(1).optional(),
   status: z.enum(['active', 'pending', 'inactive']).optional(),
   isBlocked: z.coerce.boolean().optional(),
+  /** `true`: only accounts with no email saved, so someone can fill them in. */
+  noEmail: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
   /** Only these users (comma-separated ids, at most 500): how a payroll warning opens the list of the people it names. */
   ids: z
     .string()

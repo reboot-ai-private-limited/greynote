@@ -99,6 +99,7 @@ export class MongoUserAdapter implements UserRepositoryPort {
     }
     if (filters.status) query.status = filters.status;
     if (filters.isBlocked !== undefined) query.isBlocked = filters.isBlocked;
+    if (filters.noEmail === true) query.email = { $in: [null, ''] };
     if (filters.search) {
       const regex = new RegExp(escapeRegex(filters.search), 'i');
       query.$or = [{ employeeCode: regex }, { name: regex }, { email: regex }];

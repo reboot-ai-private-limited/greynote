@@ -54,7 +54,12 @@ function build(chain: Record<string, string | null>, extra: Record<string, Parti
   const useCase = new UpdateUserUseCase(
     {
       findById: async (id: string) => users.get(id) ?? null,
-      update: async (id: string, patch: Partial<User>) => ({ ...(users.get(id) as User), ...patch }),
+      findByEmail: async (email: string) => [...users.values()].find((u) => u.email === email) ?? null,
+      update: async (id: string, patch: Partial<User>) => {
+        const next = { ...(users.get(id) as User), ...patch };
+        users.set(id, next);
+        return next;
+      },
     } as never,
     { findById: async () => ({ id: 'role-field', name: 'FIELD' as RoleName }) } as never,
     {
@@ -284,5 +289,33 @@ describe('UpdateUserUseCase — the manager must be higher', () => {
     const { useCase } = build({ x: null, asm: null }, levels);
     await useCase.execute('x', { designationId: 'des-1', managerId: 'asm' });
     expect(await rejection(useCase.execute('x', { designationId: 'des-3', managerId: 'asm' }))).toMatchObject({ statusCode: 400 });
+  });
+});
+
+describe('UpdateUserUseCase — the email (where password reset codes go)', () => {
+  it('adds an email (trimmed, lower-cased), changes it, and clears it with null', async () => {
+    const { useCase, users } = build({ a: null });
+    await useCase.execute('a', { email: '  Asha@Example.COM ' });
+    expect(users.get('a')!.email).toBe('asha@example.com');
+    await useCase.execute('a', { email: 'asha.new@example.com' });
+    expect(users.get('a')!.email).toBe('asha.new@example.com');
+    await useCase.execute('a', { email: null });
+    expect(users.get('a')!.email).toBeNull();
+  });
+
+  it('refuses an address another person already has, but lets the same person keep theirs', async () => {
+    const { useCase, users } = build({ a: null, b: null });
+    await useCase.execute('a', { email: 'shared@example.com' });
+    const refused = await rejection(useCase.execute('b', { email: 'shared@example.com' }));
+    expect(refused.statusCode).toBe(409);
+    expect(users.get('b')!.email).toBeNull();
+    await expect(useCase.execute('a', { email: 'shared@example.com' })).resolves.toBeTruthy();
+  });
+
+  it('leaves the email alone when the key is missing', async () => {
+    const { useCase, users } = build({ a: null });
+    await useCase.execute('a', { email: 'asha@example.com' });
+    await useCase.execute('a', { basicDetails: { name: 'Asha' } });
+    expect(users.get('a')!.email).toBe('asha@example.com');
   });
 });

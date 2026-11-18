@@ -2879,3 +2879,8 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 ## 2026-11-18: Forgot password with an emailed code, for everyone
 
 - The Admin-only reset became general: the code goes to the email in the employee's own details; no email = "contact your Admin" with an Admin's contact; per-person limits (once a minute, five a day) replace the system-wide daily cap. Phone: Login and Change password link to the new screen; the web page uses the same endpoints.
+
+
+## 2026-11-18: An employee's email can be added and changed on the web
+
+- Reset codes go to the email in the employee's details, but it could only be set at creation. Now Admin/HR edit it on the employee page (unique, logged), with a No email filter on the list.

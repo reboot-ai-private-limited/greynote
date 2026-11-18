@@ -22,6 +22,7 @@ import { ROLE_LABEL, STATUS_LABEL, STATUS_TONE } from '../lib/user';
 import { AddressSection } from './AddressSection';
 import { BankSection } from './BankSection';
 import { DocumentsSection } from './DocumentsSection';
+import { EmailSection } from './EmailSection';
 import { BasicSection } from './BasicSection';
 import { AssignedSection } from './AssignedSection';
 import { CompensationTab } from './CompensationTab';
@@ -109,6 +110,7 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                 </TabsList>
                 <TabsContent value="profile" className="mt-6 space-y-6">
                   <BasicSection user={user} readOnly={readOnly} />
+                  <EmailSection user={user} readOnly={readOnly} />
                   <AddressSection user={user} readOnly={readOnly} />
                   <WorkSection user={user} readOnly={readOnly} />
                   {user.role === 'FIELD' ? <TerritoryCard user={user} readOnly={readOnly} /> : null}
@@ -144,7 +146,6 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
               >
                 <div className="p-5">
                   <FieldList>
-                    <Field label="Email">{user.email}</Field>
                     <Field label="Phone">{user.phone}</Field>
                     <Field label="Last sign-in">
                       {user.lastLoginAt ? formatDate(user.lastLoginAt) : null}
@@ -153,6 +154,11 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                 </div>
               </Card>
             )}
+            {user.role !== 'FIELD' ? (
+              <div className="mt-6">
+                <EmailSection user={user} readOnly={readOnly} />
+              </div>
+            ) : null}
             {user.role !== 'FIELD' && canView ? (
               <div className="mt-6">
                 <SecuritySection user={user} selfId={session?.id} readOnly={readOnly || !isAdmin} />
