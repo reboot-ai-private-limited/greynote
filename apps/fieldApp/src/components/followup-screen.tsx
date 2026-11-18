@@ -17,9 +17,11 @@ import { useDoctorVisitGap } from '@/hooks/use-doctor-visit-gap';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { useReportSent } from '@/hooks/use-report-sent';
 import { confirmRemove, removeDayRecord } from '@/lib/day-records';
+import { LocationCard } from '@/components/location-card';
+import { useLocationReading } from '@/hooks/use-location-reading';
 import { captureLocation } from '@/lib/location';
 import { isFieldDay, routeTypeLabel, workingTypeLabel } from '@/lib/planning';
-import { notAtLocationReason, saveCall, useOnline, useRecords, type FollowupPayload, type OutboxRecord } from '@/offline';
+import { notAtLocationReason, refreshNow, saveCall, useOnline, useRecords, type FollowupPayload, type OutboxRecord } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
 import type { FieldMasterDataSnapshot, PlanningSnapshot, TerritorySnapshot } from '@/types/sync';
 
@@ -80,6 +82,7 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
       isDoctor ? callDoctors : (master.data?.chemists ?? []);
     return [...list].sort((a, b) => a.name.localeCompare(b.name));
   }, [master.data, callDoctors, isDoctor]);
+  const loc = useLocationReading();
   const byId = useMemo(() => new Map(outlets.map((o) => [o.id, o])), [outlets]);
   const routeName = useMemo(() => new Map((territory.data?.routes ?? []).map((r) => [r.id, r.name])), [territory.data]);
   const routeTypeOf = (routeId: string | undefined) => routeTypeLabel(territory.data?.routes.find((r) => r.id === routeId)?.routeType);
@@ -118,7 +121,8 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
     setBusy(true);
     setMsg({ tone: 'info', text: 'Getting your location…' });
     try {
-      const fix = await captureLocation();
+      // A reading from Refresh location (under two minutes old, for this doctor or chemist) is used; otherwise GPS is read now.
+      const fix = loc.fresh(outletId) ?? (await captureLocation());
       const away = await notAtLocationReason(byId.get(outletId)?.location ?? null, fix, noun);
       if (away) {
         // Not at the place: the doctor or chemist field is the one to look at.
@@ -231,13 +235,21 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
         />
         </FormField>
         {picked && tooSoon(picked.id) ? <Notice tone="warning" title="Too soon for another visit">{tooSoon(picked.id)!.text}</Notice> : null}
-        {picked && !picked.location ? (
-          <Notice tone="warning">{`This ${noun} has no registered location, so a followup can’t be saved yet. Ask Admin to set it.`}</Notice>
-        ) : null}
         <ThemedText type="small" themeColor="textSecondary">
           {`You must be at the ${noun}’s place.`}
         </ThemedText>
         </CardSection>
+        <LocationCard
+          mode="visit"
+          noun={noun}
+          place={picked ? { id: picked.id, name: picked.name, hasLocation: Boolean(picked.location) } : null}
+          reading={loc.reading}
+          busy={loc.busy}
+          onRefresh={() => picked && void loc.refresh({ id: picked.id, point: picked.location ?? null })}
+          onCheckAgain={async () => {
+            await refreshNow();
+          }}
+        />
         <CardSection icon={sym('text.bubble', 'chat')} accent="teal" title="Remarks">
           <FormField form={fe} name="remarks" outline={false}>
             <TextField

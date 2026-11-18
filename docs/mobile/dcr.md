@@ -70,3 +70,9 @@ Show the work type and route type on every record in the day's list ("Field work
 | `DOCTOR_VISIT_TOO_SOON` | a doctor call or follow-up within `DOCTOR_VISIT_GAP_DAYS` of this employee's other visit to that doctor (rule 11); `reason.details`: `lastVisit`, `nextAllowed`, `gapDays` |
 
 `ROUTE_NOT_IN_PLAN` is **no longer sent**: a call off the planned route or to a doctor off the list is saved and flagged. `DOCTOR_NOT_FOUND`, `DOCTOR_NOT_ASSIGNED`, `CHEMIST_NOT_FOUND`, `CHEMIST_ROUTE_NOT_ASSIGNED`, `SAMPLES_EXHAUSTED` and the gate codes are unchanged.
+
+## Refresh location (2026-11-18)
+
+- Dr Call, Chemist Call and Follow-up show a **Your location** card once a doctor or chemist is chosen: how far you are from them, the GPS accuracy against the limit, and when the reading was taken. **Refresh location** takes a new GPS reading now (GPS works without the internet, so it works offline). Save uses a reading under two minutes old for that doctor or chemist, otherwise it reads again itself; the existing refusals stay as the last check.
+- For a doctor or chemist with **no registered location**, **Check again** pulls the latest doctors and chemists from the server (needs the internet: offline it says "Connect to the internet first.").
+- Add Doctor and Add Chemist show the same card in capture mode ("It becomes the doctor's location when you save") with Refresh location.

@@ -21,6 +21,8 @@ import { useFormErrors } from '@/hooks/use-form-errors';
 import { ApiError, NetworkError, type UploadFile } from '@/lib/api';
 import { ADDED_EDITABLE, editAddedDoctor, listAddedDoctors, type AddedDoctor } from '@/lib/added-doctors';
 import { PhotoPickError, pickDoctorPhoto, removeAddedDoctorPhoto, setAddedDoctorPhoto } from '@/lib/doctor-photo';
+import { LocationCard } from '@/components/location-card';
+import { useLocationReading } from '@/hooks/use-location-reading';
 import { captureLocation } from '@/lib/location';
 import { MANAGER_NOT_ALLOWED, mayAddDoctor } from '@/lib/manager-add-doctors';
 import { usePublicFlags } from '@/lib/public-config';
@@ -109,6 +111,7 @@ export default function AddDoctorScreen() {
   const [pendingPhotos, setPendingPhotos] = useState<Record<string, PendingPhoto>>({});
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Msg | null>(null);
+  const loc = useLocationReading();
   const form = useFormErrors(FIELD_ORDER);
 
   const routes = useMemo(() => territory.data?.routes ?? [], [territory.data]);
@@ -232,7 +235,8 @@ export default function AddDoctorScreen() {
 
     setBusy(true);
     setMsg({ tone: 'info', text: 'Getting your location…' });
-    const fix = await captureLocation();
+    // A reading from Refresh location (under two minutes old) is used; otherwise GPS is read now.
+    const fix = loc.fresh(null) ?? (await captureLocation());
     if (!fix) {
       setBusy(false);
       return setMsg({
@@ -524,6 +528,7 @@ export default function AddDoctorScreen() {
           </ThemedText>
           <ChoiceChips options={FREQUENCIES} value={frequency ?? NO_TARGET} onChange={(v) => setFrequency(v === NO_TARGET ? null : v)} disabled={busy} />
         </CardSection>
+        <LocationCard mode="capture" noun="doctor" place={null} reading={loc.reading} busy={loc.busy} onRefresh={() => void loc.refresh()} />
       </ScreenShell>
     );
   }

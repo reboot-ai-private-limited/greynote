@@ -19,6 +19,8 @@ import { useFormErrors } from '@/hooks/use-form-errors';
 import { ADDED_EDITABLE } from '@/lib/added-doctors';
 import { editAddedChemist, listAddedChemists, type AddedChemist } from '@/lib/added-chemists';
 import { ApiError, NetworkError } from '@/lib/api';
+import { LocationCard } from '@/components/location-card';
+import { useLocationReading } from '@/hooks/use-location-reading';
 import { captureLocation } from '@/lib/location';
 import { MANAGER_NOT_ALLOWED, mayAddChemist } from '@/lib/manager-add-doctors';
 import { getRejectionReason, withdrawPlan } from '@/lib/planning';
@@ -98,6 +100,7 @@ function MyChemistsScreen() {
   const [phone, setPhone] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Msg | null>(null);
+  const loc = useLocationReading();
   const form = useFormErrors(FIELD_ORDER);
 
   const routes = useMemo(() => territory.data?.routes ?? [], [territory.data]);
@@ -183,7 +186,8 @@ function MyChemistsScreen() {
 
     setBusy(true);
     setMsg({ tone: 'info', text: 'Getting your location…' });
-    const fix = await captureLocation();
+    // A reading from Refresh location (under two minutes old) is used; otherwise GPS is read now.
+    const fix = loc.fresh(null) ?? (await captureLocation());
     if (!fix) {
       setBusy(false);
       return setMsg({
@@ -422,6 +426,7 @@ function MyChemistsScreen() {
             />
           </FormField>
         </CardSection>
+        <LocationCard mode="capture" noun="chemist" place={null} reading={loc.reading} busy={loc.busy} onRefresh={() => void loc.refresh()} />
       </ScreenShell>
     );
   }

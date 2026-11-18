@@ -24,9 +24,11 @@ import { listDoctorSamples } from '@/lib/added-doctors';
 import { getDoctorVisits, type DoctorVisitsReport } from '@/lib/doctor-visits';
 import { useFinancialYear } from '@/lib/financial-year';
 import { confirmRemove, removeDayRecord } from '@/lib/day-records';
+import { LocationCard } from '@/components/location-card';
+import { useLocationReading } from '@/hooks/use-location-reading';
 import { captureLocation } from '@/lib/location';
 import { isFieldDay, routeTypeLabel, workingTypeLabel } from '@/lib/planning';
-import { notAtLocationReason, saveCall, serverGeofence, useOnline, useRecords, type CallPayload, type OutboxRecord } from '@/offline';
+import { notAtLocationReason, refreshNow, saveCall, serverGeofence, useOnline, useRecords, type CallPayload, type OutboxRecord } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
 import { useCachedFetch } from '@/offline/cached-fetch';
 import type { FieldMasterDataSnapshot, PlanningSnapshot, TerritorySnapshot } from '@/types/sync';
@@ -109,6 +111,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
     const list: { id: string; routeId: string; name: string }[] = isDoctor ? callDoctors.filter((d) => plannedDoctorIds.has(d.id) || d.id === outletId) : (master.data?.chemists ?? []);
     return [...list].sort((a, b) => (carried.get(a.id) ?? '9999').localeCompare(carried.get(b.id) ?? '9999') || a.name.localeCompare(b.name));
   }, [master.data, callDoctors, isDoctor, plannedDoctorIds, carried, outletId]);
+  const loc = useLocationReading();
   const outletById = useMemo(
     () => new Map([...callDoctors, ...(master.data?.chemists ?? [])].map((o) => [o.id, o])),
     [callDoctors, master.data],
@@ -182,7 +185,8 @@ export function CallScreen({ subject }: { subject: Subject }) {
     setBusy(true);
     setMsg({ tone: 'info', text: 'Getting your location…' });
     try {
-      const fix = await captureLocation();
+      // A reading from Refresh location (under two minutes old, for this doctor or chemist) is used; otherwise GPS is read now.
+      const fix = loc.fresh(outletId) ?? (await captureLocation());
       // The server stores a call only at the place: check here first so a call that would be refused is never kept.
       const away = await notAtLocationReason(outletById.get(outletId)?.location ?? null, fix, noun);
       if (away) {
@@ -305,15 +309,24 @@ export function CallScreen({ subject }: { subject: Subject }) {
         </FormField>
         {!isDoctor && picked?.phone ? <PrimaryButton label={picked.phone} variant="text" onPress={() => void Linking.openURL(`tel:${picked.phone}`)} style={styles.phone} /> : null}
         {picked && tooSoon(picked.id) ? <Notice tone="warning" title="Too soon for another visit">{tooSoon(picked.id)!.text}</Notice> : null}
-        {picked && !picked.location ? (
-          <Notice tone="warning">{`This ${noun} has no registered location, so a call can’t be saved yet. Ask Admin to set it.`}</Notice>
-        ) : null}
         {plan ? (
           <ThemedText type="small" themeColor="textSecondary">
             {`Work type: ${workingTypeLabel(plan.workingType)} (from today’s plan). You must be within reach of the ${noun}.`}
           </ThemedText>
         ) : null}
         </CardSection>
+
+        <LocationCard
+          mode="visit"
+          noun={noun}
+          place={picked ? { id: picked.id, name: picked.name, hasLocation: Boolean(picked.location) } : null}
+          reading={loc.reading}
+          busy={loc.busy}
+          onRefresh={() => picked && void loc.refresh({ id: picked.id, point: picked.location ?? null })}
+          onCheckAgain={async () => {
+            await refreshNow();
+          }}
+        />
 
         {/* A chemist call has no Work With (2026-11-02): only a doctor call records who joined. */}
         {isDoctor ? (
