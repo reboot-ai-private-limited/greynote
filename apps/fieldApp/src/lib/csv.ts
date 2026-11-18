@@ -4,6 +4,8 @@ import { startActivityAsync } from 'expo-intent-launcher';
 import * as Sharing from 'expo-sharing';
 import { Alert, Platform } from 'react-native';
 
+import { storage } from './storage';
+
 /**
  * CSV downloads, built on the phone from what the screen already has (the server has no CSV endpoint; the web portal builds its own
  * the same way). The file is written to the app's cache, then the person chooses: Open it in another app, Share it (Drive, WhatsApp,
@@ -102,31 +104,88 @@ export const chooseCsvAction = (title: string): Promise<CsvAction | null> =>
     );
   });
 
-/**
- * Asks Open, Share or Download and does it. Returns a line to show once it is done ("Saved to Downloads."), or `null` when nothing needs
- * saying (the file went to another app, or they backed out). Throws with a message fit to show.
- */
-export async function deliverCsv(fileName: string, csv: string, title: string): Promise<string | null> {
-  const action = await chooseCsvAction(title);
-  if (action === 'open') await openCsv(fileName, csv, title);
-  else if (action === 'share') await shareCsv(fileName, csv, title);
-  else if (action === 'download') {
-    const folder = await saveCsv(fileName, csv);
-    return folder ? `Saved ${fileName} in ${folder}.` : null;
+const FOLDER_KEY = 'download-folder';
+const UTI: Record<string, string> = { 'text/csv': 'public.comma-separated-values-text', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'org.openxmlformats.spreadsheetml.sheet' };
+
+/** The folder reports are saved into: the one picked the first time, remembered. `null` when none was picked or it is gone. */
+async function rememberedFolder(): Promise<Directory | null> {
+  const uri = await storage.get(FOLDER_KEY).catch(() => null);
+  if (!uri) return null;
+  try {
+    return new Directory(uri);
+  } catch {
+    return null;
   }
-  return null;
 }
 
+/** Asks which folder to save reports into and remembers it. `null` when they backed out of the picker. */
+export async function pickDownloadFolder(): Promise<Directory | null> {
+  try {
+    const folder = await Directory.pickDirectoryAsync();
+    await storage.set(FOLDER_KEY, folder.uri);
+    return folder;
+  } catch (err) {
+    if (err instanceof Error && /cancel/i.test(err.message)) return null;
+    throw err;
+  }
+}
 
-const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+/** The name of the remembered folder ("Downloads"), or `null` before one was picked (and on the web). */
+export async function downloadFolderName(): Promise<string | null> {
+  if (Platform.OS === 'web') return null;
+  return (await rememberedFolder())?.name ?? null;
+}
+
+const writeBytes = (file: File, data: string | ArrayBuffer) => (typeof data === 'string' ? file.write(data) : file.write(new Uint8Array(data)));
+
+function createIn(folder: Directory, fileName: string, mime: string, data: string | ArrayBuffer): void {
+  let file: File;
+  try {
+    file = folder.createFile(fileName, mime);
+  } catch {
+    file = folder.createFile(fileName.replace(/(\.[a-z0-9]+)$/i, `-${Date.now()}$1`), mime);
+  }
+  writeBytes(file, data);
+}
+
+/** Offers to open or share the file just saved (a copy in the cache, which other apps can read). Resolves when the question is dismissed. */
+function offerOpenOrShare(fileName: string, data: string | ArrayBuffer, mime: string, title: string, saved: string): Promise<void> {
+  return new Promise((resolve) => {
+    const open = async () => {
+      const file = new File(Paths.cache, fileName);
+      file.create({ overwrite: true });
+      writeBytes(file, data);
+      if (Platform.OS === 'android') {
+        try {
+          await startActivityAsync('android.intent.action.VIEW', { data: await getContentUriAsync(file.uri), type: mime, flags: 1 });
+        } catch {
+          Alert.alert('Can’t open it here', 'No app on this phone can open this file. Use Share, or open it from the Files app.');
+        }
+      } else if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(file.uri, { mimeType: mime, ...(UTI[mime] ? { UTI: UTI[mime] } : {}), dialogTitle: title });
+    };
+    const share = async () => {
+      if (!(await Sharing.isAvailableAsync())) return Alert.alert('This phone can’t share files.');
+      const file = new File(Paths.cache, fileName);
+      file.create({ overwrite: true });
+      writeBytes(file, data);
+      await Sharing.shareAsync(file.uri, { mimeType: mime, ...(UTI[mime] ? { UTI: UTI[mime] } : {}), dialogTitle: title });
+    };
+    Alert.alert('Saved', saved, [
+      { text: 'Open', onPress: () => void open().finally(resolve) },
+      { text: 'Share', onPress: () => void share().finally(resolve) },
+      { text: 'OK', style: 'cancel', onPress: () => resolve() },
+    ], { cancelable: true, onDismiss: () => resolve() });
+  });
+}
 
 /**
- * Hands an Excel workbook the server made to the person: in a browser, a download; on the phone, the file is written to the app's cache and
- * the share sheet opens (save to Files or Drive, open in Excel, send on). Returns a line to show, or `null` when nothing needs saying.
+ * Saves a report on the phone. In a browser it downloads. On the phone the first download asks which folder (Downloads, Documents…) and
+ * remembers it, so every later one saves straight into it; then "Saved … in Downloads." with Open and Share if wanted. Returns the line to
+ * show, or `null` when they backed out of the folder picker. Throws with a message fit to show.
  */
-export async function deliverXlsx(fileName: string, bytes: ArrayBuffer, title: string): Promise<string | null> {
+export async function deliverFile(fileName: string, data: string | ArrayBuffer, mime: string, title: string): Promise<string | null> {
   if (Platform.OS === 'web') {
-    const url = URL.createObjectURL(new Blob([bytes], { type: XLSX_MIME }));
+    const url = URL.createObjectURL(new Blob([data], { type: mime }));
     const link = document.createElement('a');
     link.href = url;
     link.download = fileName;
@@ -136,10 +195,25 @@ export async function deliverXlsx(fileName: string, bytes: ArrayBuffer, title: s
     URL.revokeObjectURL(url);
     return `Downloaded ${fileName}.`;
   }
-  if (!(await Sharing.isAvailableAsync())) throw new Error('This phone can’t share files.');
-  const file = new File(Paths.cache, fileName);
-  file.create({ overwrite: true });
-  file.write(new Uint8Array(bytes));
-  await Sharing.shareAsync(file.uri, { mimeType: XLSX_MIME, UTI: 'org.openxmlformats.spreadsheetml.sheet', dialogTitle: title });
-  return null;
+  let folder = (await rememberedFolder()) ?? (await pickDownloadFolder());
+  if (!folder) return null;
+  try {
+    createIn(folder, fileName, mime, data);
+  } catch {
+    // The remembered folder is gone or no longer allowed: ask once more.
+    folder = await pickDownloadFolder();
+    if (!folder) return null;
+    createIn(folder, fileName, mime, data);
+  }
+  const saved = `Saved ${fileName} in ${folder.name}.`;
+  await offerOpenOrShare(fileName, data, mime, title, saved);
+  return saved;
 }
+
+/** A CSV report, saved on the phone (see `deliverFile`). */
+export const deliverCsv = (fileName: string, csv: string, title: string): Promise<string | null> => deliverFile(fileName, csv, CSV_MIME, title);
+
+const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+/** An Excel workbook the server made, saved on the phone (see `deliverFile`). */
+export const deliverXlsx = (fileName: string, bytes: ArrayBuffer, title: string): Promise<string | null> => deliverFile(fileName, bytes, XLSX_MIME, title);

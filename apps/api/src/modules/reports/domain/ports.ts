@@ -229,3 +229,8 @@ export interface DoctorNamesPort {
 export interface ExpenseStatementPort {
   getExpenseStatement(userId: string, month: string): Promise<{ status: 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED'; paidPaise: number; totals: { taPaise: number; daPaise: number; otherPaise: number; totalPaise: number }; days: Array<{ date: string; taPaise: number; daPaise: number; otherPaise: number; totalPaise: number; others: Array<{ amountPaise: number; remarks: string | null }> }> }>;
 }
+
+/** HR's read of a person's leave days, each with whether it is paid: what makes a day Paid or Unpaid leave in the Monthly Work report. */
+export interface LeaveDaysPort {
+  listLeaveDays(userId: string, from: string, to: string): Promise<Array<{ date: string; portion: number; paid: boolean }>>;
+}

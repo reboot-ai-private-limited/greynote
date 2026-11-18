@@ -2857,8 +2857,10 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 - Local demo data: `seed:secondary-demo` (rows written directly as approved; no Cloudinary locally).
 
 
-## 2026-11-18: Daily Work and Expense reports (Excel) per employee per month; doctors this month in the app
+## 2026-11-18: Monthly Work report (Excel) per employee per month; doctors this month in the app; downloads save to the phone
 
-- One employee, one month, Excel (the financial-year version is later): Daily Work (overview, a row a day, doctors with a target) and Expense (a row a day, month state, payment). Carried, not called and missed are defined once (see docs/mobile/team.md) and shown in the app (person Overview card, Doctors filter, Visit targets) and in the reports.
-- Planning's contract gained `listMonthlyPlanDays` (the Tour Plan's days); Field Activity's `getExpenseStatement`; Team's doctors read `carriedSince` and `totals`.
+- One report instead of two (Daily Work + Expense): a row for every day of the month with kind of day (weekly off, holiday, paid / unpaid leave, worked, absent), plans, DCR, doctors, calls, orders and TA / DA / other, plus Overview and Doctors sheets. With the Secondary Sales sheet these are the reports. Month only; a financial-year version is later.
+- Carried, not called and missed are defined once (docs/mobile/team.md) and shown in the app (person Overview card, Doctors filter, Visit targets) and in the report.
+- Planning's contract gained `listMonthlyPlanDays`; Field Activity's `getExpenseStatement`; HR's `listLeaveDays` is read by Reports; Team's doctors read `carriedSince` and `totals`.
+- Phone downloads save to a remembered folder (picked the first time) instead of opening the share sheet; Open and Share are offered after saving.
 - Local demo data: `seed:work-demo` (written directly as approved).

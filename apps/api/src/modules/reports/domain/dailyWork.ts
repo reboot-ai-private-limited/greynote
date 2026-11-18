@@ -17,6 +17,10 @@ export interface DayInput {
   report: { status: string } | null;
   calls: { doctorIds: string[]; chemistCalls: number; followups: number; geofence: { pass: number; fail: number; other: number } };
   orders: { count: number; paise: number };
+  /** The day is covered by a live leave: paid or unpaid. */
+  leave: { paid: boolean } | null;
+  /** That day's expense claims, in paise, with the person's own notes. */
+  expenses: { taPaise: number; daPaise: number; otherPaise: number; notes: string; flagged: boolean };
 }
 
 export interface DoctorTarget {
@@ -41,6 +45,8 @@ export interface DayRow {
   visited: number | null;
   missed: number | null;
   carriedIn: number | null;
+  /** Owed after the day: carried in plus the day's new misses, less any a call cleared. */
+  carriedTotal: number | null;
   alsoVisited: number | null;
   visitedNames: string[];
   missedNames: string[];
@@ -51,6 +57,13 @@ export interface DayRow {
   ordersPaise: number;
   /** "Sent", "Approved", "Not sent" or "No report". */
   report: string;
+  /** The report was sent (Yes) or not (No). */
+  dcrSubmitted: boolean;
+  taPaise: number;
+  daPaise: number;
+  otherPaise: number;
+  expenseNotes: string;
+  expenseFlagged: boolean;
   remarks: string | null;
 }
 
@@ -67,13 +80,14 @@ export interface DoctorRow {
 }
 
 export interface DailyWorkOverview {
-  days: { total: number; worked: number; leave: number; weeklyOff: number; holiday: number; absent: number; other: number };
+  days: { total: number; worked: number; paidLeave: number; unpaidLeave: number; weeklyOff: number; holiday: number; absent: number; other: number };
   reports: { sent: number; notSent: number };
   calls: { doctor: number; chemist: number; followups: number };
   doctors: { plannedDays: number; visited: number; missed: number; carriedAtEnd: number; alsoVisited: number };
   targets: { withTarget: number; quota: number; made: number; missed: number; notCalled: number };
   orders: { count: number; paise: number };
   location: { pass: number; fail: number; other: number };
+  expenses: { taPaise: number; daPaise: number; otherPaise: number; totalPaise: number };
   routes: Array<{ name: string; days: number; doctorCalls: number }>;
 }
 
@@ -115,13 +129,14 @@ export function buildDailyWork(input: {
   const routeAgg = new Map<string, { days: number; doctorCalls: number }>();
   const rows: DayRow[] = [];
   const ov: DailyWorkOverview = {
-    days: { total: input.dates.length, worked: 0, leave: 0, weeklyOff: 0, holiday: 0, absent: 0, other: 0 },
+    days: { total: input.dates.length, worked: 0, paidLeave: 0, unpaidLeave: 0, weeklyOff: 0, holiday: 0, absent: 0, other: 0 },
     reports: { sent: 0, notSent: 0 },
     calls: { doctor: 0, chemist: 0, followups: 0 },
     doctors: { plannedDays: 0, visited: 0, missed: 0, carriedAtEnd: 0, alsoVisited: 0 },
     targets: { withTarget: 0, quota: 0, made: 0, missed: 0, notCalled: 0 },
     orders: { count: 0, paise: 0 },
     location: { pass: 0, fail: 0, other: 0 },
+    expenses: { taPaise: 0, daPaise: 0, otherPaise: 0, totalPaise: 0 },
     routes: [],
   };
 
@@ -156,11 +171,12 @@ export function buildDailyWork(input: {
 
     const att = d?.attendance ?? null;
     // A report that was sent is the evidence of work, whatever the attendance read says.
-    const kind = submitted ? 'Worked' : att ? (KIND[att] ?? att) : '';
+    const kind = submitted ? 'Worked' : d?.leave ? (d.leave.paid ? 'Paid leave' : 'Unpaid leave') : att ? (KIND[att] === 'Leave' ? 'Paid leave' : (KIND[att] ?? att)) : '';
     const lower = kind.toLowerCase();
-    if (counted || att) {
+    if (counted || att || d?.leave) {
       if (kind === 'Worked') ov.days.worked += 1;
-      else if (kind === 'Leave') ov.days.leave += 1;
+      else if (kind === 'Paid leave') ov.days.paidLeave += 1;
+      else if (kind === 'Unpaid leave') ov.days.unpaidLeave += 1;
       else if (kind === 'Weekly off') ov.days.weeklyOff += 1;
       else if (kind === 'Holiday') ov.days.holiday += 1;
       else if (kind === 'Absent') ov.days.absent += 1;
@@ -181,6 +197,11 @@ export function buildDailyWork(input: {
         ov.location.fail += d.calls.geofence.fail;
         ov.location.other += d.calls.geofence.other;
       }
+    }
+    if (d) {
+      ov.expenses.taPaise += d.expenses.taPaise;
+      ov.expenses.daPaise += d.expenses.daPaise;
+      ov.expenses.otherPaise += d.expenses.otherPaise;
     }
     ov.doctors.plannedDays += plannedIds.length;
     ov.doctors.visited += visitedIds.length;
@@ -209,6 +230,7 @@ export function buildDailyWork(input: {
       visited: counted ? visitedIds.length : null,
       missed: counted ? missedIds.length : null,
       carriedIn,
+      carriedTotal: counted ? owed.size : null,
       alsoVisited: counted ? also : null,
       visitedNames: visitedIds.map(nameOf),
       missedNames: missedIds.map(nameOf),
@@ -218,6 +240,12 @@ export function buildDailyWork(input: {
       orders: d?.orders.count ?? 0,
       ordersPaise: d?.orders.paise ?? 0,
       report: reportWords(d?.report ?? null),
+      dcrSubmitted: submitted,
+      taPaise: d?.expenses.taPaise ?? 0,
+      daPaise: d?.expenses.daPaise ?? 0,
+      otherPaise: d?.expenses.otherPaise ?? 0,
+      expenseNotes: d?.expenses.notes ?? '',
+      expenseFlagged: d?.expenses.flagged ?? false,
       remarks: plan?.remarks ?? null,
     });
   }
@@ -237,6 +265,7 @@ export function buildDailyWork(input: {
     missed: doctors.reduce((n, r) => n + r.missed, 0),
     notCalled: doctors.filter((r) => r.visits === 0).length,
   };
+  ov.expenses.totalPaise = ov.expenses.taPaise + ov.expenses.daPaise + ov.expenses.otherPaise;
   ov.doctors.carriedAtEnd = input.planned.filter((p) => p.missedSince !== null).length;
   ov.routes = [...routeAgg].map(([name, v]) => ({ name, ...v })).sort((a, b) => b.days - a.days || a.name.localeCompare(b.name));
   return { month: input.month, countedThrough: through, rows, doctors, overview: ov };

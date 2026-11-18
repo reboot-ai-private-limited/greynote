@@ -8,6 +8,8 @@ import { DoctorModel } from '@/modules/field-master-data/infrastructure/doctor.s
 import { ChemistModel } from '@/modules/field-master-data/infrastructure/chemist.schema.js';
 import { DcrModel } from '@/modules/field-activity/infrastructure/dcr.schema.js';
 import { ChemistCallModel, DoctorCallModel, ExpenseModel, FollowupModel } from '@/modules/field-activity/infrastructure/records.schema.js';
+import { LeaveModel } from '@/modules/hr/infrastructure/leave.schema.js';
+import { LeaveTypeModel } from '@/modules/hr/infrastructure/leaveType.schema.js';
 import { UserModel } from '@/modules/identity/infrastructure/user.schema.js';
 import { DailyPlanModel } from '@/modules/planning/infrastructure/dailyPlan.schema.js';
 import { toDayDoc } from '@/modules/planning/infrastructure/planDoc.js';
@@ -23,7 +25,7 @@ import { assertLocalDatabase } from './localTestData.js';
  * For DEMOMRA1, DEMOMRA2 and DEMOMRB1, every working day (Monday to Saturday) of this month up to yesterday gets an approved Daily Plan of three
  * doctors on the MR's route. Most days have an approved report with calls on two of the three planned doctors (the others are missed; the last doctor is never called, so he is carried to the month's end),
  * a chemist call, sometimes a follow-up, sometimes an unplanned doctor; one day in seven has no report at all (all three missed). Each reported day
- * has TA and DA expenses (AUTO, accepted); one day has an own claim. Every doctor of these MRs gets a visit target of 2 a month.
+ * has TA and DA expenses (AUTO, accepted); one day has an own claim. One day is a paid leave and one an unpaid leave (approved, no plan or report). Every doctor of these MRs gets a visit target of 2 a month.
  * Written straight into the local database (the approvals as already approved): it skips the phone's sync, geofence and approval flows.
  * Safe to run again: it first removes the daily plans, reports, calls and expenses of these MRs for the month.
  */
@@ -45,6 +47,8 @@ async function main(): Promise<void> {
 
     const users = await UserModel.find({ employeeCode: { $in: MRS } }, { _id: 1, employeeCode: 1, name: 1 }).lean();
     if (users.length !== MRS.length) throw new Error('the demo MRs are not there; run seed:local-test -- --apply first');
+    const paidType = await LeaveTypeModel.findOne({ isPaid: true }, { _id: 1 }).lean();
+    const unpaidType = await LeaveTypeModel.findOne({ isPaid: false }, { _id: 1 }).lean();
     const summary: Record<string, unknown>[] = [];
     const writes: Array<() => Promise<unknown>> = [];
 
@@ -60,6 +64,16 @@ async function main(): Promise<void> {
       let calls = 0;
 
       days.forEach((date, k) => {
+        // One paid-leave day and one unpaid-leave day (no plan, no report), written as approved leaves.
+        if ((k === 5 || k === 9) && paidType && unpaidType) {
+          const paid = k === 5;
+          const leaveId = new Types.ObjectId();
+          writes.push(async () => {
+            await LeaveModel.create({ _id: leaveId, userId, leaveTypeId: paid ? paidType._id : unpaidType._id, isPaid: paid, year: Number(date.slice(0, 4)), startDate: date, endDate: date, half: null, reason: 'work-demo', days: [{ date, portion: 1 }], daysCount: 1, ledgerDays: paid ? 1 : 0, attachments: [], revision: 1, createdAt: now, updatedAt: now });
+            await ApprovalRequestModel.create({ kind: 'LEAVE', recordId: String(leaveId), submitterId: userId, status: 'APPROVED', workflow: 'MANAGER_ONLY', cycle: 1, submittedAt: now, decidedAt: now, history: [{ action: 'APPROVE', authority: 'MANAGER', actorId: userId, actorRole: 'FIELD', comment: null, at: now, resultingStatus: 'APPROVED', cycle: 1 }] });
+          });
+          return;
+        }
         const planned = [0, 1, 2].map((i) => doctors[(k * 3 + i) % doctors.length]!);
         const routeId = planned[0]!.routeId as Types.ObjectId;
         const reportedDay = k % 7 !== 3;
@@ -109,6 +123,9 @@ async function main(): Promise<void> {
     await DailyPlanModel.deleteMany({ _id: { $in: plans.map((p) => p._id) } });
     for (const model of [DoctorCallModel, ChemistCallModel, FollowupModel, ExpenseModel] as const) await (model as typeof DoctorCallModel).deleteMany({ userId: { $in: ids }, reportDate: span });
     await DcrModel.deleteMany({ _id: { $in: dcrs.map((d) => d._id) } });
+    const oldLeaves = await LeaveModel.find({ userId: { $in: ids }, reason: 'work-demo' }, { _id: 1 }).lean();
+    await ApprovalRequestModel.deleteMany({ kind: 'LEAVE', recordId: { $in: oldLeaves.map((l) => String(l._id)) } });
+    await LeaveModel.deleteMany({ _id: { $in: oldLeaves.map((l) => l._id) } });
     await DoctorModel.updateMany({ _id: { $in: (await DoctorAssignmentModel.find({ userId: { $in: ids }, status: 'active' }, { doctorId: 1 }).lean()).map((h) => h.doctorId) } }, { $set: { visitFrequency: 2 } });
     for (const write of writes) await write();
     logger.info({ plans: days.length * users.length }, 'done');

@@ -159,7 +159,7 @@ export function buildContainers(): AppContainers {
   lateGrants.contract.addLockGuard(expenseLockGuard((userId, month) => fieldActivity.contract.getExpenseMonthState(userId, month)));
 
   // Tier 7 — Reports: read-only reports for the Admin, over Sales, Field Master Data and Identity. Owns no data.
-  const reports = buildReportsContainer(identity.contract, fieldMasterData.contract, sales.contract, fieldActivity.contract, territory.contract, payroll.contract, planning.contract, attendance.contract, marketing.contract, config.contract);
+  const reports = buildReportsContainer(identity.contract, fieldMasterData.contract, sales.contract, fieldActivity.contract, territory.contract, payroll.contract, planning.contract, attendance.contract, marketing.contract, config.contract, hr.contract);
 
   // Tier 7 — Team: a manager's view of their downline. Reads Identity, Territory, Planning, Field Activity, HR, Config, Reports, Sales and Field Master Data; owns no data.
   const team = buildTeamContainer(identity.contract, territory.contract, planning.contract, fieldActivity.contract, hr.contract, config.contract, reports.contract, sales.contract, fieldMasterData.contract, approval.contract, inbox.contract, identity.contract, attendance.contract);

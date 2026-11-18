@@ -140,8 +140,7 @@ GET    /api/planning/users/:userId/monthly/:month  ADMIN,FIELD,HR
 GET    /api/reports/dcr  ADMIN
 GET    /api/reports/dcr/coverage  ADMIN
 GET    /api/reports/doctor-visits  ADMIN,FIELD
-GET    /api/reports/employee-daily-work  ACCOUNTANT,ADMIN,FIELD,HR
-GET    /api/reports/employee-expenses  ACCOUNTANT,ADMIN,FIELD,HR
+GET    /api/reports/employee-monthly-work  ACCOUNTANT,ADMIN,FIELD,HR
 GET    /api/reports/employee-sales  ACCOUNTANT,ADMIN,FIELD,HR
 GET    /api/reports/me/dcr  FIELD
 GET    /api/reports/me/dcr/coverage  FIELD

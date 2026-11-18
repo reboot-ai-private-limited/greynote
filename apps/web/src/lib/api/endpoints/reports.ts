@@ -42,10 +42,8 @@ export const reportsApi = {
   /** Admin, or a manager over their downline: the field force over a date range, one page of employees plus the totals of all of them. */
   /** One employee's Secondary Sales performance sheet (Excel) for a financial year (the start year; the current one when left out). */
   secondarySheet: (token: string, query: { userId: string; year?: number | undefined }, signal?: AbortSignal) => requestFile('/reports/secondary-sheet', { token, query: { ...query }, signal }),
-  /** One employee's Daily Work report (Excel) for a month. */
-  employeeDailyWork: (token: string, query: { userId: string; month: string }, signal?: AbortSignal) => requestFile('/reports/employee-daily-work', { token, query: { ...query }, signal }),
-  /** One employee's Expense report (Excel) for a month. */
-  employeeExpenses: (token: string, query: { userId: string; month: string }, signal?: AbortSignal) => requestFile('/reports/employee-expenses', { token, query: { ...query }, signal }),
+  /** One employee's Monthly Work report (Excel) for a month: every day with its plan, DCR, doctors, calls, orders and expenses. */
+  employeeMonthlyWork: (token: string, query: { userId: string; month: string }, signal?: AbortSignal) => requestFile('/reports/employee-monthly-work', { token, query: { ...query }, signal }),
   salesDashboard: (token: string, query: SalesDashboardQuery, signal?: AbortSignal) => request<SalesDashboardDto>('/reports/sales-dashboard', { token, query: { ...query }, signal }),
 
   /** Admin only. A month of orders by order date, with names and totals by status. */

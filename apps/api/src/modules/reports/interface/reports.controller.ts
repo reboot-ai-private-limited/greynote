@@ -8,10 +8,8 @@ import type { DcrReport } from '../application/dcrReport.js';
 import type { OrdersReport } from '../application/ordersReport.js';
 import type { DoctorVisitsReport } from '../application/doctorVisitsReport.js';
 import type { EmployeeSalesReport } from '../application/employeeSalesReport.js';
-import type { EmployeeDailyWorkReport } from '../application/employeeDailyWorkReport.js';
-import { buildDailyWorkWorkbook } from '../application/employeeDailyWorkXlsx.js';
-import type { EmployeeExpenseReport } from '../application/employeeExpenseReport.js';
-import { buildExpenseWorkbook } from '../application/employeeExpenseXlsx.js';
+import type { EmployeeMonthlyWorkReport } from '../application/employeeMonthlyWorkReport.js';
+import { buildMonthlyWorkWorkbook } from '../application/employeeMonthlyWorkXlsx.js';
 import { buildSecondarySheetWorkbook } from '../application/secondarySheetXlsx.js';
 import type { SecondarySheetReport } from '../application/secondarySheetReport.js';
 import type { TeamOverviewReport } from '../application/teamOverviewReport.js';
@@ -23,7 +21,7 @@ import type { StockReport } from '../application/stockReport.js';
 import type { TaDaReport } from '../application/taDaReport.js';
 import type { myMonthQuerySchema, doctorVisitsQuerySchema, dcrCoverageQuerySchema, employeeSalesQuerySchema, secondarySheetQuerySchema, employeeMonthQuerySchema, dcrYearQuerySchema, ordersQuerySchema, salaryYearQuerySchema, salesDashboardQuerySchema, salesByProductQuerySchema, salesByDistributorQuerySchema, salesByEmployeeQuerySchema, teamOverviewQuerySchema, salesStatementQuerySchema, salesYearQuerySchema, stockQuerySchema, taDaDaysQuerySchema, taDaYearQuerySchema } from './reports.schemas.js';
 
-export function makeReportsControllers(orders: OrdersReport, sales: SalesReport, stock: StockReport, taDa: TaDaReport, dcr: DcrReport, salary: SalaryReport, salesDashboard: SalesDashboardReport, employeeSales: EmployeeSalesReport, doctorVisits: DoctorVisitsReport, teamOverview: TeamOverviewReport, breakdown: SalesBreakdownReport, secondarySheet: SecondarySheetReport, dailyWork: EmployeeDailyWorkReport, expenseSheet: EmployeeExpenseReport): Record<'dailyWorkSheet' | 'expenseSheet' | 'secondarySheet' | 'salesByProduct' | 'salesByDistributor' | 'salesByEmployee' | 'orders' | 'doctorVisits' | 'teamOverview' | 'salesDashboard' | 'employeeSales' | 'order' | 'salesYear' | 'salesStatement' | 'stock' | 'taDaYear' | 'taDaDays' | 'dcrYear' | 'dcrCoverage' | 'salaryYear' | 'myTaDaYear' | 'myTaDaDays' | 'myDcrYear' | 'myDcrCoverage', RequestHandler> {
+export function makeReportsControllers(orders: OrdersReport, sales: SalesReport, stock: StockReport, taDa: TaDaReport, dcr: DcrReport, salary: SalaryReport, salesDashboard: SalesDashboardReport, employeeSales: EmployeeSalesReport, doctorVisits: DoctorVisitsReport, teamOverview: TeamOverviewReport, breakdown: SalesBreakdownReport, secondarySheet: SecondarySheetReport, monthlyWork: EmployeeMonthlyWorkReport): Record<'monthlyWorkSheet' | 'secondarySheet' | 'salesByProduct' | 'salesByDistributor' | 'salesByEmployee' | 'orders' | 'doctorVisits' | 'teamOverview' | 'salesDashboard' | 'employeeSales' | 'order' | 'salesYear' | 'salesStatement' | 'stock' | 'taDaYear' | 'taDaDays' | 'dcrYear' | 'dcrCoverage' | 'salaryYear' | 'myTaDaYear' | 'myTaDaDays' | 'myDcrYear' | 'myDcrCoverage', RequestHandler> {
   return {
     orders: asyncHandler(async (req, res) => {
       const q = req.query as unknown as z.output<typeof ordersQuerySchema>;
@@ -94,22 +92,13 @@ export function makeReportsControllers(orders: OrdersReport, sales: SalesReport,
       const q = req.query as unknown as z.output<typeof salaryYearQuerySchema>;
       sendSuccess(req, res, await salary.year({ year: q.year }), 'Salary for the financial year.', 200);
     }),
-    dailyWorkSheet: asyncHandler(async (req, res) => {
+    monthlyWorkSheet: asyncHandler(async (req, res) => {
       if (!req.user) throw AppError.unauthenticated();
       const q = req.query as unknown as z.output<typeof employeeMonthQuerySchema>;
-      const model = await dailyWork.read({ actor: { id: req.user.sub, role: req.user.role }, userId: q.userId, month: q.month });
-      const file = await buildDailyWorkWorkbook(model);
+      const model = await monthlyWork.read({ actor: { id: req.user.sub, role: req.user.role }, userId: q.userId, month: q.month });
+      const file = await buildMonthlyWorkWorkbook(model);
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.setHeader('Content-Disposition', `attachment; filename="GREYNOTE DAILY WORK ${model.work.month}.xlsx"`);
-      res.status(200).send(file);
-    }),
-    expenseSheet: asyncHandler(async (req, res) => {
-      if (!req.user) throw AppError.unauthenticated();
-      const q = req.query as unknown as z.output<typeof employeeMonthQuerySchema>;
-      const model = await expenseSheet.read({ actor: { id: req.user.sub, role: req.user.role }, userId: q.userId, month: q.month });
-      const file = await buildExpenseWorkbook(model);
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.setHeader('Content-Disposition', `attachment; filename="GREYNOTE EXPENSES ${model.month}.xlsx"`);
+      res.setHeader('Content-Disposition', `attachment; filename="GREYNOTE MONTHLY WORK ${model.work.month}.xlsx"`);
       res.status(200).send(file);
     }),
     secondarySheet: asyncHandler(async (req, res) => {

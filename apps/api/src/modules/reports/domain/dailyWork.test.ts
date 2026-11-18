@@ -11,6 +11,8 @@ const day = (date: string, plan: string[] | null, called: string[] | null, over:
   report: called === null ? null : { status: 'APPROVED' },
   calls: { doctorIds: called ?? [], chemistCalls: 1, followups: 0, geofence: { pass: called?.length ?? 0, fail: 0, other: 0 } },
   orders: { count: 0, paise: 0 },
+  leave: null,
+  expenses: { taPaise: 0, daPaise: 0, otherPaise: 0, notes: '', flagged: false },
   ...over,
 });
 
@@ -37,6 +39,7 @@ describe('the month of daily work', () => {
       [0, 0, 0, 1, 2],
       [1, 0, 1, 1, 0],
     ]);
+    expect(work.rows.map((r) => r.carriedTotal)).toEqual([1, 1, 1, 2]);
     expect(work.rows[0]).toMatchObject({ visitedNames: ['Dr A'], missedNames: ['Dr B'], kind: 'Worked', report: 'Approved' });
     expect(work.rows[1]).toMatchObject({ kind: 'Absent', report: 'No report' });
   });
@@ -50,6 +53,23 @@ describe('the month of daily work', () => {
     expect(o.reports).toEqual({ sent: 3, notSent: 0 });
     expect(o.days).toMatchObject({ worked: 3, absent: 1 });
     expect(work.doctors.map((d) => [d.name, d.visits, d.missed, d.carriedSince])).toEqual([['Dr B', 0, 1, '2026-11-03'], ['Dr C', 1, 1, '2026-11-05'], ['Dr A', 2, 0, null]]);
+  });
+
+  it('the kind of day: a sent report is Worked; leave is paid or unpaid; weekly off and holiday come from attendance; carried total is what is owed after the day', () => {
+    const w = buildDailyWork({
+      month: '2026-11', dates: ['2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05'], today: '2026-11-20', names, targets: [], planned: [],
+      days: [
+        day('2026-11-01', null, null, { attendance: 'WEEKLY_OFF' }),
+        day('2026-11-02', ['a', 'b'], ['a'], { expenses: { taPaise: 15_000, daPaise: 10_000, otherPaise: 5_000, notes: 'Parking', flagged: true } }),
+        day('2026-11-03', null, null, { attendance: 'LEAVE', leave: { paid: true } }),
+        day('2026-11-04', null, null, { attendance: 'LEAVE', leave: { paid: false } }),
+        day('2026-11-05', null, null, { attendance: 'HOLIDAY' }),
+      ],
+    });
+    expect(w.rows.map((r) => r.kind)).toEqual(['Weekly off', 'Worked', 'Paid leave', 'Unpaid leave', 'Holiday']);
+    expect(w.rows[1]).toMatchObject({ dcrSubmitted: true, taPaise: 15_000, otherPaise: 5_000, expenseNotes: 'Parking', expenseFlagged: true, carriedTotal: 1 });
+    expect(w.overview.days).toMatchObject({ worked: 1, weeklyOff: 1, paidLeave: 1, unpaidLeave: 1, holiday: 1 });
+    expect(w.overview.expenses).toEqual({ taPaise: 15_000, daPaise: 10_000, otherPaise: 5_000, totalPaise: 30_000 });
   });
 
   it('a running month is counted only through yesterday', () => {

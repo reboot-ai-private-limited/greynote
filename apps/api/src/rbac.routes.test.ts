@@ -62,14 +62,14 @@ describe('role-by-route matrix', () => {
     const lines = actual.split('\n').filter((l) => /\/api\/reports\//.test(l));
     expect(lines.length).toBeGreaterThan(8);
     // The Sales Dashboard and the employee view are the exceptions: a manager reads them too (the employee their own), and the reports limit them to the downline.
-    const open = ['/api/reports/sales-dashboard', '/api/reports/team/overview', '/api/reports/employee-sales', '/api/reports/doctor-visits', '/api/reports/secondary-sheet', '/api/reports/employee-daily-work', '/api/reports/employee-expenses', '/api/reports/sales/by-'];
+    const open = ['/api/reports/sales-dashboard', '/api/reports/team/overview', '/api/reports/employee-sales', '/api/reports/doctor-visits', '/api/reports/secondary-sheet', '/api/reports/employee-monthly-work', '/api/reports/sales/by-'];
     // /reports/me/* are the employee's own: FIELD only, never a userId to send.
     for (const l of lines.filter((x) => x.includes('/api/reports/me/'))) expect(l.endsWith('  FIELD'), l).toBe(true);
     // The Accountant marks orders done from the Orders list, so reads it as well.
     for (const l of lines.filter((x) => /\/api\/reports\/orders/.test(x))) expect(l.endsWith('  ACCOUNTANT,ADMIN'), l).toBe(true);
     for (const l of lines.filter((x) => !x.includes('/api/reports/me/') && !/\/api\/reports\/orders/.test(x) && !open.some((o) => x.includes(o)))) expect(l.endsWith('  ADMIN'), l).toBe(true);
     // The Accountant and HR read the Sales Dashboard and the employee view as well (all employees; HR also sets targets there).
-    const withAccountant = ['/api/reports/sales-dashboard', '/api/reports/employee-sales', '/api/reports/secondary-sheet', '/api/reports/employee-daily-work', '/api/reports/employee-expenses'];
+    const withAccountant = ['/api/reports/sales-dashboard', '/api/reports/employee-sales', '/api/reports/secondary-sheet', '/api/reports/employee-monthly-work'];
     for (const o of open.filter((x) => x !== '/api/reports/sales/by-')) expect(lines.some((l) => l.endsWith(`${o}  ${withAccountant.includes(o) ? 'ACCOUNTANT,ADMIN,FIELD,HR' : 'ADMIN,FIELD'}`))).toBe(true);
     // The sales roll-ups (2026-11-03): by product and by distributor for Admin, Accountant and HR; by employee also for a manager (their downline only).
     expect(lines.some((l) => l.endsWith('/api/reports/sales/by-product  ACCOUNTANT,ADMIN,HR'))).toBe(true);

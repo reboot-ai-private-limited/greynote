@@ -5,7 +5,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { Accents, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { ApiError, NetworkError } from '@/lib/api';
-import { deliverCsv } from '@/lib/csv';
+import { deliverCsv, downloadFolderName, pickDownloadFolder } from '@/lib/csv';
 import { useOnline } from '@/offline';
 
 import { Notice } from './notice';
@@ -37,6 +37,8 @@ export function DownloadMenu({ items, label = 'Download' }: { items: DownloadIte
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ tone: 'danger' | 'info'; text: string } | null>(null);
+  // Where reports are saved, shown once one has been (the folder is picked the first time and remembered).
+  const [folder, setFolder] = useState<string | null>(null);
 
   const run = async (item: DownloadItem) => {
     setBusy(item.key);
@@ -57,6 +59,16 @@ export function DownloadMenu({ items, label = 'Download' }: { items: DownloadIte
       setMsg({ tone: 'danger', text: errorText(err) });
     } finally {
       setBusy(null);
+      setFolder(await downloadFolderName().catch(() => null));
+    }
+  };
+
+  const changeFolder = async () => {
+    try {
+      await pickDownloadFolder();
+      setFolder(await downloadFolderName());
+    } catch (err) {
+      setMsg({ tone: 'danger', text: errorText(err) });
     }
   };
 
@@ -85,6 +97,7 @@ export function DownloadMenu({ items, label = 'Download' }: { items: DownloadIte
           ))
         : null}
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
+      {folder ? <PrimaryButton label={`Saved to: ${folder} · Change folder`} variant="text" onPress={() => void changeFolder()} /> : null}
     </View>
   );
 }

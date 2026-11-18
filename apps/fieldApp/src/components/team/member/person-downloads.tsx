@@ -3,7 +3,7 @@ import { prettyMonth } from '@/offline/day';
 import { exportFileName, tourPlanCsv } from '@/lib/exports';
 import { getTeamMemberTourPlan, offDayLabel } from '@/lib/planning';
 import { downloadSecondarySheet } from '@/lib/secondary-sheet';
-import { downloadDailyWorkReport, downloadExpenseReport } from '@/lib/work-reports';
+import { downloadMonthlyWorkReport } from '@/lib/work-reports';
 import { useFinancialYear } from '@/lib/financial-year';
 
 import { DownloadMenu, type DownloadItem } from '../../download-menu';
@@ -46,16 +46,10 @@ export function PersonDownloads({ person, month }: { person: Person; month: stri
       },
     },
     {
-      key: 'daily-work',
-      label: `Daily work report (Excel) · ${prettyMonth(month)}`,
-      hint: 'Day by day: plan against work, doctors planned, visited, missed, carried',
-      build: async () => ({ delivered: await downloadDailyWorkReport({ id: person.id, name: person.name }, month, prettyMonth(month)) }),
-    },
-    {
-      key: 'expense-report',
-      label: `Expense report (Excel) · ${prettyMonth(month)}`,
-      hint: 'Each day: route, TA, DA and own claims, with the month’s state',
-      build: async () => ({ delivered: await downloadExpenseReport({ id: person.id, name: person.name }, month, prettyMonth(month)) }),
+      key: 'monthly-work',
+      label: `Monthly work report (Excel) · ${prettyMonth(month)}`,
+      hint: 'Every day: plan, DCR, doctors, calls, orders, TA / DA / other, leave',
+      build: async () => ({ delivered: await downloadMonthlyWorkReport({ id: person.id, name: person.name }, month, prettyMonth(month)) }),
     },
     {
       key: 'secondary',
