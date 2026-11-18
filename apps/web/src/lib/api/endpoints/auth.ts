@@ -10,12 +10,12 @@ export const authApi = {
   login: (body: LoginRequestDto) =>
     request<LoginResponseDto>('/identity/auth/login', { method: 'POST', body }),
 
-  /** An Admin forgot their password: the owner is emailed a code. The answer is the same for any employee code. */
+  /** Anyone who forgot their password: a code is emailed to the address in their details (an Admin with none: the owner). An account with no email gets an Admin to contact. */
   forgotPassword: (body: { employeeCode: string }) =>
-    request<Record<string, never>>('/identity/auth/forgot-password', { method: 'POST', body }),
+    request<{ delivery: 'EMAIL' } | { delivery: 'NO_EMAIL'; admin: { name: string; email: string } | null }>('/identity/auth/forgot-password', { method: 'POST', body }),
 
-  resetAdminPassword: (body: { employeeCode: string; otp: string; newPassword: string }) =>
-    request<Record<string, never>>('/identity/auth/reset-admin-password', { method: 'POST', body }),
+  resetPassword: (body: { employeeCode: string; otp: string; newPassword: string }) =>
+    request<Record<string, never>>('/identity/auth/reset-password', { method: 'POST', body }),
 
   /** My own password. The refresh cookie rides along so the server can keep this session and end the others. */
   changePassword: (token: string, body: { currentPassword: string; newPassword: string }) =>

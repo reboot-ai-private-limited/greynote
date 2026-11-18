@@ -144,7 +144,7 @@ import { ReassignManagerUseCase } from './application/usecases/reassignManager.u
 import { revokeAccessTokens } from '@/shared/http/accessRevocations.js';
 import { DeactivateEmployeeUseCase } from './application/usecases/deactivateEmployee.usecase.js';
 import type { OffboardingPort } from './domain/offboarding.port.js';
-import { ConfirmAdminPasswordResetUseCase, RequestAdminPasswordResetUseCase } from './application/usecases/adminPasswordReset.usecase.js';
+import { ConfirmPasswordResetUseCase, RequestPasswordResetUseCase } from './application/usecases/passwordReset.usecase.js';
 import { MongoPasswordResetRequestAdapter } from './infrastructure/mongoPasswordResetRequest.adapter.js';
 import { SmtpMailer } from '@/shared/mail/smtpMailer.adapter.js';
 import { buildOrgRouter } from './interface/org.route.js';
@@ -376,9 +376,9 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     return businessDate(new Date(), timeZone, dayStart);
   };
   const deactivation = new DeactivateEmployeeUseCase(userRepository, employeeProfileRepository, roleRepository, userSessionRepository, reassignManager, today);
-  const resetDeps = { users: userRepository, roles: roleRepository, requests: new MongoPasswordResetRequestAdapter(), hasher: passwordHasher, mailer: new SmtpMailer(), ownerEmail: env.PASSWORD_RESET_OWNER_EMAIL, dailyLimit: env.PASSWORD_RESET_DAILY_LIMIT };
-  const requestAdminPasswordReset = new RequestAdminPasswordResetUseCase(resetDeps);
-  const confirmAdminPasswordReset = new ConfirmAdminPasswordResetUseCase({ ...resetDeps, sessions: userSessionRepository });
+  const resetDeps = { users: userRepository, roles: roleRepository, requests: new MongoPasswordResetRequestAdapter(), hasher: passwordHasher, mailer: new SmtpMailer(), ownerEmail: env.PASSWORD_RESET_OWNER_EMAIL, logCodeWhenMailMissing: env.NODE_ENV === 'development' };
+  const requestPasswordReset = new RequestPasswordResetUseCase(resetDeps);
+  const confirmPasswordReset = new ConfirmPasswordResetUseCase({ ...resetDeps, sessions: userSessionRepository });
   const listOrgChildren = new ListOrgChildrenUseCase(userRepository, roleRepository, employeeProfileRepository);
   const isFieldRole = new IsFieldRoleUseCase(userRepository, roleRepository);
   const isBlocked = new IsBlockedUseCase(userRepository);
@@ -400,8 +400,9 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     changePassword: makeChangePasswordController(changePassword),
     deleteAccount: makeDeleteAccountController(deleteAccount),
     deleteAccountPublic: makeDeleteAccountPublicController(deleteAccount),
-    forgotPassword: makeForgotPasswordController(requestAdminPasswordReset),
-    resetAdminPassword: makeResetAdminPasswordController(confirmAdminPasswordReset),
+    forgotPassword: makeForgotPasswordController(requestPasswordReset),
+    resetPassword: makeResetAdminPasswordController(confirmPasswordReset),
+    resetAdminPassword: makeResetAdminPasswordController(confirmPasswordReset),
     pushToken: makePushTokenController(pushToken),
   };
   const usersControllers = {

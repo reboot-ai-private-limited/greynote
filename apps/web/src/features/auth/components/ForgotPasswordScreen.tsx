@@ -19,8 +19,8 @@ const messageOf = (cause: unknown) =>
     : 'Something went wrong. Try again.';
 
 /**
- * An Admin who forgot their password: enter the employee code, the owner is emailed a 6-digit code, then enter the code and a new
- * password here. The first step says the same thing for any code, so it never reveals who is an Admin.
+ * Anyone who forgot their password: enter the employee code, a 6-digit code is emailed to the address in their details (an Admin with none: the owner), then
+ * enter the code and a new password here. An account with no email is told to contact an Admin.
  */
 export function ForgotPasswordScreen() {
   const router = useRouter();
@@ -44,7 +44,11 @@ export function ForgotPasswordScreen() {
     setError(null);
     setBusy(true);
     try {
-      await authApi.forgotPassword({ employeeCode: employeeCode.trim() });
+      const res = await authApi.forgotPassword({ employeeCode: employeeCode.trim() });
+      if (res.delivery === 'NO_EMAIL') {
+        setError(`No email is saved for this account. Contact your Admin${res.admin ? ` (${res.admin.name}, ${res.admin.email})` : ''} to reset your password or add your email.`);
+        return;
+      }
       setStep('confirm');
       setWait(RESEND_SECONDS);
     } catch (cause) {
@@ -63,7 +67,7 @@ export function ForgotPasswordScreen() {
     }
     setBusy(true);
     try {
-      await authApi.resetAdminPassword({
+      await authApi.resetPassword({
         employeeCode: employeeCode.trim(),
         otp: otp.trim(),
         newPassword: password,
@@ -91,8 +95,8 @@ export function ForgotPasswordScreen() {
           <h1 className="text-2xl font-semibold tracking-tight text-text">Forgot password</h1>
           <p className="mt-1 text-sm text-text-muted">
             {step === 'ask'
-              ? 'For Admin accounts. A one-time code is emailed to the owner, who gives it to you.'
-              : 'If that is an Admin account, a code was sent to the owner. Enter it with your new password. It works once and expires in 10 minutes.'}
+              ? 'A one-time code is emailed to the address saved in your details.'
+              : 'If that ID has an email saved, a code was sent to it. Enter it with your new password. It works once and expires in 10 minutes.'}
           </p>
         </div>
         {step === 'ask' ? (
@@ -107,12 +111,12 @@ export function ForgotPasswordScreen() {
               />
             </FormField>
             <Button type="submit" disabled={busy} className="w-full">
-              {busy ? 'Sending…' : 'Send the code to the owner'}
+              {busy ? 'Sending…' : 'Send me a code'}
             </Button>
           </form>
         ) : (
           <form onSubmit={confirm} className="space-y-5">
-            <FormField label="Code from the owner" htmlFor="otp">
+            <FormField label="Code from the email" htmlFor="otp">
               <Input
                 id="otp"
                 value={otp}

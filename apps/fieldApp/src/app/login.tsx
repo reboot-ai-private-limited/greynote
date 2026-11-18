@@ -18,7 +18,7 @@ const PASSWORD_MIN_LENGTH = 8;
 
 /**
  * Login — employee code + password only (client sign-off A1: no OTP). Password reset is
- * Admin-only (A5), so there's deliberately no "Forgot password?" self-service link.
+ * "Forgot password?" is for everyone: a code is emailed to the address in the employee's details (docs/mobile/account.md).
  *
  * The employee code is sent exactly as typed (trimmed): the backend matches it case-sensitively
  * and doesn't normalize it, so forcing capitals here would break a code created in lowercase.
@@ -121,10 +121,11 @@ export default function LoginScreen() {
 
               <PrimaryButton label="Login" loading={loading} onPress={handleLogin} />
 
-              <ThemedText type="small" themeColor="textSecondary" style={styles.footnote}>
-                Forgot your password? Contact your Admin — passwords can only be reset from the
-                web portal.
-              </ThemedText>
+              <PrimaryButton
+                label="Forgot password?"
+                variant="text"
+                onPress={() => router.push({ pathname: '/forgot-password', params: employeeCode.trim() ? { code: employeeCode.trim() } : {} })}
+              />
             </ThemedView>
           </ScrollView>
         </KeyboardAvoidingView>

@@ -64,6 +64,13 @@ export async function loadCurrentUser(): Promise<SessionUser> {
 export const changePassword = (currentPassword: string, newPassword: string) =>
   apiPost<unknown>('/identity/auth/change-password', { currentPassword, newPassword, refreshToken: getTokens()?.refreshToken }, { auth: true });
 
+/** Asking for a password reset code: it is emailed to the address in the employee's details; an account with no email says so and names an Admin to contact. */
+export type ResetCodeResult = { delivery: 'EMAIL' } | { delivery: 'NO_EMAIL'; admin: { name: string; email: string } | null };
+export const requestPasswordReset = (employeeCode: string) => apiPost<ResetCodeResult>('/identity/auth/forgot-password', { employeeCode: employeeCode.trim() });
+
+/** The emailed 6-digit code and a new password; the server signs the person out everywhere. */
+export const resetPassword = (employeeCode: string, otp: string, newPassword: string) => apiPost<unknown>('/identity/auth/reset-password', { employeeCode: employeeCode.trim(), otp: otp.trim(), newPassword });
+
 /**
  * Revokes this phone's session on the server (best effort), then forgets it locally. Unsent
  * records are backed up first and then wiped from the phone — they come back at the next login

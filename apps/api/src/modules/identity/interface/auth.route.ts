@@ -158,16 +158,16 @@ openApiRegistry.registerPath({
   method: 'post',
   path: '/api/identity/auth/forgot-password',
   tags: ['Identity / Auth'],
-  summary: 'Admin only: email a one-time reset code to the owner address in Settings. Answers the same for any employee ID; nothing is sent unless it is an active Admin. Capped per day by a Setting',
+  summary: 'Anyone who forgot their password: email a one-time reset code to the address in their own details (an Admin with none: the owner address). An unknown ID answers the same as a sent code; an account with no email answers NO_EMAIL with an Admin to contact. Once a minute and five a day per person',
   request: { body: { content: { 'application/json': { schema: forgotPasswordBodySchema } } } },
   responses: { 200: { description: 'Always the same answer' }, 429: { description: 'Too many attempts from this address or for this ID' } },
 });
 
 openApiRegistry.registerPath({
   method: 'post',
-  path: '/api/identity/auth/reset-admin-password',
+  path: '/api/identity/auth/reset-password',
   tags: ['Identity / Auth'],
-  summary: "Admin only: set a new password with the emailed code (6 digits, 10 minutes, single use, 5 wrong tries). Ends every session",
+  summary: "Set a new password with the emailed code (6 digits, 10 minutes, single use, 5 wrong tries). Ends every session. /reset-admin-password is the same endpoint",
   request: { body: { content: { 'application/json': { schema: resetAdminPasswordBodySchema } } } },
   responses: { 200: { description: 'Password changed' }, 400: { description: 'Code not valid or expired' }, 429: { description: 'Too many attempts' } },
 });
@@ -222,6 +222,7 @@ export function buildAuthRouter(controllers: {
   deleteAccount: ReturnType<typeof makeDeleteAccountController>;
   deleteAccountPublic: ReturnType<typeof makeDeleteAccountPublicController>;
   forgotPassword: ReturnType<typeof makeForgotPasswordController>;
+  resetPassword: ReturnType<typeof makeResetAdminPasswordController>;
   resetAdminPassword: ReturnType<typeof makeResetAdminPasswordController>;
   pushToken: ReturnType<typeof makePushTokenController>;
 }): Router {
@@ -242,6 +243,8 @@ export function buildAuthRouter(controllers: {
     controllers.deleteAccountPublic,
   );
   router.post('/forgot-password', ...deletePublicLimiters(), validate({ body: forgotPasswordBodySchema }), controllers.forgotPassword);
+  router.post('/reset-password', ...deletePublicLimiters(), validate({ body: resetAdminPasswordBodySchema }), controllers.resetPassword);
+  // The same as /reset-password: the name the web's Admin page already uses.
   router.post('/reset-admin-password', ...deletePublicLimiters(), validate({ body: resetAdminPasswordBodySchema }), controllers.resetAdminPassword);
   router.post(
     '/logout-all',

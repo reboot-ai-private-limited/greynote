@@ -11,6 +11,7 @@ import { CardSection, sym } from '@/components/ui-cards';
 import { Spacing } from '@/constants/theme';
 import { ApiError, NetworkError } from '@/lib/api';
 import { changePassword } from '@/lib/auth';
+import { useSessionUser } from '@/lib/session';
 import { useOnline } from '@/offline';
 
 const MIN_LENGTH = 8;
@@ -24,10 +25,11 @@ type Problems = Partial<Record<'current' | 'next' | 'confirm', string>>;
 
 /**
  * Change password (docs/mobile/account.md): current password, new password, and the new one again. This phone stays signed in; the
- * employee's other sessions are signed out by the server. Needs a connection. A forgotten password still goes to Admin.
+ * employee's other sessions are signed out by the server. Needs a connection. A forgotten current password: "Send a code" opens Forgot password.
  */
 export default function ChangePasswordScreen() {
   const online = useOnline();
+  const me = useSessionUser();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -103,9 +105,8 @@ export default function ChangePasswordScreen() {
           autoCorrect={false}
           editable={!busy}
         />
-        <ThemedText type="small" themeColor="textSecondary">
-          At least {MIN_LENGTH} characters. If you have forgotten your password, ask Admin to reset it.
-        </ThemedText>
+        <ThemedText type="small" themeColor="textSecondary">At least {MIN_LENGTH} characters.</ThemedText>
+        <PrimaryButton label="Forgot your current password? Send a code" variant="text" disabled={busy} onPress={() => router.push({ pathname: '/forgot-password', params: me?.employeeCode ? { code: me.employeeCode } : {} })} />
       </CardSection>
     </ScreenShell>
   );

@@ -2874,3 +2874,8 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 ## 2026-11-18: Team polish: Doctors this month page, Monthly work report row, Unblock only blocked people, Distributors, Territory routes in place
 
 - Phone-only changes; the numbers come from the doctors read already added. The team CSV of the expense list is gone (the report is one Excel per person).
+
+
+## 2026-11-18: Forgot password with an emailed code, for everyone
+
+- The Admin-only reset became general: the code goes to the email in the employee's own details; no email = "contact your Admin" with an Admin's contact; per-person limits (once a minute, five a day) replace the system-wide daily cap. Phone: Login and Change password link to the new screen; the web page uses the same endpoints.

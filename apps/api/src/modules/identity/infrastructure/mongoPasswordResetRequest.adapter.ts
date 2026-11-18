@@ -25,6 +25,15 @@ export class MongoPasswordResetRequestAdapter implements PasswordResetRequestRep
     return PasswordResetRequestModel.countDocuments({ createdAt: { $gte: since } });
   }
 
+  countForUserSince(userId: string, since: Date): Promise<number> {
+    return PasswordResetRequestModel.countDocuments({ userId: new Types.ObjectId(userId), createdAt: { $gte: since } });
+  }
+
+  async latestCreatedAtForUser(userId: string): Promise<Date | null> {
+    const doc = await PasswordResetRequestModel.findOne({ userId: new Types.ObjectId(userId) }).sort({ createdAt: -1 }).lean();
+    return doc?.createdAt ?? null;
+  }
+
   async findOpenForUser(userId: string, now: Date): Promise<PasswordResetRequest | null> {
     const doc = await PasswordResetRequestModel.findOne({
       userId: new Types.ObjectId(userId),

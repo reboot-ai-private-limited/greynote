@@ -284,6 +284,7 @@ POST   /api/identity/auth/logout  ANY
 POST   /api/identity/auth/logout-all  ADMIN
 POST   /api/identity/auth/refresh  PUBLIC
 POST   /api/identity/auth/reset-admin-password  PUBLIC
+POST   /api/identity/auth/reset-password  PUBLIC
 POST   /api/identity/ctc/preview  ADMIN,HR
 POST   /api/identity/ctc/reapply  ADMIN,HR
 POST   /api/identity/designations  ADMIN,HR

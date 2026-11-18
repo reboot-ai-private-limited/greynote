@@ -4,6 +4,10 @@ export interface PasswordResetRequestRepositoryPort {
   create(input: Omit<PasswordResetRequest, 'id'>): Promise<PasswordResetRequest>;
   /** Requests made since `since`, for everyone: the daily cap counts these. */
   countCreatedSince(since: Date): Promise<number>;
+  /** Codes made for this user since `since` (sent or not): the per-person daily limit counts these. */
+  countForUserSince(userId: string, since: Date): Promise<number>;
+  /** When this user's newest code was made, for the wait between codes; `null` when none. */
+  latestCreatedAtForUser(userId: string): Promise<Date | null>;
   /** The newest code for this user that is neither used nor expired at `now`. */
   findOpenForUser(userId: string, now: Date): Promise<PasswordResetRequest | null>;
   /** Adds one wrong try and returns the new count. */

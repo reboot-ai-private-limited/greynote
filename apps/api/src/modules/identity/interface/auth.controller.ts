@@ -8,7 +8,7 @@ import type { LogoutAllSessionsUseCase } from '../application/usecases/logoutAll
 import type { PushTokenUseCase } from '../application/usecases/pushToken.usecase.js';
 import type { ChangePasswordUseCase } from '../application/usecases/changePassword.usecase.js';
 import type { DeleteAccountUseCase } from '../application/usecases/deleteAccount.usecase.js';
-import type { ConfirmAdminPasswordResetUseCase, RequestAdminPasswordResetUseCase } from '../application/usecases/adminPasswordReset.usecase.js';
+import type { ConfirmPasswordResetUseCase, RequestPasswordResetUseCase } from '../application/usecases/passwordReset.usecase.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { GetUserSummaryUseCase } from '../application/usecases/getUserSummary.usecase.js';
 import { clearRefreshCookie, deliverRefreshToken, isWebClient, readRefreshToken } from './refreshCookie.js';
@@ -92,15 +92,15 @@ export function makePushTokenController(useCase: PushTokenUseCase): { register: 
   };
 }
 
-export function makeForgotPasswordController(useCase: RequestAdminPasswordResetUseCase): RequestHandler {
+export function makeForgotPasswordController(useCase: RequestPasswordResetUseCase): RequestHandler {
   return asyncHandler(async (req, res) => {
-    await useCase.execute(req.body.employeeCode);
-    // The same answer for every employee ID, Admin or not.
-    sendSuccess(req, res, {}, 'If that is an Admin account, a code has been sent to the owner.', 200);
+    const result = await useCase.execute(req.body.employeeCode);
+    // The same answer for every employee ID that has an email, or none: a code was sent. Only an account with no email says so (and who to contact).
+    sendSuccess(req, res, result, result.delivery === 'EMAIL' ? 'If that ID has an email saved, a code has been sent to it.' : 'No email is saved for this account. Contact your Admin.', 200);
   });
 }
 
-export function makeResetAdminPasswordController(useCase: ConfirmAdminPasswordResetUseCase): RequestHandler {
+export function makeResetAdminPasswordController(useCase: ConfirmPasswordResetUseCase): RequestHandler {
   return asyncHandler(async (req, res) => {
     await useCase.execute(req.body);
     sendSuccess(req, res, {}, 'Password changed. Sign in with the new password.', 200);
