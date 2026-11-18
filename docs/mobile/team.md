@@ -204,3 +204,8 @@ Daily reports are approved by the system when sent, so they never wait in **To a
 - **Secondary sales on the person page.** The Reports tab opens with the person's month of secondary sales (status, distributors and products, proof files) from the existing `GET /sales/secondary-stock?userId=&month=` (a manager may read their downline); a month waiting for approval links to Approvals. No new route.
 - **Services** opens on **Team requests** for a manager (My requests for an MR).
 - **Person page header (later, 2026-11-18).** Three labelled lines for today: **Tour Plan** (route and the month's status), **Daily plan** (route, status, two doctors by name and "+N more" to open the rest) and **Daily report** (Yes with its status, which opens that day first in the Reports tab, or No). The **Actions** button is gone: Unblock is on the board card and in Team → Reports → Unblock; late exceptions are in Team → Reports → Late exceptions.
+
+## Team → Reports, minimal (2026-11-18)
+
+- The Reports section is one short list: **Monthly overview**, **Sales & compliance**, **Stock & secondary**, **Leave calendar**, **Orders**, and one **More** row that opens Late exceptions, Unblock, Team distributors and Territory. Group headings and hints are gone.
+- **Removed from it:** Today board, Plans and Daily reports. They repeat the Team board (any day, up to tomorrow) and each person's Plans and Reports tabs. The screens `team-today` and `team-plans` are deleted; `/team/today` and `/team/plans` stay on the server but the phone no longer calls them for these screens. The old Daily reports list is gone from `team-reports`, which now opens straight on Sales & compliance.

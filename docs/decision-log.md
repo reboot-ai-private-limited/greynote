@@ -2837,3 +2837,8 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 - Board: one day picker, two dropdown filters and one expand/collapse toggle; tiles show done/total (`plansSubmitted`). Plans tab drops the "not sent" list.
 - Gifts are read per doctor for managers (Field Activity `listGiftsForDoctors`); secondary sales on the person page reuse the existing stock read instead of a new team route.
 - Managers land on Team requests in Services.
+
+
+## 2026-11-18: Team → Reports cut to six rows
+
+- Today board, Plans and Daily reports removed from Team → Reports because the Team board and the person page cover them. The rest stays; the rarely used four sit behind "More". Server routes unchanged.

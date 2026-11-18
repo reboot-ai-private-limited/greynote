@@ -1,37 +1,23 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
-import { ChoiceChips } from '@/components/choice-chips';
 import { FyBanner } from '@/components/fy-banner';
 import { MonthStepper } from '@/components/month-stepper';
 import { Notice } from '@/components/notice';
-import { PillToggle } from '@/components/pill-toggle';
 import { ScreenShell } from '@/components/screen-shell';
 import { Skeleton } from '@/components/skeleton';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar, IconChip, Meter, Pill, sym } from '@/components/ui-cards';
 import { Accents, Spacing, type Accent } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { STATUS_LABEL, type ApprovalStatus } from '@/lib/approvals';
 import { useFinancialYear } from '@/lib/financial-year';
 import { formatRupees } from '@/lib/money';
-import { getSalesDashboard, listTeamDcrs, type SalesDashboardRow } from '@/lib/team';
+import { getSalesDashboard, type SalesDashboardRow } from '@/lib/team';
 import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
-import { datesInMonth, formatWhen, monthOf, prettyDay } from '@/offline/day';
-import { useTeam } from '@/offline/team';
-
-type Report = 'dcr' | 'sales';
-const REPORTS: { value: Report; label: string }[] = [
-  { value: 'dcr', label: 'Daily reports' },
-  { value: 'sales', label: 'Sales & compliance' },
-];
+import { datesInMonth, formatWhen, monthOf } from '@/offline/day';
 
 /** One or two words, so the person's name keeps its room on the row. */
-const SHORT_STATUS: Record<string, string> = { SUBMITTED: 'Waiting', MANAGER_APPROVED: 'With Admin' };
-const statusText = (status: string) => SHORT_STATUS[status] ?? STATUS_LABEL[status as ApprovalStatus] ?? (status === 'DRAFT' ? 'Not sent' : status);
-const STATUS_ACCENT: Record<string, Accent> = { SUBMITTED: 'amber', MANAGER_APPROVED: 'amber', APPROVED: 'green', REJECTED: 'red' };
 
 const bounds = (month: string) => {
   const days = datesInMonth(month);
@@ -41,13 +27,12 @@ const bounds = (month: string) => {
 const rupees = (paise: number | null) => (paise === null ? '—' : formatRupees(paise));
 
 /**
- * Team reports (managers): your downline's daily reports and a sales and compliance table, by month. Read-only, and the
+ * Sales & compliance (managers): your downline's sales against target and their plan and report compliance, by month. (The daily reports themselves are on the board and on each person's Reports tab.) Read-only, and the
  * server limits it to your own team. Needs a connection; the phone keeps the last copy of each month it loaded.
  */
 export default function TeamReportsScreen() {
   const fy = useFinancialYear();
   const theme = useTheme();
-  const [report, setReport] = useState<Report>('dcr');
   const [picked, setPicked] = useState<string | null>(null);
 
   const start = fy.isPast ? fy.lastMonth : monthOf(fy.today);
@@ -55,13 +40,12 @@ export default function TeamReportsScreen() {
   const month = clamp(picked ?? start);
 
   return (
-    <ScreenShell title="Team reports" subtitle="Your team’s reports, sales and plan compliance" wide>
+    <ScreenShell title="Sales & compliance" subtitle="Targets, achievement, plans and reports in, by month" wide>
       <FyBanner />
-      <PillToggle options={REPORTS} value={report} onChange={setReport} />
       <View style={[styles.month, { backgroundColor: theme.background, borderColor: theme.border }]}>
         <MonthStepper value={month} onChange={setPicked} min={fy.firstMonth} max={fy.lastMonth} />
       </View>
-      {report === 'dcr' ? <TeamDcrList month={month} year={fy.year} /> : <TeamSales month={month} year={fy.year} />}
+      <TeamSales month={month} year={fy.year} />
     </ScreenShell>
   );
 }
@@ -72,70 +56,6 @@ function Stale({ fetchedAt, stale, error, online }: { fetchedAt: string | null; 
       {error ? <Notice tone="danger">{error}</Notice> : null}
       {stale && fetchedAt ? <Notice tone="info">{`${online ? 'Updating… ' : 'You’re offline. '}Showing the copy from ${formatWhen(fetchedAt)}.`}</Notice> : null}
     </>
-  );
-}
-
-/* ───────────────────────────── the team's daily reports ───────────────────────────── */
-
-function TeamDcrList({ month, year }: { month: string; year: number }) {
-  const online = useOnline();
-  const theme = useTheme();
-  const { team } = useTeam();
-  const names = useMemo(() => new Map(team.map((t) => [t.id, t.name])), [team]);
-  const preset = useLocalSearchParams<{ userId?: string }>().userId;
-  const [who, setWho] = useState<string>(typeof preset === 'string' && preset !== '' ? preset : 'ALL');
-  const { from, to } = bounds(month);
-  const list = useCachedFetch(`team-dcr:${year}:${month}:${who}`, () => listTeamDcrs(from, to, who === 'ALL' ? null : who));
-  const rows = [...(list.data ?? [])].sort((a, b) => b.reportDate.localeCompare(a.reportDate) || (names.get(a.userId) ?? '').localeCompare(names.get(b.userId) ?? ''));
-
-  return (
-    <View style={styles.stack}>
-      {team.length > 1 ? (
-        <ChoiceChips options={[{ value: 'ALL', label: 'Everyone' }, ...team.map((t) => ({ value: t.id, label: t.name }))]} value={who} onChange={setWho} />
-      ) : null}
-      <View style={styles.sectionHeader}>
-        <ThemedText type="smallBold" style={styles.sectionTitle}>
-          Daily reports
-        </ThemedText>
-        {list.data ? (
-          <ThemedText type="small" themeColor="textSecondary" style={styles.small}>
-            {`${rows.length} report${rows.length === 1 ? '' : 's'}`}
-          </ThemedText>
-        ) : null}
-      </View>
-      <Stale fetchedAt={list.fetchedAt} stale={list.stale} error={list.error} online={online} />
-      {list.loading && !list.data ? (
-        <Skeleton cards={3} lines={2} />
-      ) : rows.length === 0 ? (
-        <Notice tone="info">{list.data ? 'No daily reports from your team this month.' : 'Connect once to load your team’s reports.'}</Notice>
-      ) : (
-        rows.map((r) => {
-          const name = names.get(r.userId) ?? 'Employee';
-          const accent = STATUS_ACCENT[r.status] ?? 'slate';
-          return (
-            <Pressable
-              key={r.id}
-              accessibilityRole="button"
-              onPress={() => (online ? router.push({ pathname: '/dcr-report/[id]', params: { id: r.id } }) : undefined)}
-              style={({ pressed }) => [styles.row, { backgroundColor: theme.background, borderColor: theme.border }, pressed && styles.pressed]}>
-              <Avatar name={name} accent="teal" />
-              <View style={styles.flex}>
-                <ThemedText type="smallBold" numberOfLines={1}>
-                  {name}
-                </ThemedText>
-                <ThemedText type="small" themeColor="textSecondary" style={styles.small}>
-                  {prettyDay(r.reportDate)}
-                </ThemedText>
-              </View>
-              <Pill text={statusText(r.status)} accent={accent} />
-              <ThemedText type="subtitle" themeColor="textSecondary" style={styles.chevron}>
-                ›
-              </ThemedText>
-            </Pressable>
-          );
-        })
-      )}
-    </View>
   );
 }
 
