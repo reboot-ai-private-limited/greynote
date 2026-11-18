@@ -12,14 +12,14 @@ import { DayPicker } from '@/components/day-picker';
 import { DayLines } from '@/components/team/member/day-lines';
 import { PersonDownloads } from '@/components/team/member/person-downloads';
 import { tourWordsOn, useTourPlan } from '@/components/team/member/tour-plan-data';
-import { ChemistsTab, DistributorsTab, DoctorsTab, ExpensesTab, LeaveTab, OrdersTab } from '@/components/team/member/more-tabs';
+import { ChemistsTab, DistributorsTab, DoctorsMonthCard, DoctorsTab, ExpensesTab, LeaveTab, OrdersTab } from '@/components/team/member/more-tabs';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar, CardSection, InfoCard, Meter, Pill, SummaryStrip, sym } from '@/components/ui-cards';
 import { Spacing, type Accent } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useFinancialYear } from '@/lib/financial-year';
 import { formatRupees } from '@/lib/money';
-import { NOT_IN_TEAM_TEXT, dailyPlanChip, getTeamDay, getTeamMemberSummary, type TeamBoard, type TeamMemberSummary } from '@/lib/team-section';
+import { type DoctorFilter, NOT_IN_TEAM_TEXT, dailyPlanChip, getTeamDay, getTeamMemberSummary, type TeamBoard, type TeamMemberSummary } from '@/lib/team-section';
 import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
 import { addDays, monthOf, prettyMonth } from '@/offline/day';
@@ -42,6 +42,7 @@ export default function TeamMemberScreen() {
   const [tab, setTab] = useState<Tab>(TABS.find((t) => t === tabParam) ?? 'overview');
   // Set when the header's "Daily report: Yes" is tapped: that day's report is shown first in the Reports tab.
   const [focusDate, setFocusDate] = useState<string | null>(null);
+  const [doctorFilter, setDoctorFilter] = useState<DoctorFilter>('ALL');
 
   const { today } = useDayGate();
   // The header shows one day: today until it is changed here.
@@ -117,6 +118,7 @@ export default function TeamMemberScreen() {
             value={tab}
             onChange={(t) => {
               setFocusDate(null);
+              setDoctorFilter('ALL');
               setTab(t);
             }}
           />
@@ -136,6 +138,7 @@ export default function TeamMemberScreen() {
                     { label: 'Plans in', value: `${o.plan.submitted}/${o.workingDays}`, accent: o.plan.submitted >= o.workingDays ? 'green' : 'amber' },
                   ]}
                 />
+                <DoctorsMonthCard userId={String(id)} month={month} onOpen={(f) => { setDoctorFilter(f); setTab('doctors'); }} />
                 <CardSection icon={sym('phone', 'call')} accent="green" title="Field work">
                   <ThemedText type="small">{`${o.field.calls} calls (${o.field.doctorCalls} doctor, ${o.field.chemistCalls} chemist) · ${o.field.followups} follow-up${o.field.followups === 1 ? '' : 's'}`}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">{`${o.field.reportedDays} days reported · ${o.field.lateDays} late · ${o.field.callsPerDay === null ? 'no calls per day yet' : `${o.field.callsPerDay.toFixed(1)} calls a day`}`}</ThemedText>
@@ -158,7 +161,7 @@ export default function TeamMemberScreen() {
           {tab === 'reports' ? <ReportsTab userId={String(id)} month={month} focusDate={focusDate} /> : null}
           {tab === 'expenses' ? <ExpensesTab userId={String(id)} month={month} /> : null}
           {tab === 'leave' ? <LeaveTab userId={String(id)} month={month} /> : null}
-          {tab === 'doctors' ? <DoctorsTab userId={String(id)} month={month} /> : null}
+          {tab === 'doctors' ? <DoctorsTab userId={String(id)} month={month} filter={doctorFilter} onFilter={setDoctorFilter} /> : null}
           {tab === 'chemists' ? <ChemistsTab userId={String(id)} /> : null}
           {tab === 'distributors' ? <DistributorsTab userId={String(id)} /> : null}
           {tab === 'orders' ? <OrdersTab userId={String(id)} month={month} /> : null}

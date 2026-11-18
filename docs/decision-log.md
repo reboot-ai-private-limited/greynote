@@ -2855,3 +2855,10 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 - One sheet in the company's format per employee and financial year (an MR's own figures, a manager's sum of their MRs), products down the side, targets (units) and approved secondary by month, quarters, halves, the year, N.S.R. = PTS, grand total in ₹ lakh, % GR. against the year before. `GET /reports/secondary-sheet?userId=[&year=]`, built with `exceljs`; `year` defaults to the current financial year (the first version failed with a validation error when the apps sent none).
 - Downloaded from the employee page on the web and from a person's page / secondary stock on the phone. No whole-company or team workbook, and no CSV for this report (an earlier version had both).
 - Local demo data: `seed:secondary-demo` (rows written directly as approved; no Cloudinary locally).
+
+
+## 2026-11-18: Daily Work and Expense reports (Excel) per employee per month; doctors this month in the app
+
+- One employee, one month, Excel (the financial-year version is later): Daily Work (overview, a row a day, doctors with a target) and Expense (a row a day, month state, payment). Carried, not called and missed are defined once (see docs/mobile/team.md) and shown in the app (person Overview card, Doctors filter, Visit targets) and in the reports.
+- Planning's contract gained `listMonthlyPlanDays` (the Tour Plan's days); Field Activity's `getExpenseStatement`; Team's doctors read `carriedSince` and `totals`.
+- Local demo data: `seed:work-demo` (written directly as approved).

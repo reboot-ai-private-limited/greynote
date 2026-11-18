@@ -33,13 +33,16 @@ export type DoctorVisitMr = {
   missed: number;
   doctors: number;
   completedDoctors: number;
+  /** Doctors with a target and no call at all this month; doctors planned earlier and not called since. Absent from older servers. */
+  notCalled?: number;
+  carried?: number;
   rows: DoctorVisitRow[];
 };
 
 export type DoctorVisitsReport = {
   month: string;
   mrs: DoctorVisitMr[];
-  totals: { quota: number; made: number; missed: number; doctors: number; completedDoctors: number };
+  totals: { quota: number; made: number; missed: number; doctors: number; completedDoctors: number; notCalled?: number; carried?: number };
 };
 
 export const getDoctorVisits = (month: string) => apiGet<DoctorVisitsReport>(`/reports/doctor-visits?month=${month}`, { fy: true });

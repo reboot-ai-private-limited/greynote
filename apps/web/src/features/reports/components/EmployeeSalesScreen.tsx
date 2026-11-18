@@ -72,6 +72,23 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
       setSheetBusy(false);
     }
   };
+  // The month reports (Excel): the Daily Work report and the Expense report of this employee, for a month of the selected financial year.
+  const reportMonths = fyMonths.filter((m) => m <= thisMonth);
+  const [pickedMonth, setPickedMonth] = useState<string | null>(null);
+  const workMonth = pickedMonth && reportMonths.includes(pickedMonth) ? pickedMonth : (reportMonths[reportMonths.length - 1] ?? thisMonth);
+  const [monthBusy, setMonthBusy] = useState<'work' | 'expenses' | null>(null);
+  const downloadMonth = async (kind: 'work' | 'expenses') => {
+    setMonthBusy(kind);
+    setSheetError(null);
+    try {
+      const file = await withAuth((token) => (kind === 'work' ? reportsApi.employeeDailyWork(token, { userId, month: workMonth }) : reportsApi.employeeExpenses(token, { userId, month: workMonth })));
+      downloadBlob(`GREYNOTE ${kind === 'work' ? 'DAILY WORK' : 'EXPENSES'} ${workMonth} ${data?.employee.name ?? ''}.xlsx`.replace(/\s+\.xlsx$/, '.xlsx'), file);
+    } catch (err) {
+      setSheetError(err instanceof Error ? err.message : 'Could not make the file. Try again.');
+    } finally {
+      setMonthBusy(null);
+    }
+  };
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<EmployeeTargetFigureDto | null>(null);
   const [removing, setRemoving] = useState<EmployeeTargetFigureDto | null>(null);
@@ -151,6 +168,15 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
         }
         actions={
           <div className="flex flex-wrap gap-2">
+            <div className="w-40">
+              <Select aria-label="Month for the work and expense reports" value={workMonth} options={reportMonths.map((m) => ({ value: m, label: monthLabel(m) }))} onValueChange={(v) => setPickedMonth(v)} />
+            </div>
+            <Button variant="secondary" disabled={monthBusy !== null} onClick={() => void downloadMonth('work')}>
+              {monthBusy === 'work' ? 'Preparing…' : 'Daily work (Excel)'}
+            </Button>
+            <Button variant="secondary" disabled={monthBusy !== null} onClick={() => void downloadMonth('expenses')}>
+              {monthBusy === 'expenses' ? 'Preparing…' : 'Expenses (Excel)'}
+            </Button>
             <Button variant="secondary" disabled={sheetBusy} onClick={() => void downloadSheet()}>
               {sheetBusy ? 'Preparing…' : `Download Excel · ${financialYearLabel(sheetYear)}`}
             </Button>

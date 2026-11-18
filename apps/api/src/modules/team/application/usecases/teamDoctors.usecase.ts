@@ -1,7 +1,7 @@
 import { narrowToTeam } from '@/shared/access/teamScope.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import { monthRange } from '@/shared/time/businessTime.js';
-import type { TeamDirectoryPort, TeamDoctorGift, TeamDoctorService, TeamFieldActivityPort, TeamMasterPort, TeamRoutesPort } from '../../domain/ports.js';
+import type { TeamDirectoryPort, TeamDoctorGift, TeamDoctorService, TeamFieldActivityPort, TeamMasterPort, TeamPlanningPort, TeamRoutesPort } from '../../domain/ports.js';
 
 export interface ServiceTotals {
   count: number;
@@ -60,7 +60,36 @@ export interface TeamDoctorRow {
   services: ServiceTotals;
   /** Gifts set aside for him: how many, and how many are handed over. */
   gifts: GiftTotals;
+  /** The day he was first planned, if he has been owed since (planned and not called on or after it); `null` = not carried. */
+  carriedSince: string | null;
 }
+
+/** The person's month in doctors: those with a visit target, visits made against wanted, those not called at all, and those carried over. */
+export interface DoctorMonthTotals {
+  withTarget: number;
+  /** Visits wanted (the targets added up) and made (each doctor's calls capped at his target). */
+  quota: number;
+  made: number;
+  missed: number;
+  /** With a target and no call at all in the month. */
+  notCalled: number;
+  /** Planned earlier and not called since, whether or not he has a target. */
+  carried: number;
+}
+
+export const monthTotalsOf = (rows: readonly Pick<TeamDoctorRow, 'visitFrequency' | 'visitsThisMonth' | 'carriedSince'>[]): DoctorMonthTotals => {
+  const t: DoctorMonthTotals = { withTarget: 0, quota: 0, made: 0, missed: 0, notCalled: 0, carried: 0 };
+  for (const r of rows) {
+    if (r.carriedSince) t.carried += 1;
+    if (!r.visitFrequency) continue;
+    t.withTarget += 1;
+    t.quota += r.visitFrequency;
+    t.made += Math.min(r.visitsThisMonth, r.visitFrequency);
+    if (r.visitsThisMonth === 0) t.notCalled += 1;
+  }
+  t.missed = t.quota - t.made;
+  return t;
+};
 
 /** A person's doctors with how they are visited and what services were asked for them. Downline only (403 otherwise). */
 export class TeamMemberDoctorsUseCase {
@@ -69,21 +98,25 @@ export class TeamMemberDoctorsUseCase {
     private readonly master: Pick<TeamMasterPort, 'listAssignedDoctors'>,
     private readonly fieldActivity: Pick<TeamFieldActivityPort, 'getActivityRange' | 'listServicesForDoctors' | 'listGiftsForDoctors'>,
     private readonly routes: TeamRoutesPort,
+    private readonly planning: Pick<TeamPlanningPort, 'listPlannedDoctors'>,
   ) {}
 
   /** The person's doctors and, for a manager, those held by everyone below them (`heldBy` says whose). */
-  async execute(managerId: string, userId: string, month: string): Promise<{ month: string; items: TeamDoctorRow[] }> {
+  async execute(managerId: string, userId: string, month: string): Promise<{ month: string; items: TeamDoctorRow[]; totals: DoctorMonthTotals }> {
     narrowToTeam((await this.directory.getDownline(managerId)).map((m) => m.id), userId);
     const range = monthRange(month);
     const below = await this.directory.getDownline(userId);
     const people = [{ id: userId, name: '' }, ...below.map((m) => ({ id: m.id, name: m.name }))];
     const names = new Map((await this.directory.namePeople(people.map((p) => p.id))).map((p) => [p.id, p.name]));
     const held = (await Promise.all(people.map(async (p) => (await this.master.listAssignedDoctors(p.id)).filter((d) => d.status === 'active').map((d) => ({ d, by: p.id }))))).flat();
-    const [activityByPerson, services, gifts] = await Promise.all([
+    const [activityByPerson, services, gifts, plannedByPerson] = await Promise.all([
       Promise.all(people.map(async (p) => [p.id, await this.fieldActivity.getActivityRange(p.id, { from: addDays(range.from, -62), to: range.to })] as const)),
       this.fieldActivity.listServicesForDoctors(held.map((h) => h.d.id)),
       this.fieldActivity.listGiftsForDoctors(held.map((h) => h.d.id)),
+      Promise.all(people.map(async (p) => [p.id, await this.planning.listPlannedDoctors(p.id, month)] as const)),
     ]);
+    const carried = new Map<string, string>();
+    for (const [, planned] of plannedByPerson) for (const d of planned) if (d.missedSince) carried.set(d.doctorId, d.missedSince);
     const visits = new Map<string, { month: number; last: string | null }>();
     for (const [, activity] of activityByPerson) {
       for (const day of activity) {
@@ -114,9 +147,10 @@ export class TeamMemberDoctorsUseCase {
         lastVisit: visits.get(d.id)?.last ?? null,
         services: totalsOf(byDoctor.get(d.id) ?? []),
         gifts: giftTotalsOf(giftsByDoctor.get(d.id) ?? []),
+        carriedSince: carried.get(d.id) ?? null,
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
-    return { month, items };
+    return { month, items, totals: monthTotalsOf(items) };
   }
 }
 

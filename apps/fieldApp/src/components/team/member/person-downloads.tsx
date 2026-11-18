@@ -1,11 +1,10 @@
 import { useColleagues } from '@/offline/colleagues';
 import { prettyMonth } from '@/offline/day';
-import { getStatement } from '@/lib/expense-months';
-import { dailyPlansCsv, exportFileName, expensesCsv, tourPlanCsv } from '@/lib/exports';
+import { exportFileName, tourPlanCsv } from '@/lib/exports';
 import { getTeamMemberTourPlan, offDayLabel } from '@/lib/planning';
 import { downloadSecondarySheet } from '@/lib/secondary-sheet';
+import { downloadDailyWorkReport, downloadExpenseReport } from '@/lib/work-reports';
 import { useFinancialYear } from '@/lib/financial-year';
-import { getTeamMemberDays } from '@/lib/team-section';
 
 import { DownloadMenu, type DownloadItem } from '../../download-menu';
 import { useTourPlan } from './tour-plan-data';
@@ -47,24 +46,16 @@ export function PersonDownloads({ person, month }: { person: Person; month: stri
       },
     },
     {
-      key: 'daily',
-      label: 'Daily plans',
-      hint: 'Each day: plan, doctors, report status',
-      build: async () => {
-        const days = await getTeamMemberDays(person.id, month);
-        if (days.items.length === 0) return { empty: `${person.name} has no daily plans or reports for ${prettyMonth(month)}.` };
-        return { fileName: exportFileName('daily-plans', who, month), csv: dailyPlansCsv(days.items), title: title('Daily plans') };
-      },
+      key: 'daily-work',
+      label: `Daily work report (Excel) · ${prettyMonth(month)}`,
+      hint: 'Day by day: plan against work, doctors planned, visited, missed, carried',
+      build: async () => ({ delivered: await downloadDailyWorkReport({ id: person.id, name: person.name }, month, prettyMonth(month)) }),
     },
     {
-      key: 'expenses',
-      label: 'Expenses (TA/DA)',
-      hint: 'Date by date: TA, DA, other and totals',
-      build: async () => {
-        const statement = await getStatement(month, person.id);
-        if (statement.days.length === 0) return { empty: `${person.name} has no expenses for ${prettyMonth(month)}.` };
-        return { fileName: exportFileName('expenses', who, month), csv: expensesCsv(statement), title: title('Expenses') };
-      },
+      key: 'expense-report',
+      label: `Expense report (Excel) · ${prettyMonth(month)}`,
+      hint: 'Each day: route, TA, DA and own claims, with the month’s state',
+      build: async () => ({ delivered: await downloadExpenseReport({ id: person.id, name: person.name }, month, prettyMonth(month)) }),
     },
     {
       key: 'secondary',

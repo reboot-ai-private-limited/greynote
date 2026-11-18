@@ -35,15 +35,15 @@ export class DoctorVisitsReport {
             .sort((a, b) => b.missed - a.missed || a.doctor.name.localeCompare(b.doctor.name));
           const quota = rows.reduce((n, r) => n + r.frequency, 0);
           const made = rows.reduce((n, r) => n + r.made, 0);
-          return { mr: { id: e.id, name: e.name, employeeCode: e.employeeCode }, quota, made, missed: quota - made, doctors: rows.length, completedDoctors: rows.filter((r) => r.missed === 0).length, rows };
+          return { mr: { id: e.id, name: e.name, employeeCode: e.employeeCode }, quota, made, missed: quota - made, doctors: rows.length, completedDoctors: rows.filter((r) => r.missed === 0).length, notCalled: rows.filter((r) => r.stage === 'NOT_STARTED').length, carried: rows.filter((r) => r.missedSince !== null).length, rows };
         }),
       )
     )
       .filter((m): m is DoctorVisitMrDto => m !== null)
       .sort((a, b) => b.missed - a.missed || a.mr.name.localeCompare(b.mr.name));
     const totals = mrs.reduce(
-      (t, m) => ({ quota: t.quota + m.quota, made: t.made + m.made, missed: t.missed + m.missed, doctors: t.doctors + m.doctors, completedDoctors: t.completedDoctors + m.completedDoctors }),
-      { quota: 0, made: 0, missed: 0, doctors: 0, completedDoctors: 0 },
+      (t, m) => ({ quota: t.quota + m.quota, made: t.made + m.made, missed: t.missed + m.missed, doctors: t.doctors + m.doctors, completedDoctors: t.completedDoctors + m.completedDoctors, notCalled: t.notCalled + m.notCalled, carried: t.carried + m.carried }),
+      { quota: 0, made: 0, missed: 0, doctors: 0, completedDoctors: 0, notCalled: 0, carried: 0 },
     );
     return { month: input.month, mrs, totals };
   }

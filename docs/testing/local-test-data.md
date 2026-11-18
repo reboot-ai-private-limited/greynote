@@ -82,3 +82,13 @@ DOTENV_CONFIG_PATH=.env.local pnpm --filter @greynote/api seed:secondary-demo --
 Writes, for the seven demo MRs (A1-A3, B1-B2, R1-R2): product **targets** (units, eight products, a different figure for each half of the year), **approved** secondary for April to last month, a **draft** this month for `DEMOMRA1` and `DEMOMRB1` (must not count), and last financial year approved for those two (so **% GR.** shows). The rows go straight into the local database as approved because the real submit path needs a proof upload and Cloudinary is not set up here.
 
 Try: `ADMIN01` on the web, Reports → Sales dashboard → open `Demo MR A1` → *Download Excel*; `DEMORSM` or `DEMOASM` on the phone, a person's page → Download → *Secondary sales (Excel)* (their team only); `DEMOMRA1` can download only their own sheet (403 for anyone else). Change the financial year (the selector) and download again: the title and figures follow it. Expect each MR to show about ₹50.5 lakh of target and ₹21-23 lakh of secondary so far, and `DEMOASM`'s sheet (the sum of A1-A3) to be the total of the three.
+
+## Daily work and expense reports
+
+```bash
+DOTENV_CONFIG_PATH=.env.local pnpm --filter @greynote/api seed:work-demo -- --apply   # local only; run again any time
+```
+
+Writes this month's daily work (every Monday to Saturday up to yesterday) for `DEMOMRA3`, `DEMOMRB1` and `DEMOMRB2`: an approved Daily Plan of three doctors a day, an approved report with calls on two of them (one day in seven has no report: all three missed), chemist calls, follow-ups, TA and DA expenses and one own claim. The last doctor of each MR is **never called**, so he is carried to the month end and "not called at all". Every doctor of these MRs gets a visit target of 2. Written straight into the local database as already approved (it skips the phone's sync, location check and approval flows).
+
+Try: `DEMORSM` on the phone, Team → Demo ASM 2 → Demo MR B1: Overview shows the *Doctors this month* card (about 4 doctors with a target, 6 of 8 visits made, 2 missed, 1 not called at all, 1 carried over); the Doctors tab filters; Download → *Daily work report (Excel)* and *Expense report (Excel)*. The Excel's Overview sheet gives the same numbers as the card. The Tour Plan column is empty before 17 Nov (the Tour Plan seed starts then).

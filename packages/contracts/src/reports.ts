@@ -384,6 +384,10 @@ export interface DoctorVisitMrDto {
   /** Doctors with a frequency / of those, how many reached it. */
   doctors: number;
   completedDoctors: number;
+  /** Doctors with a frequency that got no call at all in the month. */
+  notCalled: number;
+  /** Doctors planned on an earlier day and not called since: still owed (the month's carry-over, up to yesterday). */
+  carried: number;
   rows: DoctorVisitRowDto[];
 }
 
@@ -391,7 +395,7 @@ export interface DoctorVisitMrDto {
 export interface DoctorVisitsReportDto {
   month: string;
   mrs: DoctorVisitMrDto[];
-  totals: { quota: number; made: number; missed: number; doctors: number; completedDoctors: number };
+  totals: { quota: number; made: number; missed: number; doctors: number; completedDoctors: number; notCalled: number; carried: number };
 }
 
 // ── Salary (sign-off K30) ────────────────────────────────────────────────────────────────────────

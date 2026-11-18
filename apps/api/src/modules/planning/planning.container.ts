@@ -159,6 +159,7 @@ export function buildPlanningContainer(
         const to = range.to < yesterday ? range.to : yesterday;
         return range.from > to ? [] : carryOver.monthSummary(userId, range.from, to);
       },
+      listMonthlyPlanDays: async (userId, planMonth) => ((await monthlyPlans.findByUserAndMonth(userId, planMonth))?.entries ?? []).map((e) => ({ date: e.planDate, workingType: e.workingType, dayKind: e.dayKind, routeIds: e.routeIds })),
       getDailyPlanStatus: (userId, planDate) => status.daily(userId, planDate),
       getMonthlyPlanStatus: (userId, planMonth) => status.monthly(userId, planMonth),
     },

@@ -72,6 +72,8 @@ export interface TeamPlanningPort {
     remarks?: string | null;
   } | null>;
   getMonthlyPlanStatus(userId: string, planMonth: string): Promise<string | null>;
+  /** The doctors on a person's approved Daily Plans in a month (up to yesterday): days planned, and the day first planned if never called since (still owed). */
+  listPlannedDoctors(userId: string, planMonth: string): Promise<Array<{ doctorId: string; plannedDays: number; missedSince: string | null }>>;
   /** A person's daily plans in a range, oldest first, each with its status, routes, doctors, work with and remarks. */
   listDailyPlanDays?(
     userId: string,

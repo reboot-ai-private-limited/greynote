@@ -173,8 +173,17 @@ export type MemberDoctor = {
   services: ServiceTotals;
   /** Gifts set aside for the doctor and how many are handed over. Absent from older servers. */
   gifts?: GiftTotals;
+  /** The day he was first planned, if still owed since. Absent from older servers. */
+  carriedSince?: string | null;
 };
-export const getMemberDoctors = (userId: string, month: string) => apiGet<{ month: string; items: MemberDoctor[] }>(`/team/members/${userId}/doctors${query({ month })}`, { auth: true, fy: true });
+export type DoctorMonthTotals = { withTarget: number; quota: number; made: number; missed: number; notCalled: number; carried: number };
+export type MemberDoctors = { month: string; items: MemberDoctor[]; totals?: DoctorMonthTotals };
+export const getMemberDoctors = (userId: string, month: string) => apiGet<MemberDoctors>(`/team/members/${userId}/doctors${query({ month })}`, { auth: true, fy: true });
+
+/** The doctors list's filters, which the person's Overview card also opens. */
+export type DoctorFilter = 'ALL' | 'NO_CALL' | 'BEHIND' | 'CARRIED';
+export const matchesDoctorFilter = (d: MemberDoctor, f: DoctorFilter): boolean =>
+  f === 'ALL' ? true : f === 'NO_CALL' ? !!d.visitFrequency && d.visitsThisMonth === 0 : f === 'BEHIND' ? !!d.visitFrequency && d.visitsThisMonth < d.visitFrequency : !!d.carriedSince;
 
 export type TeamDoctorDetail = {
   doctor: { id: string; name: string; specialty: string; clinicName: string | null; phone: string | null; address: string; visitFrequency: number | null; routeName: string | null };

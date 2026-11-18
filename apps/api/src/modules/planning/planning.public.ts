@@ -44,6 +44,8 @@ export interface PlanningPublicContract {
    * planned if they were never called since (`missedSince`) — the visit report's carry-forward column.
    */
   listPlannedDoctors(userId: string, planMonth: string): Promise<Array<{ doctorId: string; plannedDays: number; missedSince: string | null }>>;
+  /** The days of this user's Monthly Plan (the Tour Plan) whatever its state, oldest first; empty with no Plan: what the Tour Plan said before any day was changed. */
+  listMonthlyPlanDays(userId: string, planMonth: string): Promise<Array<{ date: string; workingType: WorkingType; dayKind: DayKind; routeIds: string[] }>>;
   /** `null` when there's no Plan for that month at all. */
   getMonthlyPlanStatus(userId: string, planMonth: string): Promise<PlanApprovalStatus | null>;
 }

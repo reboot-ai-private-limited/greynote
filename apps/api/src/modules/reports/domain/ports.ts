@@ -207,3 +207,25 @@ export interface PayrollReportRow {
 export interface PayrollPort {
   listRunsForReport(range: { fromMonth: string; toMonth: string }): Promise<PayrollReportRow[]>;
 }
+
+/** Planning's reads for one person's month of daily work: the Daily Plans (routes, doctors, work with), the Tour Plan's days, and the carry-over summary. */
+export interface DailyWorkPlanningPort {
+  listDailyPlanDays(userId: string, from: string, to: string): Promise<Array<{ date: string; status: string; workingType: string; routeIds: string[]; workWith: string[]; doctorIds: string[]; remarks: string | null; changedFromMonthly: boolean }>>;
+  listMonthlyPlanDays(userId: string, planMonth: string): Promise<Array<{ date: string; workingType: string; dayKind: string; routeIds: string[] }>>;
+  listPlannedDoctors(userId: string, planMonth: string): Promise<Array<{ doctorId: string; plannedDays: number; missedSince: string | null }>>;
+}
+
+/** Field Activity's read of one person's days: each report's status and its calls. */
+export interface DailyWorkActivityPort {
+  getActivityRange(userId: string, range: { from: string; to: string }): Promise<Array<{ date: string; reportStatus: string | null; doctorCalls: Array<{ doctorId: string; geofence: string }>; chemistCalls: unknown[]; followups: number }>>;
+}
+
+/** Names for doctors in one query; one that is not there is left out. */
+export interface DoctorNamesPort {
+  getDoctorNames(doctorIds: string[]): Promise<Array<{ id: string; name: string }>>;
+}
+
+/** Field Activity's read of one person's expense month, as the person sees it (state, paid, each day's TA, DA and other claims). */
+export interface ExpenseStatementPort {
+  getExpenseStatement(userId: string, month: string): Promise<{ status: 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED'; paidPaise: number; totals: { taPaise: number; daPaise: number; otherPaise: number; totalPaise: number }; days: Array<{ date: string; taPaise: number; daPaise: number; otherPaise: number; totalPaise: number; others: Array<{ amountPaise: number; remarks: string | null }> }> }>;
+}

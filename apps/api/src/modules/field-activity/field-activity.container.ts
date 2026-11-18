@@ -215,6 +215,10 @@ export function buildFieldActivityContainer(
       listReportedDates: (userId, from, to) => listReportedDates.execute(userId, from, to),
       getPaidTaDaTotal: (userId, month) => paidTaDa.execute(userId, month),
       summarizeExpenses: (range) => expenses.summarizeByMonth(range),
+      getExpenseStatement: async (userId, month) => {
+        const st = await monthService.statement({ id: userId, role: 'FIELD' } as never, userId, month);
+        return { status: st.status, paidPaise: st.paidPaise, totals: st.totals, days: st.days.map((d) => ({ date: d.date, taPaise: d.taPaise, daPaise: d.daPaise, otherPaise: d.otherPaise, totalPaise: d.totalPaise, others: d.others.map((o) => ({ amountPaise: o.amountPaise, remarks: o.remarks })) })) };
+      },
       listExpenseMonthSummaries: async (userIds, month) => {
         if (userIds.length === 0) return [];
         const sums = new Map((await expenses.summarizeClaimedByMonth(monthRange(month))).filter((s) => s.month === month).map((s) => [s.userId, s]));

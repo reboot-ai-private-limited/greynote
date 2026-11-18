@@ -140,6 +140,10 @@ export class FakeTeam
   held = new Map<string, TeamDoctorInfo[]>();
   services: TeamDoctorService[] = [];
   gifts: TeamDoctorGift[] = [];
+  planned = new Map<string, Array<{ doctorId: string; plannedDays: number; missedSince: string | null }>>();
+  async listPlannedDoctors(userId: string, _month: string) {
+    return this.planned.get(userId) ?? [];
+  }
   expenseMonths = new Map<string, { status: 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED'; taPaise: number; daPaise: number; otherPaise: number }>();
   async listExpenseMonthSummaries(userIds: string[], _month: string) {
     return userIds.map((userId) => {

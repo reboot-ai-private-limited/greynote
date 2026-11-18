@@ -11,10 +11,12 @@ import {
   getMemberAttendance,
   giftLine,
   getMemberDoctors,
+  matchesDoctorFilter,
   getTeamLeaves,
   getTeamOrders,
   type AttendanceMonth,
-  type MemberDoctor,
+  type DoctorFilter,
+  type MemberDoctors,
   type TeamLeave,
   type TeamOrders,
 } from '@/lib/team-section';
@@ -22,12 +24,13 @@ import { holdersText, listTeamChemistsPage, listTeamDistributorsPage, type TeamC
 import { PagedList } from './../paged-list';
 import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
-import { prettyDay } from '@/offline/day';
+import { monthOf, prettyDay } from '@/offline/day';
 
 import { ChoiceChips } from '../../choice-chips';
 import { Notice } from '../../notice';
 import { NumberedRow } from '../../numbered-row';
 import { PrimaryButton } from '../../primary-button';
+import { SelectField } from '../../select-field';
 import { Skeleton } from '../../skeleton';
 import { ThemedText } from '../../themed-text';
 import { CardSection, InfoCard, Pill, SummaryStrip, sym } from '../../ui-cards';
@@ -171,30 +174,62 @@ export function OrdersTab({ userId, month }: { userId: string; month: string }) 
   );
 }
 
+const DOCTOR_FILTERS: { value: DoctorFilter; label: string }[] = [
+  { value: 'ALL', label: 'All doctors' },
+  { value: 'NO_CALL', label: 'No call this month' },
+  { value: 'BEHIND', label: 'Behind target' },
+  { value: 'CARRIED', label: 'Carried over' },
+];
+
+/** The person's month in doctors, as numbers: visits made of wanted, missed, not called at all, carried over. Each count opens the Doctors tab on that filter. */
+export function DoctorsMonthCard({ userId, month, onOpen }: { userId: string; month: string; onOpen: (filter: DoctorFilter) => void }) {
+  const fy = useFinancialYear();
+  const q = useCachedFetch<MemberDoctors>(`team-member-doctors:${fy.year}:${userId}:${month}`, () => getMemberDoctors(userId, month));
+  const t = q.data?.totals;
+  if (!t) return null;
+  const now = month >= monthOf(fy.today);
+  return (
+    <CardSection icon={sym('stethoscope', 'medical_services')} accent="teal" title={`Doctors this month${now ? ' (so far)' : ''}`}>
+      {t.withTarget === 0 ? (
+        <ThemedText type="small" themeColor="textSecondary">No doctor has a visit target yet.</ThemedText>
+      ) : (
+        <ThemedText type="small">{`${t.withTarget} doctors with a target · ${t.made} of ${t.quota} visits made · ${t.missed} ${now ? 'still to do' : 'missed'}`}</ThemedText>
+      )}
+      <View style={styles.counts}>
+        <PrimaryButton label={`${t.notCalled} not called at all`} variant="text" onPress={() => onOpen('NO_CALL')} />
+        <PrimaryButton label={`${t.carried} ${now ? 'carried over' : 'carried at month end'}`} variant="text" onPress={() => onOpen('CARRIED')} />
+        <PrimaryButton label="Behind target →" variant="text" onPress={() => onOpen('BEHIND')} />
+      </View>
+    </CardSection>
+  );
+}
+
 /** The doctors held by the person (a manager: by the people below them, each marked "held by"): visits against target, the last visit, services asked for each in ₹. */
-export function DoctorsTab({ userId, month }: { userId: string; month: string }) {
+export function DoctorsTab({ userId, month, filter, onFilter }: { userId: string; month: string; filter: DoctorFilter; onFilter: (f: DoctorFilter) => void }) {
   const online = useOnline();
   const fy = useFinancialYear();
-  const q = useCachedFetch<{ month: string; items: MemberDoctor[] }>(`team-member-doctors:${fy.year}:${userId}:${month}`, () => getMemberDoctors(userId, month));
+  const q = useCachedFetch<MemberDoctors>(`team-member-doctors:${fy.year}:${userId}:${month}`, () => getMemberDoctors(userId, month));
   const data = q.data;
-  const rows = data?.items ?? [];
-  const { visible } = useWindowed(rows, `${userId}|${month}`);
+  const rows = (data?.items ?? []).filter((d) => matchesDoctorFilter(d, filter));
+  const { visible } = useWindowed(rows, `${userId}|${month}|${filter}`);
   const totalServices = rows.reduce((n, d) => n + d.services.totalPaise, 0);
   return (
     <View style={styles.stack}>
       {!online && !data ? <Offline what="this person’s doctors" /> : null}
       {q.error && online ? <Notice tone="danger">{q.error}</Notice> : null}
       {q.loading && !data ? <Skeleton cards={3} lines={3} /> : null}
+      {data ? <SelectField label="Show" options={DOCTOR_FILTERS} value={filter} onChange={onFilter} /> : null}
       {data ? <ThemedText type="small" themeColor="textSecondary">{`Total ${rows.length} doctors · services asked ${formatRupees(totalServices)}`}</ThemedText> : null}
-      {data && rows.length === 0 ? <Notice tone="info">No doctors here yet.</Notice> : null}
+      {data && rows.length === 0 ? <Notice tone="info">{filter === 'ALL' ? 'No doctors here yet.' : 'No doctor matches.'}</Notice> : null}
       {visible.map((d, i) => (
         <NumberedRow key={d.id} n={i + 1}>
           <InfoCard>
             <PrimaryButton label={d.name} variant="text" onPress={() => router.push({ pathname: '/team-doctor', params: { id: d.id, month } })} style={styles.name} />
             <ThemedText type="small" themeColor="textSecondary">{[d.specialty, d.routeName, d.heldBy && d.heldBy.id !== userId ? `held by ${d.heldBy.name}` : null].filter(Boolean).join(' · ')}</ThemedText>
-            <ThemedText type="small">
-              {`Visits this month ${d.visitsThisMonth}${d.visitFrequency ? ` of ${d.visitFrequency}` : ''} · last visit ${d.lastVisit ? prettyDay(d.lastVisit) : 'not recently'}`}
+            <ThemedText type="small" themeColor={d.visitFrequency && d.visitsThisMonth === 0 ? 'danger' : 'text'}>
+              {`Visited ${d.visitsThisMonth}${d.visitFrequency ? ` of ${d.visitFrequency}` : ''} this month · last visit ${d.lastVisit ? prettyDay(d.lastVisit) : 'not recently'}`}
             </ThemedText>
+            {d.carriedSince ? <ThemedText type="small" themeColor="warning">{`Carried over: planned ${prettyDay(d.carriedSince)}, not called since`}</ThemedText> : null}
             <ThemedText type="small" themeColor={giftLine(d.gifts).given ? 'text' : 'textSecondary'}>{`🎁 ${giftLine(d.gifts).text}`}</ThemedText>
             <ThemedText type="small" themeColor={d.services.count > 0 ? 'text' : 'textSecondary'}>
               {d.services.count > 0 ? `Services ${formatRupees(d.services.totalPaise)} · ${d.services.count} asked (${[d.services.waiting && `${d.services.waiting} waiting`, d.services.toDo && `${d.services.toDo} to do`, d.services.done && `${d.services.done} done`, d.services.rejected && `${d.services.rejected} rejected`].filter(Boolean).join(', ')})` : 'No services asked'}
@@ -210,6 +245,7 @@ const styles = StyleSheet.create({
   stack: { gap: Spacing.two },
   head: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   grow: { flex: 1 },
+  counts: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   name: { alignSelf: 'flex-start' },
 });
 

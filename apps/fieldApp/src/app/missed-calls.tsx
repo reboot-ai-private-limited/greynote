@@ -66,11 +66,11 @@ function DoctorRows({ rows }: { rows: DoctorVisitRow[] }) {
   );
 }
 
-type Totals = { quota: number; made: number; doctors: number; completedDoctors: number };
+type Totals = { quota: number; made: number; doctors: number; completedDoctors: number; notCalled: number; carried: number };
 type Node = { member: TeamMember; own: DoctorVisitMr | null; children: Node[]; sum: Totals };
 
-const add = (a: Totals, b: Totals): Totals => ({ quota: a.quota + b.quota, made: a.made + b.made, doctors: a.doctors + b.doctors, completedDoctors: a.completedDoctors + b.completedDoctors });
-const ZERO: Totals = { quota: 0, made: 0, doctors: 0, completedDoctors: 0 };
+const add = (a: Totals, b: Totals): Totals => ({ quota: a.quota + b.quota, made: a.made + b.made, doctors: a.doctors + b.doctors, completedDoctors: a.completedDoctors + b.completedDoctors, notCalled: a.notCalled + b.notCalled, carried: a.carried + b.carried });
+const ZERO: Totals = { quota: 0, made: 0, doctors: 0, completedDoctors: 0, notCalled: 0, carried: 0 };
 
 /** The team as a tree under `rootId`: each person with their own report entry and the totals of everyone below them, most remaining first. */
 function buildTree(rootId: string, members: TeamMember[], byId: Map<string, DoctorVisitMr>): Node[] {
@@ -79,7 +79,7 @@ function buildTree(rootId: string, members: TeamMember[], byId: Map<string, Doct
   const make = (m: TeamMember): Node => {
     const own = byId.get(m.id) ?? null;
     const children = (kids.get(m.id) ?? []).map(make);
-    const sum = children.reduce((t, c) => add(t, c.sum), own ? { quota: own.quota, made: own.made, doctors: own.doctors, completedDoctors: own.completedDoctors } : ZERO);
+    const sum = children.reduce((t, c) => add(t, c.sum), own ? { quota: own.quota, made: own.made, doctors: own.doctors, completedDoctors: own.completedDoctors, notCalled: own.notCalled ?? 0, carried: own.carried ?? 0 } : ZERO);
     children.sort((a, b) => b.sum.quota - b.sum.made - (a.sum.quota - a.sum.made) || a.member.name.localeCompare(b.member.name));
     return { member: m, own, children, sum };
   };
@@ -117,6 +117,9 @@ function PersonNode({ node, level, open, toggle, forceOpen }: { node: Node; leve
               ? 'No visit targets set'
               : `${member.isManager ? 'Team: ' : ''}${sum.made} of ${sum.quota} made · ${left === 0 ? 'done' : `${left} remaining`} · ${sum.completedDoctors} of ${sum.doctors} doctors done`}
           </ThemedText>
+          {sum.notCalled > 0 || sum.carried > 0 ? (
+            <ThemedText type="small" themeColor="textSecondary">{[sum.notCalled > 0 ? `${sum.notCalled} not called at all` : null, sum.carried > 0 ? `${sum.carried} carried over` : null].filter(Boolean).join(' · ')}</ThemedText>
+          ) : null}
         </InfoCard>
       </Pressable>
       {isOpen ? (
@@ -224,6 +227,7 @@ export default function MissedCallsScreen() {
               { label: 'Remaining', value: left, accent: left === 0 ? 'slate' : 'red' },
               { label: 'Target', value: data.totals.quota, accent: 'blue' },
               { label: 'Doctors done', value: `${data.totals.completedDoctors}/${data.totals.doctors}`, accent: 'teal' },
+              ...(data.totals.notCalled !== undefined ? [{ label: 'Not called', value: data.totals.notCalled, accent: data.totals.notCalled > 0 ? ('red' as const) : ('slate' as const) }, { label: 'Carried', value: data.totals.carried ?? 0, accent: (data.totals.carried ?? 0) > 0 ? ('amber' as const) : ('slate' as const) }] : []),
             ]}
           />
 

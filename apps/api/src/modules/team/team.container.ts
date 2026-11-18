@@ -67,7 +67,7 @@ export function buildTeamContainer(
   const plans = new TeamPlansUseCase(identity, planning, territory, master);
   const memberDays = new TeamMemberDaysUseCase(identity, planning, territory, fieldActivity, master, clock);
   const memberAttendance = new TeamMemberAttendanceUseCase(identity, attendance);
-  const memberDoctors = new TeamMemberDoctorsUseCase(identity, master, fieldActivity, territory);
+  const memberDoctors = new TeamMemberDoctorsUseCase(identity, master, fieldActivity, territory, planning);
   const doctor = new TeamDoctorUseCase(identity, master, fieldActivity, territory);
   const day = new TeamDayUseCase(identity, planning, territory, fieldActivity, hr, sales, master, clock);
   const leaves = new TeamLeavesUseCase(identity, hr);

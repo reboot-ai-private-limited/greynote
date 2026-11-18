@@ -19,13 +19,22 @@ describe('a manager reads a person’s doctors and a doctor', () => {
   });
 
   it('lists the active doctors with this month’s visits, the last visit and the services (rejected ones are not summed)', async () => {
-    const out = await new TeamMemberDoctorsUseCase(kit, kit, kit, kit).execute('rsm', 'mr1', '2026-11');
+    const out = await new TeamMemberDoctorsUseCase(kit, kit, kit, kit, kit).execute('rsm', 'mr1', '2026-11');
     expect(out.items.map((d) => d.name)).toEqual(['Dr Rao', 'Dr Sen']);
     expect(out.items[0]).toMatchObject({ visitsThisMonth: 1, lastVisit: '2026-11-16', routeName: 'Route r1' });
     expect(out.items[0]?.services).toEqual({ count: 4, totalPaise: 450_000 + 90_000 + 120_000, waiting: 1, toDo: 1, done: 1, rejected: 1 });
     expect(out.items[0]?.gifts).toEqual({ count: 2, pending: 1, done: 1, totalPaise: 130_000 });
     expect(out.items[1]?.gifts).toEqual({ count: 0, pending: 0, done: 0, totalPaise: 0 });
     expect(out.items[1]).toMatchObject({ visitsThisMonth: 0, lastVisit: '2026-10-20', services: { count: 0, totalPaise: 0 } });
+  });
+
+  it('the month in doctors: with a target, made against wanted (capped), not called at all, carried since', async () => {
+    kit.planned.set('mr1', [{ doctorId: 'd1', plannedDays: 2, missedSince: null }, { doctorId: 'd2', plannedDays: 1, missedSince: '2026-11-12' }]);
+    const out = await new TeamMemberDoctorsUseCase(kit, kit, kit, kit, kit).execute('rsm', 'mr1', '2026-11');
+    expect(out.items.find((d) => d.name === 'Dr Sen')?.carriedSince).toBe('2026-11-12');
+    expect(out.items.find((d) => d.name === 'Dr Rao')?.carriedSince).toBeNull();
+    // Dr Rao: 1 visit of 2 wanted; Dr Sen: 0 of 2 (not called, carried); Dr Old is inactive.
+    expect(out.totals).toEqual({ withTarget: 2, quota: 4, made: 1, missed: 3, notCalled: 1, carried: 1 });
   });
 
   it('one doctor in full, for the manager of the holder; anyone else gets a 404', async () => {
@@ -41,11 +50,11 @@ describe('a manager reads a person’s doctors and a doctor', () => {
 
   it('a manager’s page lists what the people below them hold, each marked with the MR', async () => {
     kit.held.set('asm1', []);
-    const out = await new TeamMemberDoctorsUseCase(kit, kit, kit, kit).execute('rsm', 'asm1', '2026-11');
+    const out = await new TeamMemberDoctorsUseCase(kit, kit, kit, kit, kit).execute('rsm', 'asm1', '2026-11');
     expect(out.items.map((d) => [d.name, d.heldBy.id])).toEqual([['Dr Rao', 'mr1'], ['Dr Sen', 'mr1']]);
   });
 
   it('the person must be in the downline (403)', async () => {
-    await expect(new TeamMemberDoctorsUseCase(kit, kit, kit, kit).execute('rsm', 'stranger', '2026-11')).rejects.toMatchObject({ statusCode: 403 });
+    await expect(new TeamMemberDoctorsUseCase(kit, kit, kit, kit, kit).execute('rsm', 'stranger', '2026-11')).rejects.toMatchObject({ statusCode: 403 });
   });
 });
