@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { AppError } from '@/shared/errors/AppError.js';
+import type { AppError } from '@/shared/errors/AppError.js';
 import type { MonthlyPlanEntry } from '../../domain/monthlyPlan.entity.js';
 import { PlanDayLocks } from '../dayLocks.js';
 import { GetPlanStatusUseCase } from './getPlanStatus.usecase.js';

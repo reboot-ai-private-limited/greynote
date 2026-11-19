@@ -39,7 +39,6 @@ import { SaveMonthlyPlanUseCase } from './application/usecases/saveMonthlyPlan.u
 import { SubmitDailyPlanUseCase } from './application/usecases/submitDailyPlan.usecase.js';
 import { SubmitMonthlyPlanUseCase } from './application/usecases/submitMonthlyPlan.usecase.js';
 import type { ApprovalsPort } from './domain/approvals.port.js';
-import { appEvents } from '@/shared/events/appEvents.js';
 import { dayTitle, describeEach, monthTitle } from '@/modules/approval/approval.public.js';
 import type { ConfigProviderPort } from './domain/configProvider.port.js';
 import type { RouteDirectoryPort } from './domain/routeDirectory.port.js';
