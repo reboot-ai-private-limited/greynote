@@ -216,4 +216,5 @@ you need isn't on it, add it — that's the design working. See
 - [`engineering/README.md`](engineering/README.md) — the handbook. Read `01`–`03` in order.
 - [`roadmap.md`](roadmap.md) — what gets built in what order.
 - [`manual_deploy.md`](manual_deploy.md) — taking this to a staging VM by hand.
+- [`deploy_pm2.md`](deploy_pm2.md) — building and restarting a release of the API and the web under PM2.
 - [`../README.md`](../README.md) — daily workflow and the full command reference.

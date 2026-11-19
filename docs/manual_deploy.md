@@ -4,6 +4,8 @@ Before automating this with CI/CD, deploy the staging VM by hand once, to prove 
 correctly provisioned. Written for `apps/api` today — the only app that exists
 ([`roadmap.md`](roadmap.md)); it grows a `web` section once `apps/web` is scaffolded (phase 9).
 
+Deploying a new release to a server that already runs the API and web under PM2 (`/opt/greynote/app`) is a shorter flow: see [`deploy_pm2.md`](deploy_pm2.md).
+
 Assumes a Debian-based VM (Ubuntu 22.04/24.04), the common default across AWS EC2,
 DigitalOcean, Hetzner, etc.
 
