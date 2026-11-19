@@ -15,6 +15,7 @@ import { Accents, BottomTabInset, Spacing, WideContentWidth } from '@/constants/
 import { FEATURES, SECTIONS, type Feature, type Section } from '@/features/catalog';
 import { lockReason, useDayGate } from '@/hooks/use-day-gate';
 import { useResponsive } from '@/hooks/use-responsive';
+import { useFinancialYear } from '@/lib/financial-year';
 import { badgeText, useUnreadCount } from '@/lib/inbox';
 
 const SECTION_COLOR: Record<Section, string> = { DCR: Accents.blue.solid, Marketing: Accents.purple.solid, Utility: Accents.green.solid };
@@ -53,6 +54,7 @@ function chunk(features: Feature[], columns: number): Placed[][] {
  */
 export default function HomeScreen() {
   const gate = useDayGate();
+  const fy = useFinancialYear();
   // The Inbox tile's badge: read when the app comes to the front, and again when Home is shown after reading messages.
   const unread = useUnreadCount();
   useFocusEffect(unread.refresh);
@@ -210,7 +212,7 @@ export default function HomeScreen() {
                           key={feature.key}
                           feature={feature}
                           width={span * tileWidth + (span - 1) * TILE_GAP}
-                          lockedReason={lockReason(feature, gate)}
+                          lockedReason={lockReason(feature, gate, fy.isPast)}
                           onOpen={() => open(feature)}
                           onLockedPress={(reason) => Alert.alert(`${feature.title} is locked`, reason)}
                           badge={feature.key === 'inbox' ? badgeText(unread.count) : null}

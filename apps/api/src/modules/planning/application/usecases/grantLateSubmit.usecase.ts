@@ -1,3 +1,4 @@
+import { lateGrantEnd, type LateGrantDuration } from '@/shared/time/lateGrantDuration.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import { appEvents } from '@/shared/events/appEvents.js';
 import { endOfBusinessDay, parseCalendarDate, parseCalendarMonth } from '@/shared/time/businessTime.js';
@@ -16,7 +17,8 @@ export interface GrantLateSubmitInput {
   planKey: string;
   reason: string;
   /** When it ends; omitted: `LATE_PLAN_GRANT_VALID_HOURS` from now. */
-  expiresAt?: Date | undefined;
+  /** How long it lasts from now (default 1 hour). */
+  duration?: LateGrantDuration | undefined;
 }
 
 /**
@@ -70,21 +72,8 @@ export class GrantLateSubmitUseCase {
     if (dayEnd && dayEnd <= now) {
       throw AppError.badRequest('That day is over, so its plan can’t be submitted late any more.', { field: 'planKey' });
     }
-    const picked = input.expiresAt;
-    if (!picked) {
-      const hours = await readConfig(this.config, PLANNING_CONFIG_KEYS.grantValidHours, parsePositiveInt(24 * 31));
-      const end = new Date(now.getTime() + hours * 3_600_000);
-      return dayEnd && dayEnd < end ? dayEnd : end;
-    }
-    if (picked <= now) throw AppError.badRequest('The exception must end in the future.', { field: 'expiresAt' });
-    if (dayEnd && picked > dayEnd) {
-      throw AppError.badRequest(`A daily plan’s exception can’t run past the end of its day (${dayEnd.toISOString()}).`, { field: 'expiresAt' });
-    }
-    const maxHours = await readConfigOr(this.config, PLANNING_CONFIG_KEYS.grantMaxHours, parsePositiveInt(8760), 744);
-    if (picked.getTime() > now.getTime() + maxHours * 3_600_000) {
-      throw AppError.badRequest(`The exception can run at most ${maxHours} hours from now.`, { field: 'expiresAt' });
-    }
-    return picked;
+    const end = lateGrantEnd(now, input.duration);
+    return dayEnd && dayEnd < end ? dayEnd : end;
   }
 
   private async endOfPlanDay(planDate: string): Promise<Date> {

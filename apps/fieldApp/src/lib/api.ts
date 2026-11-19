@@ -44,6 +44,12 @@ export const setFinancialYearHeader = (year: number | null) => {
   financialYearHeader = year === null ? null : String(year);
 };
 
+/** A past financial year is selected: the app is view-only (decision-log 2026-11-19). */
+export const isFinancialYearReadOnly = () => financialYearHeader !== null;
+export const READ_ONLY_YEAR_MESSAGE = 'A past financial year is selected, so the app is read-only. Switch back to the current year to make changes.';
+/** What stays open while a past year is on screen: signing in and out and the session, and the background sync and backup (they carry what was already saved). */
+const OPEN_WHILE_VIEWING = ['/identity/auth/', '/sync/'];
+
 async function send<T>(method: string, path: string, body: unknown, accessToken?: string, extraHeaders?: Record<string, string>) {
   let response: Response;
   try {
@@ -104,6 +110,8 @@ function refreshTokens(): Promise<boolean> {
 }
 
 async function request<T>(method: string, path: string, body?: unknown, opts: Options = {}) {
+  // View-only while a past year is selected: no save reaches the server (it would refuse it too, FINANCIAL_YEAR_READ_ONLY).
+  if (method !== 'GET' && financialYearHeader !== null && !OPEN_WHILE_VIEWING.some((p) => path.startsWith(p))) throw new ApiError(409, READ_ONLY_YEAR_MESSAGE);
   if (!opts.auth) return send<T>(method, path, body);
   const extra = opts.fy && method === 'GET' && financialYearHeader ? { 'X-Financial-Year': financialYearHeader } : undefined;
 
@@ -126,6 +134,8 @@ export type UploadFile = { uri: string; name: string; mimeType?: string | null }
  */
 function sendFile<T>(path: string, file: UploadFile, accessToken: string | undefined, method: 'POST' | 'PUT', fields?: Record<string, string>): Promise<T> {
   return new Promise<T>((resolve, reject) => {
+    // Uploads are writes too: nothing is sent while a past financial year is selected.
+    if (financialYearHeader !== null) return reject(new ApiError(409, READ_ONLY_YEAR_MESSAGE));
     const form = new FormData();
     // Text fields go before the file, so the server has them when it reads the file part.
     for (const [name, value] of Object.entries(fields ?? {})) form.append(name, value);

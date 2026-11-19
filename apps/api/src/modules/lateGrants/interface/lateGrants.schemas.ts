@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_LATE_GRANT_DURATION, LATE_GRANT_DURATIONS } from '@/shared/time/lateGrantDuration.js';
 import { LATE_GRANT_KINDS } from '../domain/lateGrant.entity.js';
 import { LATE_GRANT_STATUSES } from '../domain/lateGrant.entity.js';
 
@@ -12,8 +13,8 @@ export const grantLateBodySchema = z.object({
   /** `YYYY-MM-DD` for `DAILY_PLAN`, otherwise `YYYY-MM`. */
   periodKey: z.string().trim().min(1),
   reason: z.string().trim().min(1, 'A reason is required.').max(1000),
-  /** When the exception ends (ISO date-time). Omitted: the kind's default length from now. */
-  expiresAt: z.coerce.date().optional(),
+  /** How long it lasts from now: 30 minutes, 1 hour (default) or 12 hours. A daily plan's is cut at the end of its day. An older client's `expiresAt` is ignored. */
+  duration: z.enum(LATE_GRANT_DURATIONS).default(DEFAULT_LATE_GRANT_DURATION),
 });
 
 export const listLateQuerySchema = z.object({

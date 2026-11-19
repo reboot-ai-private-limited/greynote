@@ -45,6 +45,12 @@ export type Feature = {
 const icon = (ios: string, android: string): SymbolViewProps['name'] =>
   ({ ios, android, web: android }) as SymbolViewProps['name'];
 
+/**
+ * Tiles that only exist to enter something: while a past financial year is selected they are locked (decision-log 2026-11-19). The mixed screens (Doctors, Chemists,
+ * Expenses, Leave, Orders, Secondary Sales, Gifts, Services, Visuals) stay open to look at history; anything they would save is refused.
+ */
+export const ENTRY_ONLY_FEATURES: readonly FeatureKey[] = ['daily-plan', 'monthly-plan', 'dr-call', 'dr-followup', 'chemist-call', 'chemist-followup', 'summary'];
+
 export const FEATURES: Feature[] = [
   { key: 'daily-plan', title: 'Daily Plan', subtitle: 'Plan today’s visits', accent: 'blue', section: 'DCR', gate: 'unblocked', stage: 3, route: '/daily-plan', icon: icon('calendar', 'today'), about: 'Pick the day’s working type, who you work with and your routes, then submit for approval.' },
   { key: 'monthly-plan', title: 'Tour Plan', subtitle: 'Plan your month, day by day', accent: 'indigo', section: 'DCR', gate: 'unblocked', stage: 3, route: '/monthly-plan', icon: icon('calendar.badge.clock', 'calendar_month'), about: 'Plan next month day by day before the cutoff.' },

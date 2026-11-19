@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_LATE_GRANT_DURATION, LATE_GRANT_DURATIONS } from '@/shared/time/lateGrantDuration.js';
 import { calendarDateSchema, calendarMonthSchema } from '@/shared/time/calendarSchemas.js';
 import { DAY_KINDS, PLAN_KINDS, WORKING_TYPES } from '../domain/plan.js';
 
@@ -106,8 +107,8 @@ export const grantLateSubmitBodySchema = z.object({
   /** `YYYY-MM-DD` for `DAILY_PLAN`, `YYYY-MM` for `MONTHLY_PLAN`. */
   planKey: z.string().trim().min(1),
   reason: z.string().trim().min(1, 'A reason is required.').max(1000),
-  /** When the exception ends (ISO date-time). Omitted: `LATE_PLAN_GRANT_VALID_HOURS` from now. Must be in the future and within `LATE_PLAN_GRANT_MAX_HOURS`. */
-  expiresAt: z.coerce.date().optional(),
+  /** How long it lasts from now: 30 minutes, 1 hour (default) or 12 hours (decision-log 2026-11-19). An older client's `expiresAt` is ignored. */
+  duration: z.enum(LATE_GRANT_DURATIONS).default(DEFAULT_LATE_GRANT_DURATION),
 });
 
 export const listLateSubmitGrantsQuerySchema = z.object({

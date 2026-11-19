@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
-import type { Feature } from '@/features/catalog';
+import { ENTRY_ONLY_FEATURES, type Feature } from '@/features/catalog';
+import { READ_ONLY_YEAR_MESSAGE } from '@/lib/api';
 import { useCachedSource } from '@/offline/cache';
 import { businessToday, computeDayGate, type DayGate } from '@/offline/day';
 import type { ConfigSnapshot, FieldActivitySnapshot, PlanningSnapshot } from '@/types/sync';
@@ -32,7 +33,8 @@ export function useDayGate(): DayGate & { today: string } {
 }
 
 /** Why a tile is locked right now, or null if it is open. */
-export function lockReason(feature: Feature, gate: DayGate): string | null {
+export function lockReason(feature: Feature, gate: DayGate, readOnlyYear = false): string | null {
+  if (readOnlyYear && ENTRY_ONLY_FEATURES.includes(feature.key)) return READ_ONLY_YEAR_MESSAGE;
   if (feature.gate === 'none') return null;
   if (gate.state === 'blocked' || gate.state === 'unknown') return gate.reason;
   if (feature.gate === 'plan' && gate.state === 'closed') return gate.reason;

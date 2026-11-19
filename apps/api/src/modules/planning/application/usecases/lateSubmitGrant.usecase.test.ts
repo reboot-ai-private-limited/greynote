@@ -77,15 +77,13 @@ describe('Late-submission exceptions', () => {
     const g = await grant.execute(admin, grantInput);
     const view = await kit.views.daily((await kit.dailyPlans.findById(planId))!);
     expect(view.lateSubmitAllowedUntil).toEqual(g.expiresAt);
-    // 10:30 IST + 24h would be tomorrow: a daily plan's exception stops at the end of its own day instead.
-    expect(g.expiresAt.toISOString()).toBe('2026-10-05T18:29:59.999Z');
+    expect(g.expiresAt.getTime() - clock.now().getTime()).toBe(3_600_000); // 1 hour, the default
   });
 
   it('caps a daily plan’s exception at the end of its day, and refuses one for a day that is over', async () => {
-    const past = new Date('2026-10-05T18:30:00Z'); // 00:00 IST on the 6th — one millisecond too late
-    await expectError(grant.execute(admin, { ...grantInput, expiresAt: past }), 400);
-    const ok = new Date('2026-10-05T18:29:59.999Z');
-    expect((await grant.execute(admin, { ...grantInput, expiresAt: ok })).expiresAt).toEqual(ok);
+    clock.set('2026-10-05T10:00:00Z'); // 15:30 IST
+    const g = await grant.execute(admin, { ...grantInput, duration: '12h' }); // 15:30 IST + 12h would be tomorrow: it stops at the end of its own day
+    expect(g.expiresAt.toISOString()).toBe('2026-10-05T18:29:59.999Z');
     clock.set('2026-10-05T18:30:00Z');
     await expectError(grant.execute(admin, { ...grantInput, userId: OTHER_ASM }), 400);
   });
@@ -121,24 +119,12 @@ describe('Late-submission exceptions', () => {
     await expectError(submit.execute(MR, planId), 409, 'PLAN_SUBMIT_LATE');
   });
 
-  it('ends at the exact time the grantor picks, and refuses a past or too-far end', async () => {
-    const at = new Date('2026-10-05T12:00:00Z'); // 17:30 IST
-    const g = await grant.execute(admin, { ...grantInput, expiresAt: at });
-    expect(g.expiresAt).toEqual(at);
-    clock.set('2026-10-05T11:00:00Z'); // 16:30 IST: past the cutoff, inside the picked end
-    expect((await submit.execute(MR, planId)).status).toBe('SUBMITTED');
-
-    const past = new Date(clock.now().getTime() - 1000);
-    await expectError(grant.execute(admin, { ...grantInput, userId: OTHER_ASM, expiresAt: past }), 400);
-  });
-
-  it('still caps the end at the seeded 744 hours when the max-hours setting is not in the database yet', async () => {
-    delete kit.config.values['LATE_PLAN_GRANT_MAX_HOURS'];
+  it('lasts 30 minutes, 1 hour (the default) or 12 hours from the grant', async () => {
+    const t0 = clock.now().getTime();
+    expect((await grant.execute(admin, { ...grantInput, duration: '30m' })).expiresAt.getTime() - t0).toBe(30 * 60_000);
+    expect((await grant.execute(admin, { ...grantInput, userId: OTHER_ASM })).expiresAt.getTime() - t0).toBe(60 * 60_000);
     const monthly = { ...grantInput, kind: 'MONTHLY_PLAN' as const, planKey: '2026-11' };
-    const tooFar = new Date(clock.now().getTime() + 745 * 3_600_000);
-    await expectError(grant.execute(admin, { ...monthly, expiresAt: tooFar }), 400);
-    const ok = new Date(clock.now().getTime() + 700 * 3_600_000);
-    expect((await grant.execute(admin, { ...monthly, expiresAt: ok })).expiresAt).toEqual(ok);
+    expect((await grant.execute(admin, { ...monthly, duration: '12h' })).expiresAt.getTime() - t0).toBe(12 * 3_600_000);
   });
 
   it('allows one open exception per plan', async () => {

@@ -1,6 +1,7 @@
 import { AppError } from '@/shared/errors/AppError.js';
 import { appEvents } from '@/shared/events/appEvents.js';
 import { parseBoolean, parsePositiveInt, readBusinessDay, readConfigOr, type ConfigReader } from '@/shared/config/readConfig.js';
+import { lateGrantEnd, type LateGrantDuration } from '@/shared/time/lateGrantDuration.js';
 import { assertFinancialYearOpen } from '@/shared/time/financialYearClose.js';
 import { businessDate, endOfBusinessDay } from '@/shared/time/businessTime.js';
 import type { LateGrant, LateGrantKind } from '../../domain/lateGrant.entity.js';
@@ -15,8 +16,8 @@ export interface GrantLateInput {
   kind: LateGrantKind;
   periodKey: string;
   reason: string;
-  /** When it ends; omitted: the kind's default length from now. */
-  expiresAt?: Date | undefined;
+  /** How long it lasts from now (default 1 hour). */
+  duration?: LateGrantDuration | undefined;
 }
 
 /**
@@ -85,21 +86,8 @@ export class GrantLateUseCase {
       dayEnd = endOfBusinessDay(input.periodKey, dayStart, timeZone);
       if (dayEnd <= now) throw AppError.badRequest('That day is over, so its plan can’t be submitted late any more.', { field: 'periodKey' });
     }
-    const picked = input.expiresAt;
-    if (!picked) {
-      const hours = await readConfigOr(this.config, meta.config.validHours, parsePositiveInt(8760), meta.fallback.validHours);
-      const end = new Date(now.getTime() + hours * 3_600_000);
-      return dayEnd && dayEnd < end ? dayEnd : end;
-    }
-    if (picked <= now) throw AppError.badRequest('The exception must end in the future.', { field: 'expiresAt' });
-    if (dayEnd && picked > dayEnd) {
-      throw AppError.badRequest(`A daily plan’s exception can’t run past the end of its day (${dayEnd.toISOString()}).`, { field: 'expiresAt' });
-    }
-    const maxHours = await readConfigOr(this.config, meta.config.maxHours, parsePositiveInt(8760), meta.fallback.maxHours);
-    if (picked.getTime() > now.getTime() + maxHours * 3_600_000) {
-      throw AppError.badRequest(`The exception can run at most ${maxHours} hours from now.`, { field: 'expiresAt' });
-    }
-    return picked;
+    const end = lateGrantEnd(now, input.duration);
+    return dayEnd && dayEnd < end ? dayEnd : end;
   }
 
   private async assertMayGrant(actor: Actor, input: GrantLateInput): Promise<void> {

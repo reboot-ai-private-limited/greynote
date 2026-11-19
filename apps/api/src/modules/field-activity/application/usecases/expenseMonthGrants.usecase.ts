@@ -1,3 +1,4 @@
+import { lateGrantEnd, type LateGrantDuration } from '@/shared/time/lateGrantDuration.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import { appEvents } from '@/shared/events/appEvents.js';
 import { parseCalendarMonth, monthRange } from '@/shared/time/businessTime.js';
@@ -14,8 +15,8 @@ export interface GrantExpenseMonthInput {
   month: string;
   phase: ExpenseGrantPhase;
   reason: string;
-  /** When it ends; omitted: `LATE_EXPENSE_GRANT_VALID_HOURS` from now. */
-  expiresAt?: Date | undefined;
+  /** How long it lasts from now (default 1 hour). */
+  duration?: LateGrantDuration | undefined;
 }
 
 /** Whether any row of the employee's month has been settled — after that the month is closed to exceptions. */
@@ -51,24 +52,13 @@ export class GrantExpenseMonthUseCase {
     }
     const now = this.now();
     const grant = await this.grants.create(
-      { userId: input.userId, month: input.month, phase: input.phase, reason: input.reason, grantedBy: actor.id, grantedByRole: actor.role, grantedAt: now, expiresAt: await this.expiry(now, input.expiresAt) },
+      { userId: input.userId, month: input.month, phase: input.phase, reason: input.reason, grantedBy: actor.id, grantedByRole: actor.role, grantedAt: now, expiresAt: lateGrantEnd(now, input.duration) },
       now,
     );
     if (!grant) throw AppError.conflict('There’s already an open late-expense exception for this month.');
     // Only the submit phase is the employee's; an approve-phase exception is for the approver.
     if (input.phase === 'SUBMIT') appEvents.emit('submit.exception.granted', { userId: input.userId, kind: 'EXPENSE_MONTH', planKey: input.month, expiresAt: grant.expiresAt, grantedBy: actor.id });
     return grant;
-  }
-
-  private async expiry(now: Date, picked: Date | undefined): Promise<Date> {
-    if (!picked) {
-      const hours = await readConfigOr(this.config, 'LATE_EXPENSE_GRANT_VALID_HOURS', parsePositiveInt(744), 24);
-      return new Date(now.getTime() + hours * 3_600_000);
-    }
-    if (picked <= now) throw AppError.badRequest('The exception must end in the future.', { field: 'expiresAt' });
-    const maxHours = await readConfigOr(this.config, 'LATE_EXPENSE_GRANT_MAX_HOURS', parsePositiveInt(8760), 168);
-    if (picked.getTime() > now.getTime() + maxHours * 3_600_000) throw AppError.badRequest(`The exception can run at most ${maxHours} hours from now.`, { field: 'expiresAt' });
-    return picked;
   }
 
   private async assertMayGrant(actor: Actor, userId: string): Promise<void> {

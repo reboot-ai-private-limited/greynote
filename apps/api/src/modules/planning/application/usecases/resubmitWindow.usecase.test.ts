@@ -101,7 +101,7 @@ describe('Resubmit window after a rejection — Daily Plan', () => {
     const grant = new GrantLateSubmitUseCase(kit.grants, kit.users, kit.config, clock.now);
     kit.users.add('aaaaaaaaaaaaaaaaaaaaaaa0', { role: 'ADMIN' });
     await rejectAt('10:20');
-    const g = await grant.execute({ id: 'aaaaaaaaaaaaaaaaaaaaaaa0', role: 'ADMIN' }, { userId: MR, kind: 'DAILY_PLAN', planKey: DATE, reason: 'r' });
+    const g = await grant.execute({ id: 'aaaaaaaaaaaaaaaaaaaaaaa0', role: 'ADMIN' }, { userId: MR, kind: 'DAILY_PLAN', planKey: DATE, reason: 'r', duration: '12h' });
     await submit.execute(MR, planId);
     expect(kit.grants.rows.get(g.id)?.status).toBe('OPEN');
 

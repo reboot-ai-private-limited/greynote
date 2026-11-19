@@ -1,5 +1,6 @@
 import * as Crypto from 'expo-crypto';
 
+import { isFinancialYearReadOnly, READ_ONLY_YEAR_MESSAGE } from '@/lib/api';
 import { store } from './store';
 import type { OutboxRecord, OutboxStatus, SyncKind } from './types';
 
@@ -24,11 +25,17 @@ export { notify as notifyOutboxChanged };
 
 const nowIso = () => new Date().toISOString();
 
+/** What a person does (save, edit, remove) is refused while a past financial year is selected; the sync engine's own queueing is not. */
+function assertWritable(): void {
+  if (isFinancialYearReadOnly()) throw new Error(READ_ONLY_YEAR_MESSAGE);
+}
+
 export async function createRecord(
   kind: SyncKind,
   payload: unknown,
   opts: { dependsOn?: string[]; clientCreatedAt?: string; status?: 'DRAFT' | 'QUEUED' } = {},
 ): Promise<OutboxRecord> {
+  assertWritable();
   const now = nowIso();
   const record: OutboxRecord = {
     clientId: Crypto.randomUUID(),
@@ -57,6 +64,7 @@ export async function updateRecord(
   payload: unknown,
   dependsOn?: string[],
 ): Promise<OutboxRecord> {
+  assertWritable();
   const record = await store.getRecord(clientId);
   if (!record || record.deleted) throw new Error('That record no longer exists.');
   if (record.status === 'SYNCED' || record.status === 'QUEUED') {
@@ -88,6 +96,7 @@ export async function queueRecord(clientId: string): Promise<void> {
 
 /** Remove a record that hasn't reached the server. Kept as a tombstone until the backup knows. */
 export async function removeRecord(clientId: string): Promise<void> {
+  assertWritable();
   const record = await store.getRecord(clientId);
   if (!record) return;
   if (record.status === 'SYNCED' || record.status === 'QUEUED') {

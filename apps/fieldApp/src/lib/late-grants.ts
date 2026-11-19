@@ -31,11 +31,14 @@ export const GRANT_STATUS_LABEL: Record<GrantStatus, string> = {
   EXPIRED: 'Expired',
 };
 
+/** How long an exception lasts from the moment it is granted (decision-log 2026-11-19): only these three. */
+export type LateGrantDuration = '30m' | '1h' | '12h';
+
 /** The grants I made, was given, or my team has — newest first (Admin sees everyone's). */
 export const listLateGrants = (pageSize = 100) =>
   apiGet<{ items: LateGrant[]; total: number }>(`/planning/late-grants?pageSize=${pageSize}`, { auth: true });
 
-export const grantLateSubmit = (input: { userId: string; kind: PlanKind; planKey: string; reason: string; expiresAt?: string }) =>
+export const grantLateSubmit = (input: { userId: string; kind: PlanKind; planKey: string; reason: string; duration?: LateGrantDuration }) =>
   apiPost<LateGrant>('/planning/late-grants', { ...input, reason: input.reason.trim() }, { auth: true });
 
 /** Withdraws a grant that has not been used — Admin or whoever granted it. */
@@ -63,7 +66,7 @@ export type ExpenseGrant = {
 export const listExpenseGrants = (pageSize = 100) =>
   apiGet<{ items: ExpenseGrant[]; total: number }>(`/field-activity/expense-grants?pageSize=${pageSize}`, { auth: true });
 
-export const grantExpenseLate = (input: { userId: string; month: string; phase: ExpensePhase; reason: string; expiresAt?: string }) =>
+export const grantExpenseLate = (input: { userId: string; month: string; phase: ExpensePhase; reason: string; duration?: LateGrantDuration }) =>
   apiPost<ExpenseGrant>('/field-activity/expense-grants', { ...input, reason: input.reason.trim() }, { auth: true });
 
 export const revokeExpenseGrant = (id: string) => apiPost<unknown>(`/field-activity/expense-grants/${id}/revoke`, {}, { auth: true });

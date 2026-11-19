@@ -19,22 +19,21 @@ describe('buildGrant', () => {
     kind: 'MONTHLY_PLAN' as const,
     periodKey: '2026-11',
     reason: ' Joined late ',
-    expiresAt: '',
+    duration: '1h' as const,
   };
 
-  it('builds a request without expiresAt when none is picked', () => {
+  it('builds a request with the chosen length', () => {
     expect(buildGrant(form, 'Asia/Kolkata', now)).toEqual({
       ok: true,
-      body: { userId: 'u1', kind: 'MONTHLY_PLAN', periodKey: '2026-11', reason: 'Joined late' },
+      body: { userId: 'u1', kind: 'MONTHLY_PLAN', periodKey: '2026-11', reason: 'Joined late', duration: '1h' },
     });
   });
-  it('sends the picked end as an instant', () => {
-    const built = buildGrant({ ...form, expiresAt: '2026-10-29T18:30' }, 'Asia/Kolkata', now);
-    expect(built).toMatchObject({ ok: true, body: { expiresAt: '2026-10-29T13:00:00.000Z' } });
+  it.each(['30m', '1h', '12h'] as const)('sends %s', (duration) => {
+    expect(buildGrant({ ...form, duration }, 'Asia/Kolkata', now)).toMatchObject({ ok: true, body: { duration } });
   });
-  it('flags a missing employee, reason, a month typed as a day, and a past end', () => {
+  it('flags a missing employee, reason and a month typed as a day', () => {
     const built = buildGrant(
-      { ...form, userId: '', reason: ' ', periodKey: '2026-11-05', expiresAt: '2026-10-01T10:00' },
+      { ...form, userId: '', reason: ' ', periodKey: '2026-11-05' },
       'UTC',
       now,
     );
@@ -44,7 +43,6 @@ describe('buildGrant', () => {
         userId: expect.any(String),
         reason: expect.any(String),
         periodKey: expect.any(String),
-        expiresAt: expect.any(String),
       },
     });
   });
@@ -52,7 +50,7 @@ describe('buildGrant', () => {
 
 describe('buildGrant for the other kinds', () => {
   const now = new Date('2026-11-02T00:00:00Z');
-  const base = { userId: 'u1', reason: 'x', expiresAt: '' };
+  const base = { userId: 'u1', reason: 'x', duration: '1h' as const };
   it('wants a date for a daily plan and a month for the rest', () => {
     expect(buildGrant({ ...base, kind: 'DAILY_PLAN', periodKey: '2026-11-02' }, 'UTC', now).ok).toBe(true);
     expect(buildGrant({ ...base, kind: 'DAILY_PLAN', periodKey: '2026-11' }, 'UTC', now).ok).toBe(false);
@@ -67,12 +65,12 @@ describe('buildGrant for the other kinds', () => {
 
 describe('buildBulkGrant', () => {
   const now = new Date('2026-11-02T00:00:00Z');
-  const form = { userIds: ['u1', 'u2', 'u1'], kind: 'MONTHLY_PLAN' as const, periodKey: '2026-10', reason: ' Outage ', expiresAt: '' };
+  const form = { userIds: ['u1', 'u2', 'u1'], kind: 'MONTHLY_PLAN' as const, periodKey: '2026-10', reason: ' Outage ', duration: '12h' as const };
 
   it('sends each employee once, with the same trimmed fields', () => {
     expect(buildBulkGrant(form, 'UTC', now)).toEqual({
       ok: true,
-      body: { userIds: ['u1', 'u2'], kind: 'MONTHLY_PLAN', periodKey: '2026-10', reason: 'Outage' },
+      body: { userIds: ['u1', 'u2'], kind: 'MONTHLY_PLAN', periodKey: '2026-10', reason: 'Outage', duration: '12h' },
     });
   });
   it('wants at least one employee, and not more than the server takes', () => {

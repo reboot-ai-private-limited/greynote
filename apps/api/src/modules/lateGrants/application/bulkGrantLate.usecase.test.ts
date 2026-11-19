@@ -80,10 +80,9 @@ describe('bulk late grants', () => {
     expect(r.skipped.every((s) => s.reason.length > 0)).toBe(true);
   });
 
-  it('fails the whole request, writing nothing, when the period or end is wrong', async () => {
+  it('fails the whole request, writing nothing, when the period is wrong', async () => {
     const { bulk, rows } = setup();
     await expect(bulk.execute(admin, { ...input, periodKey: '2026-12', userIds: [MR1] })).rejects.toMatchObject({ statusCode: 400 });
-    await expect(bulk.execute(admin, { ...input, userIds: [MR1], expiresAt: new Date('2026-11-01T00:00:00Z') })).rejects.toMatchObject({ statusCode: 400 });
     await expect(bulk.execute(admin, { ...input, userIds: [] })).rejects.toMatchObject({ statusCode: 400 });
     await expect(bulk.execute(admin, { ...input, userIds: Array.from({ length: 501 }, (_, i) => `a${i}`) })).rejects.toMatchObject({ statusCode: 400 });
     expect(rows).toHaveLength(0);

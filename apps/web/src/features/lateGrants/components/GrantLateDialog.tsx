@@ -2,17 +2,15 @@
 
 import type { BulkGrantLateResultDto } from '@greynote/contracts';
 import { useState } from 'react';
-import { Button } from '@/components/ui/Button';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { FormField } from '@/components/ui/FormField';
 import { Input, Textarea } from '@/components/ui/Input';
 import { MonthPicker } from '@/components/ui/MonthPicker';
 import { Select } from '@/components/ui/Select';
 import { EmployeePickerField } from '@/features/people/components/EmployeePickerField';
-import { businessTimeZone } from '@/lib/siteConfig';
 import { EmployeeName } from '@/features/people/components/EmployeePickerField';
 import { useBulkGrantLate, useGrantLate, useLateGrantPreview } from '../hooks/useLateGrants';
-import { buildBulkGrant, buildGrant, isDayKind, kindOptions, SKIP_LABEL, type GrantForm } from '../lib/lateGrants';
+import { buildBulkGrant, buildGrant, DURATION_OPTIONS, isDayKind, kindOptions, SKIP_LABEL, type GrantForm } from '../lib/lateGrants';
 import { EmployeeListField } from './EmployeeListField';
 
 /**
@@ -37,7 +35,7 @@ export function GrantLateDialog({
     kind: (options[0]?.value ?? 'MONTHLY_PLAN') as GrantForm['kind'],
     periodKey: '',
     reason: '',
-    expiresAt: '',
+    duration: '1h',
     ...initial,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -59,12 +57,12 @@ export function GrantLateDialog({
     if (several) {
       const { userId: _one, ...shared } = form;
       void _one;
-      const b = buildBulkGrant({ ...shared, userIds }, businessTimeZone());
+      const b = buildBulkGrant({ ...shared, userIds });
       if (!b.ok) return setErrors(b.errors);
       setErrors({});
       return bulk.mutate(b.body);
     }
-    const built = buildGrant(form, businessTimeZone());
+    const built = buildGrant(form);
     if (!built.ok) return setErrors(built.errors);
     setErrors({});
     grant.mutate(built.body);
@@ -126,19 +124,11 @@ export function GrantLateDialog({
         </p>
       ) : null}
       <FormField
-        label="Allowed until"
-        htmlFor="grant-until"
-        error={errors['expiresAt']}
-        hint={`Date and time in ${businessTimeZone()}. Leave empty for the default length.${form.kind === 'DAILY_PLAN' ? ' A daily plan’s exception ends at the latest at the end of its day.' : ''}`}
+        label="Length"
+        htmlFor="grant-length"
+        hint={`How long the employee has from now.${form.kind === 'DAILY_PLAN' ? ' A daily plan’s exception ends at the latest at the end of its day.' : ''}`}
       >
-        <div className="flex items-center gap-2">
-          <Input id="grant-until" type="datetime-local" value={form.expiresAt} onChange={(e) => set('expiresAt', e.target.value)} aria-invalid={errors['expiresAt'] ? true : undefined} />
-          {form.expiresAt ? (
-            <Button variant="ghost" size="sm" onClick={() => set('expiresAt', '')}>
-              Clear
-            </Button>
-          ) : null}
-        </div>
+        <Select id="grant-length" value={form.duration} onValueChange={(v) => set('duration', v as GrantForm['duration'])} options={DURATION_OPTIONS.map((o) => ({ value: o.value, label: o.label }))} />
       </FormField>
       <FormField label="Reason" htmlFor="grant-reason" error={errors['reason']}>
         <Textarea id="grant-reason" maxLength={1000} value={form.reason} onChange={(e) => set('reason', e.target.value)} aria-invalid={errors['reason'] ? true : undefined} />

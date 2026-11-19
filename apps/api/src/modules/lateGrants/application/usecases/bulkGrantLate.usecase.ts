@@ -12,7 +12,7 @@ export interface BulkGrantInput {
   kind: LateGrantKind;
   periodKey: string;
   reason: string;
-  expiresAt?: Date | undefined;
+  duration?: import('@/shared/time/lateGrantDuration.js').LateGrantDuration | undefined;
 }
 
 export interface BulkGrantResult {
@@ -43,13 +43,13 @@ export class BulkGrantLateUseCase {
     const userIds = [...new Set(input.userIds)];
     if (userIds.length === 0) throw AppError.badRequest('Choose at least one employee.', { field: 'userIds' });
     if (userIds.length > BULK_GRANT_MAX) throw AppError.badRequest(`At most ${BULK_GRANT_MAX} employees at a time.`, { field: 'userIds' });
-    const { kind, periodKey, reason, expiresAt } = input;
-    await this.single.validateRequest({ kind, periodKey, reason, expiresAt });
+    const { kind, periodKey, reason, duration } = input;
+    await this.single.validateRequest({ kind, periodKey, reason, duration });
 
     const result: BulkGrantResult = { granted: [], skipped: [] };
     for (const userId of userIds) {
       try {
-        result.granted.push(await this.single.execute(actor, { userId, kind, periodKey, reason, expiresAt }));
+        result.granted.push(await this.single.execute(actor, { userId, kind, periodKey, reason, duration }));
       } catch (err) {
         const skip = skipOf(err);
         if (!skip) throw err;

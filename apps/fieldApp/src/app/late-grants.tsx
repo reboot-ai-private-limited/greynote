@@ -31,6 +31,7 @@ import {
   type GrantStatus,
   type LateGrant,
   type PlanKind,
+  type LateGrantDuration,
 } from '@/lib/late-grants';
 import { useSessionUser } from '@/lib/session';
 import { useColleagues, useOnline } from '@/offline';
@@ -51,11 +52,11 @@ const PHASES: { value: ExpensePhase; label: string }[] = [
   { value: 'APPROVE', label: 'Let it be approved' },
 ];
 
-/** How long the exception lasts, from the moment it is granted (hours). The server allows up to `LATE_PLAN_GRANT_MAX_HOURS`, 744 by default. */
-const DURATIONS = [
-  { value: '24', label: '24h' },
-  { value: '48', label: '48h' },
-  { value: '168', label: '7 days' },
+/** How long the exception lasts, from the moment it is granted: only these three (decision-log 2026-11-19). */
+const DURATIONS: { value: LateGrantDuration; label: string }[] = [
+  { value: '30m', label: '30 minutes' },
+  { value: '1h', label: '1 hour' },
+  { value: '12h', label: '12 hours' },
 ];
 
 const STATUS_ACCENT: Record<GrantStatus, Accent> = { OPEN: 'green', USED: 'slate', REVOKED: 'red', EXPIRED: 'amber' };
@@ -81,7 +82,7 @@ export default function LateGrantsScreen() {
 
   const expenseGrants = useCachedFetch<{ items: ExpenseGrant[]; total: number }>('late-expense-grants', () => listExpenseGrants());
   const [phase, setPhase] = useState<ExpensePhase>('SUBMIT');
-  const [durationHours, setDurationHours] = useState('24');
+  const [duration, setDuration] = useState<LateGrantDuration>('1h');
 
   // The employees a manager may grant to are their own team; every name we know, for the list below.
   const names = useMemo(
@@ -105,13 +106,12 @@ export default function LateGrantsScreen() {
     setBusy(true);
     setMsg(null);
     try {
-      const expiresAt = new Date(Date.now() + Number(durationHours) * 3600_000).toISOString();
       if (kind === 'EXPENSE') {
-        await grantExpenseLate({ userId, month, phase, reason, expiresAt });
+        await grantExpenseLate({ userId, month, phase, reason, duration });
         setMsg({ tone: 'success', text: phase === 'SUBMIT' ? `${names.get(userId) ?? 'The employee'} can now send that month late.` : 'That month can now be approved late.' });
         expenseGrants.reload();
       } else {
-        await grantLateSubmit({ userId, kind, planKey: kind === 'DAILY_PLAN' ? day : month, reason, expiresAt });
+        await grantLateSubmit({ userId, kind, planKey: kind === 'DAILY_PLAN' ? day : month, reason, duration });
         setMsg({ tone: 'success', text: `${names.get(userId) ?? 'The employee'} can now submit that plan late.` });
         grants.reload();
       }
@@ -175,7 +175,7 @@ export default function LateGrantsScreen() {
         <ThemedText type="small" themeColor="textSecondary" style={styles.label}>
           Valid for
         </ThemedText>
-        <ChoiceChips options={DURATIONS} value={durationHours} onChange={setDurationHours} disabled={busy} />
+        <ChoiceChips options={DURATIONS} value={duration} onChange={setDuration} disabled={busy} />
       </CardSection>
 
       <CardSection icon={sym('text.bubble', 'chat')} accent="purple" title="Reason">

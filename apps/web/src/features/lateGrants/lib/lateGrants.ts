@@ -1,4 +1,4 @@
-import type { LateGrantKindDto, LateGrantStatusDto } from '@greynote/contracts';
+import type { LateGrantDurationDto, LateGrantKindDto, LateGrantStatusDto } from '@greynote/contracts';
 import type { BadgeTone } from '@/components/ui/Badge';
 
 export const GRANT_STATUS_LABEL: Record<LateGrantStatusDto, string> = {
@@ -77,16 +77,16 @@ export interface GrantForm {
   kind: LateGrantKindDto;
   periodKey: string;
   reason: string;
-  /** datetime-local text in the business timezone; empty uses the default length. */
-  expiresAt: string;
+  /** How long it lasts from now: 30 minutes, 1 hour or 12 hours (decision-log 2026-11-19). */
+  duration: LateGrantDurationDto;
 }
 
 type Built =
-  | { ok: true; body: { userId: string; kind: LateGrantKindDto; periodKey: string; reason: string; expiresAt?: string } }
+  | { ok: true; body: { userId: string; kind: LateGrantKindDto; periodKey: string; reason: string; duration: LateGrantDurationDto } }
   | { ok: false; errors: Record<string, string> };
 
 /** Checks the form and builds the request. The server has the last word (future, locked periods, and within the longest allowed). */
-export function buildGrant(form: GrantForm, timeZone: string, now: Date = new Date()): Built {
+export function buildGrant(form: GrantForm, _timeZone?: string, _now?: Date): Built {
   const errors: Record<string, string> = {};
   if (!form.userId) errors['userId'] = 'Choose an employee.';
   const periodKey = form.periodKey.trim();
@@ -96,15 +96,8 @@ export function buildGrant(form: GrantForm, timeZone: string, now: Date = new Da
   else if (!pattern.test(periodKey)) errors['periodKey'] = 'Not a valid value.';
   const reason = form.reason.trim();
   if (!reason) errors['reason'] = 'A reason is required.';
-  let expiresAt: string | undefined;
-  if (form.expiresAt) {
-    const iso = zonedToIso(form.expiresAt, timeZone);
-    if (!iso) errors['expiresAt'] = 'Not a valid date and time.';
-    else if (new Date(iso) <= now) errors['expiresAt'] = 'Pick a time in the future.';
-    else expiresAt = iso;
-  }
   if (Object.keys(errors).length > 0) return { ok: false, errors };
-  return { ok: true, body: { userId: form.userId, kind: form.kind, periodKey, reason, ...(expiresAt && { expiresAt }) } };
+  return { ok: true, body: { userId: form.userId, kind: form.kind, periodKey, reason, duration: form.duration } };
 }
 
 export interface BulkGrantForm extends Omit<GrantForm, 'userId'> {
@@ -112,16 +105,16 @@ export interface BulkGrantForm extends Omit<GrantForm, 'userId'> {
 }
 
 type BulkBuilt =
-  | { ok: true; body: { userIds: string[]; kind: LateGrantKindDto; periodKey: string; reason: string; expiresAt?: string } }
+  | { ok: true; body: { userIds: string[]; kind: LateGrantKindDto; periodKey: string; reason: string; duration: LateGrantDurationDto } }
   | { ok: false; errors: Record<string, string> };
 
 export const BULK_GRANT_MAX = 500;
 
 /** Same checks as one grant, for a list of employees. The server checks each person; this only stops what could never work. */
-export function buildBulkGrant(form: BulkGrantForm, timeZone: string, now: Date = new Date()): BulkBuilt {
+export function buildBulkGrant(form: BulkGrantForm, _timeZone?: string, _now?: Date): BulkBuilt {
   const { userIds, ...rest } = form;
   // Reuse the single form's period, reason and end checks with a stand-in employee.
-  const built = buildGrant({ ...rest, userId: 'x' }, timeZone, now);
+  const built = buildGrant({ ...rest, userId: 'x' });
   const errors: Record<string, string> = built.ok ? {} : { ...built.errors };
   const unique = [...new Set(userIds)];
   if (unique.length === 0) errors['userIds'] = 'Choose at least one employee.';
@@ -138,3 +131,10 @@ export const SKIP_LABEL = {
   NOT_ELIGIBLE: 'Not an active field employee',
   FORBIDDEN: 'Not in your team',
 } as const;
+
+/** The lengths an exception may have (decision-log 2026-11-19). */
+export const DURATION_OPTIONS: ReadonlyArray<{ value: LateGrantDurationDto; label: string }> = [
+  { value: '30m', label: '30 minutes' },
+  { value: '1h', label: '1 hour' },
+  { value: '12h', label: '12 hours' },
+];

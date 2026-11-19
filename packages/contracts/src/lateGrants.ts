@@ -21,13 +21,17 @@ export interface LateGrantDto {
   revokedBy: string | null;
 }
 
-/** `POST /late-grants`. `expiresAt` (ISO date-time) is when the exception ends; left out, the kind's default length applies. */
+/** How long an exception lasts from the moment it is granted (decision-log 2026-11-19): 30 minutes, 1 hour or 12 hours. */
+export const LATE_GRANT_DURATIONS = ['30m', '1h', '12h'] as const;
+export type LateGrantDurationDto = (typeof LATE_GRANT_DURATIONS)[number];
+
+/** `POST /late-grants`. `duration` is how long it lasts from now (default 1 hour); a daily plan's is cut at the end of its day. */
 export interface GrantLateDto {
   userId: string;
   kind: LateGrantKindDto;
   periodKey: string;
   reason: string;
-  expiresAt?: string;
+  duration?: LateGrantDurationDto;
 }
 
 /** `GET /late-grants/kinds`: what the grant form offers. */

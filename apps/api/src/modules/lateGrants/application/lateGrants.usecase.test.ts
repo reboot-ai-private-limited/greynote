@@ -126,12 +126,12 @@ describe('Late grants', () => {
 
   it('grants every kind with its own period format and default length', async () => {
     const { grant } = build();
-    const daily = await grant.execute(admin, { userId: MR, kind: 'DAILY_PLAN', periodKey: '2026-11-02', reason: 'x' });
-    expect(daily.expiresAt.toISOString()).toBe('2026-11-02T18:29:59.999Z'); // capped to the end of the business day
+    const daily = await grant.execute(admin, { userId: MR, kind: 'DAILY_PLAN', periodKey: '2026-11-02', reason: 'x', duration: '12h' });
+    expect(daily.expiresAt.getTime()).toBeLessThanOrEqual(new Date('2026-11-02T18:29:59.999Z').getTime()); // never past the end of the business day
     const stock = await grant.execute(admin, { userId: MR, kind: 'MONTHLY_STOCK', periodKey: '2026-10', reason: 'x' });
-    expect(stock.expiresAt.getTime() - now.getTime()).toBe(72 * 3_600_000);
+    expect(stock.expiresAt.getTime() - now.getTime()).toBe(3_600_000);
     const exp = await grant.execute(admin, { userId: MR, kind: 'EXPENSE_SUBMIT', periodKey: '2026-10', reason: 'x' });
-    expect(exp.expiresAt.getTime() - now.getTime()).toBe(24 * 3_600_000);
+    expect(exp.expiresAt.getTime() - now.getTime()).toBe(3_600_000);
   });
 
   it('rejects malformed periods, future periods and non-field employees', async () => {
@@ -193,16 +193,18 @@ describe('Late grants', () => {
     await refused(on.grant.execute(field(ASM), { userId: MR, kind: 'EXPENSE_SUBMIT', periodKey: '2026-10', reason: 'x' }), 403);
   });
 
-  it('checks a custom end: future, and within the kind’s longest', async () => {
+  it('lasts 30 minutes, 1 hour (the default) or 12 hours from the moment it is granted (decision-log 2026-11-19)', async () => {
     const { grant } = build();
-    await refused(grant.execute(admin, { userId: MR, kind: 'MONTHLY_PLAN', periodKey: '2026-10', reason: 'x', expiresAt: new Date('2026-11-01T00:00:00Z') }), 400);
-    await refused(grant.execute(admin, { userId: MR, kind: 'EXPENSE_SUBMIT', periodKey: '2026-10', reason: 'x', expiresAt: new Date('2026-11-20T00:00:00Z') }), 400); // > 168h
-    await refused(grant.execute(admin, { userId: MR, kind: 'DAILY_PLAN', periodKey: '2026-11-02', reason: 'x', expiresAt: new Date('2026-11-04T00:00:00Z') }), 400); // past the day
+    const length = (g: { expiresAt: Date; grantedAt: Date }) => g.expiresAt.getTime() - g.grantedAt.getTime();
+    const base = { kind: 'MONTHLY_PLAN' as const, periodKey: '2026-10', reason: 'x' };
+    expect(length(await grant.execute(admin, { ...base, userId: MR, duration: '30m' }))).toBe(30 * 60_000);
+    expect(length(await grant.execute(admin, { ...base, userId: MR, periodKey: '2026-09' }))).toBe(60 * 60_000);
+    expect(length(await grant.execute(admin, { ...base, userId: MR, periodKey: '2026-08', duration: '12h' }))).toBe(12 * 3_600_000);
   });
 
   it('a daily report is let through late by Admin only, for a day already over, and not past a finalized payroll', async () => {
     const { grant } = build({ LATE_PLAN_GRANT_BY_MANAGER: 'true' }); // the plan setting never opens a report
-    const g = await grant.execute(admin, { userId: MR, kind: 'DCR_SUBMIT', periodKey: '2026-10-05', reason: 'was on a trip', expiresAt: new Date('2026-11-04T00:00:00Z') });
+    const g = await grant.execute(admin, { userId: MR, kind: 'DCR_SUBMIT', periodKey: '2026-10-05', reason: 'was on a trip', });
     expect(g).toMatchObject({ kind: 'DCR_SUBMIT', periodKey: '2026-10-05', grantedByRole: 'ADMIN' }); // ends after the day: the day-end cap is for plans
     await refused(grant.execute(field(ASM), { userId: MR, kind: 'DCR_SUBMIT', periodKey: '2026-10-06', reason: 'x' }), 403);
     await refused(grant.execute(admin, { userId: MR, kind: 'DCR_SUBMIT', periodKey: '2026-10', reason: 'x' }), 400); // named by its date
