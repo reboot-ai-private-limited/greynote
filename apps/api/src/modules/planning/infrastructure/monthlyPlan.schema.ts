@@ -13,6 +13,15 @@ export interface MonthlyPlanAmendmentDoc {
   previous: MonthlyPlanEntryDoc[];
 }
 
+export interface MonthlyPlanPendingChangeDoc {
+  id: string;
+  by: Types.ObjectId;
+  at: Date;
+  reason: string;
+  baseRevision: number;
+  entries: MonthlyPlanEntryDoc[];
+}
+
 export interface MonthlyPlanDoc {
   userId: Types.ObjectId;
   planMonth: string;
@@ -20,6 +29,8 @@ export interface MonthlyPlanDoc {
   amendments?: MonthlyPlanAmendmentDoc[];
   /** The days as last approved; absent on plans approved before it existed. */
   approvedEntries?: MonthlyPlanEntryDoc[];
+  /** A manager's change waiting for approval; absent when none. */
+  pendingChange?: MonthlyPlanPendingChangeDoc;
   revision: number;
   lateResubmits: number;
   updatedAt: Date;
@@ -42,6 +53,18 @@ const amendmentSchema = new Schema<MonthlyPlanAmendmentDoc>(
   { _id: false },
 );
 
+const pendingChangeSchema = new Schema<MonthlyPlanPendingChangeDoc>(
+  {
+    id: { type: String, required: true },
+    by: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
+    at: { type: Date, required: true },
+    reason: { type: String, default: '' },
+    baseRevision: { type: Number, required: true },
+    entries: { type: [entrySchema], default: [] },
+  },
+  { _id: false },
+);
+
 const monthlyPlanSchema = new Schema<MonthlyPlanDoc>({
   userId: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
   // `YYYY-MM` — sorts correctly as a string.
@@ -50,6 +73,7 @@ const monthlyPlanSchema = new Schema<MonthlyPlanDoc>({
   // Absent on plans from before manager amendments: read as none.
   amendments: { type: [amendmentSchema], default: [] },
   approvedEntries: { type: [entrySchema], default: undefined },
+  pendingChange: { type: pendingChangeSchema, default: undefined },
   revision: { type: Number, required: true },
   lateResubmits: { type: Number, default: 0 },
   updatedAt: { type: Date, required: true },

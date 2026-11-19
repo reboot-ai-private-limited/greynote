@@ -14,6 +14,7 @@ import { makeMonthlyPlanInheritHandler } from './application/monthlyPlanInheritH
 import { BackfillInheritedDaysUseCase } from './application/usecases/backfillInheritedDays.usecase.js';
 import { ListPlanOwnerRoutesUseCase } from './application/usecases/listPlanOwnerRoutes.usecase.js';
 import { DeleteMonthlyPlanUseCase } from './application/usecases/deleteMonthlyPlan.usecase.js';
+import { MONTHLY_PLAN_CHANGE, ProposeMonthlyChange, makeMonthlyPlanChangeHandler, planIdOfChange } from './application/monthlyPlanChange.js';
 import { AmendMonthlyPlanUseCase } from './application/usecases/amendMonthlyPlan.usecase.js';
 import { AmendDailyPlanUseCase, type DayReportedCheck } from './application/usecases/amendDailyPlan.usecase.js';
 import { CarryOver } from './application/carryOver.js';
@@ -39,6 +40,7 @@ import { SaveMonthlyPlanUseCase } from './application/usecases/saveMonthlyPlan.u
 import { SubmitDailyPlanUseCase } from './application/usecases/submitDailyPlan.usecase.js';
 import { SubmitMonthlyPlanUseCase } from './application/usecases/submitMonthlyPlan.usecase.js';
 import type { ApprovalsPort } from './domain/approvals.port.js';
+import { appEvents } from '@/shared/events/appEvents.js';
 import { dayTitle, describeEach, monthTitle } from '@/modules/approval/approval.public.js';
 import type { ConfigProviderPort } from './domain/configProvider.port.js';
 import type { RouteDirectoryPort } from './domain/routeDirectory.port.js';
@@ -90,11 +92,27 @@ export function buildPlanningContainer(
   // status lives in the approval module; an approved Monthly Plan writes its days into Daily Plans (see below).
   approvals.registerKind({ kind: 'DAILY_PLAN', finalApproverRoles: ['HR', 'ADMIN'], overrideRoles: ['HR', 'ADMIN'], managerOnly: true, onStatusChange: makeDailyPlanMirrorHandler(dailyPlans, monthlyPlans, deadlines), describeRecords: describeEach((id) => dailyPlans.findById(id), (plan) => ({ title: dayTitle(plan.planDate), subtitle: null })) });
   approvals.registerKind({ kind: 'MONTHLY_PLAN', finalApproverRoles: ['HR', 'ADMIN'], overrideRoles: ['HR', 'ADMIN'], managerOnly: true, describeRecords: describeEach((id) => monthlyPlans.findById(id), (plan) => ({ title: monthTitle(plan.planMonth), subtitle: null })), onStatusChange: makeMonthlyPlanInheritHandler(monthlyPlans, dailyPlans, approvals, deadlines, offDays, dayLocks) });
+  // A manager's change to an approved month: decided by the manager above them (or Admin); approving it applies it (monthlyPlanChange.ts).
+  approvals.registerKind({
+    kind: MONTHLY_PLAN_CHANGE,
+    finalApproverRoles: ['HR', 'ADMIN'],
+    overrideRoles: ['HR', 'ADMIN'],
+    managerOnly: true,
+    describeRecords: async (recordIds) => {
+      const out = new Map<string, { title: string; subtitle: string | null }>();
+      for (const recordId of recordIds) {
+        const plan = await monthlyPlans.findById(planIdOfChange(recordId));
+        if (plan) out.set(recordId, { title: `${monthTitle(plan.planMonth)} change`, subtitle: null });
+      }
+      return out;
+    },
+    onStatusChange: makeMonthlyPlanChangeHandler(monthlyPlans, dailyPlans, approvals, deadlines, deadlines.now),
+  });
   const views = new PlanViews(approvals, grants, deadlines, offDays, dayLocks);
   const scope = new ManagerScope(users, config, routes);
   const submitter = new PlanSubmitter(users, routes, approvals, grants, transactions, deadlines.now, scope);
   const carryOver = new CarryOver(dailyPlans, approvals, config);
-  const submitDaily = new SubmitDailyPlanUseCase(dailyPlans, deadlines, submitter, approvals, carryOver, (u, m) => status.isMonthlyPlanApproved(u, m), scope);
+  const submitDaily = new SubmitDailyPlanUseCase(dailyPlans, deadlines, submitter, approvals, carryOver, (u, m) => status.isMonthlyPlanApproved(u, m), scope, monthlyPlans);
   const setDoctors = new SetDailyPlanDoctorsUseCase(dailyPlans, approvals, carryOver, views, scope);
   const teamRoutes = new ListTeamRoutesUseCase(users, routes, scope, carryOver);
   const routeOptions = new RouteOptionsUseCase(users, routes, scope, carryOver);
@@ -133,10 +151,20 @@ export function buildPlanningContainer(
   };
   const amendDaily = new AmendDailyPlanUseCase(dailyPlans, users, submitter, deadlines, views, () => dayReported, scope, approvals, async (plan, by) => {
     await mirrorDayIntoMonth(plan, by, monthlyPlans, deadlines.now());
-  });
+  }, monthlyPlans);
 
   const planOwnerRoutes = new ListPlanOwnerRoutesUseCase(monthlyPlans, users, routes, scope);
-  const amendMonthly = new AmendMonthlyPlanUseCase(monthlyPlans, users, approvals, submitter, views, offDays, deadlines.now, { deadlines, daily: dailyPlans, transactions }, dayLocks);
+  const proposeChange = new ProposeMonthlyChange(monthlyPlans, approvals, submitter, dailyPlans, deadlines, transactions, deadlines.now);
+  const amendMonthly = new AmendMonthlyPlanUseCase(monthlyPlans, users, approvals, submitter, views, offDays, deadlines.now, { deadlines, daily: dailyPlans, transactions }, dayLocks, proposeChange);
+  // Once a change is approved and applied, the employee is told, as for any amendment of their month.
+  appEvents.on('approval.decided', async (e) => {
+    if (e.kind !== MONTHLY_PLAN_CHANGE || e.status !== 'APPROVED') return;
+    const plan = await monthlyPlans.findById(planIdOfChange(e.recordId));
+    const last = plan?.amendments.at(-1);
+    if (!plan || !last) return;
+    const byName = (await users.getUserSummaries([last.by]))[0]?.name ?? 'Your manager';
+    appEvents.emit('monthly.plan.amended', { userId: plan.userId, planId: plan.id, planMonth: plan.planMonth, by: last.by, byName, reason: last.reason });
+  });
 
   const deleteMonthly = new DeleteMonthlyPlanUseCase(monthlyPlans, dailyPlans, approvals, deadlines, transactions);
 

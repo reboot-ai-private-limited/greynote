@@ -5,6 +5,8 @@ import { isFieldDay } from '../../domain/plan.js';
 import { isEditableBySubmitter } from '@/modules/approval/approval.public.js';
 import type { ApprovalsPort } from '../../domain/approvals.port.js';
 import type { CarryOver } from '../carryOver.js';
+import type { MonthlyPlanRepositoryPort } from '../../domain/monthlyPlan.repository.port.js';
+import { assertRoutesMatchTourPlan } from '../routeMatch.js';
 import { assertMonthlyApproved, type MonthlyApprovedCheck } from '../monthlyGate.js';
 import type { PlanDeadlines } from '../planDeadlines.js';
 import type { ManagerScope } from '../managerScope.js';
@@ -20,6 +22,7 @@ export class SubmitDailyPlanUseCase {
     private readonly carryOver: CarryOver,
     private readonly monthlyApproved: MonthlyApprovedCheck,
     private readonly scope: ManagerScope,
+    private readonly monthly?: MonthlyPlanRepositoryPort,
   ) {}
 
   async execute(userId: string, planId: string): Promise<ApprovalRequest> {
@@ -27,6 +30,7 @@ export class SubmitDailyPlanUseCase {
     // Someone else's plan is "not found" — the owner is the only one who can submit it.
     if (!found || found.userId !== userId) throw AppError.notFound('No such plan.');
     await assertMonthlyApproved(this.monthlyApproved, userId, found.planDate);
+    if (this.monthly) await assertRoutesMatchTourPlan(this.monthly, found.userId, found.planDate, found.routeIds, found.workingType);
     let plan = found;
 
     // The list sent for approval is the whole list: the MR's picks plus every missed call still owed. Only a plan that can still

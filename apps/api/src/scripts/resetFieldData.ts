@@ -1,5 +1,5 @@
 /** Approval kinds whose requests (and the records behind them) the reset removes. */
-export const RESET_APPROVAL_KINDS = ['DAILY_PLAN', 'DCR', 'MONTHLY_PLAN', 'EXPENSE_MONTH', 'SECONDARY_SALES', 'LEAVE', 'NEW_DOCTOR', 'DOCTOR_SERVICE'] as const;
+export const RESET_APPROVAL_KINDS = ['DAILY_PLAN', 'DCR', 'MONTHLY_PLAN', 'MONTHLY_PLAN_CHANGE', 'EXPENSE_MONTH', 'SECONDARY_SALES', 'LEAVE', 'NEW_DOCTOR', 'DOCTOR_SERVICE'] as const;
 
 /** Collections emptied outright, records first and routes last: nothing is left pointing at a route that is gone. */
 export const RESET_COLLECTIONS = [

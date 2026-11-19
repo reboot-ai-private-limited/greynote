@@ -435,7 +435,7 @@ export default function DailyPlanScreen() {
               <ThemedText type="small" themeColor="textSecondary">
                 {fieldDay
                   ? (managerDay
-                    ? 'The working type and remarks come from your approved Tour Plan. You choose which of its routes you cover, then who you work with and the doctors on those routes.'
+                    ? 'The working type, routes and remarks come from your approved Tour Plan. You choose who you work with and the doctors on those routes.'
                     : 'The working type, routes and remarks come from your approved Tour Plan and can’t be changed here. You can change who you work with and the doctors.')
                   : 'The working type comes from your approved Tour Plan and can’t be changed here. This day has no routes or doctors.'}
               </ThemedText>
@@ -448,7 +448,7 @@ export default function DailyPlanScreen() {
         <CardSection icon={sym('calendar', 'event')} accent="blue" title="Route and who you work with">
           <FormField form={fe} name="routeIds">
             <OutletPicker
-              label="Route for the day"
+              label="Routes for the day (from your Tour Plan)"
               multiple
               values={chosenRoutes}
               onChangeValues={(ids) => {
@@ -457,12 +457,12 @@ export default function DailyPlanScreen() {
                 setRouteDraft(ids);
               }}
               options={approvedRouteIds.map((id) => ({ id, name: routeNameOf(id) }))}
-              disabled={busy || blocked}
+              disabled
               emptyText="This day has no approved routes."
             />
           </FormField>
           <ThemedText type="small" themeColor="textSecondary">
-            Your Tour Plan approved these routes for the day. Choose the ones you cover today; who you work with and the doctors then come from those routes only.
+            These are your Tour Plan’s routes for the day. To change them, change the Tour Plan for this day (a change goes to the manager above you for approval). Who you work with and the doctors come from these routes.
           </ThemedText>
           <FormField form={fe} name="workWith">
             <OutletPicker

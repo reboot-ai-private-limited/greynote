@@ -185,24 +185,24 @@ describe('a Tour Plan that was approved keeps the days already worked or sent (d
     it('the days of a trip are left alone', async () => {
       await approveWith([trip('2026-10-15', '2026-10-17')]);
       const stay = (await kit.dailyPlans.findByUserAndDate(MR, '2026-10-16'))!;
-      kit.dailyPlans.rows.set(stay.id, { ...stay, routeIds: [OTHER] });
+      kit.dailyPlans.rows.set(stay.id, { ...stay, remarks: 'moved' });
       await kit.approvals.submit({ kind: 'DAILY_PLAN', recordId: stay.id, submitterId: MR });
       await kit.approvals.decide('DAILY_PLAN', stay.id, 'APPROVED');
-      expect((await kit.monthlyPlans.findById(planId))?.entries.find((e) => e.planDate === '2026-10-16')?.routeIds).toEqual([OUT]);
+      expect((await kit.monthlyPlans.findById(planId))?.entries.find((e) => e.planDate === '2026-10-16')?.remarks).toBeNull();
     });
 
     it('after the day was worked, a re-approved month keeps what the daily plan says', async () => {
       await approveWith([entry('2026-10-12'), entry('2026-10-20')]);
       const day = (await kit.dailyPlans.findByUserAndDate(MR, '2026-10-12'))!;
-      kit.dailyPlans.rows.set(day.id, { ...day, routeIds: [OTHER] });
+      kit.dailyPlans.rows.set(day.id, { ...day, remarks: 'moved' });
       await kit.approvals.submit({ kind: 'DAILY_PLAN', recordId: day.id, submitterId: MR });
       await kit.approvals.decide('DAILY_PLAN', day.id, 'APPROVED');
       await kit.approvals.decide('MONTHLY_PLAN', planId, 'REOPENED');
-      await save.execute(MR, MONTH, [entry('2026-10-12', { routeIds: [OTHER] }), entry('2026-10-20')]);
+      await save.execute(MR, MONTH, [entry('2026-10-12', { remarks: 'moved' }), entry('2026-10-20')]);
       await kit.approvals.submit({ kind: 'MONTHLY_PLAN', recordId: planId, submitterId: MR });
       clock.set('2026-10-14T04:00:00Z');
       await kit.approvals.decide('MONTHLY_PLAN', planId, 'APPROVED');
-      expect((await kit.monthlyPlans.findById(planId))?.entries.find((e) => e.planDate === '2026-10-12')?.routeIds).toEqual([OTHER]);
+      expect((await kit.monthlyPlans.findById(planId))?.entries.find((e) => e.planDate === '2026-10-12')?.remarks).toBe('moved');
     });
   });
 });

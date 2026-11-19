@@ -8,6 +8,7 @@ import { DoctorPreview } from './DoctorPreview';
 import { DoctorServicePreview } from './DoctorServicePreview';
 import { ExpenseMonthPreview } from './ExpenseMonthPreview';
 import { LeavePreview } from './LeavePreview';
+import { MonthlyPlanChangePreview } from './MonthlyPlanChangePreview';
 import { MonthlyPlanPreview } from './MonthlyPlanPreview';
 import { MrSecondaryPreview } from './MrSecondaryPreview';
 import { SecondaryRollupPreview } from './SecondaryRollupPreview';
@@ -28,6 +29,8 @@ export function ApprovalPreview({ request }: { request: ApprovalDetailDto }) {
       return <DailyPlanPreview recordId={request.recordId} />;
     case 'MONTHLY_PLAN':
       return <MonthlyPlanPreview recordId={request.recordId} />;
+    case 'MONTHLY_PLAN_CHANGE':
+      return <MonthlyPlanChangePreview recordId={request.recordId} />;
     case 'DOCTOR_SERVICE':
       return <DoctorServicePreview recordId={request.recordId} />;
     case 'LEAVE':

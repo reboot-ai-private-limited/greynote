@@ -23,6 +23,7 @@ export const KIND_LABEL: Record<string, string> = {
   DOCTOR_SERVICE: 'Doctor service',
   DAILY_PLAN: 'Daily plan',
   MONTHLY_PLAN: 'Monthly plan',
+  MONTHLY_PLAN_CHANGE: 'Plan change',
   EXPENSE_MONTH: 'Monthly expenses',
   SECONDARY_SALES: 'Secondary sales',
 };

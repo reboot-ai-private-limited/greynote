@@ -58,12 +58,11 @@ describe('A manager’s Daily Plan', () => {
   const approvedDay = (o: Partial<PlanDay> = {}) => inherit(RSM, { routeIds: [R_MR1, R_MR2], ...o });
   const route = (...routeIds: string[]) => ({ routeIds });
 
-  it('route first: choosing a route lists only the people and doctors on it', async () => {
+  it('a manager’s day has the Tour Plan’s routes: a route chosen is ignored (decision-log 2026-11-19)', async () => {
     await approvedDay();
     const saved = await kit.setDay.execute(RSM, DATE, input({ ...route(R_MR1), workWith: [MR1], doctorIds: [D_MR1] }));
-    expect(saved).toMatchObject({ routeIds: [R_MR1], workWith: [MR1], source: 'MANUAL', changedFromMonthly: true });
+    expect(saved).toMatchObject({ routeIds: [R_MR1, R_MR2], workWith: [MR1] });
     expect(saved.doctors.map((d) => d.doctorId)).toEqual([D_MR1]);
-    expect(saved.plannedFrom).toMatchObject({ routeIds: [R_MR1, R_MR2] });
   });
 
   it('without a route chosen the day keeps all the approved routes', async () => {
@@ -73,16 +72,16 @@ describe('A manager’s Daily Plan', () => {
   });
 
   it('refuses a person who does not hold the chosen route, and says who to ask', async () => {
-    await approvedDay();
-    const err = await expectError(kit.setDay.execute(RSM, DATE, input({ ...route(R_MR1), workWith: [MR2] })), 400);
+    await approvedDay({ routeIds: [R_MR1] });
+    const err = await expectError(kit.setDay.execute(RSM, DATE, input({ workWith: [MR2] })), 400);
     expect(err.message).toContain('Ask your manager or Admin');
   });
 
   it('refuses a doctor on another route, even a downline doctor, and a doctor outside the downline', async () => {
-    await approvedDay();
+    await approvedDay({ routeIds: [R_MR1] });
     kit.doctors.set(STRANGER, [{ id: 'd-stranger', routeId: R_MR1 }]);
-    await expectError(kit.setDay.execute(RSM, DATE, input({ ...route(R_MR1), doctorIds: [D_MR2] })), 400);
-    await expectError(kit.setDay.execute(RSM, DATE, input({ ...route(R_MR1), doctorIds: ['d-stranger'] })), 400);
+    await expectError(kit.setDay.execute(RSM, DATE, input({ doctorIds: [D_MR2] })), 400);
+    await expectError(kit.setDay.execute(RSM, DATE, input({ doctorIds: ['d-stranger'] })), 400);
     await expectError(kit.setDay.execute(RSM, DATE, input({ workWith: [STRANGER] })), 400);
   });
 
@@ -98,11 +97,10 @@ describe('A manager’s Daily Plan', () => {
     expect(saved.workWith).toEqual([ASM, MR1]);
   });
 
-  it('refuses a route outside the day’s approved ones (only the manager above or Admin changes the plan)', async () => {
+  it('a route outside the day’s approved ones, or none, is ignored: only a Tour Plan change moves a route', async () => {
     await approvedDay({ routeIds: [R_MR1] });
-    const err = await expectError(kit.setDay.execute(RSM, DATE, input(route(R_MR2))), 400);
-    expect(err.message).toContain('approved plan');
-    await expectError(kit.setDay.execute(RSM, DATE, input(route())), 400);
+    expect((await kit.setDay.execute(RSM, DATE, input(route(R_MR2)))).routeIds).toEqual([R_MR1]);
+    expect((await kit.setDay.execute(RSM, DATE, input(route()))).routeIds).toEqual([R_MR1]);
   });
 
   it('a route nobody below holds leaves Works with empty: nobody can be picked', async () => {

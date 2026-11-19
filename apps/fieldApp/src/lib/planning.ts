@@ -139,6 +139,9 @@ export type MonthlyPlanEntry = PlanDay & { planDate: string };
 /** A manager's or Admin's change to a waiting month (docs/mobile/monthlyplan.md rule 19), with the days it replaced. `by` is a user id. */
 export type MonthlyPlanAmendment = { by: string; at: string; reason: string; previous: MonthlyPlanEntry[] };
 
+/** A manager's change to an approved month, waiting for the manager above them or Admin (decision-log 2026-11-19). `by` is a user id; `id` names it in its approval's `recordId` (`<plan id>:<id>`). */
+export type MonthlyPlanPending = { id: string; by: string; at: string; reason: string; baseRevision: number; entries: MonthlyPlanEntry[] };
+
 export type MonthlyPlanView = StateView & {
   /** Whose plan it is. */
   userId: string;
@@ -148,6 +151,10 @@ export type MonthlyPlanView = StateView & {
   offDays?: PlanOffDay[];
   /** Changes a manager or Admin made while the plan waited, oldest first. Absent from older servers. */
   amendments?: MonthlyPlanAmendment[];
+  /** A manager's change waiting to be approved; absent when none. */
+  pendingChange?: MonthlyPlanPending;
+  /** Days nobody can change any more: over, or their Daily Plan already sent. */
+  lockedDays?: string[];
 };
 
 /** How a locked day reads on the screen: "Weekly off" or "Holiday · Durga Puja". */
@@ -325,7 +332,10 @@ export async function getTeamMemberTourPlan(userId: string, month: string) {
 /** The plan owner's active routes, A–Z: what a manager editing the plan may choose from. Online only. */
 export const listPlanOwnerRoutes = (id: string) => apiGet<NamedRoute[]>(`/planning/monthly/${id}/routes`, { auth: true });
 
-/** Replaces the whole month of a `SUBMITTED` plan, with a reason (≤ 500). The plan keeps waiting; the employee is told. */
+/**
+ * Replaces the whole month of a `SUBMITTED` plan, with a reason (≤ 500): the plan keeps waiting and the employee is told. On an approved month, Admin/HR's change
+ * applies at once (days after today); a manager's becomes a change request for the manager above them or Admin (the plan shows `pendingChange`).
+ */
 export const amendMonthlyPlan = (id: string, entries: MonthlyPlanEntry[], reason: string) =>
   apiPatch<MonthlyPlanView>(`/planning/monthly/${id}/amend`, { entries: entriesToSend(entries), reason: reason.trim() }, { auth: true });
 

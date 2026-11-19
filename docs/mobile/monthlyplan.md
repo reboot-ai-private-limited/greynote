@@ -144,3 +144,11 @@ The list/history reads (`GET /planning/daily`, `GET /planning/monthly`) do not c
 **Phone change needed (not done by this team).** The request-summary screen (`approval-summary.tsx`, "Works with") builds `"N colleague(s)"` from `day.workWith.length`. The server cannot change that text. To show names, print `day.workWithPeople.map(p => p.label).join(', ')` (and keep `Nobody` when it is empty). The designation is the person's **current** one.
 
 The web plan and call previews show each person with their designation, like `Ravi (MR), Asha (ASM)`. The designation is the person's **current** one; a later promotion changes how an old day reads. (Keeping it as it was on the day would need a snapshot on every plan day and call — not done.)
+
+
+## 8. A manager changes an approved Tour Plan (2026-11-19)
+
+- Team → the person → Plans → **Edit Tour Plan** (this month and next). On an approved month, tap a day after today to change it. Days that are over, today, or whose Daily Plan is sent or approved can't change.
+- **Admin/HR** changes apply at once and the employee is told. **A manager's** change is sent for approval to the manager above them (else Admin) and nothing changes until it is approved; the person's page and the edit screen say "A change is waiting for approval". It appears in the approver's Approvals as **Tour plan change** with each changed day, now and would-become.
+- When it is approved the server checks again: a day that became today or past, a day whose Daily Plan was sent meanwhile, or a month someone else changed since, can't be approved (the approver rejects it and the manager sends a new one). On approval the month changes, the untouched Daily Plans follow, and the employee is told.
+- One change waits at a time. A trip that runs into next month can't be changed from the phone (ask Admin).

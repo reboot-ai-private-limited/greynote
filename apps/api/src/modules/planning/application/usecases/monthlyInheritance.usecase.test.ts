@@ -87,15 +87,15 @@ describe('Daily Plans inherited from the Monthly Plan', () => {
     beforeEach(async () => {
       await kit.approvals.decide('MONTHLY_PLAN', monthlyId, 'APPROVED');
     });
-    const amend = async (actor: string, role: 'FIELD' | 'ADMIN' = 'FIELD', date = '2026-10-06', day = field(R2)) =>
+    const amend = async (actor: string, role: 'FIELD' | 'ADMIN' = 'FIELD', date = '2026-10-06', day: Parameters<typeof kit.amend.execute>[2] = { ...field(R1), remarks: 'visit moved' }) =>
       kit.amend.execute({ id: actor, role }, (await daily(date))!.id, day, 'Customer visit moved');
 
     it('the manager, a manager above them, and Admin may; the body changes and the old one is kept', async () => {
       for (const [actor, role] of [[ASM, 'FIELD'], [NSM, 'FIELD'], [ADMIN, 'ADMIN']] as const) {
         const before = (await daily('2026-10-06'))!;
-        const after = await amend(actor, role, '2026-10-06', field(before.routeIds[0] === R1 ? R2 : R1));
+        const after = await amend(actor, role, '2026-10-06', { ...field(R1), remarks: `moved by ${actor}` });
         expect(after.revision).toBe(before.revision + 1);
-        expect(after.amendments.at(-1)).toMatchObject({ by: actor, reason: 'Customer visit moved', previous: { routeIds: before.routeIds } });
+        expect(after.amendments.at(-1)).toMatchObject({ by: actor, reason: 'Customer visit moved', previous: { remarks: before.remarks } });
       }
     });
 
@@ -104,8 +104,9 @@ describe('Daily Plans inherited from the Monthly Plan', () => {
       await expect(amend(STRANGER)).rejects.toMatchObject({ statusCode: 404 });
     });
 
-    it('validates the new day against the employee’s own routes', async () => {
-      await expect(amend(ASM, 'FIELD', '2026-10-06', field('bbbbbbbbbbbbbbbbbbbbbbb9'))).rejects.toMatchObject({ statusCode: 400 });
+    it('a different route is a Tour Plan change, not a day amendment (decision-log 2026-11-19)', async () => {
+      expect(await reason(amend(ASM, 'FIELD', '2026-10-06', field(R2)))).toBe('PLAN_ROUTE_MISMATCH');
+      expect(await reason(amend(ADMIN, 'ADMIN', '2026-10-06', field(R2)))).toBe('PLAN_ROUTE_MISMATCH');
     });
 
     it('leaves an already approved day approved, so the DCR gate stays open', async () => {
@@ -120,13 +121,13 @@ describe('Daily Plans inherited from the Monthly Plan', () => {
       kit.reported.add(`${MR}:2026-10-06`);
       expect(await reason(amend(ASM))).toBe('PLAN_DAY_REPORTED');
       await kit.dailyPlans.save(MR, '2026-10-02', field(R1), null);
-      await expect(kit.amend.execute({ id: ASM, role: 'FIELD' }, (await daily('2026-10-02'))!.id, field(R2), 'late')).rejects.toMatchObject({ statusCode: 409 });
+      await expect(kit.amend.execute({ id: ASM, role: 'FIELD' }, (await daily('2026-10-02'))!.id, field(R1), 'late')).rejects.toMatchObject({ statusCode: 409 });
     });
 
     it('a monthly re-approval does not overwrite an amended day', async () => {
       await amend(ASM);
       await kit.approvals.decide('MONTHLY_PLAN', monthlyId, 'APPROVED');
-      expect(await daily('2026-10-06')).toMatchObject({ routeIds: [R2] });
+      expect(await daily('2026-10-06')).toMatchObject({ remarks: 'visit moved' });
     });
   });
 });

@@ -143,6 +143,45 @@ function MonthlyPlanSummary({ recordId }: { recordId: string }) {
   );
 }
 
+/**
+ * A manager's change to an approved Tour Plan, as the approver sees it: who proposed it and why, then each day that would change, the way it is now and the way it
+ * would become. Approving applies it; the server checks again that no day is past or already sent.
+ */
+const planKey = (e: PlanDayView | undefined) => (e ? [e.workingType, [...e.routeIds].sort().join(), e.remarks ?? '', (e as { returnDate?: string | null }).returnDate ?? '', (e as { dayKind?: string }).dayKind ?? 'NORMAL'].join('|') : '');
+
+function MonthlyPlanChangeSummary({ recordId }: { recordId: string }) {
+  const planId = recordId.split(':')[0] ?? recordId;
+  const { data, error } = useRecord(() => getMonthlyPlanById(planId), 0);
+  const { colleagues } = useColleagues();
+  const pending = data?.pendingChange && `${planId}:${data.pendingChange.id}` === recordId ? data.pendingChange : null;
+  const now = new Map((data?.entries ?? []).map((e) => [e.planDate, e]));
+  const next = new Map((pending?.entries ?? []).map((e) => [e.planDate, e]));
+  const dates = [...new Set([...now.keys(), ...next.keys()])]
+    .filter((d) => planKey(now.get(d)) !== planKey(next.get(d)))
+    .sort();
+  const by = pending ? (colleagues.find((c) => c.id === pending.by)?.name ?? 'A manager') : null;
+  return (
+    <Frame title={data ? `Tour plan change · ${prettyMonth(data.planMonth)}` : 'Tour plan change'} error={error} loading={!data}>
+      {data && !pending ? <Notice tone="info">This change is no longer waiting. It was decided or withdrawn.</Notice> : null}
+      {pending ? (
+        <>
+          <Line label="Sent by" value={by ?? ''} />
+          {pending.reason ? <Line label="Reason" value={pending.reason} /> : null}
+          {dates.map((d, i) => (
+            <View key={d} style={[styles.day, i > 0 && { borderTopWidth: 1, borderTopColor: '#B4B8C0' }]}>
+              <ThemedText type="smallBold">{prettyDay(d)}</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">Now</ThemedText>
+              {now.get(d) ? dayLines(now.get(d)!, data?.routes ?? []) : <ThemedText type="small">Not planned</ThemedText>}
+              <ThemedText type="small" themeColor="textSecondary">Would become</ThemedText>
+              {next.get(d) ? dayLines(next.get(d)!, data?.routes ?? []) : <ThemedText type="small">Not planned</ThemedText>}
+            </View>
+          ))}
+        </>
+      ) : null}
+    </Frame>
+  );
+}
+
 /* ───────────────────────────── leave, doctor, service ───────────────────────────── */
 
 function LeaveSummary({ recordId }: { recordId: string }) {
@@ -384,6 +423,9 @@ export function ApprovalSummary({ request, aside }: { request: ApprovalDetail; a
       break;
     case 'MONTHLY_PLAN':
       record = <MonthlyPlanSummary recordId={request.recordId} />;
+      break;
+    case 'MONTHLY_PLAN_CHANGE':
+      record = <MonthlyPlanChangeSummary recordId={request.recordId} />;
       break;
     case 'LEAVE':
       record = <LeaveSummary recordId={request.recordId} />;

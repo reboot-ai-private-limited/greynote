@@ -21,6 +21,7 @@ type Props = {
 const KIND_ACCENT: Record<string, Accent> = {
   DAILY_PLAN: 'blue',
   MONTHLY_PLAN: 'indigo',
+  MONTHLY_PLAN_CHANGE: 'indigo',
   DCR: 'teal',
   LEAVE: 'pink',
   NEW_DOCTOR: 'purple',

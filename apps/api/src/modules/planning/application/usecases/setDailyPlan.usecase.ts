@@ -14,7 +14,7 @@ export interface DayInput {
   workingType: WorkingType;
   workWith: string[];
   doctorIds: string[];
-  /** A manager's: which of the day's approved routes the day covers (default all of them). An MR's are the plan's and are ignored. */
+  /** Ignored since 2026-11-19: a day's routes are the Tour Plan's. Kept so an older app's request still validates. */
   routeIds?: string[] | undefined;
 }
 
@@ -26,8 +26,7 @@ const bodyOf = (p: PlanDay): PlanDay => ({ workingType: p.workingType, dayKind: 
  * Routes and remarks are not theirs to change: they are the Monthly Plan's.
  *
  * - **Routes** follow the type. A meeting, conference or strike has none (and no doctors). A field work or doctor campaign day takes
- *   the Monthly Plan's routes — also when the day was switched away and back, from what `plannedFrom` kept. A manager is route-first
- *   (decision-log 2026-11-17): they choose which of the approved routes the day covers (default all), and then "Works with" lists only
+ *   the Monthly Plan's routes — also when the day was switched away and back, from what `plannedFrom` kept. A manager's "Works with" lists only
  *   the people below them who hold those routes and the doctor list only the doctors on those routes. Nobody on the route, or someone
  *   else wanted, means the plan is changed by the manager above or Admin (amend). A trip's stay and transit days keep their type and routes.
  * - **Doctors** are assigned to the owner (or, for a manager, to anyone below them) and on the day's routes.
@@ -60,7 +59,7 @@ export class SetDailyPlanUseCase {
 
     // The Monthly Plan's version of the day: kept from the first change, or read off the day while it is still the Monthly Plan's.
     const original = plan.plannedFrom ?? (plan.source === 'MONTHLY' ? bodyOf(plan) : null);
-    const routeIds = await this.routesFor(plan, input, field, manager, original);
+    const routeIds = await this.routesFor(plan, input, field, original);
     if (manager && field) await this.assertWorkWithOnRoutes(userId, routeIds, input.workWith);
 
     const day: PlanDay = { workingType: input.workingType, dayKind: plan.dayKind, workWith: input.workWith, routeIds, remarks: plan.remarks };
@@ -88,7 +87,7 @@ export class SetDailyPlanUseCase {
     }
   }
 
-  private async routesFor(plan: DailyPlan, input: DayInput, field: boolean, manager: boolean, original: PlanDay | null): Promise<string[]> {
+  private async routesFor(plan: DailyPlan, input: DayInput, field: boolean, original: PlanDay | null): Promise<string[]> {
     if (plan.dayKind !== 'NORMAL') {
       if (input.workingType !== plan.workingType) {
         throw AppError.badRequest('This is a day of a trip, which keeps the trip’s type and routes. Change the trip’s first day instead.', { field: 'workingType' });
@@ -100,12 +99,7 @@ export class SetDailyPlanUseCase {
     if (monthlyRoutes.length === 0) {
       throw AppError.badRequest('The monthly plan has no routes for this day, so it can’t be a field work day.', { field: 'workingType' });
     }
-    if (!manager || input.routeIds === undefined) return monthlyRoutes;
-    // A manager narrows the approved routes to the ones the day covers; a route outside them is the Monthly Plan's to change.
-    const chosen = [...new Set(input.routeIds)];
-    if (chosen.length === 0 || chosen.some((id) => !monthlyRoutes.includes(id))) {
-      throw AppError.badRequest('Pick routes from this day’s approved plan. Need another route? Ask your manager or Admin to change the plan.', { field: 'routeIds' });
-    }
-    return chosen;
+    // Routes are the Tour Plan's, for a manager too (decision-log 2026-11-19): `input.routeIds` from an older app is ignored. A different route is a change to the Tour Plan.
+    return monthlyRoutes;
   }
 }

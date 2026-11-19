@@ -8,6 +8,7 @@ import type { MonthlyPlanRepositoryPort } from '../../domain/monthlyPlan.reposit
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import { applyDailySync, assertOnlyFutureChanged, changedDays, planDailySync, type DailySync } from '../approvedMonthEdit.js';
 import type { PlanDayLocks } from '../dayLocks.js';
+import type { ProposeMonthlyChange } from '../monthlyPlanChange.js';
 import { MonthlyPlanWriter } from '../monthlyPlanWriter.js';
 import type { OffDays } from '../offDays.js';
 import type { Actor } from '../planAccess.js';
@@ -23,6 +24,9 @@ import type { MonthlyPlanView, PlanViews } from '../planViews.js';
  * HR and Admin may also change a month that is already past its manager or fully approved, for days after today only (see
  * `approvedMonthEdit`): the approval stays as it is, and the Daily Plans written from the month follow the change — unless the
  * employee has changed or sent one of those days, which refuses the edit. The reason is optional.
+ *
+ * A manager (not Admin/HR) changing a month that is already approved sends a **change request** instead: nothing changes until the manager above them,
+ * or Admin, approves it, and the same past-day and sent-day rules are checked again at that moment (`monthlyPlanChange.ts`).
  *
  * The days are checked like the employee's own save and submit — off days, trips, and the employee's own active routes and
  * colleagues. The approval is untouched: the plan keeps waiting and the manager decides it as usual (the amender's authority is
@@ -43,6 +47,8 @@ export class AmendMonthlyPlanUseCase {
     private readonly approvedEdit?: { deadlines: PlanDeadlines; daily: DailyPlanRepositoryPort; transactions: TransactionRunnerPort },
     /** Locked days (decision-log 2026-11-18): worked or sent days of a month that was approved can't be changed, even while it waits. */
     private readonly locks?: PlanDayLocks,
+    /** A manager's change to an approved month (decision-log 2026-11-19): sent for approval to the manager above, not applied. Without it only Admin/HR may change one. */
+    private readonly proposer?: ProposeMonthlyChange,
   ) {
     this.writer = new MonthlyPlanWriter(plans, approvals, offDays);
   }
@@ -58,13 +64,17 @@ export class AmendMonthlyPlanUseCase {
     }
 
     let afterApproval = false as boolean;
+    let proposing = false as boolean;
     const prepared = await this.writer.prepare(plan.userId, plan.planMonth, entries, async () => {
       const status = (await this.approvals.getForRecord('MONTHLY_PLAN', plan.id))?.status;
       if (status === 'MANAGER_APPROVED' || status === 'APPROVED') {
-        if (!privileged || !this.approvedEdit) {
-          throw AppError.conflict('This plan is already approved and can’t be amended. Ask Admin to reopen it.');
+        if (!this.approvedEdit) throw AppError.conflict('This plan is already approved and can’t be amended. Ask Admin to reopen it.');
+        if (privileged) {
+          afterApproval = true;
+          return;
         }
-        afterApproval = true;
+        if (!this.proposer) throw AppError.conflict('This plan is already approved and can’t be amended. Ask Admin to reopen it.');
+        proposing = true;
         return;
       }
       if (status !== 'SUBMITTED') {
@@ -74,6 +84,7 @@ export class AmendMonthlyPlanUseCase {
       }
     });
 
+    if (proposing && this.proposer) return this.views.monthly(await this.proposer.execute(actor.id, plan, prepared, reason));
     if (!afterApproval) await this.locks?.assertUnchanged(plan, prepared.entries);
     const changes = changedDays(plan.entries, prepared.entries);
     let sync: DailySync | null = null;

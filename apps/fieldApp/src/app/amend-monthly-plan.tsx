@@ -147,6 +147,13 @@ export default function AmendMonthlyPlanScreen() {
     .filter((d) => !isTripDay(original[d]?.dayKind) && !isTripDay(entries[d]?.dayKind) && !sameDay(original[d], entries[d]))
     .sort();
   const waiting = plan?.status === 'SUBMITTED';
+  // An approved month can still change, for days after today (decision-log 2026-11-19): Admin/HR at once, a manager through a change request to the manager above.
+  const approved = plan?.status === 'MANAGER_APPROVED' || plan?.status === 'APPROVED';
+  const pending = plan?.pendingChange ?? null;
+  const direct = me?.role === 'ADMIN' || me?.role === 'HR';
+  const canEdit = waiting || (approved && !pending);
+  // Over, or its Daily Plan already sent: nobody can change the day any more.
+  const lockedByTime = (d: string) => approved && (d <= today || (plan?.lockedDays ?? []).includes(d));
 
   // A stay or return day belongs to the trip on an earlier day: it is changed from that first day. `null` start: the trip began in
   // the month before, so it is changed from that month's plan.
@@ -156,6 +163,11 @@ export default function AmendMonthlyPlanScreen() {
     : null;
 
   function openDay(date: string) {
+    if (!canEdit) return;
+    if (lockedByTime(date)) {
+      setMsg({ tone: 'warning', text: `${prettyDay(date)} ${date <= today ? 'is today or over' : 'has its daily plan sent'}, so it can’t be changed.` });
+      return;
+    }
     setSheet(entries[date] ?? EMPTY_DAY);
     setSheetErrors({});
     setEditing(date);
@@ -221,7 +233,15 @@ export default function AmendMonthlyPlanScreen() {
     const sent = list();
     try {
       await amendMonthlyPlan(id, sent, reason);
-      Alert.alert('Plan updated', `${who || 'The employee'} has been told. The plan still waits for your approval.`, [{ text: 'OK', onPress: () => router.back() }]);
+      Alert.alert(
+        approved && !direct ? 'Change sent for approval' : 'Plan updated',
+        approved && !direct
+          ? `The change goes to your manager (or Admin) for approval. Nothing changes for ${who || 'the employee'} until it is approved.`
+          : approved
+            ? `${who || 'The employee'} has been told. The change is in effect.`
+            : `${who || 'The employee'} has been told. The plan still waits for your approval.`,
+        [{ text: 'OK', onPress: () => router.back() }],
+      );
     } catch (err) {
       if (isAmendStale(err)) {
         // Someone else saved the plan meanwhile: show it as it now stands; the reason is kept.
@@ -240,11 +260,15 @@ export default function AmendMonthlyPlanScreen() {
 
   // The save's outcome sits beside the button, so it is seen wherever the month is scrolled to.
   const footer =
-    plan && waiting ? (
+    plan && canEdit ? (
       <View style={styles.footer}>
         {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
         <PrimaryButton
-          label={changed.length > 0 ? `Save changes (${changed.length} day${changed.length === 1 ? '' : 's'})` : 'Save changes'}
+          label={
+            approved && !direct
+              ? changed.length > 0 ? `Send for approval (${changed.length} day${changed.length === 1 ? '' : 's'})` : 'Send for approval'
+              : changed.length > 0 ? `Save changes (${changed.length} day${changed.length === 1 ? '' : 's'})` : 'Save changes'
+          }
           loading={busy}
           disabled={!online}
           onPress={save}
@@ -261,12 +285,18 @@ export default function AmendMonthlyPlanScreen() {
         online && !loadError ? <Skeleton cards={3} /> : null
       ) : (
         <>
-          {!waiting ? (
-            <Notice tone="warning">
-              {plan.status === 'MANAGER_APPROVED' || plan.status === 'APPROVED'
-                ? 'This plan is already approved, so it can’t be edited here. Ask Admin to reopen it.'
-                : 'This plan isn’t waiting for approval, so the employee edits it.'}
+          {pending ? (
+            <Notice tone="info" title="A change is waiting for approval">
+              {`${pending.by === me?.id ? 'You' : (nameOf(pending.by) ?? 'A manager')} sent a change${pending.reason ? ` (${pending.reason})` : ''}. It has to be decided or withdrawn before another can be sent.`}
             </Notice>
+          ) : approved ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              {direct
+                ? 'This plan is approved. Tap a day after today to change it; the change is in effect at once and the employee is told. Days that are over, or whose daily plan was sent, can’t change.'
+                : 'This plan is approved. Tap a day after today to change it. Your change goes to your manager (or Admin) for approval and takes effect only after it is approved. Days that are over, or whose daily plan was sent, can’t change.'}
+            </ThemedText>
+          ) : !waiting ? (
+            <Notice tone="warning">This plan isn’t waiting for approval, so the employee edits it.</Notice>
           ) : (
             <ThemedText type="small" themeColor="textSecondary">
               Tap a day to change it. Weekly offs and holidays can’t be planned. When you save, the employee is told and the plan still
@@ -278,7 +308,7 @@ export default function AmendMonthlyPlanScreen() {
             <PlanAmendments amendments={plan.amendments} entries={plan.entries} routes={plan.routes} nameOf={nameOf} timeZone={timeZone} />
           ) : null}
 
-          <PlanCalendar month={month} days={days} entries={entries} isOff={isOff} today={today} onPressDay={waiting ? openDay : undefined} />
+          <PlanCalendar month={month} days={days} entries={entries} isOff={isOff} today={today} onPressDay={canEdit ? openDay : undefined} />
 
           {changed.length > 0 ? (
             <Notice tone="info" title="Changed, not saved yet">
@@ -288,14 +318,14 @@ export default function AmendMonthlyPlanScreen() {
 
           <View style={styles.days}>
             {days.map((d) => (
-              <PlanDayCard key={d} date={d} entry={entries[d]} off={isOff(d)} offLabel={offLabelOf(d)} editable={waiting} names={names} onPress={() => openDay(d)} />
+              <PlanDayCard key={d} date={d} entry={entries[d]} off={isOff(d)} offLabel={offLabelOf(d)} editable={canEdit && !lockedByTime(d)} names={names} onPress={() => openDay(d)} />
             ))}
           </View>
 
-          {waiting ? (
+          {canEdit ? (
             <TextField
               label="Reason for the change (optional)"
-              placeholder="The employee sees this"
+              placeholder={approved && !direct ? 'Your manager sees this' : 'The employee sees this'}
               value={reason}
               onChangeText={(t) => {
                 setReason(t);

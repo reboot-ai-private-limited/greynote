@@ -50,6 +50,7 @@ export type TeamScope = 'direct' | 'indirect' | 'all';
 export const KIND_LABEL: Record<string, string> = {
   DAILY_PLAN: 'Daily plan',
   MONTHLY_PLAN: 'Tour plan',
+  MONTHLY_PLAN_CHANGE: 'Tour plan change',
   DCR: 'Daily report',
   LEAVE: 'Leave',
   NEW_DOCTOR: 'New doctor',
@@ -60,7 +61,7 @@ export const KIND_LABEL: Record<string, string> = {
 };
 
 /** The request types a manager can filter by, in the order the chips show them. */
-export const APPROVAL_KINDS = ['DAILY_PLAN', 'MONTHLY_PLAN', 'DCR', 'LEAVE', 'EXPENSE_MONTH', 'NEW_DOCTOR', 'NEW_CHEMIST', 'DOCTOR_SERVICE', 'SECONDARY_SALES'] as const;
+export const APPROVAL_KINDS = ['DAILY_PLAN', 'MONTHLY_PLAN', 'MONTHLY_PLAN_CHANGE', 'DCR', 'LEAVE', 'EXPENSE_MONTH', 'NEW_DOCTOR', 'NEW_CHEMIST', 'DOCTOR_SERVICE', 'SECONDARY_SALES'] as const;
 export const kindLabel = (kind: string) => KIND_LABEL[kind] ?? kind;
 
 export const STATUS_LABEL: Record<ApprovalStatus, string> = {
@@ -76,7 +77,7 @@ export const STATUS_LABEL: Record<ApprovalStatus, string> = {
  * Kinds that need one approval since 2026-10-23: the manager's, or Admin's in their place, whoever acts first (docs/mobile
  * monthlyplan.md section 2). Leave, expenses and the daily report keep their own steps.
  */
-const ONE_APPROVAL_KINDS = ['MONTHLY_PLAN', 'DAILY_PLAN', 'DOCTOR_SERVICE'];
+const ONE_APPROVAL_KINDS = ['MONTHLY_PLAN', 'MONTHLY_PLAN_CHANGE', 'DAILY_PLAN', 'DOCTOR_SERVICE'];
 
 /** A request decided by one approval: by its kind, or by the workflow the server stamped on it. */
 export const isOneApproval = (r: { kind: string; workflow?: string }) => r.workflow === 'MANAGER_ONLY' || ONE_APPROVAL_KINDS.includes(r.kind);

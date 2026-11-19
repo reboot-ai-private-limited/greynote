@@ -8,7 +8,7 @@ import { router } from 'expo-router';
 import { getTeamMemberDays, reportChip, type TeamMemberDays } from '@/lib/team-section';
 import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
-import { prettyDay } from '@/offline/day';
+import { monthOf, prettyDay } from '@/offline/day';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useWindowed } from '@/hooks/use-windowed';
 
@@ -37,7 +37,7 @@ export type Person = { name: string; employeeCode: string; designation: string |
  * The person's month as day blocks, newest first, each in the same three lines as the page's header (Tour Plan, Daily plan, Daily report). The days are
  * the Tour Plan's and every day that has a Daily Plan or a report. The one Download for the month is on the page, above the tabs.
  */
-export function PlansTab({ userId, month, onOpenReport }: { userId: string; month: string; onOpenReport: (date: string) => void }) {
+export function PlansTab({ userId, month, personName, onOpenReport }: { userId: string; month: string; personName: string; onOpenReport: (date: string) => void }) {
   const online = useOnline();
   const { today } = useDayGate();
   const days = usePersonDays(userId, month);
@@ -50,6 +50,19 @@ export function PlansTab({ userId, month, onOpenReport }: { userId: string; mont
   return (
     <View style={styles.stack}>
       {!online && !data ? <Notice tone="info">Connect to see this person’s plans.</Notice> : null}
+      {tour.data?.pendingChange ? (
+        <Notice tone="info" title="A change to this Tour Plan is waiting for approval">
+          {`${tour.data.pendingChange.reason ? `Reason: ${tour.data.pendingChange.reason}. ` : ''}It takes effect only after the manager above, or Admin, approves it.`}
+        </Notice>
+      ) : null}
+      {tour.data && tour.data.planMonth >= monthOf(today) ? (
+        <PrimaryButton
+          label="Edit Tour Plan"
+          variant="text"
+          disabled={!online}
+          onPress={() => router.push({ pathname: '/amend-monthly-plan', params: { id: tour.data!.id, who: personName } })}
+        />
+      ) : null}
       {days.error && online ? <Notice tone="danger">{days.error}</Notice> : null}
       {loading ? <Skeleton cards={3} lines={3} /> : null}
       {data && dates.length === 0 ? <Notice tone="info">Nothing is planned or reported for this month.</Notice> : null}

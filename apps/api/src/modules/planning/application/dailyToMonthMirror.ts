@@ -5,6 +5,7 @@ import type { DailyPlan } from '../domain/dailyPlan.entity.js';
 import type { MonthlyPlanRepositoryPort } from '../domain/monthlyPlan.repository.port.js';
 import { dayLabel } from '../domain/offDays.js';
 import { changedDays } from './approvedMonthEdit.js';
+import { assertRoutesMatchTourPlan } from './routeMatch.js';
 
 /**
  * The Tour Plan mirrors the approved Daily Plan (decision-log 2026-11-18): when a day's Daily Plan is approved, or changed after approval,
@@ -28,6 +29,8 @@ export function makeDailyPlanMirrorHandler(daily: DailyPlanRepositoryPort, month
   return async (change: ApprovalStatusChange, ctx: TransactionContext): Promise<void> => {
     if (change.status !== 'MANAGER_APPROVED' && change.status !== 'APPROVED') return;
     const plan = await daily.findById(change.recordId);
+    // A day whose routes are not its Tour Plan's can't be approved (decision-log 2026-11-19): the Tour Plan is changed first.
+    if (plan && change.previousStatus !== 'MANAGER_APPROVED') await assertRoutesMatchTourPlan(monthly, plan.userId, plan.planDate, plan.routeIds, plan.workingType);
     if (plan) await mirrorDayIntoMonth(plan, change.action.actorId, monthly, deadlines.now(), ctx);
   };
 }

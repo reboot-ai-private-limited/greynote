@@ -157,7 +157,7 @@ export default function TeamMemberScreen() {
               <Notice tone="info">No figures for this month. This person may have left or not started yet.</Notice>
             )
           ) : null}
-          {tab === 'plans' ? <PlansTab userId={String(id)} month={month} onOpenReport={(d) => { setMonth(monthOf(d)); setFocusDate(d); setTab('reports'); }} /> : null}
+          {tab === 'plans' ? <PlansTab userId={String(id)} month={month} personName={data.member.name} onOpenReport={(d) => { setMonth(monthOf(d)); setFocusDate(d); setTab('reports'); }} /> : null}
           {tab === 'reports' ? <ReportsTab userId={String(id)} month={month} focusDate={focusDate} /> : null}
           {tab === 'expenses' ? <ExpensesTab userId={String(id)} month={month} /> : null}
           {tab === 'leave' ? <LeaveTab userId={String(id)} month={month} /> : null}

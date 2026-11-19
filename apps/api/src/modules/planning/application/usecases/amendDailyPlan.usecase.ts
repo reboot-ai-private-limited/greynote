@@ -2,6 +2,8 @@ import { AppError } from '@/shared/errors/AppError.js';
 import type { DailyPlan } from '../../domain/dailyPlan.entity.js';
 import type { ApprovalsPort } from '../../domain/approvals.port.js';
 import type { DailyPlanRepositoryPort } from '../../domain/dailyPlan.repository.port.js';
+import type { MonthlyPlanRepositoryPort } from '../../domain/monthlyPlan.repository.port.js';
+import { assertRoutesMatchTourPlan } from '../routeMatch.js';
 import type { PlanDay } from '../../domain/plan.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { ManagerScope } from '../managerScope.js';
@@ -35,6 +37,7 @@ export class AmendDailyPlanUseCase {
     private readonly approvals: ApprovalsPort,
     /** Writes an approved day's change back into the Tour Plan (decision-log 2026-11-18). */
     private readonly mirror?: (plan: DailyPlan, actorId: string) => Promise<void>,
+    private readonly monthly?: MonthlyPlanRepositoryPort,
   ) {}
 
   async execute(actor: Actor, planId: string, body: Omit<PlanDay, 'dayKind'>, reason: string): Promise<DailyPlanView> {
@@ -61,6 +64,8 @@ export class AmendDailyPlanUseCase {
       });
     }
 
+    // The routes are the Tour Plan's (decision-log 2026-11-19): a different route is a change to the Tour Plan, not to the day.
+    if (this.monthly && day.dayKind === 'NORMAL') await assertRoutesMatchTourPlan(this.monthly, plan.userId, plan.planDate, day.routeIds, day.workingType);
     await this.submitter.validateDays(plan.userId, [{ day, field: '' }], await this.scope.routePeople(plan.userId));
     const { workingType, dayKind, workWith, routeIds, remarks } = plan;
     const saved = await this.plans.amend(plan.id, plan.revision, day, {

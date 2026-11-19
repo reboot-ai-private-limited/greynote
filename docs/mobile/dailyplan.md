@@ -123,3 +123,8 @@ From `GET /planning/daily?from&to` (and the sync snapshot):
 Removed 2026-10-12: `POST /planning/daily`, `POST /planning/daily/:id/changes`, `GET /planning/daily/:id/changes`, `GET /planning/changes/:id`, and the `DAILY_PLAN_CHANGE` approval kind and `DAILY_PLAN_CHANGE_MAX` setting (drop it from the phone's cached config).
 
 Errors the screens must handle: `PLAN_SUBMIT_LATE` (409, `publicDetails.deadline`), `GRANT_PERIOD_LOCKED` (409, `publicDetails.kind` / `periodKey`; on the manager's `POST /planning/late-grants`, and as a rare race when an exception is spent — show the server's message), `MONTHLY_PLAN_NOT_APPROVED` (409), `planNotApproved`, `userBlocked`, `dcrLocked`, "already waiting / already approved" (409), "plan changed while it was being submitted — reload" (409), blocked (403), `PLAN_DAY_REPORTED` (409, on amend), validation errors with `field`.
+
+
+## Routes are the Tour Plan's (2026-11-19)
+
+A day's routes are its Tour Plan day's routes, for an MR and a manager alike. A manager no longer narrows them; the route picker on a manager's day is read-only. A Daily Plan whose routes differ from the Tour Plan can't be submitted or approved ("Ask your manager or Admin to change the Tour Plan for that day first"), and an amendment can't change routes. To change a day's routes, change the Tour Plan day (a manager's change goes to the manager above for approval; see monthlyplan.md section 8). TA/DA is made only after the daily report is approved, from the Daily Plan's routes.
