@@ -76,7 +76,7 @@ export function InvoiceScreen({ id }: { id: string }) {
         skeleton={<Skeleton className="h-96 w-full max-w-4xl" />}
       >
         {inv ? (
-          <article className="relative mx-auto max-w-4xl space-y-6 overflow-hidden rounded-lg border border-border bg-surface p-6 text-sm text-text sm:p-8 print:space-y-2 print:overflow-visible print:border-0 print:p-0 print:pt-2 print:text-[10px] print:leading-tight">
+          <article className="relative mx-auto max-w-4xl space-y-6 overflow-hidden rounded-lg border border-border bg-surface p-6 text-sm text-text sm:p-8 print:space-y-2 print:overflow-visible print:border-0 print:p-0 print:pt-2 print:text-[11px] print:leading-tight">
             <Image
               src="/brand/logo.png"
               alt=""
@@ -85,7 +85,7 @@ export function InvoiceScreen({ id }: { id: string }) {
               aria-hidden
               className="pointer-events-none absolute left-1/2 top-1/2 w-3/5 -translate-x-1/2 -translate-y-1/2 opacity-[0.07] print:w-2/5 print:opacity-[0.04] print:[print-color-adjust:exact]"
             />
-            <header className="relative text-center sm:px-36 print:px-16 print:text-[9px] print:leading-snug">
+            <header className="relative text-center sm:px-36 print:px-16 print:text-[10px] print:leading-snug">
               <Image
                 src="/brand/logo.png"
                 alt="Greynote Healthcare"
@@ -95,7 +95,7 @@ export function InvoiceScreen({ id }: { id: string }) {
                 className="mb-2 h-24 w-auto sm:absolute sm:left-0 sm:top-0 sm:mb-0 print:absolute print:left-0 print:top-0 print:mb-0 print:h-12"
               />
               <h1 className="text-xl font-bold print:text-sm">Tax Invoice</h1>
-              <p className="mt-3 text-base font-bold print:mt-1 print:text-[11px]">{COMPANY.name}</p>
+              <p className="mt-3 text-base font-bold print:mt-1 print:text-[12px]">{COMPANY.name}</p>
               {COMPANY.addressLines.map((l) => (
                 <p key={l}>{l}</p>
               ))}
@@ -124,7 +124,7 @@ export function InvoiceScreen({ id }: { id: string }) {
             </div>
 
             <div className="relative overflow-x-auto">
-              <table className="w-full border-collapse text-left text-xs print:text-[9px] print:leading-tight">
+              <table className="w-full border-collapse text-left text-sm print:text-[10px] print:leading-tight">
                 <thead className="table-header-group">
                   <tr>
                     <th className={TH}>#</th>
@@ -187,7 +187,7 @@ export function InvoiceScreen({ id }: { id: string }) {
               </section>
             </div>
 
-            <table className="relative w-full max-w-md border-collapse text-left text-xs print:break-inside-avoid print:text-[9px]">
+            <table className="relative w-full max-w-md border-collapse text-left text-sm print:break-inside-avoid print:text-[10px]">
               <thead>
                 <tr>
                   <th className={TH}>Tax type</th>
