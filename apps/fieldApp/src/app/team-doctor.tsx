@@ -1,3 +1,4 @@
+import { FyBanner } from '@/components/fy-banner';
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
@@ -35,6 +36,7 @@ export default function TeamDoctorScreen() {
   const d = q.data;
   return (
     <ScreenShell title={d?.doctor.name ?? 'Doctor'} subtitle={d ? [d.doctor.specialty, d.doctor.clinicName].filter(Boolean).join(' · ') : undefined} onRefresh={q.reload} refreshing={q.refreshing}>
+      <FyBanner />
       {!online && !d ? <Notice tone="info">Connect to see this doctor.</Notice> : null}
       {q.error && online ? <Notice tone="danger">{q.error}</Notice> : null}
       {q.loading && !d ? <Skeleton cards={3} lines={3} /> : null}

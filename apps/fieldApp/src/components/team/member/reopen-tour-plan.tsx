@@ -1,3 +1,4 @@
+import { useFinancialYear } from '@/lib/financial-year';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -24,12 +25,14 @@ const DURATIONS: [ReopenDuration, string][] = [['30m', '30 min'], ['1h', '1 hour
  */
 export function ReopenTourPlan({ plan, personName, onDone }: { plan: TourPlan | null; personName: string; onDone: () => void }) {
   const online = useOnline();
+  const fy = useFinancialYear();
   const [asking, setAsking] = useState(false);
   const [reason, setReason] = useState('');
   const [duration, setDuration] = useState<ReopenDuration>('1h');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: 'danger' | 'success'; text: string } | null>(null);
-  if (!plan || plan.planMonth < monthOf(new Date(nowMs()).toISOString().slice(0, 10))) return null;
+  // A past year is read-only, so nothing can be reopened in it.
+  if (!plan || fy.isPast || plan.planMonth < monthOf(new Date(nowMs()).toISOString().slice(0, 10))) return null;
 
   if (plan.status === 'REOPENED') {
     return <Notice tone="info" title="Reopened">{`Waiting for ${personName} to change it and send it again.`}</Notice>;

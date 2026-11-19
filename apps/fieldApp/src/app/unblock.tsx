@@ -1,3 +1,5 @@
+import { useFinancialYear } from '@/lib/financial-year';
+import { FyBanner } from '@/components/fy-banner';
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -22,6 +24,7 @@ const errorText = (err: unknown) =>
  * its own Unblock and the required reason, which is kept with who and their role as the audit trail. Nobody blocked: it says so. Needs a connection.
  */
 export default function UnblockScreen() {
+  const fy = useFinancialYear();
   const online = useOnline();
   const board = useTeamBoard();
   // Opened from a person (a blocked row on the Team board), it shows just them.
@@ -57,6 +60,7 @@ export default function UnblockScreen() {
 
   return (
     <ScreenShell title="Unblock" subtitle="People blocked after a missed daily report" onRefresh={board.reload} refreshing={board.refreshing}>
+      <FyBanner />
       {!online ? <Notice tone="info">You’re offline. Connect to the internet to unblock someone.</Notice> : null}
       {board.error && online ? <Notice tone="danger">{board.error}</Notice> : null}
       {board.loading ? <Skeleton cards={2} lines={2} /> : null}
@@ -86,11 +90,11 @@ export default function UnblockScreen() {
               <>
                 <TextField label="Why are you unblocking them? (required)" value={reason} onChangeText={(t) => { setReason(t); setMsg(null); }} multiline maxLength={500} editable={!busy} />
                 <ThemedText type="small" themeColor="textSecondary">The reason, your name and your role are kept as the audit trail.</ThemedText>
-                <PrimaryButton label={`Unblock ${n.member.name}`} loading={busy} disabled={!online} onPress={() => void unblock(n.member.id, n.member.name)} />
+                <PrimaryButton label={`Unblock ${n.member.name}`} loading={busy} disabled={!online || fy.isPast} onPress={() => void unblock(n.member.id, n.member.name)} />
                 <PrimaryButton label="Cancel" variant="text" disabled={busy} onPress={() => setOpenId(null)} />
               </>
             ) : (
-              <PrimaryButton label="Unblock…" variant="text" onPress={() => { setOpenId(n.member.id); setMsg(null); }} style={styles.link} />
+              <PrimaryButton label="Unblock…" variant="text" disabled={fy.isPast} onPress={() => { setOpenId(n.member.id); setMsg(null); }} style={styles.link} />
             )}
           </InfoCard>
         );

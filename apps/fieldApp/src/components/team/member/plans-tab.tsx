@@ -9,7 +9,6 @@ import { getTeamMemberDays, reportChip, type TeamMemberDays } from '@/lib/team-s
 import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
 import { prettyDay } from '@/offline/day';
-import { useDayGate } from '@/hooks/use-day-gate';
 import { useWindowed } from '@/hooks/use-windowed';
 
 import { Notice } from '../../notice';
@@ -40,7 +39,7 @@ export type Person = { name: string; employeeCode: string; designation: string |
  */
 export function PlansTab({ userId, month, personName, onOpenReport }: { userId: string; month: string; personName: string; onOpenReport: (date: string) => void }) {
   const online = useOnline();
-  const { today } = useDayGate();
+  const today = useFinancialYear().effectiveToday;
   const days = usePersonDays(userId, month);
   const tour = useTourPlan(userId, month);
   const data = days.data;

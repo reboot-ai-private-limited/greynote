@@ -2958,3 +2958,8 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 
 - **Why.** The phone's Tour Plan CSV showed `####` in the date column when opened in Excel (a CSV can't set column widths), and the web's CSV had different columns from the phone's.
 - **What.** The server builds one workbook, `GET /api/reports/tour-plan`, in the phone's layout (Date, Day, Work type, Trip, Routes, From, To, Work with, Remarks, a row for every day); the date is a real date in a wide column. The phone and the web only download it, so they match. Only an approved plan can be downloaded, on both. The employee can also download their own from Reports → TP Report; a manager from Team; Admin from the web (Employees, and the approval page). The phone's and the web's own CSV builders for the Tour Plan are removed.
+
+## 2026-11-19 (later): a past financial year locks Team too, and Team's "today" is the year's last day
+
+- Team showed the real today (and failed with `OUTSIDE_FINANCIAL_YEAR` on the approvals presets) and left Unblock, Reopen Tour Plan and Late exceptions looking usable in a past year. They are now switched off with the banner, and Team's day, date pickers and presets use the year's last day (`useFinancialYear().effectiveToday`). Team downloads start on the year's last month.
+- Reports has the financial-year chips at the top, so a past year and its last month are one tap away. The server is unchanged.

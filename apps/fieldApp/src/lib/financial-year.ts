@@ -121,6 +121,8 @@ export type FinancialYearState = {
   firstMonth: string;
   lastMonth: string;
   today: string;
+  /** What Team treats as "today": the real day, or in a past year that year's last day (31 March for an April start), so Team never shows a day outside the year. */
+  effectiveToday: string;
   /** Current year first, then up to FY_YEARS_BACK earlier ones. */
   options: { year: number; label: string }[];
 };
@@ -160,6 +162,7 @@ export function useFinancialYear(): FinancialYearState {
     label: fyLabel(year, startMonth),
     ...fyRange(year, startMonth),
     today,
+    effectiveToday: own !== null ? fyRange(year, startMonth).to : today,
     options: Array.from({ length: FY_YEARS_BACK + 1 }, (_, i) => ({ year: current - i, label: fyLabel(current - i, startMonth) })),
   };
 }

@@ -1,3 +1,4 @@
+import { FyBanner } from '@/components/fy-banner';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -58,6 +59,7 @@ export default function TeamDoctorMetricsScreen() {
 
   return (
     <ScreenShell title="Doctors this month" subtitle={summary.data?.member.name ?? ''} onRefresh={() => { doctors.reload(); summary.reload(); }} refreshing={doctors.refreshing}>
+      <FyBanner />
       <MonthStepper value={month} onChange={setMonth} min={fy.firstMonth} max={lastMonth} />
       <PillToggle options={[{ value: 'TOTAL', label: 'Total' }, { value: 'DOCTORS', label: 'Doctor-wise' }]} value={view} onChange={setView} />
       {!online && !doctors.data ? <Notice tone="info">Connect to see this month’s numbers.</Notice> : null}

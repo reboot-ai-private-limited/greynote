@@ -13,7 +13,8 @@ import { RowCard, sym } from '@/components/ui-cards';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Spacing, WideContentWidth } from '@/constants/theme';
-import { useFinancialYear } from '@/lib/financial-year';
+import { selectFinancialYear, useFinancialYear } from '@/lib/financial-year';
+import { useSessionUser } from '@/lib/session';
 import { monthOf } from '@/offline/day';
 
 type Report = 'month' | 'dcr' | 'plans' | 'tada' | 'more';
@@ -40,6 +41,7 @@ const MORE: { title: string; about: string; href: Href; icon: ReturnType<typeof 
  */
 export default function ReportsScreen() {
   const fy = useFinancialYear();
+  const me = useSessionUser();
   const [report, setReport] = useState<Report>('month');
   const [picked, setPicked] = useState<string | null>(null);
 
@@ -52,6 +54,16 @@ export default function ReportsScreen() {
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         <ScrollView contentContainerStyle={styles.content}>
           <ThemedText type="subtitle">Reports</ThemedText>
+          {/* The financial year is a filter here too: pick a past year and the months below are that year's, starting on its last month. */}
+          <ChoiceChips
+            options={fy.options.map((o) => ({ value: String(o.year), label: o.year === fy.current ? `${o.label} · current` : o.label }))}
+            value={String(fy.year)}
+            onChange={(y) => {
+              if (!me) return;
+              setPicked(null);
+              selectFinancialYear(Number(y) === fy.current ? null : Number(y), me.id);
+            }}
+          />
           <FyBanner />
           <ChoiceChips options={REPORTS} value={report} onChange={setReport} />
           <MonthStepper value={month} onChange={setPicked} min={fy.firstMonth} max={fy.lastMonth} />

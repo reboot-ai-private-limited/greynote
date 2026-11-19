@@ -1,3 +1,5 @@
+import { useFinancialYear } from '@/lib/financial-year';
+import { FyBanner } from '@/components/fy-banner';
 import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -14,7 +16,6 @@ import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar, CardSection, PersonDropdown, Pill, sym } from '@/components/ui-cards';
 import { Accents, Spacing, type Accent } from '@/constants/theme';
-import { useDayGate } from '@/hooks/use-day-gate';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useTheme } from '@/hooks/use-theme';
 import { ApiError, NetworkError } from '@/lib/api';
@@ -75,7 +76,9 @@ export default function LateGrantsScreen() {
   const online = useOnline();
   const { isTablet } = useResponsive();
   const me = useSessionUser();
-  const { today } = useDayGate();
+  const fy = useFinancialYear();
+  // A past year is read-only: nothing can be allowed or revoked, and the day shown is that year's last.
+  const today = fy.effectiveToday;
   const { colleagues } = useColleagues();
   const { team, loaded: teamLoaded } = useTeam();
   const grants = useCachedFetch<{ items: LateGrant[]; total: number }>('late-grants', () => listLateGrants());
@@ -223,7 +226,7 @@ export default function LateGrantsScreen() {
             ) : null}
             <ThemedText type="small" themeColor="textSecondary" style={styles.small}>{`“${g.reason}”`}</ThemedText>
             {open && g.grantedBy === me?.id ? (
-              <PrimaryButton label="Revoke" variant="text" disabled={busy || !online} onPress={() => revoke(g.id)} />
+              <PrimaryButton label="Revoke" variant="text" disabled={busy || !online || fy.isPast} onPress={() => revoke(g.id)} />
             ) : null}
           </View>
         );
@@ -235,7 +238,7 @@ export default function LateGrantsScreen() {
     <PrimaryButton
       label={picked ? `Allow late submission for ${picked.name}` : 'Allow late submission'}
       loading={busy}
-      disabled={!online || team.length === 0}
+      disabled={!online || team.length === 0 || fy.isPast}
       onPress={grant}
     />
   );
@@ -248,6 +251,7 @@ export default function LateGrantsScreen() {
       onRefresh={source.reload}
       refreshing={source.refreshing}
       footer={footer}>
+      <FyBanner />
       {!online ? <Notice tone="info">You’re offline. Connect to the internet to allow or revoke a late submission.</Notice> : null}
       {isTablet ? (
         <View style={styles.columns}>

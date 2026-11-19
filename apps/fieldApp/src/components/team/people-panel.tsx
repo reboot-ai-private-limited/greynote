@@ -3,7 +3,6 @@ import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Accents, Spacing, type Accent } from '@/constants/theme';
-import { useDayGate } from '@/hooks/use-day-gate';
 import { useTheme } from '@/hooks/use-theme';
 import { useTeamBoard } from '@/hooks/use-team-board';
 import { useWindowed } from '@/hooks/use-windowed';
@@ -91,9 +90,12 @@ export function PeoplePanel({ onShowApprovals }: { onShowApprovals: () => void }
   const board = useTeamBoard();
   const pending = useApprovalSummary();
   const fy = useFinancialYear();
-  const { today } = useDayGate();
-  const [date, setDate] = useState(today);
-  const tomorrow = addDays(today, 1);
+  // In a past year Team's "today" is that year's last day, and the picker can't go past it.
+  const today = fy.effectiveToday;
+  const [dayChoice, setDayChoice] = useState<{ year: number; date: string } | null>(null);
+  const date = dayChoice && dayChoice.year === fy.year ? dayChoice.date : today;
+  const setDate = (d: string) => setDayChoice({ year: fy.year, date: d });
+  const tomorrow = fy.isPast ? today : addDays(today, 1);
   const min = fy.firstMonth ? `${fy.firstMonth}-01` : undefined;
   const dayRows = useCachedFetch<TeamBoard>(`team-board:${fy.year}:${date}`, () => getAllTeamDay({ date, scope: 'all' }));
   const rowOf = useMemo(() => new Map((dayRows.data?.items ?? []).map((r) => [r.user.id, r])), [dayRows.data]);
@@ -208,7 +210,7 @@ export function PeoplePanel({ onShowApprovals }: { onShowApprovals: () => void }
                 <View style={styles.actions}>
                   <Pill text={canDecide ? 'You decide' : 'View only'} accent={canDecide ? 'blue' : 'slate'} />
                   {day?.blocked ? <Pill text="Blocked" accent="red" /> : null}
-                  {day?.blocked ? <PrimaryButton label="Unblock" variant="text" onPress={() => router.push({ pathname: '/unblock', params: { userId: member.id } })} /> : null}
+                  {day?.blocked ? <PrimaryButton label="Unblock" variant="text" disabled={fy.isPast} onPress={() => router.push({ pathname: '/unblock', params: { userId: member.id } })} /> : null}
                   {isManager ? <PrimaryButton label={open.has(member.id) ? `Hide team (${node.children.length}) ▾` : `Show team (${node.children.length}) ▸`} variant="text" onPress={() => toggle(member.id)} /> : null}
                 </View>
               </>

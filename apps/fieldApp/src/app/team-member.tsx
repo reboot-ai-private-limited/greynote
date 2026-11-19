@@ -1,3 +1,4 @@
+import { FyBanner } from '@/components/fy-banner';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -16,7 +17,6 @@ import { ChemistsTab, DistributorsTab, DoctorsMonthCard, DoctorsTab, ExpensesTab
 import { ThemedText } from '@/components/themed-text';
 import { Avatar, CardSection, InfoCard, Meter, Pill, SummaryStrip, sym } from '@/components/ui-cards';
 import { Spacing, type Accent } from '@/constants/theme';
-import { useDayGate } from '@/hooks/use-day-gate';
 import { useFinancialYear } from '@/lib/financial-year';
 import { formatRupees } from '@/lib/money';
 import { type DoctorFilter, NOT_IN_TEAM_TEXT, dailyPlanChip, getTeamDay, getTeamMemberSummary, type TeamBoard, type TeamMemberSummary } from '@/lib/team-section';
@@ -44,11 +44,13 @@ export default function TeamMemberScreen() {
   const [focusDate, setFocusDate] = useState<string | null>(null);
   const [doctorFilter, setDoctorFilter] = useState<DoctorFilter>('ALL');
 
-  const { today } = useDayGate();
+  // In a past year Team's "today" is that year's last day.
+  const today = fy.effectiveToday;
   // The header shows one day: today until it is changed here.
-  const [dayPicked, setDay] = useState<string | null>(null);
-  const day = dayPicked ?? today;
-  const tomorrow = addDays(today, 1);
+  const [dayPicked, setDayPicked] = useState<{ year: number; date: string } | null>(null);
+  const day = dayPicked && dayPicked.year === fy.year ? dayPicked.date : today;
+  const setDay = (d: string) => setDayPicked({ year: fy.year, date: d });
+  const tomorrow = fy.isPast ? today : addDays(today, 1);
   const dayRow = useCachedFetch<TeamBoard>(`team-day-one:${fy.year}:${id}:${day}`, () => getTeamDay({ date: day, userId: String(id) }));
   const tourPlan = useTourPlan(String(id), monthOf(day));
   const row = dayRow.data?.items[0] ?? null;
@@ -61,6 +63,7 @@ export default function TeamMemberScreen() {
 
   return (
     <ScreenShell title={data?.member.name ?? 'Person'} subtitle={data ? `${data.member.employeeCode}${data.member.designation ? ` · ${data.member.designation}` : ''}` : undefined} onRefresh={list.reload} refreshing={list.refreshing}>
+      <FyBanner />
       {!online ? <Notice tone="info">You’re offline. Connect to see this person.</Notice> : null}
       {list.error && online ? <Notice tone="danger">{denied ? NOT_IN_TEAM_TEXT : list.error}</Notice> : null}
       {list.loading && !data ? <Skeleton cards={3} lines={3} /> : null}

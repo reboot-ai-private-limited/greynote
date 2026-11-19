@@ -4,7 +4,6 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Accents, Spacing } from '@/constants/theme';
 import { DateField, EMPTY_PARTS, isoFromParts, type DateParts } from '@/components/date-field';
-import { useDayGate } from '@/hooks/use-day-gate';
 import { ApiError, NetworkError } from '@/lib/api';
 import {
   APPROVAL_KINDS,
@@ -105,7 +104,8 @@ type Props = {
 export function ApprovalsPanel({ summary, refreshSummary }: Props) {
   const online = useOnline();
   const fy = useFinancialYear();
-  const { today } = useDayGate();
+  // The period presets count from Team's "today": in a past year, that year's last day.
+  const today = fy.effectiveToday;
   const { team } = useTeam();
 
   const [tab, setTab] = useState<Tab>('inbox');
