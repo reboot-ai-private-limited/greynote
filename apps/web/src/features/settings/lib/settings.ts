@@ -22,25 +22,53 @@ export function groupSettings(settings: readonly ConfigSettingDto[]): SettingGro
   return [...groups.values()];
 }
 
-/** The deep colour of a module's section header. Fixed per module, so a section keeps its colour; Payroll is red because it moves money. Full class names, so Tailwind sees them. */
-const SECTION_COLOURS: Record<string, string> = {
-  PAYROLL: 'bg-red-700 hover:bg-red-800',
-  APPROVAL: 'bg-indigo-700 hover:bg-indigo-800',
-  PLANNING: 'bg-blue-700 hover:bg-blue-800',
-  FIELD_ACTIVITY: 'bg-teal-700 hover:bg-teal-800',
-  NOTIFICATIONS: 'bg-amber-700 hover:bg-amber-800',
-  SYSTEM: 'bg-slate-700 hover:bg-slate-800',
-};
-const SPARE_COLOURS = ['bg-purple-700 hover:bg-purple-800', 'bg-emerald-700 hover:bg-emerald-800', 'bg-pink-700 hover:bg-pink-800', 'bg-cyan-700 hover:bg-cyan-800'];
+/** The classes of one section: a pale header with a coloured left edge, a faint tint for the rows under it, and chips that read on the pale header. */
+export interface SectionTone {
+  header: string;
+  body: string;
+  divide: string;
+  chip: string;
+  chevron: string;
+}
 
-/** The header colour classes for a module: its own, or (for a module added later) one of a few spares picked from its name, always the same one. */
-export function sectionColour(module: string): string {
-  const own = SECTION_COLOURS[module];
+/** Full class names, so Tailwind sees them. */
+const tone = (header: string, body: string, divide: string, chip: string, chevron: string): SectionTone => ({ header, body, divide, chip, chevron });
+
+/**
+ * The light tint of a module's section, header and rows alike (decision-log 2026-11-19). Fixed per module, so a section keeps its colour; Payroll is red because it moves money.
+ */
+const SECTION_TONES: Record<string, SectionTone> = {
+  PAYROLL: tone('border-red-500 bg-red-100 text-red-950 hover:bg-red-200', 'bg-red-100/70', 'divide-red-200', 'bg-red-200 text-red-900', 'text-red-600'),
+  APPROVAL: tone('border-indigo-500 bg-indigo-100 text-indigo-950 hover:bg-indigo-200', 'bg-indigo-100/70', 'divide-indigo-200', 'bg-indigo-200 text-indigo-900', 'text-indigo-600'),
+  PLANNING: tone('border-blue-500 bg-blue-100 text-blue-950 hover:bg-blue-200', 'bg-blue-100/70', 'divide-blue-200', 'bg-blue-200 text-blue-900', 'text-blue-600'),
+  FIELD_ACTIVITY: tone('border-teal-500 bg-teal-100 text-teal-950 hover:bg-teal-200', 'bg-teal-100/70', 'divide-teal-200', 'bg-teal-200 text-teal-900', 'text-teal-600'),
+  NOTIFICATIONS: tone('border-amber-500 bg-amber-100 text-amber-950 hover:bg-amber-200', 'bg-amber-100/70', 'divide-amber-200', 'bg-amber-200 text-amber-900', 'text-amber-600'),
+  SYSTEM: tone('border-slate-500 bg-slate-200 text-slate-950 hover:bg-slate-300', 'bg-slate-100/80', 'divide-slate-300', 'bg-slate-300 text-slate-900', 'text-slate-600'),
+  HR: tone('border-violet-500 bg-violet-100 text-violet-950 hover:bg-violet-200', 'bg-violet-100/70', 'divide-violet-200', 'bg-violet-200 text-violet-900', 'text-violet-600'),
+  TERRITORY: tone('border-emerald-500 bg-emerald-100 text-emerald-950 hover:bg-emerald-200', 'bg-emerald-100/70', 'divide-emerald-200', 'bg-emerald-200 text-emerald-900', 'text-emerald-600'),
+  FIELD_MASTER_DATA: tone('border-cyan-500 bg-cyan-100 text-cyan-950 hover:bg-cyan-200', 'bg-cyan-100/70', 'divide-cyan-200', 'bg-cyan-200 text-cyan-900', 'text-cyan-600'),
+  AUTH: tone('border-rose-500 bg-rose-100 text-rose-950 hover:bg-rose-200', 'bg-rose-100/70', 'divide-rose-200', 'bg-rose-200 text-rose-900', 'text-rose-600'),
+  SALES: tone('border-orange-500 bg-orange-100 text-orange-950 hover:bg-orange-200', 'bg-orange-100/70', 'divide-orange-200', 'bg-orange-200 text-orange-900', 'text-orange-600'),
+  SYNC: tone('border-sky-500 bg-sky-100 text-sky-950 hover:bg-sky-200', 'bg-sky-100/70', 'divide-sky-200', 'bg-sky-200 text-sky-900', 'text-sky-600'),
+};
+const SPARE_TONES: SectionTone[] = [
+  tone('border-purple-500 bg-purple-100 text-purple-950 hover:bg-purple-200', 'bg-purple-100/70', 'divide-purple-200', 'bg-purple-200 text-purple-900', 'text-purple-600'),
+  tone('border-pink-500 bg-pink-100 text-pink-950 hover:bg-pink-200', 'bg-pink-100/70', 'divide-pink-200', 'bg-pink-200 text-pink-900', 'text-pink-600'),
+  tone('border-lime-500 bg-lime-100 text-lime-950 hover:bg-lime-200', 'bg-lime-100/70', 'divide-lime-200', 'bg-lime-200 text-lime-900', 'text-lime-700'),
+  tone('border-fuchsia-500 bg-fuchsia-100 text-fuchsia-950 hover:bg-fuchsia-200', 'bg-fuchsia-100/70', 'divide-fuchsia-200', 'bg-fuchsia-200 text-fuchsia-900', 'text-fuchsia-600'),
+];
+
+/** A module's section tone: its own, or (for a module added later) one of a few spares picked from its name, always the same one. */
+export function sectionTone(module: string): SectionTone {
+  const own = SECTION_TONES[module];
   if (own) return own;
   let h = 0;
   for (const ch of module) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return SPARE_COLOURS[h % SPARE_COLOURS.length]!;
+  return SPARE_TONES[h % SPARE_TONES.length]!;
 }
+
+/** Sections start open unless the person folded them (their choice is kept); a search or an invalid value never hides one. */
+export const sectionOpenByDefault = (chosen: boolean | undefined, searching: boolean): boolean => (searching ? true : (chosen ?? true));
 
 /** Matches the name, the description, the key and the group, ignoring case; an empty term matches everything. */
 export function searchSettings<T extends Pick<ConfigSettingDto, 'key' | 'label' | 'description' | 'moduleLabel'>>(settings: readonly T[], term: string): T[] {

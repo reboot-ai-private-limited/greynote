@@ -2991,3 +2991,8 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 
 - The picker now lists what the employee holds too, **ticked**. Unticking a held one takes it off that employee; ticking others assigns them. The review step lists "will be assigned" and "will be taken off" separately (a doctor taken off is left with nobody until assigned again; a chemist or distributor stays with its other holders). The earlier idea of hiding what is already held is dropped.
 - `POST /api/field-master-data/assignments/{doctors|chemists|distributors}` takes `removeIds[]` next to `ids[]` (at least one of the two); results gain `REMOVED`. Removal runs the single-record unassign (a doctor released from the MR's editable plans); one failure never stops the rest.
+
+## 2026-11-19 (later): System settings in a light tint, sections open by default
+
+- The deep solid section headers (white text on `-700` colours) are replaced by a pale header with a coloured left edge, and the setting rows under it carry a faint tint of the same colour, so the section reads as one block. Every module has its own light colour (Salary and payouts, which holds the expense deadlines, is red). The "invalid" chip stays solid red.
+- Sections now start open; a fold the person chose is still remembered. Web only; no setting or rule changed.

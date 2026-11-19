@@ -12,7 +12,8 @@ import {
   normalizeDraft,
   rangeHint,
   searchSettings,
-  sectionColour,
+  sectionOpenByDefault,
+  sectionTone,
 } from './settings';
 
 const setting = (over: Partial<ConfigSettingDto> = {}): ConfigSettingDto => ({
@@ -154,13 +155,26 @@ describe('confirmCopy', () => {
   });
 });
 
-describe('sectionColour', () => {
-  it('gives each known module its own deep colour, Payroll red', () => {
-    expect(sectionColour('PAYROLL')).toContain('bg-red-700');
-    const known = ['PAYROLL', 'APPROVAL', 'PLANNING', 'FIELD_ACTIVITY', 'NOTIFICATIONS', 'SYSTEM'].map(sectionColour);
-    expect(new Set(known).size).toBe(known.length);
+describe('sectionTone', () => {
+  it('gives each known module its own light colour, Payroll red, header and rows alike', () => {
+    expect(sectionTone('PAYROLL').header).toContain('bg-red-100');
+    expect(sectionTone('PAYROLL').body).toContain('red-100');
+    const modules = ['PAYROLL', 'APPROVAL', 'PLANNING', 'FIELD_ACTIVITY', 'NOTIFICATIONS', 'SYSTEM', 'HR', 'TERRITORY', 'FIELD_MASTER_DATA', 'AUTH', 'SALES', 'SYNC'];
+    const headers = modules.map((m) => sectionTone(m).header);
+    expect(new Set(headers).size).toBe(modules.length);
   });
   it('gives a module added later the same colour every time', () => {
-    expect(sectionColour('NEW_MODULE')).toBe(sectionColour('NEW_MODULE'));
+    expect(sectionTone('NEW_MODULE')).toBe(sectionTone('NEW_MODULE'));
+  });
+  it('keeps the header light, never the old deep colours with white text', () => {
+    for (const m of ['PAYROLL', 'PLANNING', 'NEW_MODULE']) expect(sectionTone(m).header).not.toMatch(/-(600|700|800)\b|text-white/);
+  });
+});
+
+describe('sectionOpenByDefault', () => {
+  it('starts open, keeps a fold the person chose, and a search opens everything it matched', () => {
+    expect(sectionOpenByDefault(undefined, false)).toBe(true);
+    expect(sectionOpenByDefault(false, false)).toBe(false);
+    expect(sectionOpenByDefault(false, true)).toBe(true);
   });
 });

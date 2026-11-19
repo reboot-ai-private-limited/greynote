@@ -1,5 +1,6 @@
 'use client';
 
+import { cn } from '@/components/ui/cn';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { DataState } from '@/components/ui/DataState';
@@ -12,7 +13,7 @@ import { useSearchFilter } from '@/lib/hooks/useSearchFilter';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useState } from 'react';
 import { useSettings } from '../hooks/useSettings';
-import { groupSettings, invalidSettings, searchSettings } from '../lib/settings';
+import { groupSettings, invalidSettings, searchSettings, sectionOpenByDefault, sectionTone } from '../lib/settings';
 import { FinancialYearCard } from './FinancialYearCard';
 import { SettingRow } from './SettingRow';
 import { SettingSection } from './SettingSection';
@@ -50,8 +51,8 @@ export function SettingsScreen() {
   const broken = invalidSettings(all);
   const [chosen, setChosen] = useState<Record<string, boolean>>(() => (typeof window === 'undefined' ? {} : readOpen()));
   const searching = values.q.trim() !== '';
-  // A section the person folded keeps their choice; otherwise it starts open only when a search matched in it or it holds an invalid value.
-  const isOpen = (g: (typeof groups)[number]) => (searching ? true : (chosen[g.module] ?? g.items.some((x) => !x.valid)));
+  // A section the person folded keeps their choice; otherwise it starts open (decision-log 2026-11-19).
+  const isOpen = (g: (typeof groups)[number]) => sectionOpenByDefault(chosen[g.module], searching);
   const setAll = (open: boolean) => {
     const next = Object.fromEntries(groups.map((g) => [g.module, open]));
     setChosen((c) => ({ ...c, ...next }));
@@ -108,7 +109,7 @@ export function SettingsScreen() {
         <div className="space-y-6">
           {groups.map((g) => (
             <SettingSection key={g.module} group={g} open={isOpen(g)} onToggle={() => toggle(g)}>
-              <ul className="divide-y divide-border">
+              <ul className={cn('divide-y', sectionTone(g.module).divide)}>
                 {g.items.map((s) => (
                   // Keyed by the stored value too, so a save (or a change made elsewhere) restarts the row's draft from what is now stored.
                   <SettingRow key={`${s.key}:${s.value}`} setting={s} readOnly={readOnly} />
