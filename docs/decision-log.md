@@ -2967,3 +2967,9 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 ## 2026-11-19: reset codes go only to the person's own email
 
 `PASSWORD_RESET_OWNER_EMAIL` is gone. An Admin with no email on their record is answered `NO_EMAIL` (with another Admin to contact) like everyone else; nothing is sent to an address from the environment. The `SMTP_*` settings stay: they only say which mailbox sends. Before deploying, give every Admin an email, or they lose self-service reset.
+
+## 2026-11-19: Excel and settings tidy-ups
+
+- Monthly Work Report, Daily tab: the "Visited (names)" and "Missed (names)" columns are gone (the counts stay; the Doctors tab stays).
+- Tour Plan Excel: a **Manager** column (the employee's direct manager, on every row) and a **Route type** column; the Routes column is gone. From, To and Route type hold one line per route, in plan order, so line 1 of each belongs together.
+- System settings (web): each module is a collapsible section with its own fixed deep colour (Payroll red); open or shut is remembered in the browser.

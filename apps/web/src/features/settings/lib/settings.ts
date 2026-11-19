@@ -22,6 +22,26 @@ export function groupSettings(settings: readonly ConfigSettingDto[]): SettingGro
   return [...groups.values()];
 }
 
+/** The deep colour of a module's section header. Fixed per module, so a section keeps its colour; Payroll is red because it moves money. Full class names, so Tailwind sees them. */
+const SECTION_COLOURS: Record<string, string> = {
+  PAYROLL: 'bg-red-700 hover:bg-red-800',
+  APPROVAL: 'bg-indigo-700 hover:bg-indigo-800',
+  PLANNING: 'bg-blue-700 hover:bg-blue-800',
+  FIELD_ACTIVITY: 'bg-teal-700 hover:bg-teal-800',
+  NOTIFICATIONS: 'bg-amber-700 hover:bg-amber-800',
+  SYSTEM: 'bg-slate-700 hover:bg-slate-800',
+};
+const SPARE_COLOURS = ['bg-purple-700 hover:bg-purple-800', 'bg-emerald-700 hover:bg-emerald-800', 'bg-pink-700 hover:bg-pink-800', 'bg-cyan-700 hover:bg-cyan-800'];
+
+/** The header colour classes for a module: its own, or (for a module added later) one of a few spares picked from its name, always the same one. */
+export function sectionColour(module: string): string {
+  const own = SECTION_COLOURS[module];
+  if (own) return own;
+  let h = 0;
+  for (const ch of module) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return SPARE_COLOURS[h % SPARE_COLOURS.length]!;
+}
+
 /** Matches the name, the description, the key and the group, ignoring case; an empty term matches everything. */
 export function searchSettings<T extends Pick<ConfigSettingDto, 'key' | 'label' | 'description' | 'moduleLabel'>>(settings: readonly T[], term: string): T[] {
   const needle = term.trim().toLowerCase();

@@ -12,6 +12,7 @@ import {
   normalizeDraft,
   rangeHint,
   searchSettings,
+  sectionColour,
 } from './settings';
 
 const setting = (over: Partial<ConfigSettingDto> = {}): ConfigSettingDto => ({
@@ -150,5 +151,16 @@ describe('confirmCopy', () => {
       change: 'April → January',
       confirm: 'Change it',
     });
+  });
+});
+
+describe('sectionColour', () => {
+  it('gives each known module its own deep colour, Payroll red', () => {
+    expect(sectionColour('PAYROLL')).toContain('bg-red-700');
+    const known = ['PAYROLL', 'APPROVAL', 'PLANNING', 'FIELD_ACTIVITY', 'NOTIFICATIONS', 'SYSTEM'].map(sectionColour);
+    expect(new Set(known).size).toBe(known.length);
+  });
+  it('gives a module added later the same colour every time', () => {
+    expect(sectionColour('NEW_MODULE')).toBe(sectionColour('NEW_MODULE'));
   });
 });
