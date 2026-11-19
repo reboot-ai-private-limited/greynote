@@ -14,6 +14,10 @@ export interface DoctorFilter extends PageQuery {
   /** With `search`, for an assigned-Doctors read: also every Doctor assigned to these employees. */
   alsoUserIds?: string[] | undefined;
   routeId?: string | undefined;
+  /** Only Doctors on any of these Routes (the Routes an employee holds); an empty list matches nothing. */
+  routeIds?: string[] | undefined;
+  /** Not these Doctors (the ones an employee already holds, for the assign picker). */
+  excludeDoctorIds?: string[] | undefined;
   status?: DoctorStatus | undefined;
 }
 

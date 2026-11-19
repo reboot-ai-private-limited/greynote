@@ -6,6 +6,7 @@ import { coverageMeets, expandRouteIds, scopeOfUser } from '../distributorCovera
 import { CreateDistributorUseCase, type CreateDistributorInput } from './createDistributor.usecase.js';
 import { FakeDistributors, FakeTerritory, FakeUsers } from './fmdTestKit.js';
 import { GetDistributorUseCase } from './getDistributor.usecase.js';
+import { BulkAssignDistributorsUseCase } from './bulkAssign.usecase.js';
 import { ListDistributorsUseCase } from './listDistributors.usecase.js';
 import { UpdateDistributorUseCase } from './updateDistributor.usecase.js';
 
@@ -156,6 +157,24 @@ describe('Distributors', () => {
     expect(await names({ assignedUserId: 'mr2' })).toEqual(['City Agencies']);
     expect(await names({ search: '27bbb' })).toEqual(['Far Away Co']);
     expect((await list.execute(page)).total).toBe(4);
+  });
+
+  it('the assign picker lists active distributors covering where the employee works; bulk assign adds without removing others (2026-11-19)', async () => {
+    const a = await create({ routeIds: ['route-2'], name: 'City Agencies', gstNumber: '19AAAAA1111A1Z1', assignedUserIds: ['mr2'] });
+    await create({ routeIds: ['route-3'], name: 'Far Away Co', gstNumber: '27BBBBB2222B1Z2', assignedUserIds: [] });
+    territory.userRoutes.set('mr1', ['route-2']);
+    const list = new ListDistributorsUseCase(distributors, territory, users);
+    const names = (await list.execute({ ...page, eligibleFor: 'mr1' })).items.map((d) => d.name);
+    expect(names).toContain('City Agencies');
+    expect(names).not.toContain('Far Away Co');
+    const bulk = new BulkAssignDistributorsUseCase(distributors, new UpdateDistributorUseCase(distributors, territory, users));
+    const out = await bulk.execute('mr1', [a.id, 'nope']);
+    expect(out.map((r) => r.outcome)).toEqual(['ASSIGNED', 'SKIPPED']);
+    expect((await distributors.findById(a.id))?.assignedUserIds.sort()).toEqual(['mr1', 'mr2']);
+    expect((await bulk.execute('mr1', [a.id]))[0]?.outcome).toBe('ALREADY');
+    expect((await list.execute({ ...page, eligibleFor: 'mr1' })).items.map((d) => d.name)).toContain('City Agencies'); // held ones stay in the picker
+    expect((await bulk.execute('mr1', [], [a.id, 'nope'])).map((r) => r.outcome)).toEqual(['REMOVED', 'SKIPPED']); // unticked: off mr1 only
+    expect((await distributors.findById(a.id))?.assignedUserIds).toEqual(['mr2']);
   });
 
   it('a manager holds what their team holds, searching a manager finds it, and every row says who holds it (2026-11-19)', async () => {

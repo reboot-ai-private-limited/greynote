@@ -9,6 +9,8 @@ export interface DistributorFilter extends PageQuery {
   assignedUserId?: string | undefined;
   /** Held by any of these employees (an employee and their team); used instead of `assignedUserId`. */
   assignedAny?: string[] | undefined;
+  /** Not the Distributors this employee is already assigned to (the assign picker). */
+  notAssignedTo?: string | undefined;
   /** Also the Distributors any of these employees hold, whatever their name (the employees a search term matched). */
   searchAssignedAny?: string[] | undefined;
   status?: MasterStatus | undefined;

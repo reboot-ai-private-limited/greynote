@@ -65,6 +65,7 @@ export class MongoDistributorAdapter implements DistributorRepositoryPort {
     }
     if (filter.assignedAny) query['assignedUserIds'] = { $in: filter.assignedAny.map((id) => new Types.ObjectId(id)) };
     else if (filter.assignedUserId) query['assignedUserIds'] = new Types.ObjectId(filter.assignedUserId);
+    if (filter.notAssignedTo) query['assignedUserIds'] = { ...(typeof query['assignedUserIds'] === 'object' && query['assignedUserIds'] !== null && !(query['assignedUserIds'] instanceof Types.ObjectId) ? (query['assignedUserIds'] as object) : {}), $ne: new Types.ObjectId(filter.notAssignedTo) };
     if (filter.status) query['status'] = filter.status;
     if (filter.search) {
       const rx = new RegExp(escapeRegex(filter.search), 'i');

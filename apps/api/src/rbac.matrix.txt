@@ -262,6 +262,9 @@ POST   /api/field-activity/expense-payouts/pay  ACCOUNTANT,ADMIN
 POST   /api/field-activity/expenses/:id/mark-paid  ACCOUNTANT,ADMIN
 POST   /api/field-activity/expenses/other  FIELD
 POST   /api/field-activity/expenses/other/:id/attachments  FIELD
+POST   /api/field-master-data/assignments/chemists  ADMIN
+POST   /api/field-master-data/assignments/distributors  ACCOUNTANT,ADMIN
+POST   /api/field-master-data/assignments/doctors  ADMIN
 POST   /api/field-master-data/chemists  ADMIN
 POST   /api/field-master-data/chemists/:id/assignments  ADMIN
 POST   /api/field-master-data/chemists/added  FIELD

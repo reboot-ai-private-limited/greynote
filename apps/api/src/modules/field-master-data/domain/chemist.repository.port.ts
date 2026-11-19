@@ -7,6 +7,10 @@ export interface ChemistFilter extends PageQuery {
   search?: string | undefined;
   routeId?: string | undefined;
   status?: ChemistStatus | undefined;
+  /** Only Chemists on any of these Routes (the Routes an employee holds); an empty list matches nothing. */
+  routeIds?: string[] | undefined;
+  /** Not these Chemists (the ones an employee already holds, for the assign picker). */
+  excludeIds?: string[] | undefined;
   /** Also these Chemists whatever their name (the ones an employee matched by the search term holds). */
   alsoIds?: string[] | undefined;
 }

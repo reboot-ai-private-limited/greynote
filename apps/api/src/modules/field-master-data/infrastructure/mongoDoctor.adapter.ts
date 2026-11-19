@@ -56,6 +56,8 @@ export class MongoDoctorAdapter implements DoctorRepositoryPort {
   async list(filter: DoctorFilter): Promise<PaginatedResult<Doctor>> {
     const query: Record<string, unknown> = {};
     if (filter.routeId) query['routeId'] = new Types.ObjectId(filter.routeId);
+    if (filter.routeIds) query['routeId'] = { $in: filter.routeIds.map((id) => new Types.ObjectId(id)) };
+    if (filter.excludeDoctorIds?.length) query['_id'] = { $nin: filter.excludeDoctorIds.map((id) => new Types.ObjectId(id)) };
     if (filter.status) query['status'] = filter.status;
     if (filter.search) {
       const byName = { name: new RegExp(escapeRegex(filter.search), 'i') };

@@ -1,3 +1,4 @@
+import { BulkAssignDoctorsUseCase } from './bulkAssign.usecase.js';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AppError } from '@/shared/errors/AppError.js';
 import { DoctorViews } from '../doctorViews.js';
@@ -120,6 +121,36 @@ describe('Doctors', () => {
       expect(found.items.map((d) => d.name)).toEqual(['Dr Rao']);
       expect(found.items[0]?.assignedTo).toMatchObject({ userId: 'mr1', name: 'Asha MR' });
       expect((await list.execute({ ...page, search: 'Chitra', directOnly: true })).total).toBe(0);
+    });
+
+    it('the assign picker and bulk assign (2026-11-19)', async () => {
+      const a = await create({ name: 'Dr Rao' }); // route-1
+      const b = await create({ name: 'Dr Sen', routeId: 'route-2' });
+      const c = await create({ name: 'Dr Das' }); // route-1, held by mr1 already
+      await assign(c.id, 'mr1');
+      territory.userRoutes.set('asm2', ['route-1']);
+      users.rows.push({ id: 'asm2', name: 'Dev MR', employeeCode: 'E9', role: 'FIELD', status: 'active' });
+      const list = new ListDoctorsUseCase(doctors, views, users, assignments, territory);
+      // Only doctors on routes asm2 holds.
+      expect((await list.execute({ ...page, eligibleFor: 'asm2' })).items.map((d) => d.name).sort()).toEqual(['Dr Das', 'Dr Rao']);
+      expect((await list.execute({ ...page, eligibleFor: 'asm2', search: 'rao' })).items.map((d) => d.name)).toEqual(['Dr Rao']);
+      expect((await list.execute({ ...page, eligibleFor: 'nobody-with-routes' })).total).toBe(0);
+      // Bulk assign: free -> ASSIGNED, held by another -> MOVED with who, other route -> SKIPPED, again -> ALREADY.
+      const assignUse = new AssignDoctorUseCase(doctors, assignments, users, territory, new FakeTransactions(), retirementKit(doctors, assignments, users).retirement);
+      const unassignUse = new UnassignDoctorUseCase(assignments, retirementKit(doctors, assignments, users).retirement);
+      const bulk = new BulkAssignDoctorsUseCase(doctors, assignments, users, assignUse, unassignUse);
+      const first = await bulk.execute('asm2', [a.id, b.id, c.id, 'nope'], 'admin');
+      expect(first.map((r) => [r.name, r.outcome])).toEqual([['Dr Rao', 'ASSIGNED'], ['Dr Sen', 'SKIPPED'], ['Dr Das', 'MOVED'], ['Unknown doctor', 'SKIPPED']]);
+      expect(first[1]?.reason).toContain('route');
+      expect(first[2]?.from).toBe('Asha MR');
+      expect((await bulk.execute('asm2', [a.id], 'admin'))[0]?.outcome).toBe('ALREADY');
+      // What asm2 holds stays in the picker, with its holder, so it can be unticked.
+      const now = await list.execute({ ...page, eligibleFor: 'asm2' });
+      expect(now.items.map((d) => [d.name, d.assignedTo?.userId]).sort()).toEqual([['Dr Das', 'asm2'], ['Dr Rao', 'asm2']]);
+      // Unticking takes it off asm2 only; a doctor not held by asm2 is skipped.
+      const out = await bulk.execute('asm2', [], 'admin', [a.id, b.id]);
+      expect(out.map((r) => [r.name, r.outcome])).toEqual([['Dr Rao', 'REMOVED'], ['Dr Sen', 'SKIPPED']]);
+      expect((await list.execute({ ...page, unassigned: true })).items.map((d) => d.name)).toContain('Dr Rao');
     });
 
     it('the search box also finds a Doctor by the name or code of the MR it is assigned to (2026-11-02)', async () => {

@@ -42,6 +42,8 @@ export class MongoChemistAdapter implements ChemistRepositoryPort {
   async list(filter: ChemistFilter): Promise<PaginatedResult<Chemist>> {
     const query: Record<string, unknown> = {};
     if (filter.routeId) query['routeId'] = new Types.ObjectId(filter.routeId);
+    if (filter.routeIds) query['routeId'] = { $in: filter.routeIds.map((id) => new Types.ObjectId(id)) };
+    if (filter.excludeIds?.length) query['_id'] = { $nin: filter.excludeIds.filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id)) };
     if (filter.status) query['status'] = filter.status;
     if (filter.search) {
       const byName = { name: new RegExp(escapeRegex(filter.search), 'i') };

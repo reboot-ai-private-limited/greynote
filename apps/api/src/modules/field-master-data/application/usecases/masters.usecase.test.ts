@@ -5,6 +5,8 @@ import { CreateProductUseCase } from './createProduct.usecase.js';
 import { FakeChemistAssignments, FakeChemists, FakeProducts, FakeTerritory, FakeUsers } from './fmdTestKit.js';
 import { GetChemistUseCase } from './getChemist.usecase.js';
 import { GetProductUseCase } from './getProduct.usecase.js';
+import { AssignChemistUseCase, UnassignChemistUseCase } from './chemistAssignments.usecase.js';
+import { BulkAssignChemistsUseCase } from './bulkAssign.usecase.js';
 import { ListChemistsUseCase } from './listChemists.usecase.js';
 import { ListProductsUseCase } from './listProducts.usecase.js';
 import { UpdateChemistUseCase } from './updateChemist.usecase.js';
@@ -143,6 +145,28 @@ describe('Chemists', () => {
     await assignments.assign({ chemistId: b.id, userId: 'mr1', assignedBy: 'admin' });
     expect((await list.execute({ ...page, assignedUserId: 'mr1' })).items.map((c) => c.name)).toEqual(['Sai Pharmacy']); // City Meds is inactive
     expect((await list.execute({ ...page, assignedUserId: 'mr2' })).total).toBe(0);
+  });
+
+  it('the assign picker lists active chemists on the routes the employee holds; bulk assign adds without removing others (2026-11-19)', async () => {
+    const create = new CreateChemistUseCase(chemists, territory);
+    const a = await create.execute(input); // route-1
+    const b = await create.execute({ ...input, routeId: 'route-2', name: 'City Meds' });
+    const assignments = new FakeChemistAssignments();
+    await assignments.assign({ chemistId: a.id, userId: 'mr2', assignedBy: 'admin' });
+    const users = new FakeUsers();
+    territory.userRoutes.set('mr1', ['route-1']);
+    const list = new ListChemistsUseCase(chemists, assignments, users, territory);
+    expect((await list.execute({ ...page, eligibleFor: 'mr1' })).items.map((c) => c.name)).toEqual(['Sai Pharmacy']);
+    expect((await list.execute({ ...page, eligibleFor: 'stranger' })).total).toBe(0);
+    const bulk = new BulkAssignChemistsUseCase(chemists, assignments, new AssignChemistUseCase(chemists, assignments, users), new UnassignChemistUseCase(assignments));
+    const out = await bulk.execute('mr1', [a.id, b.id, a.id, 'nope'], 'admin');
+    expect(out.map((r) => [r.name, r.outcome])).toEqual([['Sai Pharmacy', 'ASSIGNED'], ['City Meds', 'ASSIGNED'], ['Unknown chemist', 'SKIPPED']]);
+    expect((await bulk.execute('mr1', [a.id], 'admin'))[0]?.outcome).toBe('ALREADY');
+    expect(await assignments.isAssigned('mr2', a.id)).toBe(true); // the other holder keeps it
+    expect((await list.execute({ ...page, eligibleFor: 'mr1' })).items.map((c) => c.name)).toEqual(['Sai Pharmacy']); // what mr1 holds stays in the picker
+    expect((await bulk.execute('mr1', [], 'admin', [a.id, b.id])).map((r) => r.outcome)).toEqual(['REMOVED', 'REMOVED']); // unticked: off mr1 only
+    expect(await assignments.isAssigned('mr1', a.id)).toBe(false);
+    expect(await assignments.isAssigned('mr2', a.id)).toBe(true); // the other holder keeps it
   });
 
   it('a manager holds what their team holds, searching a manager finds it, and every row says who holds it (2026-11-19)', async () => {

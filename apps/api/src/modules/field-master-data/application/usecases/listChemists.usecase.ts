@@ -2,6 +2,7 @@ import type { PaginatedResult } from '@/shared/http/pagination.js';
 import type { Chemist } from '../../domain/chemist.entity.js';
 import type { ChemistFilter, ChemistRepositoryPort } from '../../domain/chemist.repository.port.js';
 import type { ChemistAssignmentRepositoryPort } from '../../domain/chemistAssignment.repository.port.js';
+import type { TerritoryPort } from '../../domain/territory.port.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import { assigneeScope, employeesMatching } from '../assigneeScope.js';
 
@@ -17,10 +18,18 @@ export class ListChemistsUseCase {
     private readonly chemists: ChemistRepositoryPort,
     private readonly assignments: ChemistAssignmentRepositoryPort,
     private readonly users?: UserDirectoryPort,
+    private readonly territory?: TerritoryPort,
   ) {}
 
-  async execute(filter: ChemistFilter & { assignedUserId?: string | undefined; directOnly?: boolean | undefined }): Promise<PaginatedResult<ChemistRow>> {
-    const { assignedUserId, directOnly, ...rest } = filter;
+  async execute(filter: ChemistFilter & { assignedUserId?: string | undefined; directOnly?: boolean | undefined; eligibleFor?: string | undefined }): Promise<PaginatedResult<ChemistRow>> {
+    const { assignedUserId, directOnly, eligibleFor, ...base } = filter;
+    let rest: ChemistFilter = base;
+    // The assign picker: active chemists on the routes this employee holds.
+    if (eligibleFor && this.territory) {
+      const routeIds = (await this.territory.listRoutesForUser(eligibleFor)).map((r) => r.id);
+      if (routeIds.length === 0) return { ...(await this.chemists.listActiveAmong([], {}, base)), items: [] };
+      rest = { ...base, routeIds, status: 'active' };
+    }
     const term = rest.search?.trim();
     let result: PaginatedResult<Chemist>;
     if (assignedUserId) {

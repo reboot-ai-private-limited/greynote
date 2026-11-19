@@ -95,7 +95,7 @@ export const updateChemistBodySchema = z
   })
   .refine((b) => Object.keys(b).length > 0, { message: 'Nothing to change.' });
 /** Includes `pending` — the employee-added Chemists waiting for approval. */
-export const listChemistsQuerySchema = z.object({ ...pageFields, status: z.enum(CHEMIST_STATUSES).optional(), routeId: objectIdSchema.optional(), assignedUserId: objectIdSchema.optional(), directOnly: z.enum(['true', 'false']).transform((v) => v === 'true').optional() });
+export const listChemistsQuerySchema = z.object({ ...pageFields, status: z.enum(CHEMIST_STATUSES).optional(), routeId: objectIdSchema.optional(), assignedUserId: objectIdSchema.optional(), directOnly: z.enum(['true', 'false']).transform((v) => v === 'true').optional(), eligibleFor: objectIdSchema.optional() });
 
 // ---- Chemists an employee adds (offline-first, then approved)
 const addedChemistFields = {
@@ -178,6 +178,8 @@ export const listDoctorsQuerySchema = z.object({
   assignedUserId: objectIdSchema.optional(),
   /** Only what this employee holds personally; left out (the default), a manager's team counts too, as on the phone. */
   directOnly: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
+  /** Only active records this employee could be given: doctors on the routes they hold (the assign picker). */
+  eligibleFor: objectIdSchema.optional(),
   /** Only the Doctors nobody is assigned to now (`true`). Not together with `assignedUserId`. */
   unassigned: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
 });
@@ -275,6 +277,8 @@ export const listDistributorsQuerySchema = z.object({
   assignedUserId: objectIdSchema.optional(),
   /** Only what this employee holds personally; left out (the default), a manager's team counts too, as on the phone. */
   directOnly: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
+  /** Only active distributors this employee could be given: those that cover their routes, HQs and zones (the assign picker). */
+  eligibleFor: objectIdSchema.optional(),
 });
 
 export const distributorDocumentBodySchema = z.object({ documentType: z.enum(DISTRIBUTOR_DOCUMENT_TYPES) });
@@ -285,3 +289,13 @@ const quantitySchema = z.number().int().min(1).max(100_000);
 export const issueSampleBodySchema = z.object({ productId: objectIdSchema, quantity: quantitySchema });
 export const adjustSampleBodySchema = z.object({ quantityAllocated: z.number().int().min(0).max(100_000) });
 export const sampleAllocationParamsSchema = z.object({ id: objectIdSchema, productId: objectIdSchema });
+
+/** Assign, and take off, several doctors, chemists or distributors for one employee in one go (the picker on the employee page). */
+export const bulkAssignBodySchema = z
+  .object({
+    userId: objectIdSchema,
+    ids: z.array(objectIdSchema).max(200, 'At most 200 at a time.').default([]),
+    /** Taken off this employee in the same call (the held ones unticked in the picker). */
+    removeIds: z.array(objectIdSchema).max(200, 'At most 200 at a time.').default([]),
+  })
+  .refine((b) => b.ids.length + b.removeIds.length > 0, { message: 'Choose at least one.' });

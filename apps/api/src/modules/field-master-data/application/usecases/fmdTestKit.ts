@@ -87,6 +87,8 @@ export class FakeChemists implements ChemistRepositoryPort {
       this.rows.filter(
         (c) =>
           (!f.routeId || c.routeId === f.routeId) &&
+          (!f.routeIds || f.routeIds.includes(c.routeId)) &&
+          (!f.excludeIds || !f.excludeIds.includes(c.id)) &&
           (!f.status || c.status === f.status) &&
           (!search || c.name.toLowerCase().includes(search) || (f.alsoIds ?? []).includes(c.id)),
       ),
@@ -349,6 +351,8 @@ export class FakeDoctors implements DoctorRepositoryPort {
       this.rows.filter(
         (d) =>
           (!f.routeId || d.routeId === f.routeId) &&
+          (!f.routeIds || f.routeIds.includes(d.routeId)) &&
+          (!f.excludeDoctorIds || !f.excludeDoctorIds.includes(d.id)) &&
           (!f.status || d.status === f.status) &&
           (!f.onlyDoctorIds || f.onlyDoctorIds.includes(d.id)) &&
           (!assignedIds || !assignedIds.has(d.id)) &&
@@ -513,6 +517,7 @@ export class FakeDistributors implements DistributorRepositoryPort {
           (!f.scope || coverageMeets(d, f.scope)) &&
           (!f.assignedUserId || d.assignedUserIds.includes(f.assignedUserId)) &&
           (!f.assignedAny || d.assignedUserIds.some((id) => f.assignedAny!.includes(id))) &&
+          (!f.notAssignedTo || !d.assignedUserIds.includes(f.notAssignedTo)) &&
           (!f.status || d.status === f.status) &&
           (!search || d.name.toLowerCase().includes(search) || d.gstNumber.toLowerCase().includes(search) || d.assignedUserIds.some((id) => (f.searchAssignedAny ?? []).includes(id))),
       ),

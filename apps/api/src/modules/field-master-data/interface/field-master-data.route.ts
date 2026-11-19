@@ -1,3 +1,4 @@
+import { bulkAssignRouter, type BulkAssignHandlers } from './bulkAssign.route.js';
 import { Router } from 'express';
 import type { AnyZodObject, ZodTypeAny } from 'zod';
 import { authenticate } from '@/shared/http/authenticate.middleware.js';
@@ -239,8 +240,10 @@ export function buildFieldMasterDataRouter(c: {
   chemistAssignments: ChemistAssignmentHandlers;
   distributors: DistributorHandlers;
   doctors: DoctorHandlers;
+  bulkAssign: BulkAssignHandlers;
 }): Router {
   const router = Router();
+  router.use('/assignments', bulkAssignRouter(c.bulkAssign));
   router.use('/doctors', doctorsRouter(c.doctors));
   router.use('/products', crudRouter(c.products, { list: listProductsQuerySchema, create: createProductBodySchema, update: updateProductBodySchema }, ['ADMIN', 'ACCOUNTANT'])); // the Accountant reads them to add or change an order
   router.use('/specialties', crudRouter(c.specialties, { list: listSpecialtiesQuerySchema, create: createSpecialtyBodySchema, update: updateSpecialtyBodySchema }));

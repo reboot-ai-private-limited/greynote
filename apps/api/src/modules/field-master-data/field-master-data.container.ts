@@ -1,3 +1,5 @@
+import { BulkAssignChemistsUseCase, BulkAssignDistributorsUseCase, BulkAssignDoctorsUseCase } from './application/usecases/bulkAssign.usecase.js';
+import { makeBulkAssignControllers } from './interface/bulkAssign.route.js';
 import type { Router } from 'express';
 import { Types } from 'mongoose';
 import { DistributorRetirement } from './application/distributorRetirement.js';
@@ -140,7 +142,7 @@ export function buildFieldMasterDataContainer(
     update: new UpdateSpecialtyUseCase(specialties, doctors),
   };
   const chemistUseCases = {
-    list: new ListChemistsUseCase(chemists, chemistAssignments, users),
+    list: new ListChemistsUseCase(chemists, chemistAssignments, users, territory),
     create: new CreateChemistUseCase(chemists, territory),
     get: new GetChemistUseCase(chemists),
     update: new UpdateChemistUseCase(chemists, territory),
@@ -168,7 +170,7 @@ export function buildFieldMasterDataContainer(
   const assignDoctor = new AssignDoctorUseCase(doctors, assignments, users, territory, transactions, retirement);
   const leaverWork = new LeaverWork(doctors, assignments, distributors, territory, assignDoctor, retirement, chemistAssignments);
   const doctorUseCases = {
-    list: new ListDoctorsUseCase(doctors, views, users, assignments),
+    list: new ListDoctorsUseCase(doctors, views, users, assignments, territory),
     create: new CreateDoctorUseCase(doctors, territory, views, specialtyCatalog),
     get: new GetDoctorUseCase(doctors, visibility, views),
     update: updateDoctor,
@@ -298,6 +300,11 @@ export function buildFieldMasterDataContainer(
         chemistAssignments: makeChemistAssignmentControllers({ team: chemistUseCases.team, review: chemistUseCases.review, listAssignments: chemistUseCases.listAssignments, assign: chemistUseCases.assign, unassign: chemistUseCases.unassign }),
         doctors: makeDoctorControllers(doctorUseCases),
         distributors: makeDistributorControllers(distributorUseCases),
+        bulkAssign: makeBulkAssignControllers({
+          doctors: new BulkAssignDoctorsUseCase(doctors, assignments, users, doctorUseCases.assign, doctorUseCases.unassign),
+          chemists: new BulkAssignChemistsUseCase(chemists, chemistAssignments, chemistUseCases.assign, chemistUseCases.unassign),
+          distributors: new BulkAssignDistributorsUseCase(distributors, distributorUseCases.update),
+        }),
       }),
   };
 }

@@ -5,7 +5,7 @@ import type { MasterStatus, PageQuery } from '../../domain/masterStatus.js';
 import type { TerritoryPort } from '../../domain/territory.port.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import { assigneeScope, employeesMatching } from '../assigneeScope.js';
-import { scopeOfPlace } from '../distributorCoverage.js';
+import { scopeOfPlace, scopeOfUser } from '../distributorCoverage.js';
 
 export interface ListDistributorsInput extends PageQuery {
   search?: string | undefined;
@@ -14,6 +14,7 @@ export interface ListDistributorsInput extends PageQuery {
   zoneId?: string | undefined;
   assignedUserId?: string | undefined;
   directOnly?: boolean | undefined;
+  eligibleFor?: string | undefined;
   status?: MasterStatus | undefined;
 }
 
@@ -33,8 +34,10 @@ export class ListDistributorsUseCase {
   ) {}
 
   async execute(input: ListDistributorsInput): Promise<PaginatedResult<DistributorRow>> {
-    const { routeId, hqId, zoneId, directOnly, assignedUserId, ...rest } = input;
-    const scope = routeId || hqId || zoneId ? await scopeOfPlace(this.territory, { routeId, hqId, zoneId }) : undefined;
+    const { routeId, hqId, zoneId, directOnly, assignedUserId, eligibleFor, ...rest } = input;
+    // The assign picker: active distributors that cover where this employee works (their routes, HQs and zones).
+    const scope = eligibleFor ? await scopeOfUser(this.territory, eligibleFor) : routeId || hqId || zoneId ? await scopeOfPlace(this.territory, { routeId, hqId, zoneId }) : undefined;
+    if (eligibleFor) rest.status = 'active';
     if (scope && scope.zoneIds.length + scope.hqIds.length + scope.routeIds.length === 0) return buildPaginatedResult([], 0, input);
     const term = rest.search?.trim();
     const result = await this.distributors.list({

@@ -2,7 +2,7 @@
 
 import type { DistributorDto, UserDetailDto } from '@greynote/contracts';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -11,7 +11,10 @@ import { toErrorState } from '@/lib/api/toErrorState';
 import { useDistributors, useUpdateDistributor } from '@/features/field-master-data/hooks/useDistributors';
 import { useChemists, useUnassignChemist } from '@/features/field-master-data/hooks/useChemists';
 import { useDoctors, useUnassignDoctor } from '@/features/field-master-data/hooks/useDoctors';
+import { useIsReadOnly } from '@/lib/useFinancialYear';
+import type { PickerKind } from '../hooks/useAssignPicker';
 import { moreText, removeWording, type Holder } from '../lib/assigned';
+import { AssignPickerDialog } from './AssignPickerDialog';
 
 /** The first few of each kind; the rest are one click away on the list page, already filtered to this employee. */
 const SHOWN = 5;
@@ -23,12 +26,17 @@ const PAGE = { page: 1, pageSize: SHOWN } as const;
  * list page filtered to this employee), and Remove takes it off whoever holds it. It is changed on its own page too.
  */
 export function AssignedSection({ user }: { user: UserDetailDto }) {
+  const readOnly = useIsReadOnly();
+  const [assigning, setAssigning] = useState<PickerKind | null>(null);
+  // Admin gives records to an active field employee; nothing changes while a past year is on view.
+  const canAssign = !readOnly && user.role === 'FIELD' && user.status === 'active';
+  const assignButton = (kind: PickerKind) => (canAssign ? <Button size="sm" variant="secondary" onClick={() => setAssigning(kind)}>Assign</Button> : null);
   const distributors = useDistributors({ ...PAGE, assignedUserId: user.id, status: 'active' });
   const doctors = useDoctors({ ...PAGE, assignedUserId: user.id });
   const chemists = useChemists({ ...PAGE, assignedUserId: user.id });
 
   return (
-    <Card title="Assigned" description="Distributors, doctors and chemists this employee holds, and what the people below them hold. Each says who holds it; Remove takes it off that person.">
+    <Card title="Assigned" description="Distributors, doctors and chemists this employee holds, and what the people below them hold. Each says who holds it; Remove takes it off that person. Assign gives several at once.">
       <div className="grid gap-6 p-5 md:grid-cols-3">
         <Block
           title="Distributors"
@@ -37,6 +45,7 @@ export function AssignedSection({ user }: { user: UserDetailDto }) {
           total={distributors.data?.total}
           empty="None. Nobody on this employee's team holds a distributor."
           viewAll={`/distributors?assignedUserId=${user.id}`}
+          action={assignButton('distributors')}
         >
           {(distributors.data?.items ?? []).map((d) => (
             <DistributorRow key={d.id} d={d} user={user} />
@@ -49,6 +58,7 @@ export function AssignedSection({ user }: { user: UserDetailDto }) {
           total={doctors.data?.total}
           empty="No doctors held by this employee or their team."
           viewAll={`/doctors?assignedUserId=${user.id}`}
+          action={assignButton('doctors')}
         >
           {(doctors.data?.items ?? []).map((d) => (
             <DoctorRow key={d.id} id={d.id} name={d.name} holder={d.assignedTo} user={user} />
@@ -61,24 +71,29 @@ export function AssignedSection({ user }: { user: UserDetailDto }) {
           total={chemists.data?.total}
           empty="None. Nobody on this employee's team holds a chemist."
           viewAll={`/chemists?assignedUserId=${user.id}`}
+          action={assignButton('chemists')}
         >
           {(chemists.data?.items ?? []).map((c) => (
             <ChemistRow key={c.id} id={c.id} name={c.name} holders={c.assignedTo ?? []} user={user} />
           ))}
         </Block>
       </div>
+      {assigning ? <AssignPickerDialog kind={assigning} user={user} onClose={() => setAssigning(null)} /> : null}
     </Card>
   );
 }
 
-function Block({ title, loading, error, total, empty, viewAll, children }: { title: string; loading: boolean; error: ReturnType<typeof toErrorState> | null; total: number | undefined; empty: string; viewAll: string; children: React.ReactNode }) {
+function Block({ title, loading, error, total, empty, viewAll, action, children }: { title: string; loading: boolean; error: ReturnType<typeof toErrorState> | null; total: number | undefined; empty: string; viewAll: string; action?: ReactNode; children: ReactNode }) {
   const more = moreText(total ?? 0, SHOWN);
   return (
     <div>
-      <h3 className="mb-2 text-[13px] font-semibold text-text">
-        {title}
-        {total !== undefined ? <span className="ml-1.5 font-normal text-text-muted">{total}</span> : null}
-      </h3>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h3 className="text-[13px] font-semibold text-text">
+          {title}
+          {total !== undefined ? <span className="ml-1.5 font-normal text-text-muted">{total}</span> : null}
+        </h3>
+        {action}
+      </div>
       <DataState isLoading={loading} error={error} isEmpty={(total ?? 0) === 0} empty={{ title: empty, description: '' }}>
         <ul className="space-y-2 text-[13px]">{children}</ul>
         {more ? (

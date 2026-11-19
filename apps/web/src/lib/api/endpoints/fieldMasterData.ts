@@ -1,5 +1,7 @@
 import type {
   AdjustSampleDto,
+  BulkAssignDto,
+  BulkAssignResultDto,
   ChemistAssignmentDto,
   ChemistDto,
   ChemistStatus,
@@ -48,6 +50,8 @@ export interface ListChemistsQuery extends PaginationQueryDto {
   assignedUserId?: string | undefined;
   /** Only what the employee holds personally, not their team. */
   directOnly?: boolean | undefined;
+  /** The assign picker: only active chemists on the routes this employee holds. */
+  eligibleFor?: string | undefined;
 }
 export interface ListDoctorsQuery extends PaginationQueryDto {
   /** Includes `pending`: the Doctors MRs added that await approval. */
@@ -59,6 +63,8 @@ export interface ListDoctorsQuery extends PaginationQueryDto {
   assignedUserId?: string | undefined;
   /** Only what the employee holds personally, not their team. */
   directOnly?: boolean | undefined;
+  /** The assign picker: only active doctors on the routes this employee holds. */
+  eligibleFor?: string | undefined;
   /** Only the doctors nobody is assigned to now. Not together with `assignedUserId`. */
   unassigned?: boolean | undefined;
 }
@@ -74,6 +80,8 @@ export interface ListDistributorsQuery extends PaginationQueryDto {
   assignedUserId?: string | undefined;
   /** Only what the employee holds personally, not their team. */
   directOnly?: boolean | undefined;
+  /** The assign picker: only active distributors that cover where this employee works. */
+  eligibleFor?: string | undefined;
 }
 
 export const productsApi = {
@@ -169,4 +177,10 @@ export const doctorsApi = {
   /** Sets the allocated total; refused below what has already been given out. */
   adjustSample: (token: string, id: string, productId: string, body: AdjustSampleDto) =>
     request<SampleAllocationDto>(`${BASE}/doctors/${id}/sample-allocations/${productId}`, { method: 'PATCH', token, body }),
+};
+
+/** Assign several doctors, chemists or distributors to one employee at once (the picker on the employee page). */
+export const bulkAssignApi = {
+  assign: (token: string, kind: 'doctors' | 'chemists' | 'distributors', body: BulkAssignDto) =>
+    request<BulkAssignResultDto[]>(`${BASE}/assignments/${kind}`, { method: 'POST', token, body }),
 };

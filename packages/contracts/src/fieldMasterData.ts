@@ -396,3 +396,19 @@ export interface DoctorDeleteResultDto {
   id: string;
   plansUpdated: number;
 }
+
+/** What a bulk assign did to one record: assigned, moved from another holder (`from`), already held, or skipped with the reason. */
+export interface BulkAssignResultDto {
+  id: string;
+  name: string;
+  outcome: 'ASSIGNED' | 'MOVED' | 'ALREADY' | 'REMOVED' | 'SKIPPED';
+  from?: string;
+  reason?: string;
+}
+export interface BulkAssignDto {
+  userId: string;
+  /** To assign to the employee. */
+  ids: string[];
+  /** To take off the employee (the held ones unticked in the picker). */
+  removeIds?: string[];
+}
