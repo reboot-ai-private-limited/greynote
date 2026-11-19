@@ -1,6 +1,6 @@
 import { AppError } from '@/shared/errors/AppError.js';
 import { monthRange } from '@/shared/time/businessTime.js';
-import type { FieldRosterPort, IdentityPort, TerritoryPort, TourPlanExportPort } from '../domain/ports.js';
+import type { FieldRosterPort, IdentityPort, ManagerNamePort, TerritoryPort, TourPlanExportPort } from '../domain/ports.js';
 
 export interface TourPlanInput {
   actor: { id: string; role: string };
@@ -19,12 +19,14 @@ export interface TourPlanRow {
   routes: string;
   from: string;
   to: string;
+  /** One line per route, in plan order, like `from` and `to`. */
+  routeType: string;
   workWith: string;
   remarks: string;
 }
 
 export interface TourPlanModel {
-  employee: { name: string; employeeCode: string; designation: string | null };
+  employee: { name: string; employeeCode: string; designation: string | null; /** Their direct manager, or empty. */ managerName: string };
   month: string;
   rows: TourPlanRow[];
 }
@@ -47,7 +49,7 @@ export class TourPlanReport {
   constructor(
     private readonly planning: TourPlanExportPort,
     private readonly territory: TerritoryPort,
-    private readonly identity: IdentityPort & FieldRosterPort,
+    private readonly identity: IdentityPort & FieldRosterPort & ManagerNamePort,
   ) {}
 
   async read(input: TourPlanInput): Promise<TourPlanModel> {
@@ -79,7 +81,7 @@ export class TourPlanReport {
       if (!e) {
         const off = offOf.get(date);
         const label = off ? (off.reason === 'HOLIDAY' ? `Holiday · ${off.name ?? 'Holiday'}` : 'Weekly off') : 'Not planned';
-        rows.push({ date, weekday, workType: label, trip: '', routes: '', from: '', to: '', workWith: '', remarks: '' });
+        rows.push({ date, weekday, workType: label, trip: '', routes: '', from: '', to: '', routeType: '', workWith: '', remarks: '' });
         continue;
       }
       const known = e.routeIds.map((id) => routes.get(id)).filter((r): r is NonNullable<typeof r> => r != null);
@@ -91,13 +93,16 @@ export class TourPlanReport {
         workType: WORKING_TYPE[e.workingType] ?? e.workingType,
         trip: e.dayKind === 'STAY' ? 'Stay day' : e.dayKind === 'TRANSIT' ? 'Return day' : '',
         routes: e.routeIds.length === 0 ? '' : e.routeIds.map((id) => { const r = routes.get(id); return r ? `${r.name}${r.routeType ? ` (${ROUTE_TYPE[r.routeType] ?? r.routeType})` : ''}` : 'Route no longer exists'; }).join(', '),
-        from: anyFrom ? ends.map((x) => x.from || '-').join('; ') : '',
-        to: ends.map((x) => x.to).join('; '),
+        // Several routes: one line each, in plan order, so line 1 of From goes with line 1 of To and of Route type.
+        from: anyFrom ? ends.map((x) => x.from || '-').join('\n') : '',
+        to: ends.map((x) => x.to).join('\n'),
+        routeType: known.map((r) => (r.routeType ? ROUTE_TYPE[r.routeType] ?? r.routeType : '-')).join('\n'),
         workWith: e.workWith.map((id) => people.get(id) ?? 'Colleague').join('; '),
         remarks: e.remarks ?? '',
       });
     }
-    return { employee: { name: person.name, employeeCode: person.employeeCode, designation: who?.designation ?? null }, month: input.month, rows };
+    const managerName = (await this.identity.getManagerChain(input.userId).catch(() => []))[0]?.name ?? '';
+    return { employee: { name: person.name, employeeCode: person.employeeCode, designation: who?.designation ?? null, managerName }, month: input.month, rows };
   }
 
   private async assertMayRead(actor: { id: string; role: string }, userId: string): Promise<void> {

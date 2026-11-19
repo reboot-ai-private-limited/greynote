@@ -10,11 +10,12 @@ const GREY: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb:
 const COLUMNS: Array<{ header: string; width: number }> = [
   { header: 'Date', width: 14 },
   { header: 'Day', width: 8 },
+  { header: 'Manager', width: 24 },
   { header: 'Work type', width: 22 },
   { header: 'Trip', width: 12 },
-  { header: 'Routes', width: 48 },
   { header: 'From', width: 24 },
   { header: 'To', width: 24 },
+  { header: 'Route type', width: 14 },
   { header: 'Work with', width: 28 },
   { header: 'Remarks', width: 30 },
 ];
@@ -40,7 +41,7 @@ export async function buildTourPlanWorkbook(m: TourPlanModel): Promise<Buffer> {
   });
   m.rows.forEach((r, i) => {
     const row = ws.getRow(5 + i);
-    row.values = [new Date(`${r.date}T00:00:00Z`), r.weekday, r.workType, r.trip, r.routes, r.from, r.to, r.workWith, r.remarks];
+    row.values = [new Date(`${r.date}T00:00:00Z`), r.weekday, m.employee.managerName, r.workType, r.trip, r.from, r.to, r.routeType, r.workWith, r.remarks];
     row.getCell(1).numFmt = 'dd mmm yyyy';
     row.getCell(1).alignment = { horizontal: 'left' };
     row.eachCell((c) => {

@@ -84,6 +84,11 @@ export interface MasterPort {
   }>;
 }
 
+/** Who a person reports to: the nearest manager first, then everyone above. Empty for someone with no manager. */
+export interface ManagerNamePort {
+  getManagerChain(userId: string): Promise<Array<{ name: string }>>;
+}
+
 export interface IdentityPort {
   getUserSummaries(userIds: string[]): Promise<Array<{ id: string; name: string; employeeCode: string }>>;
 }

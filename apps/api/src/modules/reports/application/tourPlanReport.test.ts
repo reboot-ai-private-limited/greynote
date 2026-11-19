@@ -6,6 +6,7 @@ import { buildTourPlanWorkbook } from './tourPlanXlsx.js';
 const identity = {
   async getUserSummaries(ids: string[]) { return ids.map((id) => ({ id, name: id === 'asm' ? 'Asha' : 'Colleague', employeeCode: 'X' })); },
   async listFieldEmployees(only?: string[]) { return [{ id: 'mr1', employeeCode: 'MR1', name: 'Ravi', designation: 'MR', hqId: null, zoneId: null }].filter((e) => !only || only.includes(e.id)); },
+  async getManagerChain(id: string) { return id === 'mr1' ? [{ name: 'Asha' }, { name: 'Boss' }] : []; },
   async getDownline(id: string) { return id === 'asm' ? [{ id: 'mr1' }] : []; },
 };
 const territory = { async getRoute(id: string) { return id === 'r1' ? { id, name: 'Siliguri to Bagdogra', routeType: 'OUT_STATION' } : { id, name: 'Matigara', routeType: 'HQ' }; } };
@@ -29,7 +30,7 @@ describe('Tour Plan report', () => {
     const m = await report().read({ actor: admin, userId: 'mr1', month: '2026-11' });
     expect(m.rows).toHaveLength(30);
     expect(m.rows[0]).toMatchObject({ date: '2026-11-01', weekday: 'Sun', workType: 'Weekly off' });
-    expect(m.rows[2]).toMatchObject({ workType: 'Field Work', routes: 'Siliguri to Bagdogra (Out-station), Matigara (HQ)', from: 'Siliguri; -', to: 'Bagdogra; Matigara', workWith: 'Asha', remarks: 'note' });
+    expect(m.rows[2]).toMatchObject({ workType: 'Field Work', routes: 'Siliguri to Bagdogra (Out-station), Matigara (HQ)', from: 'Siliguri\n-', to: 'Bagdogra\nMatigara', routeType: 'Out-station\nHQ', workWith: 'Asha', remarks: 'note' });
     expect(m.rows[3]).toMatchObject({ workType: 'Meeting', trip: 'Stay day' });
     expect(m.rows[10]).toMatchObject({ workType: 'Holiday · Bhai Duj' });
     expect(m.rows[4]).toMatchObject({ workType: 'Not planned' });
@@ -54,7 +55,7 @@ describe('Tour Plan report', () => {
     const ws = wb.getWorksheet('Tour Plan')!;
     expect(ws.getCell('A1').value).toBe('Tour Plan · November 2026');
     expect(ws.getCell('A2').value).toBe('Ravi · MR1 · MR');
-    expect(ws.getRow(4).values).toEqual([undefined, 'Date', 'Day', 'Work type', 'Trip', 'Routes', 'From', 'To', 'Work with', 'Remarks']);
+    expect(ws.getRow(4).values).toEqual([undefined, 'Date', 'Day', 'Manager', 'Work type', 'Trip', 'From', 'To', 'Route type', 'Work with', 'Remarks']);
     expect(ws.getColumn(1).width).toBeGreaterThanOrEqual(12);
     expect(ws.getCell('A5').value).toBeInstanceOf(Date);
     expect(ws.getCell('A5').numFmt).toBe('dd mmm yyyy');

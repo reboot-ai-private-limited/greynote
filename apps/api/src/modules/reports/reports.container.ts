@@ -15,7 +15,7 @@ import { StockReport } from './application/stockReport.js';
 import { TeamOverviewReport } from './application/teamOverviewReport.js';
 import { TaDaReport } from './application/taDaReport.js';
 import { MrStockFigures } from './application/mrStockFigures.js';
-import type { LeaveDaysPort, DailyWorkActivityPort, DailyWorkPlanningPort, DoctorNamesPort, ExpenseStatementPort, SecondaryLinesPort, SecondaryRollupsPort, AttendancePort, DesignationLevelsPort, EmployeeSalesPort, StatementsPort, DoctorCallsPort, FieldActivityPort, FieldDaysPort, FieldRosterPort, IdentityPort, MarketingPort, MasterPort, PayrollPort, PlanningPort, PlannedDoctorsPort, TourPlanExportPort, SalesPort, TerritoryPort, ZoneNamePort } from './domain/ports.js';
+import type { LeaveDaysPort, DailyWorkActivityPort, DailyWorkPlanningPort, DoctorNamesPort, ExpenseStatementPort, SecondaryLinesPort, SecondaryRollupsPort, AttendancePort, DesignationLevelsPort, EmployeeSalesPort, StatementsPort, DoctorCallsPort, FieldActivityPort, FieldDaysPort, FieldRosterPort, IdentityPort, ManagerNamePort, MarketingPort, MasterPort, PayrollPort, PlanningPort, PlannedDoctorsPort, TourPlanExportPort, SalesPort, TerritoryPort, ZoneNamePort } from './domain/ports.js';
 import type { ReportsPublicContract } from './reports.public.js';
 import { makeReportsControllers } from './interface/reports.controller.js';
 import { buildReportsRouter } from './interface/reports.route.js';
@@ -31,7 +31,7 @@ export interface ReportsContainer {
  * passed in by the composition root.
  */
 export function buildReportsContainer(
-  identity: IdentityPort & FieldRosterPort & DesignationLevelsPort,
+  identity: IdentityPort & FieldRosterPort & DesignationLevelsPort & ManagerNamePort,
   master: MasterPort & DoctorNamesPort,
   sales: SalesPort & StatementsPort & EmployeeSalesPort & SecondaryLinesPort & SecondaryRollupsPort,
   fieldActivity: FieldActivityPort & FieldDaysPort & DoctorCallsPort & DailyWorkActivityPort & ExpenseStatementPort,
