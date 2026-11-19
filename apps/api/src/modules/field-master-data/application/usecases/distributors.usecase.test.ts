@@ -158,6 +158,17 @@ describe('Distributors', () => {
     expect((await list.execute(page)).total).toBe(4);
   });
 
+  it('a manager holds what their team holds, searching a manager finds it, and every row says who holds it (2026-11-19)', async () => {
+    await create({ routeIds: ['route-2'], name: 'City Agencies', gstNumber: '19AAAAA1111A1Z1', assignedUserIds: ['mr2'] });
+    await create({ routeIds: ['route-3'], name: 'Far Away Co', gstNumber: '27BBBBB2222B1Z2', assignedUserIds: [] });
+    const list = new ListDistributorsUseCase(distributors, territory, users);
+    expect((await list.execute({ ...page, assignedUserId: 'asm' })).items.map((d) => d.name)).toEqual(['City Agencies']); // mr2 is below asm
+    expect((await list.execute({ ...page, assignedUserId: 'asm', directOnly: true })).total).toBe(0);
+    const found = await list.execute({ ...page, search: 'Chitra' });
+    expect(found.items.map((d) => d.name)).toEqual(['City Agencies']);
+    expect(found.items[0]?.assignedTo).toEqual([{ userId: 'mr2', name: 'Ben MR', employeeCode: 'E2' }]);
+  });
+
   describe('hard delete', () => {
     const history = { payments: 3, orders: 4, openOrders: 1, monthlyStock: 2, stockStatements: 5 };
     const setup = async (over: { eraseFails?: boolean; removeFails?: boolean } = {}) => {

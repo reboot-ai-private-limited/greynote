@@ -100,7 +100,9 @@ describe('Doctors', () => {
       const list = new ListDoctorsUseCase(doctors, views, users, assignments);
       expect((await list.execute({ ...page, assignedUserId: 'mr1' })).items.map((d) => d.name)).toEqual(['Dr Rao']);
       expect((await list.execute({ ...page, assignedUserId: 'mr2' })).items.map((d) => d.name)).toEqual(['Dr Sen']);
-      expect(await list.execute({ ...page, assignedUserId: 'asm' })).toMatchObject({ items: [], total: 0 }); // an employee with none
+      expect(await list.execute({ ...page, assignedUserId: 'asm', directOnly: true })).toMatchObject({ items: [], total: 0 }); // held by nobody personally
+      expect((await list.execute({ ...page, assignedUserId: 'asm' })).items.map((d) => d.name).sort()).toEqual(['Dr Rao', 'Dr Sen']); // a manager holds what the team holds (2026-11-19)
+      expect(await list.execute({ ...page, assignedUserId: 'stranger' })).toMatchObject({ items: [], total: 0 }); // someone with no team and nothing
       expect((await list.execute({ ...page, unassigned: true })).items.map((d) => d.id)).toEqual([c.id]);
       // It combines with the other filters.
       expect((await list.execute({ ...page, assignedUserId: 'mr1', search: 'sen' })).total).toBe(0);
@@ -108,6 +110,16 @@ describe('Doctors', () => {
       await new UnassignDoctorUseCase(assignments, retirementKit(doctors, assignments, users).retirement).execute(a.id, 'mr1', 'admin');
       expect((await list.execute({ ...page, unassigned: true })).items.map((d) => d.name).sort()).toEqual(['Dr Das', 'Dr Rao']); // once unassigned, it shows here
       await expectStatus(list.execute({ ...page, assignedUserId: 'mr1', unassigned: true }), 400);
+    });
+
+    it('searching a manager finds what their team holds, and a manager row says who holds it (2026-11-19)', async () => {
+      const a = await create({ name: 'Dr Rao' });
+      await assign(a.id, 'mr1');
+      const list = new ListDoctorsUseCase(doctors, views, users, assignments);
+      const found = await list.execute({ ...page, search: 'Chitra' });
+      expect(found.items.map((d) => d.name)).toEqual(['Dr Rao']);
+      expect(found.items[0]?.assignedTo).toMatchObject({ userId: 'mr1', name: 'Asha MR' });
+      expect((await list.execute({ ...page, search: 'Chitra', directOnly: true })).total).toBe(0);
     });
 
     it('the search box also finds a Doctor by the name or code of the MR it is assigned to (2026-11-02)', async () => {

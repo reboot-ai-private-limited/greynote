@@ -140,7 +140,7 @@ export function buildFieldMasterDataContainer(
     update: new UpdateSpecialtyUseCase(specialties, doctors),
   };
   const chemistUseCases = {
-    list: new ListChemistsUseCase(chemists, chemistAssignments),
+    list: new ListChemistsUseCase(chemists, chemistAssignments, users),
     create: new CreateChemistUseCase(chemists, territory),
     get: new GetChemistUseCase(chemists),
     update: new UpdateChemistUseCase(chemists, territory),
@@ -189,7 +189,7 @@ export function buildFieldMasterDataContainer(
   const distributorDocumentStorage = new CloudinaryDistributorDocumentStorage();
   const distributorRetirement = new DistributorRetirement(distributors, distributorDocumentStorage);
   const distributorUseCases = {
-    list: new ListDistributorsUseCase(distributors, territory),
+    list: new ListDistributorsUseCase(distributors, territory, users),
     create: new CreateDistributorUseCase(distributors, territory, users),
     get: new GetDistributorUseCase(distributors, territory),
     update: new UpdateDistributorUseCase(distributors, territory, users),

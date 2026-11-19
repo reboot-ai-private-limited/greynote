@@ -7,6 +7,10 @@ export interface DistributorFilter extends PageQuery {
   /** Only distributors that cover any of these Zones, HQs or Routes (already resolved from a place); all empty matches nothing. */
   scope?: CoverageScope | undefined;
   assignedUserId?: string | undefined;
+  /** Held by any of these employees (an employee and their team); used instead of `assignedUserId`. */
+  assignedAny?: string[] | undefined;
+  /** Also the Distributors any of these employees hold, whatever their name (the employees a search term matched). */
+  searchAssignedAny?: string[] | undefined;
   status?: MasterStatus | undefined;
 }
 

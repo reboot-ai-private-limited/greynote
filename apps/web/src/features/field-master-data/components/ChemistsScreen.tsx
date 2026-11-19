@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
+import { EmployeeFilter } from '@/features/people/components/EmployeePickerField';
 import type { Column } from '@/components/ui/DataTable';
 import { Input } from '@/components/ui/Input';
 import { PagedListFrame } from '@/components/ui/PagedListFrame';
@@ -17,6 +18,7 @@ import { useSearchFilter } from '@/lib/hooks/useSearchFilter';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useChemists, useUpdateChemist } from '../hooks/useChemists';
 import { CHEMIST_STATUS_LABEL, CHEMIST_STATUS_TONE, PENDING_CHEMIST_APPROVALS_HREF } from '../lib/chemists';
+import { OnlyDirectToggle } from './OnlyDirectToggle';
 import { RouteFilter } from './RoutePickerField';
 
 const STATUS_OPTIONS = [
@@ -28,7 +30,7 @@ const STATUS_OPTIONS = [
 
 export function ChemistsScreen() {
   const router = useRouter();
-  const { values, page, pageSize, update } = useFilterParams(['search', 'status', 'routeId']);
+  const { values, page, pageSize, update } = useFilterParams(['search', 'status', 'routeId', 'assignedUserId', 'directOnly']);
   const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
   const readOnly = useIsReadOnly();
   const directory = useTerritoryDirectory();
@@ -41,6 +43,8 @@ export function ChemistsScreen() {
     ...(values.search && { search: values.search }),
     ...(values.status && { status: values.status as ChemistStatus }),
     ...(values.routeId && { routeId: values.routeId }),
+    ...(values.assignedUserId && { assignedUserId: values.assignedUserId }),
+    ...(values.assignedUserId && values.directOnly === '1' && { directOnly: true }),
   });
 
   const columns: readonly Column<ChemistDto>[] = [
@@ -54,6 +58,11 @@ export function ChemistsScreen() {
       ),
     },
     { key: 'route', header: 'Route', render: (c) => directory.routeLabel(c.routeId) },
+    {
+      key: 'heldBy',
+      header: 'Held by',
+      render: (c) => ((c.assignedTo ?? []).length === 0 ? <span className="text-text-subtle">Nobody</span> : <span className="line-clamp-1 max-w-[14rem]">{(c.assignedTo ?? []).map((h) => h.name).join(', ')}</span>),
+    },
     { key: 'address', header: 'Address', render: (c) => <span className="line-clamp-1 max-w-xs">{c.address}</span> },
     {
       key: 'location',
@@ -101,8 +110,10 @@ export function ChemistsScreen() {
       onNew={() => router.push('/chemists/new')}
       filters={
         <>
-          <Input placeholder="Search by name" aria-label="Search chemists" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
+          <Input placeholder="Search chemist or MR" aria-label="Search chemists or MRs" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
           <RouteFilter value={values.routeId} onChange={(v) => update({ routeId: v })} />
+          <EmployeeFilter allLabel="Anyone assigned" value={values.assignedUserId} onChange={(v) => update({ assignedUserId: v, directOnly: '' })} />
+          <OnlyDirectToggle employeeId={values.assignedUserId} on={values.directOnly === '1'} onChange={(on) => update({ directOnly: on ? '1' : '' })} />
           <div className="w-44">
             <Select
               aria-label="Status"

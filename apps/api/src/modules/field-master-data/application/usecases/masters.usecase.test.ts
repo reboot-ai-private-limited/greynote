@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { AppError } from '@/shared/errors/AppError.js';
 import { CreateChemistUseCase } from './createChemist.usecase.js';
 import { CreateProductUseCase } from './createProduct.usecase.js';
-import { FakeChemistAssignments, FakeChemists, FakeProducts, FakeTerritory } from './fmdTestKit.js';
+import { FakeChemistAssignments, FakeChemists, FakeProducts, FakeTerritory, FakeUsers } from './fmdTestKit.js';
 import { GetChemistUseCase } from './getChemist.usecase.js';
 import { GetProductUseCase } from './getProduct.usecase.js';
 import { ListChemistsUseCase } from './listChemists.usecase.js';
@@ -143,5 +143,19 @@ describe('Chemists', () => {
     await assignments.assign({ chemistId: b.id, userId: 'mr1', assignedBy: 'admin' });
     expect((await list.execute({ ...page, assignedUserId: 'mr1' })).items.map((c) => c.name)).toEqual(['Sai Pharmacy']); // City Meds is inactive
     expect((await list.execute({ ...page, assignedUserId: 'mr2' })).total).toBe(0);
+  });
+
+  it('a manager holds what their team holds, searching a manager finds it, and every row says who holds it (2026-11-19)', async () => {
+    const create = new CreateChemistUseCase(chemists, territory);
+    await create.execute(input);
+    const assignments = new FakeChemistAssignments();
+    await assignments.assign({ chemistId: 'chemist-1', userId: 'mr1', assignedBy: 'admin' });
+    const list = new ListChemistsUseCase(chemists, assignments, new FakeUsers());
+    expect((await list.execute({ ...page, assignedUserId: 'asm' })).items.map((c) => c.name)).toEqual(['Sai Pharmacy']); // asm holds nothing personally; mr1 is below
+    expect((await list.execute({ ...page, assignedUserId: 'asm', directOnly: true })).total).toBe(0);
+    expect((await list.execute({ ...page, assignedUserId: 'stranger' })).total).toBe(0);
+    const found = await list.execute({ ...page, search: 'Chitra' }); // the manager's name
+    expect(found.items.map((c) => c.name)).toEqual(['Sai Pharmacy']);
+    expect(found.items[0]?.assignedTo).toEqual([{ userId: 'mr1', name: 'Asha MR', employeeCode: 'E1' }]);
   });
 });

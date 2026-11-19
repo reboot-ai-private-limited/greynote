@@ -43,7 +43,12 @@ export class MongoChemistAdapter implements ChemistRepositoryPort {
     const query: Record<string, unknown> = {};
     if (filter.routeId) query['routeId'] = new Types.ObjectId(filter.routeId);
     if (filter.status) query['status'] = filter.status;
-    if (filter.search) query['name'] = new RegExp(escapeRegex(filter.search), 'i');
+    if (filter.search) {
+      const byName = { name: new RegExp(escapeRegex(filter.search), 'i') };
+      const also = (filter.alsoIds ?? []).filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id));
+      if (also.length > 0) query['$or'] = [byName, { _id: { $in: also } }];
+      else Object.assign(query, byName);
+    }
     const [docs, total] = await Promise.all([
       ChemistModel.find(query).sort({ name: 1, _id: 1 }).skip(toSkipLimit(filter).skip).limit(filter.pageSize).lean(),
       ChemistModel.countDocuments(query),

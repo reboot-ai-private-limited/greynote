@@ -44,8 +44,10 @@ export interface ListChemistsQuery extends PaginationQueryDto {
   /** Includes `pending`: the Chemists employees added that await approval. */
   status?: ChemistStatus | undefined;
   routeId?: string | undefined;
-  /** Only the active chemists this employee is assigned to now. */
+  /** Only the active chemists this employee is assigned to now, and anyone below them (a manager's team) unless `directOnly`. */
   assignedUserId?: string | undefined;
+  /** Only what the employee holds personally, not their team. */
+  directOnly?: boolean | undefined;
 }
 export interface ListDoctorsQuery extends PaginationQueryDto {
   /** Includes `pending`: the Doctors MRs added that await approval. */
@@ -53,8 +55,10 @@ export interface ListDoctorsQuery extends PaginationQueryDto {
   routeId?: string | undefined;
   /** Matches the doctor's name, or the name or code of the MR they are assigned to. */
   search?: string | undefined;
-  /** Only the doctors assigned to this employee now. */
+  /** Only the doctors assigned to this employee now, and anyone below them (a manager's team) unless `directOnly`. */
   assignedUserId?: string | undefined;
+  /** Only what the employee holds personally, not their team. */
+  directOnly?: boolean | undefined;
   /** Only the doctors nobody is assigned to now. Not together with `assignedUserId`. */
   unassigned?: boolean | undefined;
 }
@@ -68,6 +72,8 @@ export interface ListDistributorsQuery extends PaginationQueryDto {
   hqId?: string | undefined;
   zoneId?: string | undefined;
   assignedUserId?: string | undefined;
+  /** Only what the employee holds personally, not their team. */
+  directOnly?: boolean | undefined;
 }
 
 export const productsApi = {

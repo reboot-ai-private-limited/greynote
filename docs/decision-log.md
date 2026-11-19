@@ -2973,3 +2973,10 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 - Monthly Work Report, Daily tab: the "Visited (names)" and "Missed (names)" columns are gone (the counts stay; the Doctors tab stays).
 - Tour Plan Excel: a **Manager** column (the employee's direct manager, on every row) and a **Route type** column; the Routes column is gone. From, To and Route type hold one line per route, in plan order, so line 1 of each belongs together.
 - System settings (web): each module is a collapsible section with its own fixed deep colour (Payroll red); open or shut is remembered in the browser.
+
+## 2026-11-19 (later): the web follows "a manager holds what their team holds"
+
+- **Lists.** On the web, the Doctors, Chemists and Distributors lists treat the "Anyone assigned" employee filter, and the search box (which already matched an MR's name or code for doctors, and now does for chemists and distributors too), as the person **and everyone below them at any depth**, the rule the phone's Team already used. `directOnly=true` (the "Only direct" button) keeps the old strict view. Nothing is copied onto the manager; it is worked out per request (`assigneeScope` in field-master-data).
+- **Who holds it.** The chemist and distributor admin lists now return `assignedTo` (the holders' names), and each list has a "Held by" column, so a manager's view shows the downline employee a record really belongs to.
+- **Employee page.** The Assigned card shows the first 5 doctors, chemists and distributors the employee and their team hold, each with who holds it, then "+N more · View all" linking to the list filtered to that employee. Remove on a row takes it off the holder, after a confirmation that names the holder and says it leaves the manager's list too; a chemist or distributor with several holders links to its own page to choose.
+- **Routes** on the employee page are unchanged (own routes, with the existing "routes the team holds" offer).

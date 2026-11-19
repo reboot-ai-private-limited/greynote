@@ -116,6 +116,8 @@ export interface ChemistDto {
   clientRequestId: string | null;
   /** When it became usable; `null` until approved. */
   approvedAt: string | null;
+  /** The employees who hold it now (the admin list only): who a manager sees it through. */
+  assignedTo?: { userId: string; name: string; employeeCode: string }[];
 }
 export interface CreateChemistDto {
   routeId: string;
@@ -298,6 +300,8 @@ export interface DistributorDto {
   /** What the distributor owed before this system, in whole paise. */
   openingDuesPaise: number;
   status: MasterStatus;
+  /** The employees assigned to it (the admin list only), with their names. */
+  assignedTo?: { userId: string; name: string; employeeCode: string }[];
 }
 /** `GET /distributors/:id`: the Distributor with each Route's place in the hierarchy (ids only). */
 export interface DistributorDetailDto extends DistributorDto {

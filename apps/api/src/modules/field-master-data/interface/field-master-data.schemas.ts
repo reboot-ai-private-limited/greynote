@@ -95,7 +95,7 @@ export const updateChemistBodySchema = z
   })
   .refine((b) => Object.keys(b).length > 0, { message: 'Nothing to change.' });
 /** Includes `pending` — the employee-added Chemists waiting for approval. */
-export const listChemistsQuerySchema = z.object({ ...pageFields, status: z.enum(CHEMIST_STATUSES).optional(), routeId: objectIdSchema.optional(), assignedUserId: objectIdSchema.optional() });
+export const listChemistsQuerySchema = z.object({ ...pageFields, status: z.enum(CHEMIST_STATUSES).optional(), routeId: objectIdSchema.optional(), assignedUserId: objectIdSchema.optional(), directOnly: z.enum(['true', 'false']).transform((v) => v === 'true').optional() });
 
 // ---- Chemists an employee adds (offline-first, then approved)
 const addedChemistFields = {
@@ -174,8 +174,10 @@ export const listDoctorsQuerySchema = z.object({
   /** Includes `pending` — the MR-added Doctors waiting for approval. */
   status: z.enum(DOCTOR_STATUSES).optional(),
   routeId: objectIdSchema.optional(),
-  /** Only the Doctors assigned to this employee now. */
+  /** Only the Doctors assigned to this employee now, and to anyone below them (a manager's team) unless `directOnly`. */
   assignedUserId: objectIdSchema.optional(),
+  /** Only what this employee holds personally; left out (the default), a manager's team counts too, as on the phone. */
+  directOnly: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
   /** Only the Doctors nobody is assigned to now (`true`). Not together with `assignedUserId`. */
   unassigned: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
 });
@@ -271,6 +273,8 @@ export const listDistributorsQuerySchema = z.object({
   hqId: objectIdSchema.optional(),
   zoneId: objectIdSchema.optional(),
   assignedUserId: objectIdSchema.optional(),
+  /** Only what this employee holds personally; left out (the default), a manager's team counts too, as on the phone. */
+  directOnly: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
 });
 
 export const distributorDocumentBodySchema = z.object({ documentType: z.enum(DISTRIBUTOR_DOCUMENT_TYPES) });

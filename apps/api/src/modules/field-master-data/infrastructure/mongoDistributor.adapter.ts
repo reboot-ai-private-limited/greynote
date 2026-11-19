@@ -63,11 +63,13 @@ export class MongoDistributorAdapter implements DistributorRepositoryPort {
       if (clauses.length === 0) return buildPaginatedResult([], 0, filter);
       and.push({ $or: clauses });
     }
-    if (filter.assignedUserId) query['assignedUserIds'] = new Types.ObjectId(filter.assignedUserId);
+    if (filter.assignedAny) query['assignedUserIds'] = { $in: filter.assignedAny.map((id) => new Types.ObjectId(id)) };
+    else if (filter.assignedUserId) query['assignedUserIds'] = new Types.ObjectId(filter.assignedUserId);
     if (filter.status) query['status'] = filter.status;
     if (filter.search) {
       const rx = new RegExp(escapeRegex(filter.search), 'i');
-      and.push({ $or: [{ name: rx }, { gstNumber: rx }, { contactPerson: rx }] });
+      const byHolder = (filter.searchAssignedAny ?? []).length > 0 ? [{ assignedUserIds: { $in: filter.searchAssignedAny!.map((id) => new Types.ObjectId(id)) } }] : [];
+      and.push({ $or: [{ name: rx }, { gstNumber: rx }, { contactPerson: rx }, ...byHolder] });
     }
     if (and.length > 0) query['$and'] = and;
     const [docs, total] = await Promise.all([

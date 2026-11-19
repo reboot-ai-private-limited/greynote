@@ -88,7 +88,7 @@ export class FakeChemists implements ChemistRepositoryPort {
         (c) =>
           (!f.routeId || c.routeId === f.routeId) &&
           (!f.status || c.status === f.status) &&
-          (!search || c.name.toLowerCase().includes(search)),
+          (!search || c.name.toLowerCase().includes(search) || (f.alsoIds ?? []).includes(c.id)),
       ),
       f,
     );
@@ -512,8 +512,9 @@ export class FakeDistributors implements DistributorRepositoryPort {
         (d) =>
           (!f.scope || coverageMeets(d, f.scope)) &&
           (!f.assignedUserId || d.assignedUserIds.includes(f.assignedUserId)) &&
+          (!f.assignedAny || d.assignedUserIds.some((id) => f.assignedAny!.includes(id))) &&
           (!f.status || d.status === f.status) &&
-          (!search || d.name.toLowerCase().includes(search) || d.gstNumber.toLowerCase().includes(search)),
+          (!search || d.name.toLowerCase().includes(search) || d.gstNumber.toLowerCase().includes(search) || d.assignedUserIds.some((id) => (f.searchAssignedAny ?? []).includes(id))),
       ),
       f,
     );

@@ -25,6 +25,7 @@ import { useDoctors, useUpdateDoctor } from '../hooks/useDoctors';
 import { DOCTOR_STATUS_LABEL, DOCTOR_STATUS_TONE, canToggleStatus, pendingApprovalHref } from '../lib/doctors';
 import { doctorsCsv, doctorsFilename } from '../lib/doctorsCsv';
 import { RetireDoctorDialog } from './RetireDoctorDialog';
+import { OnlyDirectToggle } from './OnlyDirectToggle';
 import { RouteFilter } from './RoutePickerField';
 
 const ANY = 'all';
@@ -37,7 +38,7 @@ const STATUS_OPTIONS = [
 
 export function DoctorsScreen() {
   const router = useRouter();
-  const { values, page, pageSize, update } = useFilterParams(['search', 'status', 'routeId', 'assignedUserId', 'unassigned']);
+  const { values, page, pageSize, update } = useFilterParams(['search', 'status', 'routeId', 'assignedUserId', 'unassigned', 'directOnly']);
   const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
   const readOnly = useIsReadOnly();
   const directory = useTerritoryDirectory();
@@ -47,11 +48,12 @@ export function DoctorsScreen() {
   const updateDoctor = useUpdateDoctor(() => setToggling(null));
 
   const unassigned = values.unassigned === '1';
-  const filters: Pick<ListDoctorsQuery, 'search' | 'status' | 'routeId' | 'assignedUserId' | 'unassigned'> = {
+  const filters: Pick<ListDoctorsQuery, 'search' | 'status' | 'routeId' | 'assignedUserId' | 'unassigned' | 'directOnly'> = {
     ...(values.search && { search: values.search }),
     ...(values.status && { status: values.status as DoctorStatus }),
     ...(values.routeId && { routeId: values.routeId }),
     ...(values.assignedUserId && !unassigned && { assignedUserId: values.assignedUserId }),
+    ...(values.assignedUserId && !unassigned && values.directOnly === '1' && { directOnly: true }),
     ...(unassigned && { unassigned: true }),
   };
   const doctors = useDoctors({ page, pageSize, ...filters });
@@ -146,7 +148,8 @@ export function DoctorsScreen() {
         <>
           <Input placeholder="Search doctor or MR" aria-label="Search doctors or MRs" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
           <RouteFilter value={values.routeId} onChange={(v) => update({ routeId: v })} />
-          <EmployeeFilter allLabel="Anyone assigned" value={unassigned ? '' : values.assignedUserId} onChange={(v) => update({ assignedUserId: v, unassigned: '' })} />
+          <EmployeeFilter allLabel="Anyone assigned" value={unassigned ? '' : values.assignedUserId} onChange={(v) => update({ assignedUserId: v, unassigned: '', directOnly: '' })} />
+          <OnlyDirectToggle employeeId={unassigned ? undefined : values.assignedUserId} on={values.directOnly === '1'} onChange={(on) => update({ directOnly: on ? '1' : '' })} />
           <Button variant={unassigned ? 'primary' : 'secondary'} aria-pressed={unassigned} onClick={() => update({ unassigned: unassigned ? '' : '1', assignedUserId: '' })}>
             Unassigned
           </Button>

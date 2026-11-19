@@ -7,6 +7,8 @@ export interface ChemistFilter extends PageQuery {
   search?: string | undefined;
   routeId?: string | undefined;
   status?: ChemistStatus | undefined;
+  /** Also these Chemists whatever their name (the ones an employee matched by the search term holds). */
+  alsoIds?: string[] | undefined;
 }
 
 export interface ChemistRepositoryPort {

@@ -27,6 +27,7 @@ import { DeleteDistributorDialog } from './DeleteDistributorDialog';
 import { DistributorTotals } from './DistributorTotals';
 import { RecordPaymentDialog } from './RecordPaymentDialog';
 import { EmployeeFilter } from '@/features/people/components/EmployeePickerField';
+import { OnlyDirectToggle } from './OnlyDirectToggle';
 import { RouteFilter } from './RoutePickerField';
 
 const ANY = 'all';
@@ -46,6 +47,7 @@ export function DistributorsScreen() {
     'hqId',
     'zoneId',
     'assignedUserId',
+    'directOnly',
   ]);
   const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
   const readOnly = useIsReadOnly();
@@ -73,6 +75,7 @@ export function DistributorsScreen() {
     ...(values.hqId && { hqId: values.hqId }),
     ...(values.zoneId && { zoneId: values.zoneId }),
     ...(values.assignedUserId && { assignedUserId: values.assignedUserId }),
+    ...(values.assignedUserId && values.directOnly === '1' && { directOnly: true }),
   });
 
   const sum = (m: Map<string, number> | undefined) =>
@@ -104,13 +107,12 @@ export function DistributorsScreen() {
     },
     {
       key: 'people',
-      header: 'Assigned',
-      numeric: true,
+      header: 'Held by',
       render: (d) =>
         d.assignedUserIds.length === 0 ? (
           <span className="text-text-subtle">Nobody</span>
         ) : (
-          d.assignedUserIds.length
+          <span className="line-clamp-1 max-w-[14rem]">{(d.assignedTo ?? []).map((h) => h.name).join(', ') || d.assignedUserIds.length}</span>
         ),
     },
     {
@@ -213,7 +215,7 @@ export function DistributorsScreen() {
       filters={
         <>
           <Input
-            placeholder="Search by name"
+            placeholder="Search distributor or MR"
             aria-label="Search distributors"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -239,8 +241,9 @@ export function DistributorsScreen() {
           <EmployeeFilter
             allLabel="Anyone assigned"
             value={values.assignedUserId}
-            onChange={(v) => update({ assignedUserId: v })}
+            onChange={(v) => update({ assignedUserId: v, directOnly: '' })}
           />
+          <OnlyDirectToggle employeeId={values.assignedUserId || undefined} on={values.directOnly === '1'} onChange={(on) => update({ directOnly: on ? '1' : '' })} />
           <StatusFilter value={values.status} onChange={(v) => update({ status: v })} />
         </>
       }
