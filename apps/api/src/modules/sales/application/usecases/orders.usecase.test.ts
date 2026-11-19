@@ -31,11 +31,11 @@ class FakeOrders implements OrderRepositoryPort {
   async list(f: OrderFilter) {
     return this.rows.filter((o) => (!f.userIds || f.userIds.includes(o.userId)) && (!f.status || o.status === f.status) && (!f.outlet || (o.outlet.type === f.outlet.type && o.outlet.id === f.outlet.id)));
   }
-  async update(id: string, change: { items: Order['items']; totalAmountPaise: number; discount: Order['discount']; orderDiscountPaise: number; remarks: string | null; original?: { items: Order['items']; totalAmountPaise: number } }, by: string, at: Date, ifEditedAt: Date | null) {
+  async update(id: string, change: { items: Order['items']; totalAmountPaise: number; discount: Order['discount']; orderDiscountPaise: number; remarks: string | null; byName: string; original?: { items: Order['items']; totalAmountPaise: number } }, by: string, at: Date, ifEditedAt: Date | null) {
     const o = this.rows.find((r) => r.id === id);
     if (!o || o.status !== 'PLACED' || (o.editedAt ?? null) !== ifEditedAt) return false;
-    const { original, ...rest } = change;
-    Object.assign(o, { ...rest, editedBy: by, editedAt: at, ...(original && { originalItems: original.items, originalTotalAmountPaise: original.totalAmountPaise }) });
+    const { original, byName, ...rest } = change;
+    Object.assign(o, { ...rest, editedBy: by, editedAt: at, editHistory: [...(o.editHistory ?? []), { by, byName, at, items: change.items, totalAmountPaise: change.totalAmountPaise }], ...(original && { originalItems: original.items, originalTotalAmountPaise: original.totalAmountPaise }) });
     return true;
   }
   async sumDoneByDistributor(ids: string[]) {
@@ -101,7 +101,7 @@ describe('orders', () => {
     const users = new FakeUsers();
     const clock = new SalesClock(config, () => now);
     place = new PlaceOrderUseCase(new OutletAccess(master), master, orders, clock, users);
-    edit = new EditOrderUseCase(new GetOrderUseCase(orders, users), master, orders, clock);
+    edit = new EditOrderUseCase(new GetOrderUseCase(orders, users), master, orders, clock, users);
     get = new GetOrderUseCase(orders, users);
     finish = new FinishOrderUseCase(get, master, orders, clock);
     setInvoice = new SetInvoiceNumberUseCase(get, master, orders);
@@ -345,6 +345,12 @@ describe('orders', () => {
     expect(changed.originalItems).toEqual([expect.objectContaining({ quantity: 12, unitPricePaise: 1000 })]);
     expect(changed.originalTotalAmountPaise).toBe(12_000);
     expect(changed.items[0]).toMatchObject({ quantity: 9, freeQty: 2 });
+    // Every change is kept with who made it and what it left the order as.
+    expect(changed.editHistory).toEqual([
+      expect.objectContaining({ by: acct.id, totalAmountPaise: 10_000, items: [expect.objectContaining({ quantity: 10 })] }),
+      expect.objectContaining({ by: acct.id, totalAmountPaise: 9_000, items: [expect.objectContaining({ quantity: 9 })] }),
+    ]);
+    expect(changed.editHistory?.[0]?.byName).toEqual(expect.any(String));
     const done = await markDone(acct, serverId);
     expect(done.items[0]).toMatchObject({ suppliedQty: 9, freeQty: 2 });
   });

@@ -53,6 +53,16 @@ export interface OrderInvoice {
   totalPaise: Paise;
 }
 
+/** One change the office made to a PLACED order: who, when, and the lines and total it left the order with (the earlier state is the previous entry, or `originalItems`). */
+export interface OrderEdit {
+  by: string;
+  /** The editor's name as it was when they made the change. */
+  byName: string;
+  at: Date;
+  items: OrderItem[];
+  totalAmountPaise: Paise;
+}
+
 /** A Chemist or Distributor order, placed on its own (not tied to a call). No approval; `PLACED` → `DONE` or `CANCELLED`, once. */
 export interface Order {
   id: string;
@@ -87,4 +97,6 @@ export interface Order {
   /** Set when Admin or the Accountant last changed the lines or remarks while it was `PLACED`. */
   editedBy?: string | null;
   editedAt?: Date | null;
+  /** Every change the office made while it was `PLACED`, oldest first; `null`/absent if never changed (or changed before this was kept: then only `editedBy`/`editedAt` tell). */
+  editHistory?: OrderEdit[] | null;
 }

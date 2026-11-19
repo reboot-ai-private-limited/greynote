@@ -2936,3 +2936,9 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 
 - **HR approves anything.** HR is now a final approver and an override role (may decide at any stage, ahead of the manager) on every approval kind: DCR, Doctor Service, Expense month, Secondary sales, new Doctor and new Chemist, besides the Plans and Leave it already had. HR sees them in its queue, All and detail. The web says "HR or Admin" and warns HR, as it does Admin, when approving skips the manager.
 - **Not for HR.** Reopening an approved request is Admin only (plus a field manager for the Tour Plan, `managerReopen`); HR is no longer an `overrideRoles` shortcut to it, so HR cannot reopen the Plans it could before. Delete month stays Admin only. `POST /approvals/:id/reopen` no longer lists HR.
+
+## 2026-11-19: An order keeps every office change; the phone shows who changed what, and the final bill
+
+- Until now an order kept only the employee's original lines and the *last* editor. `Order.editHistory` now keeps one entry per change (who, their name then, when, the lines and total it left) while the order is Placed; older orders simply have none. Optional on the wire, so phones already in the field keep working. The change is written in the same update as the edit.
+- The phone's order detail has a "What the office changed" card (each change line by line, with the total before and after) and, for a Done distributor order, a "Final billing" card: what you ordered, after the office's changes, delivered, GST and the invoice total with its number. Contract: `docs/mobile/orders-and-stock.md` row 10.
+- Also on the web the same day: Visuals has a doctor search (server-side) to manage one doctor's visuals; a Monthly work report page (employee and month, Excel); the invoice text is a step bigger. Doctor Services already showed the investment total and a per-doctor view.

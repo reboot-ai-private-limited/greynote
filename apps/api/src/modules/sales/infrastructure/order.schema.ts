@@ -52,6 +52,7 @@ export interface OrderDoc {
   createdBy?: Types.ObjectId | null;
   editedBy?: Types.ObjectId | null;
   editedAt?: Date | null;
+  editHistory?: { by: Types.ObjectId; byName: string; at: Date; items: OrderItemDoc[]; totalAmountPaise: number }[] | null;
 }
 
 const paise = { type: Number, required: true, min: 0, validate: { validator: isPaise, message: 'Must be a whole number of paise.' } };
@@ -114,6 +115,10 @@ const orderSchema = new Schema<OrderDoc>({
   createdBy: { type: Schema.Types.ObjectId, default: null, ref: 'User' },
   editedBy: { type: Schema.Types.ObjectId, default: null, ref: 'User' },
   editedAt: { type: Date, default: null },
+  editHistory: {
+    type: [new Schema({ by: { type: Schema.Types.ObjectId, required: true, ref: 'User' }, byName: { type: String, required: true }, at: { type: Date, required: true }, items: { type: [itemSchema], required: true }, totalAmountPaise: { type: Number, required: true, min: 0 } }, { _id: false })],
+    default: undefined,
+  },
 });
 orderSchema.pre('validate', function () {
   if (Boolean(this.chemistId) === Boolean(this.distributorId)) this.invalidate('chemistId', 'Exactly one of chemistId and distributorId is required.');

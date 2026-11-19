@@ -111,6 +111,7 @@ export class EditOrderUseCase {
     private readonly master: FieldMasterDataPort,
     private readonly orders: OrderRepositoryPort,
     private readonly clock: SalesClock,
+    private readonly users: UserDirectoryPort,
   ) {}
 
   async execute(actor: Actor, id: string, input: Pick<PlaceOrderInput, 'lines' | 'remarks' | 'discount'>): Promise<Order> {
@@ -121,7 +122,8 @@ export class EditOrderUseCase {
     const { items, total, discount, orderDiscountPaise } = await priceLines(this.master, order.outlet, input.lines, input.discount);
     // The first change keeps what the employee ordered, so it is never lost to later edits.
     const original = order.originalItems ? undefined : { items: order.items, totalAmountPaise: order.totalAmountPaise };
-    if (!(await this.orders.update(id, { items, totalAmountPaise: total, discount, orderDiscountPaise, remarks: input.remarks, ...(original && { original }) }, actor.id, this.clock.now(), order.editedAt ?? null))) {
+    const [editor] = await this.users.getUserSummaries([actor.id]);
+    if (!(await this.orders.update(id, { items, totalAmountPaise: total, discount, orderDiscountPaise, remarks: input.remarks, byName: editor?.name ?? 'Office', ...(original && { original }) }, actor.id, this.clock.now(), order.editedAt ?? null))) {
       const now = (await this.orders.findById(id))?.status ?? order.status;
       throw new StockRefusal(STOCK_CODES.orderNotPlaced, `The order is already ${now}.`);
     }

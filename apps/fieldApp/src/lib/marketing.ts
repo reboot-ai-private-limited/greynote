@@ -77,7 +77,13 @@ export type OrderView = {
   /** Set when Admin or the Accountant last changed a Placed order's lines or remarks. */
   editedBy?: string | null;
   editedAt?: string | null;
+  /** Every change the office made while it was Placed, oldest first: who, when, and the lines and total it left the order with. Missing on an order changed before this was kept. */
+  editHistory?: OrderEdit[] | null;
+  /** A Done order's invoice: the number and the frozen amounts (supplied + GST, rounded). */
+  invoiceNumber?: string | null;
+  invoice?: { taxablePaise: number; gstPaise: number; roundOffPaise: number; totalPaise: number } | null;
 };
+export type OrderEdit = { by: string; byName: string; at: string; items: OrderItem[]; totalAmountPaise: number };
 export type OrderItem = {
   productId: string;
   /** Ordered. */
@@ -111,6 +117,40 @@ export const deliveredOf = (i: OrderItem) => {
   const suppliedQty = i.suppliedQty ?? i.quantity;
   return { suppliedQty, freeQty: i.freeQty ?? 0, shortQty: Math.max(0, i.quantity - suppliedQty) };
 };
+
+/** One change to an order in words: each line as it was and became, and the total. */
+export type OrderChange = { byName: string; at: string; lines: string[]; fromTotalPaise: number; toTotalPaise: number };
+/**
+ * What the office changed, step by step: the employee's original lines, then each edit, compared product by product
+ * (quantity, price, and free units planned). Empty when the order was never changed, or was changed before history was kept.
+ */
+export function orderChanges(o: Pick<OrderView, 'originalItems' | 'originalTotalAmountPaise' | 'editHistory'>, productName: (id: string) => string, rupees: (paise: number) => string): OrderChange[] {
+  const edits = o.editHistory ?? [];
+  let before: OrderItem[] = o.originalItems ?? [];
+  let beforeTotal = o.originalTotalAmountPaise ?? 0;
+  return edits.map((e) => {
+    const lines: string[] = [];
+    const key = (i: OrderItem, n: number) => `${i.productId}:${before.filter((b, at) => b.productId === i.productId && at < n).length}`;
+    const was = new Map(before.map((i, n) => [key(i, n), i]));
+    const seen = new Set<string>();
+    e.items.forEach((i, n) => {
+      const k = `${i.productId}:${e.items.filter((x, at) => x.productId === i.productId && at < n).length}`;
+      seen.add(k);
+      const old = was.get(k);
+      const name = productName(i.productId);
+      if (!old) return void lines.push(`Added ${name}: ${i.quantity} × ${rupees(i.unitPricePaise)}`);
+      if (old.quantity !== i.quantity) lines.push(`${name}: quantity ${old.quantity} → ${i.quantity}`);
+      if (old.unitPricePaise !== i.unitPricePaise) lines.push(`${name}: price ${rupees(old.unitPricePaise)} → ${rupees(i.unitPricePaise)}`);
+      if ((old.freeQty ?? 0) !== (i.freeQty ?? 0)) lines.push(`${name}: free units ${old.freeQty ?? 0} → ${i.freeQty ?? 0}`);
+      if (JSON.stringify(old.discount ?? null) !== JSON.stringify(i.discount ?? null)) lines.push(`${name}: discount ${discountLabel(old.discount, rupees) ?? 'none'} → ${discountLabel(i.discount, rupees) ?? 'none'}`);
+    });
+    for (const [k, old] of was) if (!seen.has(k)) lines.push(`Removed ${productName(old.productId)} (${old.quantity})`);
+    const change = { byName: e.byName, at: e.at, lines, fromTotalPaise: beforeTotal, toTotalPaise: e.totalAmountPaise };
+    before = e.items;
+    beforeTotal = e.totalAmountPaise;
+    return change;
+  });
+}
 /** The rupees an order counts for: a Done order at what was delivered (free units never charged), any other as ordered. */
 export const orderValue = (o: Pick<OrderView, 'status' | 'totalAmountPaise' | 'suppliedAmountPaise'>) =>
   o.status === 'DONE' ? (o.suppliedAmountPaise ?? o.totalAmountPaise) : o.totalAmountPaise;

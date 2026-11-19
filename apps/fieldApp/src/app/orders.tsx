@@ -21,7 +21,7 @@ import { FyBanner } from '@/components/fy-banner';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { ApiError, NetworkError } from '@/lib/api';
 import { useFinancialYear } from '@/lib/financial-year';
-import { cancelOrder, deliveredOf, discountLabel, lineValue, listOrders, orderValue, type OrderStatus, type OrderView, type OutletType } from '@/lib/marketing';
+import { cancelOrder, deliveredOf, discountLabel, lineValue, listOrders, orderChanges, orderValue, type OrderStatus, type OrderView, type OutletType } from '@/lib/marketing';
 import { formatRupees, rupeesToPaise } from '@/lib/money';
 import { useSessionUser } from '@/lib/session';
 import { createRecord, getRecord, removeRecord, sendNow, updateRecord, useColleagues, useOnline, useRecords, type OutboxRecord } from '@/offline';
@@ -361,6 +361,17 @@ export default function OrdersScreen() {
             ) : null}
           </CardSection>
         ) : null}
+        {orderChanges(detail, productName, formatRupees).length > 0 ? (
+          <CardSection icon={sym('pencil', 'edit')} accent="orange" title="What the office changed">
+            {orderChanges(detail, productName, formatRupees).map((c, n) => (
+              <View key={`${c.at}:${n}`} style={styles.block}>
+                <ThemedText type="smallBold">{`${c.byName} · ${formatWhen(c.at)}`}</ThemedText>
+                {c.lines.length > 0 ? c.lines.map((l) => <ThemedText key={l} type="small">{l}</ThemedText>) : <ThemedText type="small" themeColor="textSecondary">Remarks or the order discount changed.</ThemedText>}
+                <ThemedText type="small" themeColor="textSecondary">{`Total ${formatRupees(c.fromTotalPaise)} → ${formatRupees(c.toTotalPaise)}`}</ThemedText>
+              </View>
+            ))}
+          </CardSection>
+        ) : null}
         <CardSection icon={sym('shippingbox', 'inventory_2')} accent="teal" title={detail.originalItems ? 'Products now' : 'Products'} count={detail.items.length}>
           {/* The office can put one product on several lines (own price or discount each): show every line, keyed by position. */}
           {detail.items.map((i, n) => {
@@ -402,6 +413,36 @@ export default function OrdersScreen() {
             <ThemedText type="small" themeColor="textSecondary">Free units are never charged.</ThemedText>
           ) : null}
         </CardSection>
+        {detail.status === 'DONE' && !infoOnly ? (
+          <CardSection icon={sym('doc.text', 'receipt_long')} accent="green" title="Final billing">
+            <View style={styles.spread}>
+              <ThemedText type="small">You ordered</ThemedText>
+              <ThemedText type="small">{formatRupees(detail.originalTotalAmountPaise ?? detail.totalAmountPaise)}</ThemedText>
+            </View>
+            {detail.originalTotalAmountPaise != null && detail.originalTotalAmountPaise !== detail.totalAmountPaise ? (
+              <View style={styles.spread}>
+                <ThemedText type="small">After the office’s changes</ThemedText>
+                <ThemedText type="small">{formatRupees(detail.totalAmountPaise)}</ThemedText>
+              </View>
+            ) : null}
+            <View style={styles.spread}>
+              <ThemedText type="small">Delivered</ThemedText>
+              <ThemedText type="small">{formatRupees(orderValue(detail))}</ThemedText>
+            </View>
+            {detail.invoice ? (
+              <>
+                <View style={styles.spread}>
+                  <ThemedText type="small">GST</ThemedText>
+                  <ThemedText type="small">{formatRupees(detail.invoice.gstPaise)}</ThemedText>
+                </View>
+                <View style={styles.spread}>
+                  <ThemedText type="smallBold">{`Final bill${detail.invoiceNumber ? ` · ${detail.invoiceNumber}` : ''}`}</ThemedText>
+                  <ThemedText type="smallBold">{formatRupees(detail.invoice.totalPaise)}</ThemedText>
+                </View>
+              </>
+            ) : null}
+          </CardSection>
+        ) : null}
         {detail.remarks ? (
           <CardSection icon={sym('text.bubble', 'chat')} accent="purple" title="Remarks">
             <ThemedText type="small">{detail.remarks}</ThemedText>

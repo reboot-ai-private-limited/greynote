@@ -50,6 +50,7 @@ const toOrder = (d: OrderDoc & { _id: unknown }): Order => ({
   createdBy: d.createdBy ? String(d.createdBy) : null,
   editedBy: d.editedBy ? String(d.editedBy) : null,
   editedAt: d.editedAt ?? null,
+  editHistory: d.editHistory && d.editHistory.length > 0 ? d.editHistory.map((e) => ({ by: String(e.by), byName: e.byName, at: e.at, items: e.items.map(toItem), totalAmountPaise: e.totalAmountPaise })) : null,
 });
 
 /** `field` moved back by the day start, so the small hours before it fall into the previous day (and month) when formatted. */
@@ -138,7 +139,7 @@ export class MongoOrderAdapter implements OrderRepositoryPort {
     return (await OrderModel.find(q).sort({ orderDate: -1, _id: -1 }).limit(limit).lean()).map(toOrder);
   }
 
-  async update(id: string, change: { items: Order['items']; totalAmountPaise: number; discount: Order['discount']; orderDiscountPaise: number; remarks: string | null; original?: { items: Order['items']; totalAmountPaise: number } }, by: string, at: Date, ifEditedAt: Date | null): Promise<boolean> {
+  async update(id: string, change: { items: Order['items']; totalAmountPaise: number; discount: Order['discount']; orderDiscountPaise: number; remarks: string | null; byName: string; original?: { items: Order['items']; totalAmountPaise: number } }, by: string, at: Date, ifEditedAt: Date | null): Promise<boolean> {
     const res = await OrderModel.updateOne(
       { _id: oid(id), status: 'PLACED', editedAt: ifEditedAt },
       {
@@ -152,6 +153,7 @@ export class MongoOrderAdapter implements OrderRepositoryPort {
           editedAt: at,
           ...(change.original && { originalItems: change.original.items.map((i) => ({ ...i, productId: oid(i.productId) })), originalTotalAmountPaise: change.original.totalAmountPaise }),
         },
+        $push: { editHistory: { by: oid(by), byName: change.byName, at, items: change.items.map((i) => ({ ...i, productId: oid(i.productId) })), totalAmountPaise: change.totalAmountPaise } },
       },
     );
     return res.modifiedCount === 1;
