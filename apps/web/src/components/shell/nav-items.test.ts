@@ -208,11 +208,12 @@ describe('Invoices', () => {
 });
 
 describe('Reports', () => {
-  it('are for Admin, apart from the sales report which the Accountant and HR read too', () => {
+  it('are for Admin, apart from the sales report (Accountant and HR) and Monthly work (HR) which others read too', () => {
     const admin = navGroupsFor('ADMIN').find((g) => g.group === 'Reports');
-    expect(admin?.items.map((i) => i.href)).toEqual(['/reports/sales', '/reports/secondary', '/reports/stock', '/reports/dcr',
+    expect(admin?.items.map((i) => i.href)).toEqual(['/reports/sales', '/reports/secondary', '/reports/monthly-work', '/reports/stock', '/reports/dcr',
       '/reports/doctor-visits', '/reports/ta-da', '/reports/salary']);
-    for (const role of ['HR', 'ACCOUNTANT'] as const) expect(navGroupsFor(role).find((g) => g.group === 'Reports')?.items.map((i) => i.href)).toEqual(['/reports/sales']);
+    expect(navGroupsFor('HR').find((g) => g.group === 'Reports')?.items.map((i) => i.href)).toEqual(['/reports/sales', '/reports/monthly-work']);
+    expect(navGroupsFor('ACCOUNTANT').find((g) => g.group === 'Reports')?.items.map((i) => i.href)).toEqual(['/reports/sales']);
     expect(isRouteBuilt('/reports/sales')).toBe(true);
     expect(isRouteBuilt('/reports/sales-dashboard')).toBe(true);
   });
