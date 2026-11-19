@@ -9,8 +9,6 @@ export interface ApprovalTab {
 
 /** The order of the tabs: the daily work first (it is the most, and the default), then the monthly, then the occasional. */
 const TAB_ORDER = ['DAILY_PLAN', 'DCR', 'MONTHLY_PLAN', 'EXPENSE_MONTH', 'SECONDARY_SALES', 'LEAVE', 'NEW_DOCTOR', 'NEW_CHEMIST', 'DOCTOR_SERVICE'];
-/** What HR decides: leave, and (like Admin) the plans. */
-const HR_KINDS = ['DAILY_PLAN', 'MONTHLY_PLAN', 'LEAVE'];
 const rank = (kind: string): number => {
   const i = TAB_ORDER.indexOf(kind);
   return i === -1 ? TAB_ORDER.length : i;
@@ -18,12 +16,10 @@ const rank = (kind: string): number => {
 
 /**
  * The tabs of the Approvals screen: one per kind, Daily plan first. There is no "All": mixed, the daily kinds would bury the rest, and
- * each tab's count shows where work is waiting. HR decides leave and plans only (the API would return an empty list for the rest),
- * so HR gets just those tabs.
+ * each tab's count shows where work is waiting. HR decides every kind like Admin, so both get every tab.
  */
-export function approvalTabsFor(role: RoleName | undefined): readonly ApprovalTab[] {
-  const kinds = role === 'HR' ? KIND_OPTIONS.filter((k) => HR_KINDS.includes(k.value)) : KIND_OPTIONS;
-  return [...kinds].sort((a, b) => rank(a.value) - rank(b.value));
+export function approvalTabsFor(_role: RoleName | undefined): readonly ApprovalTab[] {
+  return [...KIND_OPTIONS].sort((a, b) => rank(a.value) - rank(b.value));
 }
 
 /** The tab in force: the one the URL names if it is a tab, else the first. `''` when there are no tabs. */

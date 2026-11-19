@@ -16,8 +16,9 @@ describe('approvalTabsFor', () => {
     expect(values).not.toContain('SECONDARY_ROLLUP');
     expect(approvalTabsFor('ADMIN').find((t) => t.value === 'SECONDARY_SALES')?.label).toBe('Secondary sales');
   });
-  it('gives HR the plan and leave tabs only', () => {
-    expect(approvalTabsFor('HR').map((t) => t.value)).toEqual(['DAILY_PLAN', 'MONTHLY_PLAN', 'LEAVE']);
+  it('gives HR the same tabs as Admin: HR decides every kind', () => {
+    expect(approvalTabsFor('HR')).toEqual(approvalTabsFor('ADMIN'));
+    expect(approvalTabsFor('HR')).toHaveLength(9);
   });
 });
 
