@@ -11,7 +11,7 @@ import type { TerritorySnapshot } from '@/types/sync';
 import { addDays, addMonths, datesInMonth, prettyMonth } from '@/offline/day';
 
 import { ChoiceChips } from './choice-chips';
-import { DateStepper } from './date-stepper';
+import { DayPicker } from './day-picker';
 import { OutletPicker } from './outlet-picker';
 import { PrimaryButton } from './primary-button';
 import { TeamRoutesField } from './team-routes-field';
@@ -29,14 +29,16 @@ type Props = {
   /** The day being planned (`YYYY-MM-DD`). Given for a single day, it lets an out-station trip name its return day. */
   date?: string;
   /** What is wrong with the day, by field: marks the Routes list or the return date in red with the message. */
-  errors?: { routes?: string; returnDate?: string };
-  /** Locked days (weekly off, holidays). A trip can't run over one, so its return date stops the day before the next one. */
+  errors?: { routes?: string; returnDate?: string; start?: string };
+  /** Locked days (weekly off, holidays). A trip may run over them and come back on one; they stay what they are (decision-log 2026-11-19). */
   lockedDates?: string[];
   /**
    * Someone else's plan (a manager editing an employee's month): pick from these routes instead of your own cached ones.
    * `routesLoaded` is false while they are being fetched.
    */
   forOther?: { routes: NamedRoute[]; routesLoaded: boolean };
+  /** Moves the trip's first day ("Leaves on") to another day of the month; the screen puts the trip there. */
+  onMoveStart?: ((date: string) => void) | undefined;
 };
 
 /**
@@ -45,7 +47,7 @@ type Props = {
  * are the routes held by anyone below them, picked HQ first (`TeamRoutesField`, online). The routes chosen here decide which doctors can be
  * planned on that day (docs/mobile/monthlyplan.md rule 15).
  */
-export function PlanDayForm({ value, onChange, disabled, date, errors, lockedDates, forOther }: Props) {
+export function PlanDayForm({ value, onChange, disabled, date, errors, lockedDates, forOther, onMoveStart }: Props) {
   const theme = useTheme();
   const { isManager } = useCurrentUser();
   const territory = useCachedSource<TerritorySnapshot>('territory');
@@ -69,8 +71,10 @@ export function PlanDayForm({ value, onChange, disabled, date, errors, lockedDat
   // The return day: after this day, this month or the next.
   const earliest = date ? addDays(date, 1) : undefined;
   const nextMonthEnd = date ? datesInMonth(addMonths(date.slice(0, 7), 1)).at(-1) : undefined;
-  const nextLocked = date ? (lockedDates ?? []).filter((d) => d > date).sort()[0] : undefined;
-  const latest = nextLocked && nextMonthEnd ? (addDays(nextLocked, -1) < nextMonthEnd ? addDays(nextLocked, -1) : nextMonthEnd) : nextMonthEnd;
+  const latest = nextMonthEnd;
+  const monthDays = date ? datesInMonth(date.slice(0, 7)) : [];
+  // Weekly offs and holidays the trip runs over (or comes back on): they earn nothing and are not stay days.
+  const offOnTrip = date && value.returnDate ? (lockedDates ?? []).filter((d) => d > date && d <= value.returnDate!).sort() : [];
   const tripPossible = earliest !== undefined && latest !== undefined && earliest <= latest;
 
   const chosenTags =
@@ -170,25 +174,31 @@ export function PlanDayForm({ value, onChange, disabled, date, errors, lockedDat
           <ThemedText type="smallBold">Out-station trip</ThemedText>
           {value.returnDate ? (
             <>
-              <DateStepper
-                label="Return date"
-                value={value.returnDate}
-                min={earliest}
-                disabled={disabled}
-                onChange={(d) => onChange({ ...value, returnDate: d < earliest ? earliest : d > latest ? latest : d })}
-              />
+              {onMoveStart && date ? (
+                <>
+                  <ThemedText type="small" themeColor="textSecondary">Leaves on</ThemedText>
+                  <DayPicker value={date} min={monthDays[0]} max={monthDays.at(-1)} onChange={(d) => !disabled && onMoveStart(d)} />
+                  {errors?.start ? (
+                    <ThemedText type="small" themeColor="danger">
+                      {errors.start}
+                    </ThemedText>
+                  ) : null}
+                </>
+              ) : null}
+              <ThemedText type="small" themeColor="textSecondary">Return date</ThemedText>
+              <DayPicker value={value.returnDate} min={earliest} max={latest} onChange={(d) => !disabled && onChange({ ...value, returnDate: d < earliest ? earliest : d > latest ? latest : d })} />
               {errors?.returnDate ? (
                 <ThemedText type="small" themeColor="danger">
                   {errors.returnDate}
                 </ThemedText>
               ) : null}
-              {nextLocked && latest && latest < (nextMonthEnd ?? latest) ? (
+              {offOnTrip.length > 0 ? (
                 <ThemedText type="small" themeColor="textSecondary">
-                  A trip can’t run over a weekly off or a holiday, so the latest return is the day before it.
+                  {`${offOnTrip.length === 1 ? 'A weekly off or holiday falls' : `${offOnTrip.length} weekly offs or holidays fall`} inside the trip. ${offOnTrip.length === 1 ? 'It stays' : 'They stay'} as ${offOnTrip.length === 1 ? 'it is' : 'they are'}: no daily plan, report or DA${value.returnDate && offOnTrip.includes(value.returnDate) ? ', and no TA on the return day because you come back on one' : ''}.`}
                 </ThemedText>
               ) : null}
               <ThemedText type="small" themeColor="textSecondary">
-                The days in between are stay days (out-station DA, no TA). The return day earns TA and ex-station DA. Each is a working day: it needs its own Daily Plan and report.
+                The days in between are stay days (out-station DA, no TA). The return day earns TA and ex-station DA. Each is a working day: it needs its own Daily Plan and report. A weekly off or holiday inside the trip earns nothing.
               </ThemedText>
               {/* The server writes a trip's days in the next month into that month's plan (monthlyplan.md rule 16), which still needs its own submit. */}
               {date && value.returnDate.slice(0, 7) > date.slice(0, 7) ? (
@@ -205,11 +215,7 @@ export function PlanDayForm({ value, onChange, disabled, date, errors, lockedDat
               </ThemedText>
               {tripPossible ? (
                 <PrimaryButton label="+ Add a return date" variant="text" disabled={disabled} onPress={() => onChange({ ...value, returnDate: earliest })} />
-              ) : (
-                <ThemedText type="small" themeColor="textSecondary">
-                  The next day is a weekly off or a holiday, so a trip can’t start today.
-                </ThemedText>
-              )}
+              ) : null}
             </>
           )}
         </ThemedView>

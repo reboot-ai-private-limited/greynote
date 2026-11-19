@@ -11,10 +11,14 @@ export function shiftMonth(month: string, delta: number): string {
   return `${Math.floor(n / 12)}-${String((n % 12) + 1).padStart(2, '0')}`;
 }
 
-/** The days a trip makes after its first, `STAY` up to the one before the return and `TRANSIT` on it, copying the trip. */
-function tripDays(trip: MonthlyPlanEntry): MonthlyPlanEntry[] {
+/**
+ * The days a trip makes after its first, `STAY` up to the one before the return and `TRANSIT` on it, copying the trip. A trip may run over weekly offs and
+ * holidays (decision-log 2026-11-19): a day in `skip` stays what it is, so it gets no entry (and so no Daily Plan, report or DA), and a return on one earns nothing.
+ */
+function tripDays(trip: MonthlyPlanEntry, skip: ReadonlySet<string>): MonthlyPlanEntry[] {
   const out: MonthlyPlanEntry[] = [];
   for (let d = addDay(trip.planDate); d <= trip.returnDate!; d = addDay(d)) {
+    if (skip.has(d)) continue;
     out.push({ ...trip, planDate: d, returnDate: null, dayKind: d === trip.returnDate ? 'TRANSIT' : 'STAY' });
   }
   return out;
@@ -24,10 +28,10 @@ function tripDays(trip: MonthlyPlanEntry): MonthlyPlanEntry[] {
  * The days an earlier month's trips leave in `planMonth` — a trip that set out last month and comes back in this one. Read from
  * the earlier plan's trip entries, which are the only record of the trip.
  */
-export function carriedInto(planMonth: string, earlierEntries: MonthlyPlanEntry[]): MonthlyPlanEntry[] {
+export function carriedInto(planMonth: string, earlierEntries: MonthlyPlanEntry[], skip: ReadonlySet<string> = new Set()): MonthlyPlanEntry[] {
   return earlierEntries
     .filter((e) => e.dayKind === 'NORMAL' && e.returnDate !== null && e.returnDate.startsWith(`${planMonth}-`) && !e.planDate.startsWith(`${planMonth}-`))
-    .flatMap((trip) => tripDays(trip).filter((d) => d.planDate.startsWith(`${planMonth}-`)));
+    .flatMap((trip) => tripDays(trip, skip).filter((d) => d.planDate.startsWith(`${planMonth}-`)));
 }
 
 /**
@@ -40,6 +44,8 @@ export function carriedInto(planMonth: string, earlierEntries: MonthlyPlanEntry[
  * `carriedIn` is the other way round — days of a trip from the month before, already worked out by `carriedInto`; they join the
  * entries, and the employee can't plan anything else on them.
  *
+ * `skip` is the employee's off days (weekly off, holidays): a trip runs over them without writing an entry on them.
+ *
  * Refuses a `returnDate` that isn't after the trip's day or is more than a month on, a trip that is not field work, or one that runs
  * over a day the employee planned themselves (which also keeps two trips from overlapping). The out-station route check needs Territory
  * and is made at submit, with the other checks that read today's state.
@@ -48,6 +54,7 @@ export function expandTrips(
   planMonth: string,
   typed: MonthlyPlanEntry[],
   carriedIn: MonthlyPlanEntry[] = [],
+  skip: ReadonlySet<string> = new Set(),
 ): { entries: MonthlyPlanEntry[]; spill: MonthlyPlanEntry[] } {
   const taken = new Set([...typed.map((e) => e.planDate), ...carriedIn.map((e) => e.planDate)]);
   carriedIn.forEach((c) => {
@@ -72,7 +79,7 @@ export function expandTrips(
     if (trip.returnDate.slice(0, 7) > shiftMonth(planMonth, 1)) {
       throw AppError.badRequest('A trip can come back in this month or the next, not later.', { field });
     }
-    for (const day of tripDays(trip)) {
+    for (const day of tripDays(trip, skip)) {
       if (!day.planDate.startsWith(`${planMonth}-`)) {
         spill.push(day);
       } else if (taken.has(day.planDate)) {

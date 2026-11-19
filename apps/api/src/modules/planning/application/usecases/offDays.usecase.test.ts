@@ -80,14 +80,47 @@ describe('Monthly Plan: weekly off and holidays are locked', () => {
     expect(await kit.monthlyPlans.findByUserAndMonth(MR, MONTH)).toBeNull();
   });
 
-  it('refuses a trip that runs over one, also into next month', async () => {
-    expect(await refusal(save.execute(MR, MONTH, [entry('2026-10-16', { returnDate: '2026-10-20' })]))).toEqual({
-      message: 'The trip runs over Sun, 18 Oct is a holiday (Durga Puja), which can’t be planned. Change the trip’s dates.',
-      field: 'entries.0.returnDate',
+  describe('a trip may run over weekly offs and holidays (decision-log 2026-11-19)', () => {
+    const OUT = 'bbbbbbbbbbbbbbbbbbbbbbb2';
+    const days = (plan: { entries: MonthlyPlanEntry[] }) => plan.entries.map((e) => `${e.planDate}:${e.dayKind}`);
+    beforeEach(() => {
+      kit.routes.byUser.set(MR, [ROUTE, OUT]);
+      kit.routes.types.set(OUT, 'OUT_STATION');
     });
-    expect((await refusal(save.execute(MR, MONTH, [entry('2026-10-30', { returnDate: '2026-11-02' })]))).field).toBe('entries.0.returnDate');
-    const ok = await save.execute(MR, MONTH, [entry('2026-10-05', { returnDate: '2026-10-07' })]);
-    expect(ok.entries).toHaveLength(3);
+    const trip = (planDate: string, returnDate: string) => entry(planDate, { routeIds: [OUT], returnDate });
+
+    it('writes no stay day on an off day in the middle, and the days around it are still stay days', async () => {
+      const plan = await save.execute(MR, MONTH, [trip('2026-10-16', '2026-10-21')]);
+      expect(days(plan)).toEqual(['2026-10-16:NORMAL', '2026-10-17:STAY', '2026-10-20:STAY', '2026-10-21:TRANSIT']); // 18 and 19 are the Durga Puja holiday
+      expect(plan.entries[0]?.returnDate).toBe('2026-10-21');
+    });
+
+    it('may come back on an off day: the trip ends there with no return day written', async () => {
+      const plan = await save.execute(MR, MONTH, [trip('2026-10-16', '2026-10-18')]);
+      expect(days(plan)).toEqual(['2026-10-16:NORMAL', '2026-10-17:STAY']);
+      expect(plan.entries[0]?.returnDate).toBe('2026-10-18');
+    });
+
+    it('still refuses a trip that sets out on an off day', async () => {
+      expect((await refusal(save.execute(MR, MONTH, [trip('2026-10-18', '2026-10-21')]))).field).toBe('entries.0.planDate');
+    });
+
+    it('over a month end: 27th to next month, skipping next month’s off day, and re-saving what was read changes nothing', async () => {
+      const plan = await save.execute(MR, MONTH, [trip('2026-10-27', '2026-11-03')]);
+      expect(days(plan)).toEqual(['2026-10-27:NORMAL', '2026-10-28:STAY', '2026-10-29:STAY', '2026-10-30:STAY', '2026-10-31:STAY']);
+      const next = (await kit.monthlyPlans.findByUserAndMonth(MR, '2026-11'))!;
+      expect(days(next)).toEqual(['2026-11-02:STAY', '2026-11-03:TRANSIT']); // 1 Nov is a Sunday
+      const again = await save.execute(MR, MONTH, plan.entries);
+      expect(days(again)).toEqual(days(plan));
+      expect(days((await kit.monthlyPlans.findByUserAndMonth(MR, '2026-11'))!)).toEqual(days(next));
+    });
+
+    it('a trip from last month that ends here is rebuilt without this month’s off days', async () => {
+      await save.execute(MR, MONTH, [trip('2026-10-30', '2026-11-03')]);
+      const next = await kit.monthlyPlans.findByUserAndMonth(MR, '2026-11');
+      const saved = await save.execute(MR, '2026-11', [entry('2026-11-05'), ...next!.entries.filter((e) => e.dayKind === 'NORMAL')]);
+      expect(days(saved)).toEqual(['2026-11-02:STAY', '2026-11-03:TRANSIT', '2026-11-05:NORMAL']);
+    });
   });
 
   it('checks again at submit: a holiday added after the save stops the plan until that day is taken out', async () => {

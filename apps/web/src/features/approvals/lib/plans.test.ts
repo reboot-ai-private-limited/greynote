@@ -62,7 +62,8 @@ describe('editing a month', () => {
     const ctx = { routes: [out], edited: { '2026-10-02': day() }, offDates: ['2026-10-04'] };
     expect(dayProblem(day({ routeIds: [] }), '2026-10-01', ctx)).toMatch(/at least one route/);
     expect(dayProblem(day({ routeIds: ['o1'], returnDate: '2026-10-03' }), '2026-10-01', ctx)).toMatch(/already planned/);
-    expect(dayProblem(day({ routeIds: ['o1'], returnDate: '2026-10-05' }), '2026-10-03', { ...ctx, edited: {} })).toMatch(/weekly off or holiday/);
+    // a trip may run over a weekly off or holiday
+    expect(dayProblem(day({ routeIds: ['o1'], returnDate: '2026-10-05' }), '2026-10-03', { ...ctx, edited: {} })).toBeNull();
     expect(dayProblem(day({ routeIds: ['r1'], returnDate: '2026-10-05' }), '2026-10-03', ctx)).toMatch(/out-station/);
     expect(dayProblem(day({ routeIds: ['o1'], returnDate: '2026-10-09' }), '2026-10-06', { ...ctx, edited: {} })).toBeNull();
   });

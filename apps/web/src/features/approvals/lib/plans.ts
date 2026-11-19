@@ -121,8 +121,7 @@ export function dayProblem(
   if (day.returnDate <= date) return 'The return date must be after the day they leave.';
   const clash = Object.keys(ctx.edited).find((d) => d > date && d <= day.returnDate! && !isTripDay(ctx.edited[d]!.dayKind) && !ctx.offDates.includes(d));
   if (clash) return `${planDayLabel(clash)} is already planned. Clear it, or choose an earlier return date.`;
-  const locked = ctx.offDates.filter((d) => d > date && d <= day.returnDate!).sort()[0];
-  if (locked) return `${planDayLabel(locked)} is a weekly off or holiday, so a trip can’t run over it.`;
+  // A weekly off or holiday inside the trip (or the return day) is fine: it stays what it is, with no stay entry and no DA (decision-log 2026-11-19).
   return null;
 }
 

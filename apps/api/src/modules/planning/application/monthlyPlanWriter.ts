@@ -40,12 +40,13 @@ export class MonthlyPlanWriter {
     const typed = entries.filter((e) => e.dayKind === 'NORMAL').map((e) => ({ ...e, workWith: [] as string[] }));
     assertMonthlyEntries(planMonth, typed, userId);
     const lastDay = lastDayOf(typed, monthRange(planMonth).to);
-    assertNoOffDays(entries, await this.offDays.byDate(userId, monthRange(planMonth).from, lastDay));
+    const off = await this.offDays.byDate(userId, monthRange(planMonth).from, lastDay);
+    assertNoOffDays(entries, off);
     await beforeExpand();
 
     // A trip that set out last month and comes back in this one owns its days here; one that comes back next month puts days there.
     const earlier = await this.plans.findByUserAndMonth(userId, shiftMonth(planMonth, -1));
-    const { entries: expanded, spill } = expandTrips(planMonth, typed, carriedInto(planMonth, earlier?.entries ?? []));
+    const { entries: expanded, spill } = expandTrips(planMonth, typed, carriedInto(planMonth, earlier?.entries ?? [], new Set(off.keys())), new Set(off.keys()));
     return { entries: expanded, next: await this.planNextMonth(userId, shiftMonth(planMonth, 1), spill) };
   }
 
@@ -69,7 +70,9 @@ export class MonthlyPlanWriter {
     let rebuilt: MonthlyPlanEntry[];
     try {
       // The month after next isn't touched: what a trip of the next month's own sends further on is rebuilt when that plan is saved.
-      rebuilt = expandTrips(month, own, spill).entries;
+      // The next month's own trips run over that month's off days too.
+      const off = await this.offDays.byDate(userId, monthRange(month).from, lastDayOf(own, monthRange(month).to));
+      rebuilt = expandTrips(month, own, spill, new Set(off.keys())).entries;
     } catch (err) {
       if (err instanceof AppError && err.statusCode === 400) {
         throw AppError.badRequest(`The trip runs into ${month}, where one of those days is already planned. Remove it from the ${month} plan first.`, {

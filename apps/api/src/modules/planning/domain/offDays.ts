@@ -1,5 +1,4 @@
 import { AppError } from '@/shared/errors/AppError.js';
-import { eachDate } from '@/shared/time/businessTime.js';
 import type { MonthlyPlanEntry } from './monthlyPlan.entity.js';
 
 /** A day the employee can't plan work on: their weekly off, or a holiday of their main HQ (HR decides which). */
@@ -27,28 +26,19 @@ export function offDayError(day: PlanOffDay, field: string, onTrip: boolean): Ap
     : AppError.badRequest(`${offDayText(day)}, so it can’t be planned.`, { field, date: day.date, reason: day.reason });
 }
 
-const nextDay = (date: string): string => new Date(Date.parse(`${date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
-
 /** The last day a set of entries reaches: the month's last day, or later when a trip comes back next month. */
 export const lastDayOf = (entries: readonly MonthlyPlanEntry[], monthEnd: string): string =>
   entries.reduce((last, e) => (e.returnDate && e.returnDate > last ? e.returnDate : last), monthEnd);
 
 /**
- * Refuses the first planned day that is an off day: an entry the employee wrote (`entries.N.planDate`), or a day one of their
- * trips runs over, up to its return (`entries.N.returnDate`), wherever that day falls. Stay and transit rows are skipped: they
- * are rebuilt from a trip, and one carried in from last month's trip belongs to that month's plan. `N` is the entry's index
- * in the list given, so the error points at the row the employee sent.
+ * Refuses the first planned day that is an off day (`entries.N.planDate`), including the day a trip sets out on. A trip may run over off days and come back
+ * on one (decision-log 2026-11-19): they are not written as trip days. Stay and transit rows are skipped: they are rebuilt from a trip. `N` is the entry's
+ * index in the list given, so the error points at the row the employee sent.
  */
 export function assertNoOffDays(entries: readonly MonthlyPlanEntry[], off: ReadonlyMap<string, PlanOffDay>): void {
   entries.forEach((e, i) => {
     if (e.dayKind !== 'NORMAL') return;
     const own = off.get(e.planDate);
     if (own) throw offDayError(own, `entries.${i}.planDate`, false);
-    if (!e.returnDate || e.returnDate <= e.planDate) return;
-    for (const date of eachDate(nextDay(e.planDate), e.returnDate)) {
-      const hit = off.get(date);
-      if (hit) throw offDayError(hit, `entries.${i}.returnDate`, true);
-    }
   });
 }
-

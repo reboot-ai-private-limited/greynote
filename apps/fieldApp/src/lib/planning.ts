@@ -96,11 +96,12 @@ export const EMPTY_DAY: PlanDay = { workingType: 'FIELD_WORK', workWith: [], rou
 export type PlanEntries = Record<string, PlanDay>;
 
 /** The trip's stay and return days that fall inside `month` (`YYYY-MM`). */
-function tripDaysIn(month: string, date: string, trip: PlanDay): PlanEntries {
+function tripDaysIn(month: string, date: string, trip: PlanDay, skip: ReadonlySet<string>): PlanEntries {
   const out: PlanEntries = {};
   if (!trip.returnDate) return out;
   for (let d = addDays(date, 1); d <= trip.returnDate; d = addDays(d, 1)) {
-    if (d.startsWith(`${month}-`)) out[d] = { ...trip, returnDate: null, dayKind: d === trip.returnDate ? 'TRANSIT' : 'STAY' };
+    // A weekly off or holiday inside the trip stays what it is: no stay entry, as the server writes none (decision-log 2026-11-19).
+    if (d.startsWith(`${month}-`) && !skip.has(d)) out[d] = { ...trip, returnDate: null, dayKind: d === trip.returnDate ? 'TRANSIT' : 'STAY' };
   }
   return out;
 }
@@ -114,10 +115,10 @@ export function clearPlanDay(entries: PlanEntries, date: string): PlanEntries {
   return next;
 }
 
-/** Puts a typed day in the month: the old trip's days (if the day was a trip) go, and the new trip's days come in. */
-export function placePlanDay(entries: PlanEntries, month: string, date: string, day: PlanDay): PlanEntries {
+/** Puts a typed day in the month: the old trip's days (if the day was a trip) go, and the new trip's days come in, leaving out the `off` days (weekly off, holidays) it runs over. */
+export function placePlanDay(entries: PlanEntries, month: string, date: string, day: PlanDay, off: ReadonlySet<string> = new Set()): PlanEntries {
   const typed: PlanDay = { ...day, dayKind: 'NORMAL' };
-  return { ...clearPlanDay(entries, date), [date]: typed, ...tripDaysIn(month, date, typed) };
+  return { ...clearPlanDay(entries, date), [date]: typed, ...tripDaysIn(month, date, typed, off) };
 }
 
 type StateView = {

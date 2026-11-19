@@ -28,7 +28,7 @@ const datesOf = (month: string) => {
 /**
  * Admin changes an employee's Monthly Plan while it waits for approval: the same edit a manager makes in the app
  * (`PATCH /planning/monthly/:id/amend`). The whole month goes with an optional reason; the plan keeps waiting for the decision,
- * the days it replaces are kept on the plan, and the employee is told. Weekly offs and holidays stay locked.
+ * the days it replaces are kept on the plan, and the employee is told. Weekly offs and holidays stay locked (a trip may run over them).
  *
  * `approved`: the plan is past the manager. Only days after today can change; today and earlier days are locked, and a trip that has
  * begun can only get a new return date (later than today), since its stay and transit days follow from it.

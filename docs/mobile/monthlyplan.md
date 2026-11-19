@@ -152,3 +152,9 @@ The web plan and call previews show each person with their designation, like `Ra
 - **Admin/HR** changes apply at once and the employee is told. **A manager's** change is sent for approval to the manager above them (else Admin) and nothing changes until it is approved; the person's page and the edit screen say "A change is waiting for approval". It appears in the approver's Approvals as **Tour plan change** with each changed day, now and would-become.
 - When it is approved the server checks again: a day that became today or past, a day whose Daily Plan was sent meanwhile, or a month someone else changed since, can't be approved (the approver rejects it and the manager sends a new one). On approval the month changes, the untouched Daily Plans follow, and the employee is told.
 - One change waits at a time. A trip that runs into next month can't be changed from the phone (ask Admin).
+
+
+## 9. Trips over weekly offs and holidays (2026-11-19)
+
+- A trip (rule 16) may **run over weekly offs and holidays** and may **come back on one**. The server writes no stay or return day on them: they stay "Weekly off" / "Holiday", with no Daily Plan, report or DA, and a return on one earns no TA (rules 17 and 18 apply only to the days that are written). The day a trip **leaves** still cannot be an off day. The trip may come back this month or next, so 27th to the 8th of next month works; next month's days are written into that month's plan as before.
+- On the phone the return date is picked on the **month calendar** (this month or next), and **Leaves on** moves the trip's first day to another free day of the month: the stay and return days move with it. A manager or Admin editing an approved month uses the same form for days after today (rule 23 still locks past and sent days).

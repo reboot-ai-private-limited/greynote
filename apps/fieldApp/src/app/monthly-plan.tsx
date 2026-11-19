@@ -55,6 +55,7 @@ import { useCachedSource } from '@/offline/cache';
 import {
   addMonths,
   formatWhen,
+  addDays,
   datesInMonth,
   monthOf,
   nowMs,
@@ -70,7 +71,8 @@ import type { ConfigSnapshot, HrSnapshot, PlanOffDay, PlanningSnapshot, Territor
 type Msg = { tone: 'info' | 'warning' | 'danger' | 'success'; text: string };
 type Entries = Record<string, PlanDay>;
 /** The day being edited in the sheet; `ALL` fills every working day at once. */
-type Editing = { date: string } | 'ALL' | null;
+/** `from` is the day the sheet was opened on, set once the trip's start is moved to another day ("Leaves on"). */
+type Editing = { date: string; from?: string } | 'ALL' | null;
 /** Which days the day-wise list shows. */
 type Filter = 'ALL' | WorkingType | 'OFF' | 'UNPLANNED';
 
@@ -230,7 +232,7 @@ export default function MonthlyPlanScreen() {
 
   // A stay or return day belongs to the trip on an earlier day: it can't be edited on its own.
   const tripOf =
-    editing && editing !== 'ALL' && isTripDay(entries[editing.date]?.dayKind)
+    editing && editing !== 'ALL' && !editing.from && isTripDay(entries[editing.date]?.dayKind)
       ? {
           date: editing.date,
           start:
@@ -248,7 +250,7 @@ export default function MonthlyPlanScreen() {
   }
 
   /** What is wrong with the day being edited, and which field it belongs to (null when it is fine). */
-  function validDay(day: PlanDay, date?: string): { field: 'routes' | 'returnDate'; text: string } | null {
+  function validDay(day: PlanDay, date?: string, from?: string): { field: 'routes' | 'returnDate' | 'start'; text: string } | null {
     if (isFieldDay(day.workingType) && day.routeIds.length === 0) return { field: 'routes', text: `Pick at least one route for a ${workingTypeLabel(day.workingType)} day.` };
     if (day.returnDate && date) {
       const hasOut =
@@ -257,20 +259,22 @@ export default function MonthlyPlanScreen() {
       if (!hasOut) return { field: 'routes', text: 'A trip needs at least one out-station route. Add one, or clear the return date.' };
       if (day.returnDate <= date) return { field: 'returnDate', text: 'The return date must be after the day you leave.' };
       if (day.returnDate.slice(0, 7) > addMonths(date.slice(0, 7), 1)) return { field: 'returnDate', text: 'A trip can’t return later than next month.' };
-      // A trip can't run over another planned day of this month.
-      // Only this trip's own stay and return days may be run over (they move with it); any other planned day, or another trip's day, may not.
-      const ownEnd = entries[date]?.returnDate ?? null;
-      const clash = Object.keys(entries).find((d) => d > date && d <= day.returnDate! && !(isTripDay(entries[d]?.dayKind) && ownEnd !== null && d <= ownEnd) && !offByDate.has(d));
+      // A trip can't run over another planned day of this month. Only this trip's own stay and return days may be run over (they move with it);
+      // any other planned day, or another trip's day, may not. A weekly off or holiday it runs over is fine: it stays what it is (decision-log 2026-11-19).
+      const origin = from ?? date;
+      const ownEnd = entries[origin]?.returnDate ?? null;
+      const clash = Object.keys(entries).find((d) => d > date && d <= day.returnDate! && !(isTripDay(entries[d]?.dayKind) && ownEnd !== null && d > origin && d <= ownEnd) && !offByDate.has(d) && d !== origin);
       if (clash) return { field: 'returnDate', text: `${prettyDay(clash)} is already planned. Clear it, or choose an earlier return date.` };
-      // A trip can't run over a weekly off or a holiday (stay and return days are planned days).
-      const locked = lockedDates.filter((d) => d > date && d <= day.returnDate!).sort()[0];
-      if (locked) return { field: 'returnDate', text: `${prettyDay(locked)} is ${offLabelOf(locked).toLowerCase()}, so a trip can’t run over it. Choose an earlier return date.` };
+    }
+    if (date && from && from !== date) {
+      if (isOff(date)) return { field: 'start', text: `${prettyDay(date)} is ${offLabelOf(date).toLowerCase()}, so a trip can’t leave that day.` };
+      if (entries[date]) return { field: 'start', text: `${prettyDay(date)} is already planned. Clear it first, or leave on another day.` };
     }
     return null;
   }
 
   function applySheet() {
-    const p = validDay(sheet, editing && editing !== 'ALL' ? editing.date : undefined);
+    const p = validDay(sheet, editing && editing !== 'ALL' ? editing.date : undefined, editing && editing !== 'ALL' ? editing.from : undefined);
     if (p) {
       setSheetErrors({ [p.field]: p.text });
       return;
@@ -282,16 +286,17 @@ export default function MonthlyPlanScreen() {
       setEntries((e) => ({ ...Object.fromEntries(days.filter((d) => !isOff(d) && !isTripDay(e[d]?.dayKind) && !e[d]?.returnDate).map((d) => [d, plain])), ...Object.fromEntries(Object.entries(e).filter(([, v]) => isTripDay(v.dayKind) || v.returnDate)) }));
     } else if (editing) {
       // A trip's stay and return days are filled in at once, as the server will write them, so they don't read as days to plan.
-      const { date } = editing;
-      setEntries((e) => placePlanDay(e, month, date, sheet));
+      const { date, from } = editing;
+      const off = new Set(lockedDates);
+      setEntries((e) => placePlanDay(from && from !== date ? clearPlanDay(e, from) : e, month, date, sheet, off));
     }
     setEditing(null);
   }
 
   function clearDay() {
     if (editing && editing !== 'ALL') {
-      const { date } = editing;
-      setEntries((e) => clearPlanDay(e, date)); // a trip's stay and return days go with it
+      const { date, from } = editing;
+      setEntries((e) => clearPlanDay(e, from ?? date)); // a trip's stay and return days go with it
     }
     setEditing(null);
   }
@@ -561,9 +566,20 @@ export default function MonthlyPlanScreen() {
                     errors={sheetErrors}
                     date={editing && editing !== 'ALL' ? editing.date : undefined}
                     lockedDates={lockedDates}
+                    onMoveStart={
+                      editing && editing !== 'ALL'
+                        ? (to) => {
+                            const origin = editing.from ?? editing.date;
+                            setEditing({ date: to, from: origin });
+                            // Leaving on or after the return day: the return moves to the next day, so the trip stays a trip.
+                            if (sheet.returnDate && sheet.returnDate <= to) setSheet({ ...sheet, returnDate: addDays(to, 1) });
+                            setSheetErrors({});
+                          }
+                        : undefined
+                    }
                   />
                   <PrimaryButton label="Done" onPress={applySheet} />
-                  {editing && editing !== 'ALL' && entries[editing.date] ? (
+                  {editing && editing !== 'ALL' && entries[editing.from ?? editing.date] ? (
                     <PrimaryButton label="Clear this day" variant="text" onPress={clearDay} />
                   ) : null}
                 </>
