@@ -58,7 +58,7 @@ export async function buildMonthlyWorkWorkbook(m: EmployeeMonthlyWorkModel): Pro
   // ── Daily ───────────────────────────────────────────────────────────────────────────────────────────────
   const dy = wb.addWorksheet('Daily');
   title(dy, label, who);
-  const cols = ['Date', 'Day', 'Kind of day', 'Tour Plan route', 'Daily Plan route', 'Changed from Tour Plan', 'DCR submitted', 'DCR status', 'Doctor calls', 'Planned', 'Missed', 'Carried in (+prev)', 'Carried total', 'Follow-ups', 'Chemist calls', 'Orders', 'Orders ₹', 'TA ₹', 'DA ₹', 'Other ₹', 'Total expenses ₹', 'Visited (names)', 'Missed (names)', 'Remarks'];
+  const cols = ['Date', 'Day', 'Kind of day', 'Tour Plan route', 'Daily Plan route', 'Changed from Tour Plan', 'DCR submitted', 'DCR status', 'Doctor calls', 'Planned', 'Missed', 'Carried in (+prev)', 'Carried total', 'Follow-ups', 'Chemist calls', 'Orders', 'Orders ₹', 'TA ₹', 'DA ₹', 'Other ₹', 'Total expenses ₹', 'Remarks'];
   head(dy, 4, cols);
   const first = 5;
   work.rows.forEach((d, i) => {
@@ -66,7 +66,7 @@ export async function buildMonthlyWorkWorkbook(m: EmployeeMonthlyWorkModel): Pro
     const dayOff = ['Weekly off', 'Holiday', 'Paid leave', 'Unpaid leave'].includes(d.kind);
     const dcr = dayOff ? '–' : d.dcrSubmitted ? 'Yes' : 'No';
     const remarks = [d.remarks, d.expenseNotes ? `Own claim: ${d.expenseNotes}` : '', d.expenseFlagged ? 'Distance not worked out: TA is low' : ''].filter(Boolean).join(' · ');
-    const values: (string | number | { formula: string; result: number } | null)[] = [dayText(d.date), d.weekday, d.kind, d.tourWords ?? '', d.dailyWords ?? (d.planStatus === 'DRAFT' ? 'Not sent' : ''), d.changed === null ? '' : d.changed ? 'Yes' : 'No', dcr, d.dcrSubmitted ? d.report : '', d.doctorCalls, d.planned, d.missed, d.carriedIn, d.carriedTotal, d.followups, d.chemistCalls, d.orders, rupees(d.ordersPaise), rupees(d.taPaise), rupees(d.daPaise), rupees(d.otherPaise), { formula: `SUM(R${row}:T${row})`, result: rupees(d.taPaise + d.daPaise + d.otherPaise) }, d.visitedNames.join(', '), d.missedNames.join(', '), remarks];
+    const values: (string | number | { formula: string; result: number } | null)[] = [dayText(d.date), d.weekday, d.kind, d.tourWords ?? '', d.dailyWords ?? (d.planStatus === 'DRAFT' ? 'Not sent' : ''), d.changed === null ? '' : d.changed ? 'Yes' : 'No', dcr, d.dcrSubmitted ? d.report : '', d.doctorCalls, d.planned, d.missed, d.carriedIn, d.carriedTotal, d.followups, d.chemistCalls, d.orders, rupees(d.ordersPaise), rupees(d.taPaise), rupees(d.daPaise), rupees(d.otherPaise), { formula: `SUM(R${row}:T${row})`, result: rupees(d.taPaise + d.daPaise + d.otherPaise) }, remarks];
     values.forEach((v, c) => {
       const cell = dy.getCell(row, c + 1);
       cell.value = v;
@@ -83,7 +83,6 @@ export async function buildMonthlyWorkWorkbook(m: EmployeeMonthlyWorkModel): Pro
     if ((d.missed ?? 0) > 0) {
       dy.getCell(row, 11).fill = RED_FILL;
       dy.getCell(row, 11).font = { bold: true, color: { argb: RED } };
-      dy.getCell(row, 23).font = { color: { argb: RED } };
     }
     if ((d.carriedIn ?? 0) > 0) dy.getCell(row, 12).fill = AMBER_FILL;
     if ((d.carriedTotal ?? 0) > 0) dy.getCell(row, 13).fill = AMBER_FILL;
@@ -108,7 +107,7 @@ export async function buildMonthlyWorkWorkbook(m: EmployeeMonthlyWorkModel): Pro
   }
   dy.getCell(totalRow + 2, 1).value = 'Doctor calls count only when the DCR was sent and approved. Carried = a doctor planned earlier and not called since; "(+prev)" includes those carried from earlier days. Carried total on the last row is what is still owed at the month end. A sent DCR always makes the day Worked.';
   dy.getCell(totalRow + 2, 1).font = { italic: true, color: { argb: 'FF666666' } };
-  [13, 6, 14, 22, 22, 12, 10, 11, 9, 9, 9, 12, 10, 10, 10, 8, 12, 11, 11, 11, 14, 34, 34, 40].forEach((w, i) => (dy.getColumn(i + 1).width = w));
+  [13, 6, 14, 22, 22, 12, 10, 11, 9, 9, 9, 12, 10, 10, 10, 8, 12, 11, 11, 11, 14, 40].forEach((w, i) => (dy.getColumn(i + 1).width = w));
   dy.views = [{ state: 'frozen', xSplit: 3, ySplit: 4 }];
 
   // ── Overview ────────────────────────────────────────────────────────────────────────────────────────────

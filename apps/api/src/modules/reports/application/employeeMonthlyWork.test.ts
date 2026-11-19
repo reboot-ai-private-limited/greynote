@@ -63,13 +63,14 @@ describe('Monthly Work report data and workbook', () => {
     expect(daily.getCell('C5').value).toBe('Weekly off');
     expect([daily.getCell('A6').value, daily.getCell('C6').value, daily.getCell('G6').value, daily.getCell('H6').value]).toEqual(['2 Nov 2026', 'Worked', 'Yes', 'Approved']);
     expect([daily.getCell('I6').value, daily.getCell('J6').value, daily.getCell('K6').value]).toEqual([1, 2, 1]);
-    expect([daily.getCell('V6').value, daily.getCell('W6').value]).toEqual(['Dr A', 'Dr B']);
+    expect(daily.getRow(4).values).not.toContain('Visited (names)');
+    expect(daily.getRow(4).values).not.toContain('Missed (names)');
     expect([daily.getCell('R6').value, daily.getCell('S6').value, daily.getCell('T6').value]).toEqual([150, 100, 0]);
     expect(daily.getCell('U6').value).toMatchObject({ result: 250 });
     // 3 Nov: absent, a different route than the Tour Plan, carried in one, a flagged TA and an own claim.
     expect([daily.getCell('C7').value, daily.getCell('E7').value, daily.getCell('F7').value, daily.getCell('G7').value, daily.getCell('L7').value]).toEqual(['Absent', 'North 2', 'Yes', 'No', 1]);
-    expect(String(daily.getCell('X7').value)).toContain('Parking');
-    expect(String(daily.getCell('X7').value)).toContain('Distance not worked out');
+    expect(String(daily.getCell('V7').value)).toContain('Parking');
+    expect(String(daily.getCell('V7').value)).toContain('Distance not worked out');
     expect([daily.getCell('C8').value, daily.getCell('C9').value]).toEqual(['Paid leave', 'Unpaid leave']);
     expect(daily.getCell('A35').value).toBe('TOTAL');
     expect(daily.getCell('U35').value).toMatchObject({ result: 650 });
