@@ -242,7 +242,7 @@ PATCH  /api/territory/routes/:id  ADMIN
 PATCH  /api/territory/zones/:id  ADMIN
 POST   /api/approvals/:id/approve  ANY
 POST   /api/approvals/:id/reject  ANY
-POST   /api/approvals/:id/reopen  ADMIN,FIELD,HR
+POST   /api/approvals/:id/reopen  ADMIN,FIELD
 POST   /api/approvals/:id/withdraw  ANY
 POST   /api/approvals/bulk  ADMIN,FIELD,HR
 POST   /api/config/financial-year/close  ADMIN

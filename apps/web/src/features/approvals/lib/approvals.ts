@@ -83,9 +83,9 @@ export const STATUS_TONE: Record<ApprovalStatus, BadgeTone> = {
 export const OPEN_STATUSES: readonly ApprovalStatus[] = ['SUBMITTED', 'MANAGER_APPROVED'];
 export const isOpen = (status: ApprovalStatus): boolean => OPEN_STATUSES.includes(status);
 
-/** Leave is finalised by HR or Admin; every other kind by Admin. Mirrors the kinds' registration in the API. */
-export function finalApproverLabel(kind: string): string {
-  return kind === 'LEAVE' ? 'HR or Admin' : 'Admin';
+/** Every kind is finalised by HR or Admin. Mirrors the kinds' registration in the API. */
+export function finalApproverLabel(_kind: string): string {
+  return 'HR or Admin';
 }
 
 /** Who a request is waiting on, or how it ended. */
@@ -95,7 +95,7 @@ export function stageLabel(
   switch (item.status) {
     case 'SUBMITTED':
       // One approval kinds: the manager decides, and Admin may decide in their place.
-      return item.workflow === 'MANAGER_ONLY' ? 'Waiting on the manager or Admin' : 'Waiting on the manager';
+      return item.workflow === 'MANAGER_ONLY' ? 'Waiting on the manager, HR or Admin' : 'Waiting on the manager';
     case 'MANAGER_APPROVED':
       return `Waiting on ${finalApproverLabel(item.kind)}`;
     case 'APPROVED':
@@ -119,7 +119,7 @@ export function skipsManager(
   actorRole: string | undefined,
 ): boolean {
   // A one-approval request is decided by the manager or Admin, so Admin acting first skips nothing.
-  return item.status === 'SUBMITTED' && item.workflow !== 'MANAGER_ONLY' && actorRole === 'ADMIN';
+  return item.status === 'SUBMITTED' && item.workflow !== 'MANAGER_ONLY' && (actorRole === 'ADMIN' || actorRole === 'HR');
 }
 
 // ── History ────────────────────────────────────────────────────────────────────────────────

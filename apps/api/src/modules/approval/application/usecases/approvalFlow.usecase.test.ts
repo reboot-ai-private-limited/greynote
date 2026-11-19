@@ -407,12 +407,13 @@ describe('reopen', () => {
     expect((await submitAs('mr')).cycle).toBe(2);
   });
 
-  it('HR overrides the manager and reopens a kind that lists HR in overrideRoles, but not Leave', async () => {
+  it('HR overrides the manager on a kind that lists HR in overrideRoles, but never reopens (Admin only)', async () => {
     const plan = await submitAs('mr', HR_PLAN.kind);
     const done = await approve(plan.id, 'hr');
     expect(done.status).toBe('APPROVED');
     expect(done.history.at(-1)?.authority).toBe('ADMIN_OVERRIDE');
-    expect(await reopen.execute(plan.id, as('hr'), 'Wrong day')).toMatchObject({ status: 'REOPENED' });
+    await expect(reopen.execute(plan.id, as('hr'), 'Wrong day')).rejects.toMatchObject({ statusCode: 403 });
+    expect(await reopen.execute(plan.id, as('admin'), 'Wrong day')).toMatchObject({ status: 'REOPENED' });
 
     const leave = await submitAs('mr', LEAVE.kind);
     await expect(approve(leave.id, 'hr')).rejects.toMatchObject({ statusCode: 403 });
@@ -421,7 +422,7 @@ describe('reopen', () => {
     await expect(reopen.execute(leave.id, as('hr'), 'x')).rejects.toMatchObject({ statusCode: 403 });
   });
 
-  it('only Admin (or an override role of the kind), and only from APPROVED', async () => {
+  it('only Admin (or a manager for a managerReopen kind), and only from APPROVED', async () => {
     const req = await submitAs('mr');
     await expect(reopen.execute(req.id, as('admin'), 'x')).rejects.toMatchObject({ statusCode: 409 });
     await approve(req.id, 'admin');

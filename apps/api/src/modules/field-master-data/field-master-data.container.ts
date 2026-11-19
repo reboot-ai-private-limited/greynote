@@ -108,7 +108,8 @@ export function buildFieldMasterDataContainer(
   // config, assigns it to the MR who added it.
   approvals.registerKind({
     kind: NEW_DOCTOR_KIND,
-    finalApproverRoles: ['ADMIN'],
+    finalApproverRoles: ['HR', 'ADMIN'],
+    overrideRoles: ['HR', 'ADMIN'],
     // The manager's approval is the decision (Admin can still decide at any time); no second stage.
     managerOnly: true,
     describeRecords: makeDoctorDescriber(doctors, territory),
@@ -118,7 +119,8 @@ export function buildFieldMasterDataContainer(
   // An employee-added Chemist: the same route as a Doctor (Employee → Manager → Admin); approval makes it active.
   approvals.registerKind({
     kind: NEW_CHEMIST_KIND,
-    finalApproverRoles: ['ADMIN'],
+    finalApproverRoles: ['HR', 'ADMIN'],
+    overrideRoles: ['HR', 'ADMIN'],
     managerOnly: true,
     describeRecords: makeChemistDescriber(chemists, territory),
     onStatusChange: makeChemistApprovalHandler(chemists, chemistAssignments),

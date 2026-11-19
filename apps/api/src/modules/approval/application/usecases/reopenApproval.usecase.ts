@@ -2,7 +2,7 @@ import type { TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { ApprovalRequest } from '../../domain/approvalRequest.entity.js';
 import type { ApprovalRequestRepositoryPort } from '../../domain/approvalRequest.repository.port.js';
-import { canOverride, type Actor } from '../../domain/approvalRules.js';
+import type { Actor } from '../../domain/approvalRules.js';
 import type { ApprovalKindRegistry } from '../approvalKindRegistry.js';
 import { applyTransition } from '../applyTransition.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
@@ -28,7 +28,7 @@ export class ReopenApprovalUseCase {
     const request = await this.requests.findById(requestId);
     if (!request) throw AppError.notFound();
     const kind = this.kinds.find(request.kind);
-    if (!canOverride(kind, actor.role) && !(await this.managerMayReopen(kind?.managerReopen === true, request.submitterId, actor))) {
+    if (actor.role !== 'ADMIN' && !(await this.managerMayReopen(kind?.managerReopen === true, request.submitterId, actor))) {
       throw AppError.forbidden('You cannot reopen this request.');
     }
     if (request.status !== 'APPROVED') throw AppError.conflict('Only an approved request can be reopened.');

@@ -119,7 +119,8 @@ export function buildFieldActivityContainer(
   const dcrDeadline = new DcrSubmitDeadline(config);
   approvals.registerKind({
     kind: DCR_KIND,
-    finalApproverRoles: ['ADMIN'],
+    finalApproverRoles: ['HR', 'ADMIN'],
+    overrideRoles: ['HR', 'ADMIN'],
     describeRecords: describeEach((id) => dcrs.findById(id), (dcr) => ({ title: dayTitle(dcr.reportDate), subtitle: null })),
     onStatusChange: async (change, ctx) => {
       const dcr = await dcrs.findById(change.recordId);
@@ -129,7 +130,7 @@ export function buildFieldActivityContainer(
   });
 
   // A Service an MR asks for is approved once, by the manager or Admin; nothing else happens on approval — the status is its request's.
-  approvals.registerKind({ kind: DOCTOR_SERVICE_KIND, finalApproverRoles: ['ADMIN'], managerOnly: true, describeRecords: describeEach((id) => services.findById(id), (service) => ({ title: serviceTypeTitle(service.serviceType), subtitle: null })) });
+  approvals.registerKind({ kind: DOCTOR_SERVICE_KIND, finalApproverRoles: ['HR', 'ADMIN'], overrideRoles: ['HR', 'ADMIN'], managerOnly: true, describeRecords: describeEach((id) => services.findById(id), (service) => ({ title: serviceTypeTitle(service.serviceType), subtitle: null })) });
 
   // 2. Use cases
   const clock = new DcrClock(config);
@@ -139,7 +140,7 @@ export function buildFieldActivityContainer(
   const expenseGrants = new LateGrantsExpenseAdapter(lateGrants);
   const expenseAdjustments = new MongoExpenseAdjustmentAdapter();
   const monthService = new ExpenseMonthService(expenses, expenseMonths, users, approvals, clock, config, new MongooseTransactionRunner(), proofStorage, expenseGrants, new ExpenseMonthDeadlines(config));
-  approvals.registerKind({ kind: EXPENSE_MONTH_KIND, finalApproverRoles: ['ADMIN'], managerOnly: true, describeRecords: describeEach((id) => expenseMonths.findById(id), (record) => ({ title: monthTitle(record.month), subtitle: null })), onStatusChange: (change, ctx) => monthService.onStatusChange(change.recordId, change.status, ctx) });
+  approvals.registerKind({ kind: EXPENSE_MONTH_KIND, finalApproverRoles: ['HR', 'ADMIN'], overrideRoles: ['HR', 'ADMIN'], managerOnly: true, describeRecords: describeEach((id) => expenseMonths.findById(id), (record) => ({ title: monthTitle(record.month), subtitle: null })), onStatusChange: (change, ctx) => monthService.onStatusChange(change.recordId, change.status, ctx) });
   const dcrLate = new LateGrantsDcrAdapter(lateGrants, dcrDeadline, clock.now);
   const gate = new LoggingGate(users, planning, approvals, dcrs, clock, dcrLate, monthLock);
   const views = new DcrViews(approvals);

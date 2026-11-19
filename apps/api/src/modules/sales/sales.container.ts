@@ -78,7 +78,8 @@ export function buildSalesContainer(users: UserDirectoryPort, master: FieldMaste
   const teamStatus = makeSecondaryRollupStatusHandler(secondaryRollups, () => clock.now());
   approvals.registerKind({
     kind: SECONDARY_SALES_KIND,
-    finalApproverRoles: ['ADMIN'],
+    finalApproverRoles: ['HR', 'ADMIN'],
+    overrideRoles: ['HR', 'ADMIN'],
     managerOnly: true,
     describeRecords: async (ids) => new Map(ids.map((id) => [id, { title: `${monthTitle(id.split(':')[1] ?? '')}${parseSecondaryRecord(id)?.team ? ' · team report' : ''}`, subtitle: null }])),
     onStatusChange: async (change, ctx) => {
