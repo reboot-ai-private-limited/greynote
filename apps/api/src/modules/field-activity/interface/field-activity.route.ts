@@ -9,7 +9,7 @@ import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import { MAX_EXPENSE_ATTACHMENT_BYTES } from '../domain/expense.entity.js';
 import type { FieldActivityHandlers } from './field-activity.controller.js';
-import { finalizeExpensesBodySchema, adjustExpenseRowBodySchema, addExpenseRowBodySchema, expenseReviewQuerySchema, expenseOverviewQuerySchema, grantExpenseMonthBodySchema, listExpenseGrantsQuerySchema, expenseAttachmentParamsSchema, expenseHistoryQuerySchema, expenseMonthParamsSchema, expenseMonthQuerySchema, otherExpenseBodySchema, listExpensesQuerySchema, listExpensePayoutsQuerySchema, payExpensesBodySchema, allocateGiftBodySchema, callParamsSchema, doctorServiceFieldsSchema, idParamsSchema, listGiftsQuerySchema, listServicesQuerySchema, overrideBodySchema, listDcrsQuerySchema, listTeamDcrsQuerySchema } from './field-activity.schemas.js';
+import { finalizeExpensesBodySchema, adjustExpenseRowBodySchema, addExpenseRowBodySchema, expenseReviewQuerySchema, expenseOverviewQuerySchema, grantExpenseMonthBodySchema, listExpenseGrantsQuerySchema, expenseAttachmentParamsSchema, expenseHistoryQuerySchema, expenseMonthParamsSchema, expenseMonthQuerySchema, otherExpenseBodySchema, listExpensesQuerySchema, listExpensePayoutsQuerySchema, payExpensesBodySchema, allocateGiftBodySchema, callParamsSchema, doctorServiceFieldsSchema, idParamsSchema, listGiftsQuerySchema, listServicesQuerySchema, serviceSummaryQuerySchema, overrideBodySchema, listDcrsQuerySchema, listTeamDcrsQuerySchema } from './field-activity.schemas.js';
 
 const TAG = 'Field Activity';
 
@@ -71,6 +71,8 @@ openApiRegistry.registerPath({
 });
 
 doc('/doctor-services', 'My Doctor Services with their approval status — Admin: everyone’s, optionally by userId / doctorId', { query: listServicesQuerySchema });
+doc('/doctor-services/summary', 'Totals of the services I may list (mine, my team, or everyone for Admin and Accounts): one row per doctor with the approved amount by type, what is waiting and what is carried out', { query: serviceSummaryQuerySchema });
+doc('/doctor-services/report', 'The same, as an Excel workbook: By doctor (with totals) and Requests', { query: serviceSummaryQuerySchema });
 doc('/doctor-services/{id}', 'One Doctor Service by its own id — what an approval request points at; Admin, or the MR it is tied to', { params: idParamsSchema });
 doc('/doctor-gifts', 'Gifts for my Doctors, pending and done — Admin: all', { query: listGiftsQuerySchema });
 doc('/expense-payouts', 'Accountant: one month’s accepted expenses per employee — what is unpaid and what is paid — with the day they are due', { query: listExpensePayoutsQuerySchema });
@@ -189,6 +191,9 @@ export function buildFieldActivityRouter(c: FieldActivityHandlers): Router {
   router.delete('/expenses/other/:id/attachments/:attachmentId', requireRole('FIELD'), validate({ params: expenseAttachmentParamsSchema }), c.removeExpenseProof);
   router.delete('/expenses/other/:id', requireRole('FIELD'), validate({ params: idParamsSchema }), c.deleteOtherExpense);
   router.get('/doctor-services', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), validate({ query: listServicesQuerySchema }), c.listServices);
+  // Before `/:id`, which would read "summary" as an id.
+  router.get('/doctor-services/summary', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), validate({ query: serviceSummaryQuerySchema }), c.serviceSummary);
+  router.get('/doctor-services/report', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), validate({ query: serviceSummaryQuerySchema }), c.serviceReport);
   router.get('/doctor-services/:id', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), validate({ params: idParamsSchema }), c.getService);
   router.get('/doctor-gifts', requireRole('FIELD', 'ADMIN'), validate({ query: listGiftsQuerySchema }), c.listGifts);
   router.post('/doctor-services/:id/done', requireRole('ADMIN'), validate({ params: idParamsSchema }), c.markServiceDone);

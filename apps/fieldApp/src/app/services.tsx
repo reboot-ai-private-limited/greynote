@@ -24,7 +24,8 @@ import { ApiError, NetworkError } from '@/lib/api';
 import { withdrawRequest } from '@/lib/marketing';
 import { formatRupees, rupeesToPaise } from '@/lib/money';
 import { getRejectionReason } from '@/lib/planning';
-import { listServices, serviceStage, type ServiceView } from '@/lib/services';
+import { downloadServicesReport, listServices, SERVICE_TYPE_LABEL, serviceStage, totalServices, type ServiceView } from '@/lib/services';
+import { DownloadMenu } from '@/components/download-menu';
 import {
   createRecord,
   getRecord,
@@ -41,13 +42,9 @@ import { useCachedFetch } from '@/offline/cached-fetch';
 import { formatWhen } from '@/offline/day';
 import type { DoctorServiceType, FieldActivitySnapshot, FieldMasterDataSnapshot } from '@/types/sync';
 
-const TYPES: { value: DoctorServiceType; label: string }[] = [
-  { value: 'TOUR_PACKAGE', label: 'Tour package' },
-  { value: 'GIFT', label: 'Gift' },
-  { value: 'ONLINE_PROMOTION', label: 'Online promotion' },
-  { value: 'OTHERS', label: 'Others' },
-];
-const TYPE_LABEL = Object.fromEntries(TYPES.map((t) => [t.value, t.label])) as Record<DoctorServiceType, string>;
+// What a new request can be (2026-11-19); the two older types only label old rows.
+const TYPES: { value: DoctorServiceType; label: string }[] = (['HONORARIUM', 'CME', 'TRAINING', 'ONLINE_PROMOTION', 'OTHERS'] as const).map((value) => ({ value, label: SERVICE_TYPE_LABEL[value] }));
+const TYPE_LABEL = SERVICE_TYPE_LABEL;
 
 type ServiceRow = ServiceView;
 type ServicePayload ={ doctorId: string; serviceType: DoctorServiceType; amountPaise: number; remarks: string | null };
@@ -72,7 +69,7 @@ export default function ServicesScreen() {
 
   const [editing, setEditing] = useState<OutboxRecord | 'new' | null>(null);
   const [doctorId, setDoctorId] = useState<string | null>(null);
-  const [type, setType] = useState<DoctorServiceType>('TOUR_PACKAGE');
+  const [type, setType] = useState<DoctorServiceType>('HONORARIUM');
   const [amount, setAmount] = useState('');
   const [remarks, setRemarks] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
@@ -107,6 +104,8 @@ export default function ServicesScreen() {
   const tab: 'MINE' | 'TEAM' = picked ?? (isManager ? 'TEAM' : 'MINE');
   const [filter, setFilter] = useState<'ALL' | 'WAITING' | 'TODO' | 'DONE' | 'REJECTED'>('ALL');
   const [search, setSearch] = useState('');
+  // Requests, or one row per doctor with totals (decision-log 2026-11-19).
+  const [view, setView] = useState<'REQUESTS' | 'DOCTORS'>('REQUESTS');
   const term = useDebounced(search.trim().toLowerCase(), 300);
   // Approved and not carried out = to do; waiting = still with the manager or Admin.
   const stageOf = (s: ServiceRow) => (s.doneAt ? 'DONE' : s.status === 'APPROVED' || s.status === 'MANAGER_APPROVED' ? 'TODO' : s.status === 'SUBMITTED' ? 'WAITING' : s.status === 'REJECTED' ? 'REJECTED' : 'OTHER');
@@ -115,6 +114,7 @@ export default function ServicesScreen() {
     .filter((s) => (!isManager || (tab === 'MINE') === (ownerOf(s) === 'Own')))
     .filter((s) => (filter === 'ALL' || stageOf(s) === filter) && (!term || `${doctorName(s.doctorId)} ${TYPE_LABEL[s.serviceType]} ${s.userName ?? ''}`.toLowerCase().includes(term)))
     .sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? '') || b.id.localeCompare(a.id));
+  const money = totalServices(shownSent, (s) => s.doctorName || doctorName(s.doctorId));
   const { visible } = useWindowed(shownSent, `${tab}|${filter}|${term}`);
   const waitingCount = sent.filter((s) => stageOf(s) === 'WAITING' && ownerOf(s) === 'Own').length + unsent.length;
   const toDoCount = sent.filter((s) => stageOf(s) === 'TODO').length;
@@ -124,7 +124,7 @@ export default function ServicesScreen() {
     setMsg(null);
     if (record === 'new') {
       setDoctorId(null);
-      setType('TOUR_PACKAGE');
+      setType('HONORARIUM');
       setAmount('');
       setRemarks('');
     } else {
@@ -312,8 +312,38 @@ export default function ServicesScreen() {
         onChange={setFilter}
       />
       <TextField label={isManager ? 'Search a doctor, a type or an MR' : 'Search a doctor or a type'} value={search} onChangeText={setSearch} autoCapitalize="none" />
+      <SummaryStrip
+        items={[
+          { label: 'Approved', value: formatRupees(money.totals.approvedPaise), accent: 'green' },
+          { label: 'Waiting', value: formatRupees(money.totals.waitingPaise), accent: 'amber' },
+          { label: 'Requests', value: money.totals.requests, accent: 'blue' },
+        ]}
+      />
+      <ChoiceChips options={[{ value: 'REQUESTS', label: 'Requests' }, { value: 'DOCTORS', label: 'By doctor' }]} value={view} onChange={setView} />
+      <DownloadMenu
+        items={[
+          {
+            key: 'services',
+            label: `Excel · ${isManager && tab === 'TEAM' ? 'my team’s' : 'my'} services`,
+            hint: 'One row per doctor with totals by type, and every request',
+            build: async () => ({ delivered: await downloadServicesReport(isManager && tab === 'TEAM') }),
+          },
+        ]}
+      />
+      {view === 'DOCTORS'
+        ? money.doctors.length === 0
+          ? <Notice tone="info">No approved or waiting requests here.</Notice>
+          : money.doctors.map((d, i) => (
+              <NumberedRow key={d.doctorId} n={i + 1}>
+                <InfoCard>
+                  <ThemedText type="smallBold">{d.doctorName}</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">{`${d.requests} request${d.requests === 1 ? '' : 's'} · Approved ${formatRupees(d.approvedPaise)}${d.waitingPaise > 0 ? ` · Waiting ${formatRupees(d.waitingPaise)}` : ''}`}</ThemedText>
+                </InfoCard>
+              </NumberedRow>
+            ))
+        : null}
 
-      {(isManager && tab === 'TEAM' ? [] : unsent).map((r) => {
+      {view === 'DOCTORS' ? [] : (isManager && tab === 'TEAM' ? [] : unsent).map((r) => {
         const p = r.payload as ServicePayload;
         return (
           <InfoCard key={r.clientId}>
@@ -337,7 +367,7 @@ export default function ServicesScreen() {
         );
       })}
 
-      {!activity.loaded && !list.data ? (
+      {view === 'DOCTORS' ? null : !activity.loaded && !list.data ? (
         <Notice tone="info">Loading…</Notice>
       ) : sent.length === 0 && unsent.length === 0 ? (
         <Notice tone="info">No service requests yet.</Notice>
@@ -375,7 +405,7 @@ export default function ServicesScreen() {
           );
         })
       )}
-      {shownSent.length > 0 ? <ThemedText type="small" themeColor="textSecondary">{`Total ${shownSent.length}${term || filter !== 'ALL' ? ' found' : ''}`}</ThemedText> : null}
+      {view === 'REQUESTS' && shownSent.length > 0 ? <ThemedText type="small" themeColor="textSecondary">{`Total ${shownSent.length}${term || filter !== 'ALL' ? ' found' : ''}`}</ThemedText> : null}
     </ScreenShell>
   );
 }

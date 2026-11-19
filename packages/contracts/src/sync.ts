@@ -162,8 +162,10 @@ export interface ExpensePayload {
 }
 
 /** What a Doctor Service can be (sign-off H4). */
-export const DOCTOR_SERVICE_TYPES = ['TOUR_PACKAGE', 'GIFT', 'ONLINE_PROMOTION', 'OTHERS'] as const;
-export type DoctorServiceType = (typeof DOCTOR_SERVICE_TYPES)[number];
+/** What a new Doctor Service can be (2026-11-19). The two older types stay on old rows. */
+export const DOCTOR_SERVICE_TYPES = ['HONORARIUM', 'CME', 'TRAINING', 'ONLINE_PROMOTION', 'OTHERS'] as const;
+export const LEGACY_DOCTOR_SERVICE_TYPES = ['TOUR_PACKAGE', 'GIFT'] as const;
+export type DoctorServiceType = (typeof DOCTOR_SERVICE_TYPES)[number] | (typeof LEGACY_DOCTOR_SERVICE_TYPES)[number];
 
 /** A Doctor Service request (`DOCTOR_SERVICE`): sent for approval, in whole paise above zero. */
 export interface DoctorServicePayload {

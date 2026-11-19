@@ -41,7 +41,8 @@ describe('doctor service labels', () => {
   it('names the known types and shows an unknown one as stored', () => {
     expect(serviceTypeLabel('TOUR_PACKAGE')).toBe('Tour package');
     expect(serviceTypeLabel('ONLINE_PROMOTION')).toBe('Online promotion');
-    expect(serviceTypeLabel('OTHERS')).toBe('Other');
+    expect(serviceTypeLabel('OTHERS')).toBe('Others');
+    expect(serviceTypeLabel('CME')).toBe('CME');
     expect(serviceTypeLabel('SPONSORED_LUNCH')).toBe('SPONSORED_LUNCH');
   });
   it('says who made it', () => {

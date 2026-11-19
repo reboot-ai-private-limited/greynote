@@ -1,6 +1,6 @@
 # Mobile — Service requests
 
-What the field app does for a doctor's **service request**: the MR asks for a tour package, gift, online promotion or something else for a doctor, it is approved, and Admin marks it done (Accounts can only see the status). The phone shows the journey; the server owns every transition. Design: [`LLD/field-activity.md`](../LLD/field-activity.md), [`decision-log.md`](../decision-log.md). Related: [`visuals-gifts-services.md`](visuals-gifts-services.md) (§3 is the short version), [`doctors.md`](doctors.md), [`financial-year.md`](financial-year.md).
+What the field app does for a doctor's **service request**: the MR asks for an honorarium, CME, training, online promotion or something else for a doctor, it is approved, and Admin marks it done (Accounts can only see the status). The phone shows the journey; the server owns every transition. Design: [`LLD/field-activity.md`](../LLD/field-activity.md), [`decision-log.md`](../decision-log.md). Related: [`visuals-gifts-services.md`](visuals-gifts-services.md) (§3 is the short version), [`doctors.md`](doctors.md), [`financial-year.md`](financial-year.md).
 
 **Status key:** ✅ built on the server and web. 📱 the phone still has to show it.
 **Changed 2026-11-02:** any employee can request a service, whatever their designation: an MR for their own doctors, a manager for the doctors of their team. Before, only the assigned MR could (rule 1). The server change is backward compatible; the phone needs to let a manager open the form (📱 rule 1).
@@ -46,3 +46,9 @@ Admin only (web, not the phone): `POST /field-activity/doctor-services/:id/done`
 
 
 **Manager reads (2026-11-18).** `GET /field-activity/doctor-services/:id` is also open to a manager above the MR the service is tied to (the reply carries `userName`); anyone else still gets the 404 of a missing id. This is what the Approvals review and the Services "Details" use. The Services page has two tabs for a manager: **My requests** and **Team requests** (`?scope=team`).
+
+
+## Types, totals and the download (2026-11-19)
+
+- **Types** of a new request: Honorarium, CME, Training, Online promotion, Others. Tour package and Gift remain only on older requests.
+- The Services page shows **Approved**, **Waiting** and the number of requests for the list on screen, a **By doctor** view (one row per doctor with count, approved and waiting amount) and a **Download** (Excel: By doctor with totals by type, and every request). A manager's download covers their team when the Team tab is open.

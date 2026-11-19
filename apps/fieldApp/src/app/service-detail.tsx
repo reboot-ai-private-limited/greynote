@@ -16,7 +16,7 @@ import { serviceStage, type ServiceView } from '@/lib/services';
 import { useOnline } from '@/offline';
 import { formatWhen } from '@/offline/day';
 
-const TYPE_LABEL: Record<string, string> = { TOUR_PACKAGE: 'Tour package', GIFT: 'Gift', ONLINE_PROMOTION: 'Online promotion', OTHERS: 'Others' };
+const TYPE_LABEL: Record<string, string> = { HONORARIUM: 'Honorarium', CME: 'CME', TRAINING: 'Training', ONLINE_PROMOTION: 'Online promotion', OTHERS: 'Others', TOUR_PACKAGE: 'Tour package', GIFT: 'Gift' };
 
 type Detail = ServiceView & { createdAt?: string };
 

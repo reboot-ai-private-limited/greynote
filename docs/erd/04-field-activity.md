@@ -129,7 +129,7 @@ erDiagram
         uuid doctor_id FK
         uuid user_id FK "the MR tied to this service - submitter, or auto-selected via DoctorAssignment when Admin-created"
         uuid created_by FK "who created the row - the MR themself, or an Admin"
-        string service_type "TOUR_PACKAGE, GIFT, ONLINE_PROMOTION, OTHERS"
+        string service_type "HONORARIUM, CME, TRAINING, ONLINE_PROMOTION, OTHERS (older rows: TOUR_PACKAGE, GIFT)"
         int amount_paise
         string remarks
         string status "SUBMITTED, MANAGER_APPROVED, REJECTED"

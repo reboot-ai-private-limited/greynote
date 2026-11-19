@@ -11,20 +11,21 @@ import type { ExpenseOverviewUseCase, ExpenseReviewService } from '../applicatio
 import type { FinalizeExpenseMonthsUseCase } from '../application/usecases/expenseFinalize.usecase.js';
 import type { AdjustExpenseService } from '../application/usecases/expenseAdjust.usecase.js';
 import type { ListExpensePayoutsUseCase, PayMonthExpensesUseCase } from '../application/usecases/expensePayouts.usecase.js';
-import type { AllocateGiftUseCase, CreateAdminDoctorServiceUseCase, GetDoctorServiceUseCase, ListDoctorServicesUseCase, ListGiftsUseCase, MarkDoctorServiceDoneUseCase } from '../application/usecases/servicesAndGifts.usecase.js';
+import { buildDoctorServicesWorkbook } from '../application/doctorServicesXlsx.js';
+import type { AllocateGiftUseCase, CreateAdminDoctorServiceUseCase, GetDoctorServiceUseCase, ListDoctorServicesUseCase, SummariseDoctorServicesUseCase, ListGiftsUseCase, MarkDoctorServiceDoneUseCase } from '../application/usecases/servicesAndGifts.usecase.js';
 import type { DeleteDcrRecordUseCase } from '../application/usecases/deleteDcrRecord.usecase.js';
 import type { OverrideGeofenceUseCase } from '../application/usecases/overrideGeofence.usecase.js';
 import type { GetDcrDetailUseCase } from '../application/usecases/getDcrDetail.usecase.js';
 import type { Actor, ListAllDcrsUseCase, ListMyDcrsUseCase, ListTeamDcrsUseCase } from '../application/usecases/readDcrs.usecase.js';
 import type { ExpenseProof } from '../application/expenseProof.js';
-import type { grantExpenseMonthBodySchema, listExpenseGrantsQuerySchema, expenseHistoryQuerySchema, expenseMonthQuerySchema, expenseReviewQuerySchema, expenseOverviewQuerySchema, adjustExpenseRowBodySchema, addExpenseRowBodySchema, finalizeExpensesBodySchema, otherExpenseBodySchema, listExpensesQuerySchema, allocateGiftBodySchema, doctorServiceFieldsSchema, listDcrsQuerySchema, listGiftsQuerySchema, listServicesQuerySchema, listTeamDcrsQuerySchema, overrideBodySchema } from './field-activity.schemas.js';
+import type { serviceSummaryQuerySchema, grantExpenseMonthBodySchema, listExpenseGrantsQuerySchema, expenseHistoryQuerySchema, expenseMonthQuerySchema, expenseReviewQuerySchema, expenseOverviewQuerySchema, adjustExpenseRowBodySchema, addExpenseRowBodySchema, finalizeExpensesBodySchema, otherExpenseBodySchema, listExpensesQuerySchema, allocateGiftBodySchema, doctorServiceFieldsSchema, listDcrsQuerySchema, listGiftsQuerySchema, listServicesQuerySchema, listTeamDcrsQuerySchema, overrideBodySchema } from './field-activity.schemas.js';
 
 function actorOf(req: Request): Actor {
   if (!req.user) throw AppError.unauthenticated();
   return { id: req.user.sub, role: req.user.role };
 }
 
-export type FieldActivityHandlers = Record<'listDcrs' | 'teamDcrs' | 'getDcr' | 'overrideGeofence' | 'deleteCall' | 'deleteFollowup' | 'createAdminService' | 'listServices' | 'getService' | 'markServiceDone' | 'allocateGift' | 'listGifts' | 'listExpenses' | 'markExpensePaid' | 'listExpensePayouts' | 'payExpenses' | 'expenseStatement' | 'expenseHistory' | 'expenseStatementById' | 'expenseReview' | 'expenseOverview' | 'finalizeExpenses' | 'adjustExpenseRow' | 'addExpenseRow' | 'addOtherExpense' | 'updateOtherExpense' | 'deleteOtherExpense' | 'addExpenseProof' | 'removeExpenseProof' | 'submitExpenseMonth' | 'grantExpenseMonth' | 'listExpenseGrants' | 'revokeExpenseGrant', RequestHandler>;
+export type FieldActivityHandlers = Record<'listDcrs' | 'teamDcrs' | 'getDcr' | 'overrideGeofence' | 'deleteCall' | 'deleteFollowup' | 'createAdminService' | 'listServices' | 'serviceSummary' | 'serviceReport' | 'getService' | 'markServiceDone' | 'allocateGift' | 'listGifts' | 'listExpenses' | 'markExpensePaid' | 'listExpensePayouts' | 'payExpenses' | 'expenseStatement' | 'expenseHistory' | 'expenseStatementById' | 'expenseReview' | 'expenseOverview' | 'finalizeExpenses' | 'adjustExpenseRow' | 'addExpenseRow' | 'addOtherExpense' | 'updateOtherExpense' | 'deleteOtherExpense' | 'addExpenseProof' | 'removeExpenseProof' | 'submitExpenseMonth' | 'grantExpenseMonth' | 'listExpenseGrants' | 'revokeExpenseGrant', RequestHandler>;
 
 export function makeFieldActivityControllers(u: {
   listMine: ListMyDcrsUseCase;
@@ -35,6 +36,7 @@ export function makeFieldActivityControllers(u: {
   deleteRecord: DeleteDcrRecordUseCase;
   adminService: CreateAdminDoctorServiceUseCase;
   listServices: ListDoctorServicesUseCase;
+  summariseServices: SummariseDoctorServicesUseCase;
   getService: GetDoctorServiceUseCase;
   markServiceDone: MarkDoctorServiceDoneUseCase;
   allocateGift: AllocateGiftUseCase;
@@ -87,6 +89,18 @@ export function makeFieldActivityControllers(u: {
     listServices: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await u.listServices.execute(actorOf(req), req.query as unknown as z.output<typeof listServicesQuerySchema>), 'Doctor services.', 200),
     ),
+    serviceSummary: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, (await u.summariseServices.execute(actorOf(req), req.query as unknown as z.output<typeof serviceSummaryQuerySchema>)).summary, 'Doctor service totals.', 200),
+    ),
+    serviceReport: asyncHandler(async (req, res) => {
+      const q = req.query as unknown as z.output<typeof serviceSummaryQuerySchema>;
+      const { summary, requests } = await u.summariseServices.execute(actorOf(req), q);
+      const label = [q.scope === 'team' ? 'My team' : q.scope === 'mine' ? 'Mine' : 'All requests', q.from || q.to ? `${q.from ?? 'start'} to ${q.to ?? 'today'}` : null].filter(Boolean).join(' · ');
+      const file = await buildDoctorServicesWorkbook({ label, summary, requests });
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="doctor-services${q.from ? `-${q.from}` : ''}${q.to ? `-to-${q.to}` : ''}.xlsx"`);
+      res.status(200).send(file);
+    }),
     markServiceDone: asyncHandler(async (req, res) => sendSuccess(req, res, await u.markServiceDone.execute(actorOf(req).id, requiredParam(req.params, 'id')), 'The service was marked done.', 200)),
     getService: asyncHandler(async (req, res) => sendSuccess(req, res, await u.getService.execute(actorOf(req), requiredParam(req.params, 'id')), 'Doctor service.', 200)),
     allocateGift: asyncHandler(async (req, res) => sendSuccess(req, res, await u.allocateGift.execute(actorOf(req).id, req.body as z.output<typeof allocateGiftBodySchema>), 'The gift was allocated.', 201)),

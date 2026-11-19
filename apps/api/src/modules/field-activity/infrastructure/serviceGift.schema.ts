@@ -1,11 +1,12 @@
 import { Schema, model, type Types } from 'mongoose';
+import { ALL_DOCTOR_SERVICE_TYPES, type DoctorServiceType } from '../domain/serviceGift.entity.js';
 
 export interface DoctorServiceDoc {
   doctorId: Types.ObjectId;
   userId: Types.ObjectId;
   createdBy: Types.ObjectId;
   origin: 'MR' | 'ADMIN';
-  serviceType: 'TOUR_PACKAGE' | 'GIFT' | 'ONLINE_PROMOTION' | 'OTHERS';
+  serviceType: DoctorServiceType;
   amountPaise: number;
   remarks: string | null;
   clientId: string | null;
@@ -18,7 +19,7 @@ const serviceSchema = new Schema<DoctorServiceDoc>({
   userId: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
   createdBy: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
   origin: { type: String, required: true, enum: ['MR', 'ADMIN'] },
-  serviceType: { type: String, required: true, enum: ['TOUR_PACKAGE', 'GIFT', 'ONLINE_PROMOTION', 'OTHERS'] },
+  serviceType: { type: String, required: true, enum: [...ALL_DOCTOR_SERVICE_TYPES] },
   amountPaise: { type: Number, required: true, min: 1 },
   remarks: { type: String, default: null },
   clientId: { type: String, default: null },

@@ -1,8 +1,11 @@
 import type { Paise } from '@/shared/money/paise.js';
 
-/** What a Doctor Service can be (sign-off H4, working assumption while C8 is open). */
-export const DOCTOR_SERVICE_TYPES = ['TOUR_PACKAGE', 'GIFT', 'ONLINE_PROMOTION', 'OTHERS'] as const;
-export type DoctorServiceType = (typeof DOCTOR_SERVICE_TYPES)[number];
+/** What a new Doctor Service can be (decision-log 2026-11-19; first set in sign-off H4). */
+export const DOCTOR_SERVICE_TYPES = ['HONORARIUM', 'CME', 'TRAINING', 'ONLINE_PROMOTION', 'OTHERS'] as const;
+/** The types before 2026-11-19: still on old rows and still accepted from a phone that queued one, never offered for a new request. */
+export const LEGACY_DOCTOR_SERVICE_TYPES = ['TOUR_PACKAGE', 'GIFT'] as const;
+export const ALL_DOCTOR_SERVICE_TYPES = [...DOCTOR_SERVICE_TYPES, ...LEGACY_DOCTOR_SERVICE_TYPES] as const;
+export type DoctorServiceType = (typeof ALL_DOCTOR_SERVICE_TYPES)[number];
 
 /**
  * A service for a Doctor — a bigger-ticket spend, approved before it counts. Its status is not stored: an
@@ -40,8 +43,9 @@ export interface DoctorGift {
   allocatedAt: Date;
 }
 
-/** A service type as a row title: `TOUR_PACKAGE` → `Tour package`. */
+/** A service type as a row title: `ONLINE_PROMOTION` → `Online promotion`, `CME` → `CME`. */
 export function serviceTypeTitle(type: DoctorServiceType): string {
+  if (type === 'CME') return 'CME';
   const words = type.toLowerCase().replace(/_/g, ' ');
   return words.charAt(0).toUpperCase() + words.slice(1);
 }

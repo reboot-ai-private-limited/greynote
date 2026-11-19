@@ -22,10 +22,14 @@ export function balanceNote(leave: Pick<LeaveDetailDto, 'isPaid' | 'status' | 'd
 
 
 export const SERVICE_TYPE_LABEL: Record<DoctorServiceType, string> = {
+  HONORARIUM: 'Honorarium',
+  CME: 'CME',
+  TRAINING: 'Training',
+  ONLINE_PROMOTION: 'Online promotion',
+  OTHERS: 'Others',
+  // Older requests keep their type.
   TOUR_PACKAGE: 'Tour package',
   GIFT: 'Gift',
-  ONLINE_PROMOTION: 'Online promotion',
-  OTHERS: 'Other',
 };
 
 /** A service type the portal does not know is shown as stored rather than hidden. */

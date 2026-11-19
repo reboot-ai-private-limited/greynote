@@ -76,7 +76,7 @@ and the **logging gate**, the DCR's **Final Submission** as the sync kind `DCR_S
 - **Doctor Services and Gifts (step 7)** are not children of the day's DCR (the ERD gives them no `dcrId`), so
   neither needs the day's Plan; both refuse a compliance-blocked MR (`USER_BLOCKED`).
   - **Doctor Service.** The sync kind `DOCTOR_SERVICE`, payload `{ doctorId, serviceType, amountPaise, remarks? }`,
-    `serviceType` one of `TOUR_PACKAGE`, `GIFT`, `ONLINE_PROMOTION`, `OTHERS` (H4), whole paise above zero. The Doctor
+    `serviceType` one of `HONORARIUM`, `CME`, `TRAINING`, `ONLINE_PROMOTION`, `OTHERS` (H4, changed 2026-11-19; `TOUR_PACKAGE` and `GIFT` stay valid on old rows), whole paise above zero. The Doctor
     must be an active one the MR is still assigned to (`DOCTOR_NOT_FOUND` / `DOCTOR_NOT_ASSIGNED`). It is stored and
     submitted as a `DOCTOR_SERVICE` approval request (Employee → Manager → Admin) in the engine's transaction; its
     status is the request's, not stored. Admin's `POST /admin/doctor-services` (same fields) creates one with no

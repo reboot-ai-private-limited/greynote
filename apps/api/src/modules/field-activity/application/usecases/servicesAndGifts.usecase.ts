@@ -7,6 +7,7 @@ import { GATE_CODES, GateRefusal } from '../../domain/gateRefusal.js';
 import { LOG_CODES, LogRefusal } from '../../domain/logRefusal.js';
 import type { DoctorGiftRepositoryPort, DoctorServiceRepositoryPort } from '../../domain/records.repository.port.js';
 import type { DoctorGift, DoctorService, DoctorServiceType } from '../../domain/serviceGift.entity.js';
+import { summariseServices, type ServiceSummary } from '../../domain/serviceSummary.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { CallChecks } from '../callChecks.js';
 import type { RecordContext } from './logCalls.usecase.js';
@@ -115,6 +116,35 @@ export class ListDoctorServicesUseCase {
     if (!team || !this.users) return views;
     const names = new Map((await this.users.getUserSummaries([...new Set(rows.map((r) => r.userId))])).map((u) => [u.id, u.name]));
     return views.map((v) => ({ ...v, userName: names.get(v.userId) ?? '' }));
+  }
+}
+
+/**
+ * The totals of the services a person may list (decision-log 2026-11-19): the same scope as `ListDoctorServicesUseCase` (an MR's own, a manager's team, Admin's and
+ * Accounts' everyone), optionally for one doctor and for requests made from/to a business date. One row per doctor, plus the requests themselves for the download.
+ */
+export class SummariseDoctorServicesUseCase {
+  constructor(
+    private readonly list: ListDoctorServicesUseCase,
+    private readonly users: UserDirectoryPort | undefined,
+    private readonly dateConverter: () => Promise<(instant: Date) => string>,
+  ) {}
+
+  async execute(
+    actor: Actor,
+    filter: { userId?: string | undefined; doctorId?: string | undefined; scope?: 'mine' | 'team' | undefined; from?: string | undefined; to?: string | undefined },
+  ): Promise<{ summary: ServiceSummary; requests: DoctorServiceView[] }> {
+    const dateOf = await this.dateConverter();
+    const rows = (await this.list.execute(actor, filter, 5000)).filter((s) => {
+      const day = dateOf(s.createdAt);
+      return (!filter.from || day >= filter.from) && (!filter.to || day <= filter.to);
+    });
+    // Admin's and a plain MR's rows carry no requester name: name them all here, once.
+    const needNames = rows.filter((r) => r.userName === undefined);
+    const names = this.users && needNames.length > 0 ? new Map((await this.users.getUserSummaries([...new Set(needNames.map((r) => r.userId))])).map((u) => [u.id, u.name])) : new Map<string, string>();
+    const requests = rows.map((r) => ({ ...r, userName: r.userName ?? names.get(r.userId) ?? '' }));
+    const summary = summariseServices(requests.map((r) => ({ doctorId: r.doctorId, doctorName: r.doctorName, userName: r.userName ?? '', serviceType: r.serviceType, amountPaise: r.amountPaise, status: r.status, doneAt: r.doneAt })));
+    return { summary, requests };
   }
 }
 

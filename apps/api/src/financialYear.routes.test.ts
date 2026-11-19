@@ -215,6 +215,9 @@ const TIMELESS = [
   '/api/sales/monthly-stock',
   '/api/sales/monthly-stock/missing',
   '/api/field-activity/doctor-services',
+  // The totals and the download take their own from/to dates (decision-log 2026-11-19).
+  '/api/field-activity/doctor-services/summary',
+  '/api/field-activity/doctor-services/report',
   '/api/field-activity/doctor-gifts',
   '/api/planning/late-grants',
   // The unified late-grant list, like the plan list it replaces, is filtered by the screen's own month and status.

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { paiseSchema } from '@/shared/money/paise.js';
 import { MANUAL_EXPENSE_TYPES } from '../domain/expense.entity.js';
-import { DOCTOR_SERVICE_TYPES } from '../domain/serviceGift.entity.js';
+import { ALL_DOCTOR_SERVICE_TYPES } from '../domain/serviceGift.entity.js';
 import { calendarDateSchema } from '@/shared/time/calendarSchemas.js';
 
 const objectIdSchema = z.string().regex(/^[a-f\d]{24}$/i, 'Must be a valid id.');
@@ -65,7 +65,8 @@ const positivePaise = paiseSchema.refine((v) => v > 0, 'The amount must be more 
 /** An MR's Doctor Service request (the `DOCTOR_SERVICE` sync kind), and Admin's direct one (the same fields, over REST). */
 export const doctorServiceFieldsSchema = z.object({
   doctorId: objectIdSchema,
-  serviceType: z.enum(DOCTOR_SERVICE_TYPES),
+  // Every type, so a request an older phone queued still syncs; the apps offer only the five new ones (decision-log 2026-11-19).
+  serviceType: z.enum(ALL_DOCTOR_SERVICE_TYPES),
   amountPaise: positivePaise,
   remarks: remarksSchema,
 });
@@ -81,6 +82,9 @@ export const listExpensePayoutsQuerySchema = z.object({ month: monthSchema });
 export const payExpensesBodySchema = z.object({ month: monthSchema, userIds: z.array(objectIdSchema).min(1).max(1000).optional() });
 
 export const listServicesQuerySchema = z.object({ userId: objectIdSchema.optional(), doctorId: objectIdSchema.optional(), scope: z.enum(['mine', 'team']).optional() });
+const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be a date like 2026-11-19.');
+/** The totals and the Excel download share one filter: who (scope), which doctor, and the business dates the requests were made between. */
+export const serviceSummaryQuerySchema = z.object({ userId: objectIdSchema.optional(), doctorId: objectIdSchema.optional(), scope: z.enum(['mine', 'team']).optional(), from: isoDay.optional(), to: isoDay.optional() });
 export const listGiftsQuerySchema = z.object({ status: z.enum(['PENDING', 'DONE']).optional(), scope: z.enum(['mine', 'team']).optional() });
 
 // ---- Monthly expense statement ------------------------------------------------------------------

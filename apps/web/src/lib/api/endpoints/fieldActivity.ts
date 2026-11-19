@@ -21,7 +21,7 @@ import type {
   PayExpensesDto,
   PayOutcomeDto,
 } from '@greynote/contracts';
-import { request } from '../client';
+import { request, requestFile } from '../client';
 
 export const fieldActivityApi = {
   /** `from`/`to` are required (`YYYY-MM-DD`, at most 400 days). A bare array, capped at 500. */
@@ -66,6 +66,8 @@ export const fieldActivityApi = {
   doctorServices: (token: string, query: { doctorId?: string | undefined }, signal?: AbortSignal) =>
     request<DoctorServiceDto[]>('/field-activity/doctor-services', { token, query: { ...query }, signal }),
   /** Admin: creates a Service for a Doctor — effective at once, tied to the Doctor's assigned MR. A Doctor with no MR is refused. */
+  /** Everyone's doctor services as an Excel workbook: By doctor (with totals) and Requests. Admin and Accounts. */
+  doctorServicesReport: (token: string, query: { from?: string | undefined; to?: string | undefined }, signal?: AbortSignal) => requestFile('/field-activity/doctor-services/report', { token, query: { ...query }, signal }),
   createDoctorService: (token: string, body: CreateAdminServiceDto) =>
     request<DoctorServiceDto>('/field-activity/admin/doctor-services', { method: 'POST', token, body }),
   /** Admin: every gift, newest first, optionally only pending or done. */

@@ -85,7 +85,8 @@ export type FieldActivitySnapshot = {
   pendingGifts?: { id: string; doctorId: string; productName: string; amountPaise: number }[];
 };
 
-export type DoctorServiceType = 'TOUR_PACKAGE' | 'GIFT' | 'ONLINE_PROMOTION' | 'OTHERS';
+/** The five a new request can be (2026-11-19) and the two older ones, which stay on old rows. */
+export type DoctorServiceType = 'HONORARIUM' | 'CME' | 'TRAINING' | 'ONLINE_PROMOTION' | 'OTHERS' | 'TOUR_PACKAGE' | 'GIFT';
 
 export type ConfigSnapshot = { settings: Record<string, string> };
 

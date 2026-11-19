@@ -17,7 +17,7 @@ import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
 import { monthOf, prettyDay } from '@/offline/day';
 
-const TYPE: Record<string, string> = { TOUR_PACKAGE: 'Tour package', GIFT: 'Gift', ONLINE_PROMOTION: 'Online promotion', OTHERS: 'Others' };
+const TYPE: Record<string, string> = { HONORARIUM: 'Honorarium', CME: 'CME', TRAINING: 'Training', ONLINE_PROMOTION: 'Online promotion', OTHERS: 'Others', TOUR_PACKAGE: 'Tour package', GIFT: 'Gift' };
 
 /**
  * One doctor of your team (manager and the MR above): who holds him, how he is visited this month and every service asked for him with its amount and

@@ -2902,3 +2902,10 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 ## 2026-11-19: Only the doctor's MR (and Admin) adds visuals; a manager takes them off
 
 - **Decision.** Adding visuals to a doctor is the doctor's own MR's job (and Admin's, on the web); a manager, including one who holds the doctor themselves, cannot add (`403 ONLY_MR_ADDS`). A manager above the doctor's MR, and Admin, take visuals off; the MR cannot. The list answers with `canAdd` and `canRemove`. On the phone a manager sees the doctor's chosen visuals with Remove and no tick boxes or Submit.
+
+
+## 2026-11-19: Doctor service types, totals, per-doctor rows and a download
+
+- **Types.** A new request is Honorarium, CME, Training, Online promotion or Others. Tour package and Gift stay on the rows that have them (read and approved as before, labelled) and an older phone's queued request of either still syncs; nothing is migrated.
+- **Totals.** "Gone to the doctor" is what is **approved**; what still waits is shown apart; rejected, withdrawn and unsent count for nothing; "carried out" is the approved part marked done. The phone and the web Services page show Approved / Waiting (and Carried out on the web) for the list on screen, with a **By doctor** view (one row per doctor).
+- **Download.** `GET /field-activity/doctor-services/report` (and `/summary` for the figures) gives an Excel workbook: **By doctor** (a column per type, approved total, waiting, carried out, a grand-total row) and **Requests** (every request, with its total). Scope follows the list: an MR's own, a manager's team (`?scope=team`), Admin and Accounts everyone; optional `from`/`to` (business dates), `doctorId`.
