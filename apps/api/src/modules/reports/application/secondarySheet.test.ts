@@ -104,14 +104,14 @@ describe('the workbook', () => {
     expect(ws.getCell('CD4').value).toBe('ANNUAL 2026 - 27');
     expect(ws.getCell('B6').value).toBe('NEEDPRO BN');
     expect(ws.getCell('C6').value).toBe(500);
-    // April: target 30, secondary 50; the first quarter adds April to June.
-    expect(ws.getCell('J6').value).toBe(30);
-    expect(ws.getCell('K6').value).toBe(50);
+    // Every figure is in rupees (units x N.S.R. 500). April: target 30 units = 15,000, secondary 50 units = 25,000; the first quarter adds April to June.
+    expect(ws.getCell('J6').value).toBe(15_000);
+    expect(ws.getCell('K6').value).toBe(25_000);
     expect((ws.getCell('M6').value as { result: number }).result).toBeCloseTo(166.67, 1);
-    expect(ws.getCell('V6').value).toMatchObject({ result: 90 });
-    expect(ws.getCell('W6').value).toMatchObject({ result: 90 });
-    expect(ws.getCell('E6').value).toMatchObject({ result: 90 });
-    // The year before gave 60, so growth is (90 / 60 - 1) x 100 = 50 %.
+    expect(ws.getCell('V6').value).toMatchObject({ result: 45_000 });
+    expect(ws.getCell('W6').value).toMatchObject({ result: 45_000 });
+    expect(ws.getCell('E6').value).toMatchObject({ result: 45_000 });
+    // The year before gave 60 units (30,000 at the same N.S.R.), so growth is (45,000 / 30,000 - 1) x 100 = 50 %.
     expect((ws.getCell('H6').value as { result: number }).result).toBeCloseTo(50, 5);
     // Grand total in rupees lakh: 90 units x Rs 500 / 1,00,000 = 0.45.
     expect(ws.getCell('B7').value).toBe('GRAND TOTAL (₹ lakh)');
@@ -126,6 +126,8 @@ describe('the workbook', () => {
     const ws = wb.getWorksheet('Anita')!;
     expect(ws.getCell('A2').value).toBe('NAME OF THE MANAGER:');
     expect(ws.getCell('C3').value).toBe(2);
-    expect([6, 7].map((r) => [ws.getCell(`B${r}`).value, (ws.getCell(`E${r}`).value as { result: number }).result])).toEqual([['ALBU', 7], ['NEEDPRO BN', 100]]);
+    // In rupees: NEEDPRO BN 100 units x 500 = 50,000. ALBU has no N.S.R., so it cannot be priced and shows 0.
+    const cell = (r: number) => ((ws.getCell(`E${r}`).value as { result?: number } | null)?.result ?? 0);
+    expect([6, 7].map((r) => [ws.getCell(`B${r}`).value, cell(r)])).toEqual([['ALBU', 0], ['NEEDPRO BN', 50_000]]);
   });
 });

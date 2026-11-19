@@ -143,3 +143,8 @@ The company's own format (`GREYNOTE H C SECONDARY SALES FORMAT 2022-2023`, one e
 - **TGT** is the product targets in units, each spread evenly over the months it covers; a target for all products (in rupees) is not shown. **SEC** is **approved** secondary only (units issued onward): a draft or waiting month shows 0. Every product the person has a target for or sold has its row, so what they sold outside their targets is in the total.
 - An MR's sheet is their own figures; a manager's is **the sum of the MRs below them** ("No. of BEs" = their MRs). Same rule as the employee report: the office any employee, the employee themselves, a manager their downline (403 otherwise).
 - **Where:** Admin web, Reports → Sales dashboard → open an employee → *Download Excel*; the phone, a person's page → Download → *Secondary sales (Excel)*, and Team → Reports → Secondary sales → a person → *Download Excel*. No CSV for this report.
+
+
+## Reports show amounts (2026-11-19)
+
+Entry is still in units (nobody types an amount). The **web Secondary report** (Reports → Secondary) now shows **Opening, Primary, Secondary and Closing in rupees** (units × the product's PTS; hover a figure for its units) with a PTS column and rupee totals per distributor; a product with no PTS shows "—" and is not counted in the totals. The **Secondary Sales performance Excel** shows every TGT / SEC cell in rupees (units × N.S.R., the product's PTS, in whole paise), so the quarters, halves and the year, % ACH, % GR. (both years at the same N.S.R.) and the grand total (₹ lakh = sum / 1,00,000) all work in money; the N.S.R. column stays so the units can be worked out, and a product with no N.S.R. shows 0. The phone's own screens keep units.
