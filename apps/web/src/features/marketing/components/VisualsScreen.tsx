@@ -1,6 +1,6 @@
 'use client';
 
-import { VISUAL_CATEGORY_LABEL, type VisualDto } from '@greynote/contracts';
+import { VISUAL_CATEGORY_LABEL, type DoctorDto, type VisualDto } from '@greynote/contracts';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -19,6 +19,8 @@ import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useUpdateVisual, useVisuals } from '../hooks/useVisuals';
 import { visualKind, visualPreviewKind } from '../lib/visuals';
 import { DeleteVisualDialog } from './DeleteVisualDialog';
+import { DoctorSearchSelect } from './DoctorSearchSelect';
+import { DoctorVisualsTab } from './DoctorVisualsTab';
 import { VisualFormDialog } from './VisualFormDialog';
 
 const ANY = 'all';
@@ -31,6 +33,7 @@ export function VisualsScreen() {
   const [productFilter, setProductFilter] = useState(ANY);
   const [form, setForm] = useState<{ visual?: VisualDto } | null>(null);
   const [preview, setPreview] = useState<VisualDto | null>(null);
+  const [doctor, setDoctor] = useState<DoctorDto | null>(null);
   const [toggling, setToggling] = useState<VisualDto | null>(null);
   const [deleting, setDeleting] = useState<VisualDto | null>(null);
   const update = useUpdateVisual(() => setToggling(null));
@@ -105,6 +108,16 @@ export function VisualsScreen() {
           </Button>
         }
       />
+      <section className="mb-6 space-y-3 rounded-md border border-border bg-surface p-4">
+        <div>
+          <h2 className="text-sm font-semibold text-text">Visuals for a doctor</h2>
+          <p className="text-xs text-text-subtle">Search for a doctor, choose them, then add or take off the visuals they are shown.</p>
+        </div>
+        <div className="max-w-md">
+          <DoctorSearchSelect value={doctor} onChange={setDoctor} />
+        </div>
+        {doctor ? <DoctorVisualsTab key={doctor.id} doctorId={doctor.id} /> : null}
+      </section>
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="w-56">
           <SearchableSelect
