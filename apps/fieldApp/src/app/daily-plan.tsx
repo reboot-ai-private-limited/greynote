@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
+import { Alert } from '@/lib/alert';
 
 import { ChoiceChips } from '@/components/choice-chips';
 import { FormField } from '@/components/form-field';

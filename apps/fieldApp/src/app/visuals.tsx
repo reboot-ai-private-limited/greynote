@@ -1,7 +1,8 @@
 import { Image } from 'expo-image';
 import * as WebBrowser from 'expo-web-browser';
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Alert } from '@/lib/alert';
 
 import { ChoiceChips } from '@/components/choice-chips';
 import { Notice } from '@/components/notice';

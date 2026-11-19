@@ -1,4 +1,4 @@
-import { Alert } from 'react-native';
+import { Alert } from './alert';
 
 import { forgetSyncedRecord, refreshNow, removeRecord, type OutboxRecord } from '@/offline';
 import { store } from '@/offline/store';

@@ -1,6 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, PanResponder, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Animated, PanResponder, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Alert } from '@/lib/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FeatureTile } from '@/components/feature-tile';

@@ -1,6 +1,6 @@
+import { Alert } from '@/lib/alert';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert } from 'react-native';
 
 import { ChoiceChips } from '@/components/choice-chips';
 import { FormField } from '@/components/form-field';
