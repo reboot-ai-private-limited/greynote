@@ -24,8 +24,6 @@ interface Deps {
   requests: PasswordResetRequestRepositoryPort;
   hasher: PasswordHasherPort;
   mailer: MailerPort;
-  /** The owner's address (`PASSWORD_RESET_OWNER_EMAIL`): where an Admin's code goes when the Admin has no email of their own. */
-  ownerEmail: string | undefined;
   /** In development, when no mail server is set up, the code is written to the log so the flow can be tried. Never in production. */
   logCodeWhenMailMissing?: boolean;
   now?: () => Date;
@@ -48,7 +46,7 @@ async function adminContact(deps: Pick<Deps, 'users' | 'roles'>): Promise<{ name
 
 /**
  * Anyone who forgot their password asks for a code (decision-log 2026-11-18). It is emailed to the address in their own details. Someone with no email gets
- * "contact your Admin" with an Admin's contact; an Admin with no email of their own is sent to the owner's address as before. An ID we do not know, or an inactive
+ * "contact your Admin" with an Admin's contact; an Admin is treated the same: the code only ever goes to the address in the person's own details, never one from the environment. An ID we do not know, or an inactive
  * account, gets the same answer as a sent code and nothing is sent. A person may ask once a minute and five times a day, so nobody can be flooded.
  */
 export class RequestPasswordResetUseCase {
@@ -59,13 +57,12 @@ export class RequestPasswordResetUseCase {
   }
 
   async execute(employeeCode: string): Promise<ResetRequestResult> {
-    const { users, roles, requests, hasher, mailer, ownerEmail } = this.deps;
+    const { users, requests, hasher, mailer } = this.deps;
     const sentAnswer: ResetRequestResult = { delivery: 'EMAIL' };
     const user = await users.findByEmployeeCode(employeeCode);
     if (!user || user.status !== 'active') return sentAnswer;
 
-    const isAdmin = (await roles.findById(user.roleId))?.name === 'ADMIN';
-    const to = user.email ?? (isAdmin ? ownerEmail : undefined);
+    const to = user.email;
     if (!to) return { delivery: 'NO_EMAIL', admin: await adminContact(this.deps) };
 
     const now = this.now();
@@ -80,14 +77,11 @@ export class RequestPasswordResetUseCase {
     await requests.closeOpenForUser(user.id, now);
     const request = await requests.create({ userId: user.id, otpHash: await hasher.hash(code), expiresAt: new Date(now.getTime() + OTP_TTL_MINUTES * 60_000), attempts: 0, usedAt: null, createdAt: now });
 
-    const forOwner = !user.email;
     try {
       await mailer.send({
         to,
-        subject: forOwner ? `Greynote: password reset code for ${user.employeeCode}` : 'Greynote: your password reset code',
-        text: forOwner
-          ? `${user.name} (${user.employeeCode}) asked to reset their Admin password.\n\nCode: ${code}\n\nIt works once and expires in ${OTP_TTL_MINUTES} minutes. Give it to ${user.name} only if you expect this request. If you do not, ignore this email and nothing changes.`
-          : `Hello ${user.name},\n\nYour Greynote password reset code is ${code}\n\nIt works once and expires in ${OTP_TTL_MINUTES} minutes. If you did not ask for it, ignore this email: your password stays as it is.`,
+        subject: 'Greynote: your password reset code',
+        text: `Hello ${user.name},\n\nYour Greynote password reset code is ${code}\n\nIt works once and expires in ${OTP_TTL_MINUTES} minutes. If you did not ask for it, ignore this email: your password stays as it is.`,
       });
     } catch (err) {
       if (this.deps.logCodeWhenMailMissing && MAIL_NOT_CONFIGURED(err)) {
@@ -112,7 +106,7 @@ export class ConfirmPasswordResetUseCase {
   }
 
   async execute(input: { employeeCode: string; otp: string; newPassword: string }): Promise<void> {
-    const { users, requests, hasher, sessions, mailer, ownerEmail } = this.deps;
+    const { users, requests, hasher, sessions, mailer } = this.deps;
     const invalid = () => AppError.badRequest(INVALID_CODE, { field: 'otp' });
 
     const user: User | null = await users.findByEmployeeCode(input.employeeCode);
@@ -132,15 +126,12 @@ export class ConfirmPasswordResetUseCase {
     await sessions.revokeAllForUser(user.id, 'PASSWORD_RESET');
     logger.info({ userId: user.id, reason: 'PASSWORD_RESET' }, 'Password reset with an emailed code.');
 
-    const notify = user.email ?? ownerEmail;
-    if (notify) {
+    if (user.email) {
       await mailer
         .send({
-          to: notify,
-          subject: user.email ? 'Greynote: your password was changed' : `Greynote: password was reset for ${user.employeeCode}`,
-          text: user.email
-            ? `Hello ${user.name},\n\nYour Greynote password was just changed with a reset code, and you were signed out everywhere. If this was not you, contact your Admin straight away.`
-            : `${user.name} (${user.employeeCode}) reset their Admin password using a code. All their sessions were signed out. If this was not expected, reset the password from another Admin account.`,
+          to: user.email,
+          subject: 'Greynote: your password was changed',
+          text: `Hello ${user.name},\n\nYour Greynote password was just changed with a reset code, and you were signed out everywhere. If this was not you, contact your Admin straight away.`,
         })
         .catch((err: unknown) => logger.error({ err }, 'Could not email that a password was reset.'));
     }

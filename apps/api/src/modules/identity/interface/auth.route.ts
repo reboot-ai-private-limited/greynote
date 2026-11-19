@@ -158,7 +158,7 @@ openApiRegistry.registerPath({
   method: 'post',
   path: '/api/identity/auth/forgot-password',
   tags: ['Identity / Auth'],
-  summary: 'Anyone who forgot their password: email a one-time reset code to the address in their own details (an Admin with none: the owner address). An unknown ID answers the same as a sent code; an account with no email answers NO_EMAIL with an Admin to contact. Once a minute and five a day per person',
+  summary: 'Anyone who forgot their password: email a one-time reset code to the address in their own details (no address of their own, no code: the answer is NO_EMAIL, for an Admin too). An unknown ID answers the same as a sent code; an account with no email answers NO_EMAIL with an Admin to contact. Once a minute and five a day per person',
   request: { body: { content: { 'application/json': { schema: forgotPasswordBodySchema } } } },
   responses: { 200: { description: 'Always the same answer' }, 429: { description: 'Too many attempts from this address or for this ID' } },
 });

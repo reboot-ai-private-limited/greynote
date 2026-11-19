@@ -2963,3 +2963,7 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 
 - Team showed the real today (and failed with `OUTSIDE_FINANCIAL_YEAR` on the approvals presets) and left Unblock, Reopen Tour Plan and Late exceptions looking usable in a past year. They are now switched off with the banner, and Team's day, date pickers and presets use the year's last day (`useFinancialYear().effectiveToday`). Team downloads start on the year's last month.
 - Reports has the financial-year chips at the top, so a past year and its last month are one tap away. The server is unchanged.
+
+## 2026-11-19: reset codes go only to the person's own email
+
+`PASSWORD_RESET_OWNER_EMAIL` is gone. An Admin with no email on their record is answered `NO_EMAIL` (with another Admin to contact) like everyone else; nothing is sent to an address from the environment. The `SMTP_*` settings stay: they only say which mailbox sends. Before deploying, give every Admin an email, or they lose self-service reset.

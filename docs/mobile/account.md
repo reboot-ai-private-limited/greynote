@@ -54,7 +54,7 @@ Deactivation is done by Admin on the web (nothing in the app). What the phone se
 ## Forgot password, for everyone (2026-11-18)
 
 - **Login → "Forgot password?"** and **Change password → "Forgot your current password? Send a code"** open `forgot-password`: enter the employee ID, a **6-digit code is emailed to the address in the employee's details** (it works once, for 10 minutes, 5 wrong tries), then the code and a new password twice. The server signs the person out everywhere; they log in with the new password and get a short email saying it changed.
-- **No email on the account:** the screen says so and names an **Admin to contact** (an active Admin's name and email). An Admin with no email of their own gets the code at `PASSWORD_RESET_OWNER_EMAIL`, as before. An unknown or inactive ID gets the same "code sent" answer and nothing is sent.
+- **No email on the account:** the screen says so and names an **Admin to contact** (an active Admin's name and email). This holds for an Admin too: the code only ever goes to the address in the person's own details, never one from the server environment. An unknown or inactive ID gets the same "code sent" answer and nothing is sent.
 - A person may ask once a minute and five times a day. `POST /identity/auth/forgot-password` and `POST /identity/auth/reset-password` (`/reset-admin-password` is the same endpoint, for the web's old name).
 - Local development with no mail server: the code is written to the API log (never in production).
 

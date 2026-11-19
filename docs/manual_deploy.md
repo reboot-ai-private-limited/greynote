@@ -355,9 +355,9 @@ Until it is re-run, the reminders use their defaults (every setting is read with
 ## Admin forgot-password email (2026-10-15)
 
 1. In the Google account that will send the mail: turn on 2-step verification, then create an **App password** (Google Account → Security → App passwords).
-2. In `apps/api/.env.prod` set `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, `SMTP_USER=<that address>`, `SMTP_PASSWORD=<the app password>`, `MAIL_FROM=<same address>`, `PASSWORD_RESET_OWNER_EMAIL=<the owner's address; whoever reads it can take over any Admin account>` and, if you want a different cap, `PASSWORD_RESET_DAILY_LIMIT` (default 3 codes in 24 hours for all Admins together). Never commit them. Without `PASSWORD_RESET_OWNER_EMAIL` the feature is off.
+2. In `apps/api/.env.prod` set `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, `SMTP_USER=<that address>`, `SMTP_PASSWORD=<the app password>`, `MAIL_FROM=<same address>`, and, if you want a different cap, `PASSWORD_RESET_DAILY_LIMIT` (default 3 codes in 24 hours for all Admins together). Never commit them. The code goes to the email on the person's own record; make sure every Admin has one.
 3. Rebuild and restart: `docker compose -f docker-compose.prod.yml up -d --build`. No seed is needed; these are not Settings.
-4. Try it: sign out, "Forgot password? (Admin)", enter an Admin code; the owner receives the code. Log lines `PASSWORD_RESET_*` say why nothing was sent.
+4. Try it: sign out, "Forgot password? (Admin)", enter an Admin code; the Admin receives the code at their own email. Log lines `PASSWORD_RESET_*` say why nothing was sent.
 
 ## Release 2026-10-22: doctor visits
 

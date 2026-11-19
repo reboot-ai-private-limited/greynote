@@ -5,8 +5,7 @@ import { ConfirmPasswordResetUseCase, RequestPasswordResetUseCase } from './pass
 
 const NOW = new Date('2026-10-15T10:00:00Z');
 
-function build(opts: { ownerEmail?: string | undefined; failMail?: boolean; mailMissing?: boolean; devLog?: boolean } = {}) {
-  const ownerEmail = 'ownerEmail' in opts ? opts.ownerEmail : 'owner@example.com';
+function build(opts: { failMail?: boolean; mailMissing?: boolean; devLog?: boolean } = {}) {
   type Acct = { id: string; employeeCode: string; name: string; email: string | null; status: string; roleId: string; passwordHash: string; isDemo?: boolean };
   const accounts: Record<string, Acct> = {
     GHC001: { id: 'u1', employeeCode: 'GHC001', name: 'Admin One', email: null, status: 'active', roleId: 'admin', passwordHash: 'old' },
@@ -57,7 +56,7 @@ function build(opts: { ownerEmail?: string | undefined; failMail?: boolean; mail
       sent.push(m);
     },
   };
-  const deps = { users, roles, requests, hasher, mailer, ownerEmail, logCodeWhenMailMissing: opts.devLog ?? false, now: () => clock } as never;
+  const deps = { users, roles, requests, hasher, mailer, logCodeWhenMailMissing: opts.devLog ?? false, now: () => clock } as never;
   const sessions = { revokeAllForUser: async (id: string) => void revoked.push(id) };
   return {
     request: new RequestPasswordResetUseCase(deps),
@@ -86,12 +85,10 @@ describe('asking for a code', () => {
     expect(t.sent).toHaveLength(0);
   });
 
-  it('an Admin with no email of their own gets the code at the owner’s address; with no owner address either, they are told to contact an Admin', async () => {
+  it('an Admin with no email of their own is treated like anyone else: nothing is sent, they are told to contact another Admin', async () => {
     const t = build();
-    await t.request.execute('GHC001');
-    expect(t.sent[0]!.to).toBe('owner@example.com');
-    const none = build({ ownerEmail: undefined });
-    expect((await none.request.execute('GHC001')).delivery).toBe('NO_EMAIL');
+    expect(await t.request.execute('GHC001')).toEqual({ delivery: 'NO_EMAIL', admin: { name: 'Admin Two', email: 'admin2@example.com' } });
+    expect(t.sent).toHaveLength(0);
   });
 
   it('an unknown ID or an inactive account gets the same answer as a sent code, and nothing is sent or counted', async () => {

@@ -376,7 +376,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     return businessDate(new Date(), timeZone, dayStart);
   };
   const deactivation = new DeactivateEmployeeUseCase(userRepository, employeeProfileRepository, roleRepository, userSessionRepository, reassignManager, today);
-  const resetDeps = { users: userRepository, roles: roleRepository, requests: new MongoPasswordResetRequestAdapter(), hasher: passwordHasher, mailer: new SmtpMailer(), ownerEmail: env.PASSWORD_RESET_OWNER_EMAIL, logCodeWhenMailMissing: env.NODE_ENV === 'development' };
+  const resetDeps = { users: userRepository, roles: roleRepository, requests: new MongoPasswordResetRequestAdapter(), hasher: passwordHasher, mailer: new SmtpMailer(), logCodeWhenMailMissing: env.NODE_ENV === 'development' };
   const requestPasswordReset = new RequestPasswordResetUseCase(resetDeps);
   const confirmPasswordReset = new ConfirmPasswordResetUseCase({ ...resetDeps, sessions: userSessionRepository });
   const listOrgChildren = new ListOrgChildrenUseCase(userRepository, roleRepository, employeeProfileRepository);
