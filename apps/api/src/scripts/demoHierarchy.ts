@@ -88,7 +88,34 @@ const DOCTORS: Record<string, Array<[string, string, string]>> = {
 
 type Id = mongoose.Types.ObjectId;
 
+/** Office demo logins (no territory, no profile): an HR and an Accountant, same password as the team. */
+const OFFICE = [
+  { code: 'DEMOHR', name: 'Demo HR', role: 'HR' },
+  { code: 'DEMOACC', name: 'Demo Accountant', role: 'ACCOUNTANT' },
+] as const;
+const OFFICE_CODES = OFFICE.map((o) => o.code);
+
+/** Adds the demo HR and Accountant if missing. Never touches an existing user; refuses a code held by a real one. */
+export async function seedDemoOffice(password: string = DEMO_TEAM_PASSWORD): Promise<string[]> {
+  const clash = await UserModel.find({ employeeCode: { $in: OFFICE_CODES } }, { employeeCode: 1, isDemo: 1 }).lean();
+  const foreign = clash.filter((u) => !u.isDemo);
+  if (foreign.length > 0) throw new Error(`${foreign.map((u) => u.employeeCode).join(', ')} exist but are not demo accounts; refusing to touch them.`);
+  const have = new Set(clash.map((u) => u.employeeCode));
+  const passwordHash = await bcrypt.hash(password, 12);
+  const added: string[] = [];
+  for (const o of OFFICE) {
+    if (have.has(o.code)) continue;
+    const role = await RoleModel.findOne({ name: o.role }).lean();
+    if (!role) throw new Error(`No ${o.role} role: run the main seed first.`);
+    await UserModel.create({ employeeCode: o.code, name: o.name, email: null, phone: null, status: 'active', roleId: role._id, passwordHash, lastLoginAt: null, isBlocked: false, isDemo: true });
+    added.push(o.code);
+  }
+  logger.info({ added }, added.length ? 'demo office users created' : 'demo office users are already there');
+  return added;
+}
+
 export async function removeDemoHierarchy(): Promise<void> {
+  await UserModel.deleteMany({ employeeCode: { $in: OFFICE_CODES }, isDemo: true });
   const users = await UserModel.find({ employeeCode: { $in: CODES }, isDemo: true }, { _id: 1 }).lean();
   const ids = users.map((u) => u._id);
   const zone = await ZoneModel.findOne({ nameKey: keyOf(ZONE) }).lean();
