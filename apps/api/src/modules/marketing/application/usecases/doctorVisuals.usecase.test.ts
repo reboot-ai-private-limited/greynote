@@ -89,7 +89,7 @@ describe('doctor visuals', () => {
     const res = await list.execute(f('mr1'), 'doc1');
     expect(res.items.map((i) => i.visual.id)).toEqual(['v1', 'v2']);
     expect(res.items[0]).toMatchObject({ addedBy: 'mr1', addedByName: 'mr1' });
-    expect(res.canRemove).toBe(false);
+    expect(res).toMatchObject({ canAdd: true, canRemove: false });
   });
 
   it('adding the same visual again keeps one row and the first adder', async () => {
@@ -103,6 +103,22 @@ describe('doctor visuals', () => {
     await add.execute(f('mr1'), 'doc1', ['v1']);
     expect(await code(remove.execute(f('mr1'), 'doc1', 'v1'))).toBe(MARKETING_CODES.onlyManagerRemoves);
     expect(await store.listActive('doc1')).toHaveLength(1);
+  });
+
+  it('a manager cannot add visuals, not for a team doctor and not for one they hold themselves; they can see and remove', async () => {
+    await add.execute(f('mr1'), 'doc1', ['v1']);
+    expect(await code(add.execute(f('asm'), 'doc1', ['v2']))).toBe(MARKETING_CODES.onlyMrAdds);
+    expect(await list.execute(f('asm'), 'doc1')).toMatchObject({ canAdd: false, canRemove: true });
+    // A manager who holds a doctor themselves is still a manager.
+    const own: DoctorPort = { ...doctors, async getAssignedUserId() { return 'asm'; }, async isAssignedToDoctor(userId) { return userId === 'asm'; } };
+    const ownAdd = new AddDoctorVisualsUseCase(store, visuals as unknown as VisualRepositoryPort, own, users);
+    expect(await code(ownAdd.execute(f('asm'), 'doc1', ['v2']))).toBe(MARKETING_CODES.onlyMrAdds);
+    expect(store.rows).toHaveLength(1);
+  });
+
+  it('Admin adds and removes', async () => {
+    await add.execute(admin, 'doc1', ['v1']);
+    expect(await list.execute(admin, 'doc1')).toMatchObject({ canAdd: true, canRemove: true });
   });
 
   it('a manager above the MR and Admin can remove; the removed visual can be added back', async () => {

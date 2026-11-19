@@ -29,9 +29,10 @@ export interface DoctorVisualDto {
   addedAt: string;
 }
 
-/** `GET /marketing/doctors/:doctorId/visuals`. `canRemove` is true for Admin and a manager above the Doctor's MR — never for the MR. */
+/** `GET /marketing/doctors/:doctorId/visuals`. `canAdd` is true for the Doctor's own MR and Admin — never a manager; `canRemove` for Admin and a manager above the Doctor's MR — never the MR. */
 export interface DoctorVisualListDto {
   items: DoctorVisualDto[];
+  canAdd: boolean;
   canRemove: boolean;
 }
 

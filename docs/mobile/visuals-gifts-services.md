@@ -11,7 +11,7 @@ What each role may do and what the phone must show. The server is the authority.
 |---|---|---|
 | 1 | Admin keeps the **library** of visuals (upload, edit, activate). An MR cannot upload. | ✅ |
 | 2 | The **MR picks** library visuals for **one specific doctor** they are assigned to (`POST /api/marketing/doctors/:doctorId/visuals { visualIds }`). The MR can only add. | ✅ |
-| 3 | A **manager above the MR, or Admin, can edit that doctor's list**: add (same call) and take off (`DELETE …/visuals/:visualId`). Both are refused for anyone else (the MR gets `403` on remove). `GET` returns `canRemove` — show the remove control only when it is true. Admin can also do it on the web doctor page. | ✅ 📱 |
+| 3 | **Only the doctor's own MR (and Admin, on the web) adds; a manager above the MR, or Admin, takes off (2026-11-19).** A manager, including one who holds the doctor themselves, cannot add: `POST …/visuals` is `403 ONLY_MR_ADDS`. Take off is `DELETE …/visuals/:visualId` (the MR gets `403`). `GET` returns `canAdd` and `canRemove` — show the tick boxes and Submit only when `canAdd`, Remove only when `canRemove`. A manager's phone shows the doctor's chosen visuals with Remove. Admin can do both on the web doctor page. | ✅ 📱 |
 
 ## 2. Gifts
 

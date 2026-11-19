@@ -4,8 +4,12 @@ import { MARKETING_CODES, MarketingRefusal } from '../../domain/marketingRefusal
 import type { DoctorPort, UserDirectoryPort } from '../../domain/ports.js';
 import type { Actor } from './visualsAndCampaigns.usecase.js';
 
-/** What an actor may do with one Doctor's list: see and add (the Doctor's MR, a manager above them, Admin), and remove (the last two only). */
+/**
+ * What an actor may do with one Doctor's list (decision-log 2026-11-19): **add** — the Doctor's own MR and Admin, never a manager; **remove** — a manager above the
+ * Doctor's MR and Admin, never the MR. A manager is anyone with people below them, also for a Doctor they hold themselves. Everyone allowed either can see the list.
+ */
 interface Access {
+  canAdd: boolean;
   canRemove: boolean;
 }
 
@@ -17,16 +21,20 @@ export interface DoctorVisualRow {
 }
 export interface DoctorVisualList {
   items: DoctorVisualRow[];
+  canAdd: boolean;
   canRemove: boolean;
 }
 
 async function accessTo(actor: Actor, doctorId: string, doctors: DoctorPort, users: UserDirectoryPort): Promise<Access> {
   if (!(await doctors.getDoctor(doctorId))) throw new MarketingRefusal(MARKETING_CODES.doctorNotFound, 'No such doctor.');
-  if (actor.role === 'ADMIN') return { canRemove: true };
+  if (actor.role === 'ADMIN') return { canAdd: true, canRemove: true };
+  const downline = await users.getDownline(actor.id);
   const assigned = await doctors.getAssignedUserId(doctorId);
-  const above = assigned !== null && assigned !== actor.id && (await users.getDownline(actor.id)).some((u) => u.id === assigned);
-  if (above) return { canRemove: true };
-  if (await doctors.isAssignedToDoctor(actor.id, doctorId)) return { canRemove: false };
+  if (assigned !== null && assigned !== actor.id && downline.some((u) => u.id === assigned)) return { canAdd: false, canRemove: true };
+  if (await doctors.isAssignedToDoctor(actor.id, doctorId)) {
+    // The doctor is theirs: an MR adds; someone with a team is a manager, who only takes visuals off.
+    return downline.length > 0 ? { canAdd: false, canRemove: true } : { canAdd: true, canRemove: false };
+  }
   throw new MarketingRefusal(MARKETING_CODES.notYourTeam, 'You can only use the visuals of your own doctors and your team’s.');
 }
 
@@ -51,11 +59,11 @@ export class ListDoctorVisualsUseCase {
       if (!visual || (visual.status !== 'active' && !showInactive)) return [];
       return [{ visual, addedBy: p.addedBy, addedByName: names.get(p.addedBy) ?? null, addedAt: p.addedAt }];
     });
-    return { items, canRemove: access.canRemove };
+    return { items, canAdd: access.canAdd, canRemove: access.canRemove };
   }
 }
 
-/** Adds Visuals to a Doctor's list. Only adds: picks already there stay as they were, and nothing here can take one off. */
+/** Adds Visuals to a Doctor's list — the Doctor's MR or Admin, not a manager. Only adds: picks already there stay as they were, and nothing here can take one off. */
 export class AddDoctorVisualsUseCase {
   constructor(
     private readonly doctorVisuals: DoctorVisualRepositoryPort,
@@ -66,7 +74,8 @@ export class AddDoctorVisualsUseCase {
   ) {}
 
   async execute(actor: Actor, doctorId: string, visualIds: string[]): Promise<void> {
-    await accessTo(actor, doctorId, this.doctors, this.users);
+    const access = await accessTo(actor, doctorId, this.doctors, this.users);
+    if (!access.canAdd) throw new MarketingRefusal(MARKETING_CODES.onlyMrAdds, 'Only the doctor’s MR can add visuals for a doctor. A manager can take them off.');
     const ids = [...new Set(visualIds)];
     const found = await this.visuals.findByIds(ids);
     if (found.length !== ids.length || found.some((v) => v.status !== 'active')) throw new MarketingRefusal(MARKETING_CODES.visualNotFound, 'One of those visuals does not exist or is no longer active.');

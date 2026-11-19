@@ -2897,3 +2897,8 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 
 - **Context.** A trip could not cross a weekly off or holiday (so none could return after the next Sunday, or from the 27th to the 8th of next month) and the phone had only a ‹ › stepper; the start day could not be changed.
 - **Decision.** The server writes no stay or return entry on an off day (`expandTrips`/`carriedInto` take the off days); the trip's `returnDate` still says where it ends. Those days stay Weekly off / Holiday: no Daily Plan, report or DA, and a return on one earns no TA. The first day of a trip still cannot be an off day. The phone uses the month calendar for the return date and a "Leaves on" calendar to move the start (the trip moves with it); the same applies to a manager's or Admin's edit of an approved month (days after today, locks unchanged).
+
+
+## 2026-11-19: Only the doctor's MR (and Admin) adds visuals; a manager takes them off
+
+- **Decision.** Adding visuals to a doctor is the doctor's own MR's job (and Admin's, on the web); a manager, including one who holds the doctor themselves, cannot add (`403 ONLY_MR_ADDS`). A manager above the doctor's MR, and Admin, take visuals off; the MR cannot. The list answers with `canAdd` and `canRemove`. On the phone a manager sees the doctor's chosen visuals with Remove and no tick boxes or Submit.

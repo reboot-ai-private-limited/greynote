@@ -37,7 +37,7 @@ const messageOf = (err: unknown) => (err instanceof ApiError || err instanceof N
 /**
  * Visuals (PRD §6.2): the e-detailing material Admin uploaded, to show a doctor. Without a doctor chosen it is the
  * plain library. With one chosen, the MR ticks which visuals to show that doctor and submits; what was submitted before
- * is ticked and locked (an MR can only add — a manager or Admin removes). "Show" then walks through the doctor's list.
+ * is ticked and locked (only the MR (or Admin) adds, and a manager above them or Admin removes). "Show" then walks through the doctor's list.
  * Pictures open in the app; videos and PDFs open in the phone's own viewer. The lists show offline from their last
  * copy, but a file itself, and submitting, need a connection.
  */
@@ -66,10 +66,15 @@ export default function VisualsScreen() {
   const cachedOptions = [...doctors].sort((a, b) => a.name.localeCompare(b.name)).map((d) => ({ id: d.id, name: d.name, subtitle: `${d.specialty} · ${d.address}`, photoUrl: d.photoUrl }));
   const picker = useDoctorPicker(isManager, cachedOptions);
   const productName = (id: string | null) => (id ? (master.data?.products.find((p) => p.id === id)?.name ?? 'Product') : 'General');
-  const all = (list.data ?? []).filter((v) => v.status === 'active');
+  // Only a manager above the doctor's MR, or Admin, can take a pick off (`canRemove`); the MR cannot. A manager only takes visuals off (decision-log 2026-11-19):
+  // no ticking and no Submit, and the doctor's own list is what is shown. `canAdd` is true for the MR and Admin.
+  const canRemove = doctorList.data?.canRemove === true;
+  const canAdd = doctorList.data ? (doctorList.data.canAdd ?? !canRemove) : true;
+  const already = useMemo(() => new Set((doctorList.data?.items ?? []).map((i) => i.visual.id)), [doctorList.data]);
+  const everything = (list.data ?? []).filter((v) => v.status === 'active');
+  const all = doctorId && !canAdd ? everything.filter((v) => already.has(v.id)) : everything;
   const productIds = [...new Set(all.map((v) => v.productId).filter((x): x is string => !!x))];
   const shown = productId === 'all' ? all : productId === 'general' ? all.filter((v) => !v.productId) : all.filter((v) => v.productId === productId);
-  const already = useMemo(() => new Set((doctorList.data?.items ?? []).map((i) => i.visual.id)), [doctorList.data]);
   const forDoctor = (doctorList.data?.items ?? []).map((i) => i.visual).filter((v) => v.status === 'active');
   const doctor = picker.find(doctorId);
 
@@ -102,7 +107,7 @@ export default function VisualsScreen() {
   };
 
   const toggle = (v: Visual) => {
-    if (already.has(v.id)) return;
+    if (already.has(v.id) || !canAdd) return;
     setSaved(null);
     setPicked((prev) => {
       const next = new Set(prev);
@@ -128,7 +133,7 @@ export default function VisualsScreen() {
   };
 
   // Only a manager above the doctor's MR, or Admin, can take a pick off (the server says so with `canRemove`); the MR cannot.
-  const canRemove = doctorList.data?.canRemove === true;
+
   const confirmRemove = (v: Visual) =>
     Alert.alert('Remove this visual?', `"${v.title}" will be taken off ${doctor?.name ?? 'this doctor'}'s list.`, [
       { text: 'Cancel', style: 'cancel' },
@@ -173,7 +178,9 @@ export default function VisualsScreen() {
           <PrimaryButton label="Browse all without a doctor" variant="text" onPress={() => chooseDoctor(null)} />
           {doctorList.error ? <Notice tone="danger">{doctorList.error}</Notice> : null}
           <ThemedText type="small" themeColor="textSecondary">
-            {already.size > 0 ? `${already.size} already chosen for ${doctor?.name ?? 'this doctor'} (locked). Tick more to add.` : 'Tick the visuals you want to show this doctor, then submit.'}
+            {!canAdd
+              ? already.size > 0 ? `${already.size} chosen by the MR for ${doctor?.name ?? 'this doctor'}. Only the MR adds visuals; you can take one off.` : 'The MR has not chosen any visuals for this doctor yet. Only the MR adds visuals.'
+              : already.size > 0 ? `${already.size} already chosen for ${doctor?.name ?? 'this doctor'} (locked). Tick more to add.` : 'Tick the visuals you want to show this doctor, then submit.'}
           </ThemedText>
           {/* At the top, under the doctor, so it is reached without scrolling past every visual. */}
           {picked.size > 0 ? <PrimaryButton label={`Submit ${picked.size} visual${picked.size === 1 ? '' : 's'}`} loading={saving} onPress={submit} /> : null}
@@ -209,7 +216,7 @@ export default function VisualsScreen() {
                   accessibilityRole={doctorId ? 'checkbox' : 'button'}
                   accessibilityState={doctorId ? { checked: ticked, disabled: locked } : undefined}
                   accessibilityLabel={doctorId ? `${v.title}${locked ? ', already chosen' : ''}` : `Open ${v.title}`}
-                  onPress={() => (doctorId ? toggle(v) : view(v))}>
+                  onPress={() => (doctorId ? (canAdd ? toggle(v) : view(v)) : view(v))}>
                   <ThemedView type="backgroundElement" style={[styles.card, locked && styles.locked]}>
                     <View style={[styles.media, kindOf(v) === 'image' && { aspectRatio: ratios[v.id] ?? 16 / 9 }]}>
                       {kindOf(v) === 'image' ? (

@@ -17,8 +17,7 @@ import { useAddDoctorVisual, useDoctorVisuals, useRemoveDoctorVisual, useVisuals
 import { visualKind, visualPreviewKind } from '../lib/visuals';
 
 /**
- * The visuals shown to this doctor. The MR only adds, from the app; a manager above them or Admin can add, take off, and so edit the list — here
- * (Admin) or in the app (managers).
+ * The visuals shown to this doctor. The MR adds from the app (and Admin here); a manager above them or Admin takes visuals off, here (Admin) or in the app (managers).
  */
 export function DoctorVisualsTab({ doctorId }: { doctorId: string }) {
   const readOnly = useIsReadOnly();
@@ -27,6 +26,7 @@ export function DoctorVisualsTab({ doctorId }: { doctorId: string }) {
   const [removing, setRemoving] = useState<DoctorVisualDto | null>(null);
   const remove = useRemoveDoctorVisual(doctorId, () => setRemoving(null));
   const canRemove = (list.data?.canRemove ?? false) && !readOnly;
+  const canAdd = (list.data?.canAdd ?? false) && !readOnly;
   const library = useVisuals({ status: 'active' });
   const [picking, setPicking] = useState('');
   const add = useAddDoctorVisual(doctorId, () => setPicking(''));
@@ -99,9 +99,9 @@ export function DoctorVisualsTab({ doctorId }: { doctorId: string }) {
       <Card
         flat
         title="Visuals shown to this doctor"
-        description="Chosen by the doctor's MR in the app. An MR can only add; managers above them and Admin can add and take off."
+        description="Chosen by the doctor's MR in the app. Only the MR and Admin add; managers above them and Admin take visuals off."
       >
-        {canRemove ? (
+        {canAdd ? (
           <div className="flex items-end gap-2 px-5 pt-4">
             <div className="w-72">
               <SearchableSelect aria-label="Visual to add" value={picking} onValueChange={setPicking} options={options} placeholder={options.length ? 'Choose a visual to add' : 'Every active visual is already picked'} />

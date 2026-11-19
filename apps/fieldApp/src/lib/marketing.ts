@@ -18,9 +18,11 @@ export type Visual = {
 export const listVisuals = (productId?: string) =>
   apiGet<Visual[]>(`/marketing/visuals${productId ? `?productId=${productId}` : ''}`);
 
-/** What the MR picked to show one doctor. The MR only adds; `canRemove` is true for a manager above the MR or Admin. */
+/** What the MR picked to show one doctor. Only the doctor's MR (and Admin) adds (`canAdd`); a manager above the MR or Admin removes (`canRemove`). */
 export type DoctorVisualList = {
   items: { visual: Visual; addedBy: string; addedByName: string | null; addedAt: string }[];
+  /** Absent from an older server, which let a manager add: read as true only for someone who cannot remove. */
+  canAdd?: boolean;
   canRemove: boolean;
 };
 export const listDoctorVisuals = (doctorId: string) => apiGet<DoctorVisualList>(`/marketing/doctors/${doctorId}/visuals`);
