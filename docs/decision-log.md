@@ -2914,3 +2914,8 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 ## 2026-11-19: Secondary sales reports show amounts (units × PTS)
 
 - **Decision.** The web Secondary report and the Secondary Sales performance Excel show rupees instead of units; entry stays in units and the phone screens keep units. A product with no PTS cannot be priced: "—" on the web (and left out of the totals, which say how many), 0 in the Excel. The Excel's % GR. compares this year's amount with the year before at the same N.S.R.
+
+
+## 2026-11-19: An MR Distributors screen; both lists are searchable
+
+- **Decision.** Home → Marketing gets **Distributors** for everyone: the distributors handed to the signed-in person, from the last pull (works offline), with name, place, contact person, mobile (tap to call), GST and the routes they serve, and a search over all of those. A manager sees the same for their own and a "Team distributors" button to the server-searched team list (Team → Reports → Distributors, which already searched by name, GST and contact). No server change: the snapshot already carried the contact fields.

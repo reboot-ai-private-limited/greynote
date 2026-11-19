@@ -16,7 +16,7 @@ import type { Accent } from '@/constants/theme';
 export type FeatureKey =
   | 'daily-plan' | 'monthly-plan' | 'dr-call' | 'dr-followup' | 'chemist-call' | 'chemist-followup'
   | 'doctors' | 'chemists' | 'missed-calls' | 'expenses' | 'leave' | 'summary'
-  | 'orders' | 'visuals' | 'targets' | 'secondary-sales' | 'gifts' | 'services' | 'products'
+  | 'orders' | 'visuals' | 'targets' | 'secondary-sales' | 'gifts' | 'services' | 'products' | 'distributors'
   | 'inbox' | 'my-requests' | 'holidays' | 'financial-year';
 
 export type Gate = 'plan' | 'unblocked' | 'none';
@@ -66,6 +66,7 @@ export const FEATURES: Feature[] = [
   { key: 'secondary-sales', title: 'Secondary Sales', subtitle: 'Units by distributor & product', accent: 'green', section: 'Marketing', gate: 'none', stage: 6, route: '/secondary-sales', icon: icon('chart.line.uptrend.xyaxis', 'trending_up'), about: 'Enter opening, primary and secondary units for each distributor and product, attach a proof file and submit the month to your manager. Managers see their team’s approved figures.' },
   { key: 'gifts', title: 'Gifts', subtitle: 'Gifts for your doctors', accent: 'pink', section: 'Marketing', gate: 'none', stage: 6, route: '/gifts', icon: icon('gift', 'redeem'), about: 'Gifts Admin allocated to your doctors — mark each done once given.' },
   { key: 'services', title: 'Services', subtitle: 'Request a doctor service', accent: 'indigo', section: 'Marketing', gate: 'none', stage: 6, route: '/services', icon: icon('briefcase', 'work'), about: 'Request a service for a doctor; it goes through approval.' },
+  { key: 'distributors', title: 'Distributors', subtitle: 'Your distributors', accent: 'lime', section: 'Marketing', gate: 'none', stage: 6, route: '/distributors', icon: icon('shippingbox', 'local_shipping'), about: 'The distributors handed to you, with contact, GST and the routes they serve. Search by name, place or contact. Managers also open their team’s distributors from here.' },
   { key: 'products', title: 'Products', subtitle: 'MRP, PTR and PTS prices', accent: 'teal', section: 'Marketing', gate: 'none', stage: 6, route: '/products', icon: icon('pills', 'medication'), about: 'The product list with each product’s MRP, PTR and PTS.' },
 
   { key: 'inbox', title: 'Inbox', subtitle: 'Messages for you', accent: 'blue', section: 'Utility', gate: 'none', stage: 7, route: '/inbox', icon: icon('tray', 'inbox'), about: 'Messages your company sent you.' },

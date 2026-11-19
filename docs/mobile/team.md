@@ -238,3 +238,7 @@ Daily reports are approved by the system when sent, so they never wait in **To a
 - **Team → Reports**: *Expenses* is now **Monthly work report** (each person's expenses and state, with a **Download Excel** of that person's Monthly work report); *Team distributors* is **Distributors**.
 - **Unblock** lists only the people blocked now (a card each with Unblock and the reason), or says nobody is blocked.
 - **Territory**: *Routes* opens an HQ's routes in place, search on top.
+
+## Distributors for everyone (2026-11-19)
+
+Home → Marketing → **Distributors** shows the distributors handed to you (name, place, contact person, tap-to-call mobile, GST, the routes they serve) from the last pull, so it works offline, with a search over all of them. A manager's screen adds **Team distributors →**, the server-searched list in Team → Reports → Distributors (search by name, GST or contact).
