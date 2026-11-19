@@ -2942,3 +2942,14 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 - Until now an order kept only the employee's original lines and the *last* editor. `Order.editHistory` now keeps one entry per change (who, their name then, when, the lines and total it left) while the order is Placed; older orders simply have none. Optional on the wire, so phones already in the field keep working. The change is written in the same update as the edit.
 - The phone's order detail has a "What the office changed" card (each change line by line, with the total before and after) and, for a Done distributor order, a "Final billing" card: what you ordered, after the office's changes, delivered, GST and the invoice total with its number. Contract: `docs/mobile/orders-and-stock.md` row 10.
 - Also on the web the same day: Visuals has a doctor search (server-side) to manage one doctor's visuals; a Monthly work report page (employee and month, Excel); the invoice text is a step bigger. Doctor Services already showed the investment total and a per-doctor view.
+
+## 2026-11-19: A reopen carries a deadline; withdraw gets a resubmit window; days that are over stay locked
+
+- **Reopen asks for a time.** Reopening a Daily or Tour Plan takes `duration` (30m, 1h, 12h; 1h when omitted, so phones already in the field keep working). It becomes an ordinary late-submission exception for that plan (a Daily Plan's cut to the end of its business day) and is used up by the resubmit. This replaces "a reopened Tour Plan skips the deadline". Only Admin reopens a Daily Plan; a field manager reopens only a Tour Plan of someone below them. HR reopens neither.
+- **Today's sent plan can change.** The employee withdraws it (it cannot be approved meanwhile), edits and submits again. A withdraw now opens the same short resubmit window as a rejection, capped at 11:30 for a Daily Plan, so it no longer ends in `PLAN_SUBMIT_LATE`.
+- **Days that are over are locked for every Tour Plan**, approved or not. A never-approved plan can still plan today and later. The phone opens the day a running trip began on so its return date can move.
+
+## 2026-11-19 (later): today is open until its Daily Plan is approved
+
+- **Today's lock.** Today locks only when its own Daily Plan is **approved**; while it is draft, waiting, withdrawn or reopened, today can change, so a trip that began today can change route. Days before today stay locked, and a later day locks as soon as its Daily Plan is sent.
+- **Old daily plan vs new Tour Plan.** If the Tour Plan's routes change after today's Daily Plan was sent, approving that Daily Plan is refused (`PLAN_ROUTE_MISMATCH`) with a message saying to reject it or have the employee withdraw it and send it again. The phone shows the same warning on that Daily Plan with a Withdraw button. When the re-sent Tour Plan is approved and today's Daily Plan got approved meanwhile, approval keeps today as it was (as it already does for locked days).

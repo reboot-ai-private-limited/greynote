@@ -57,6 +57,8 @@ export interface DecisionInput {
   /** The round the person was looking at: a request resubmitted since is a 409 that says to reload. */
   cycle: number;
   comment: string;
+  /** A reopen of a plan: how long the employee has to send it again. */
+  duration?: '30m' | '1h' | '12h';
 }
 
 const DONE: Record<DecisionAction, string> = { approve: 'Approved.', reject: 'Rejected.', reopen: 'Reopened for changes.' };
@@ -67,7 +69,7 @@ const DONE: Record<DecisionAction, string> = { approve: 'Approved.', reject: 'Re
  */
 export function useDecision(requestId: string, action: DecisionAction, onDone: () => void) {
   return useApiMutation<DecisionInput>({
-    call: (token, { cycle, comment }) => {
+    call: (token, { cycle, comment, duration }) => {
       const text = comment.trim();
       switch (action) {
         case 'approve':
@@ -75,7 +77,7 @@ export function useDecision(requestId: string, action: DecisionAction, onDone: (
         case 'reject':
           return approvalsApi.reject(token, requestId, { cycle, comment: text });
         case 'reopen':
-          return approvalsApi.reopen(token, requestId, { comment: text });
+          return approvalsApi.reopen(token, requestId, { comment: text, ...(duration && { duration }) });
       }
     },
     invalidates: [keys.approvals.all()],

@@ -124,7 +124,11 @@ export default function DailyPlanScreen() {
 
   const selectedMonth = monthOf(date);
   const monthPlan = planning.data?.monthlyPlans.find((m) => m.planMonth === selectedMonth) ?? null;
-  const monthApproved = monthPlan?.status === 'MANAGER_APPROVED' || monthPlan?.status === 'APPROVED';
+  // A day's routes are its Tour Plan day's (decision-log 2026-11-19): the Tour Plan changed after this plan was sent when they differ.
+  const tourEntry = monthPlan?.entries.find((e) => e.planDate === date) ?? null;
+  const tourRoutesDiffer = existing !== null && tourEntry !== null && [...tourEntry.routeIds].sort().join() !== [...existing.routeIds].sort().join();
+  // A month that was approved and then reopened (or sent again) stays open for daily work, as on the server.
+  const monthApproved = monthPlan?.status === 'MANAGER_APPROVED' || monthPlan?.status === 'APPROVED' || (monthPlan?.wasApproved === true && (monthPlan.status === 'REOPENED' || monthPlan.status === 'SUBMITTED'));
   // The weekly off or holiday this date falls on, from the sync snapshot (this and next month). Absent from an older server.
   const offDay = planning.data?.planOffDays?.find((o) => o.date === date) ?? null;
 
@@ -414,7 +418,7 @@ export default function DailyPlanScreen() {
       if (!online) return { tone: 'warning', text: 'Connect to the internet to withdraw.' };
       await withdrawPlan(existing.approvalRequestId);
       await refreshAll();
-      return { tone: 'info', text: 'Plan withdrawn. You can change the day and submit again.' };
+      return { tone: 'info', text: 'Plan withdrawn, so it can’t be approved as it was. Change the day and submit it again.' };
     });
 
   return (
@@ -424,6 +428,13 @@ export default function DailyPlanScreen() {
           {rejection ? `Reason: ${rejection}` : approved ? 'Need a change? Ask your manager.' : undefined}
         </Notice>
       ) : null}
+
+      {existing && status === 'SUBMITTED' && fieldDay && tourRoutesDiffer ? (
+        <Notice tone="warning" title="The Tour Plan changed after you sent this">
+          {`Your manager can't approve it while its routes differ from the Tour Plan. Withdraw it, check the routes, and send it again.`}
+        </Notice>
+      ) : null}
+      {existing && status === 'SUBMITTED' && fieldDay && tourRoutesDiffer ? <PrimaryButton label="Withdraw it" variant="text" loading={busy} onPress={withdraw} /> : null}
 
       <View style={[{ gap: 12, borderWidth: 1, borderRadius: 16, padding: 16 }, { backgroundColor: theme.background, borderColor: theme.border }]}>
         <ThemedText type="smallBold">Date</ThemedText>
@@ -607,7 +618,7 @@ export default function DailyPlanScreen() {
             {fieldDay ? <PrimaryButton label="Save changes" variant="text" disabled={busy || blocked} onPress={saveDay} /> : null}
           </>
         ) : null}
-        {status === 'SUBMITTED' ? <PrimaryButton label="Withdraw" variant="text" loading={busy} onPress={withdraw} /> : null}
+        {status === 'SUBMITTED' ? <PrimaryButton label="Withdraw to change it" variant="text" loading={busy} onPress={withdraw} /> : null}
       </View>
     </ScreenShell>
   );

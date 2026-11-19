@@ -112,10 +112,32 @@ describe('a Tour Plan that was approved keeps the days already worked or sent (d
     it('a trip that has begun can only have its return moved later', async () => {
       await approveWith([trip('2026-10-09', '2026-10-13')]);
       await kit.approvals.decide('MONTHLY_PLAN', planId, 'REOPENED');
+      await expectLocked(save.execute(MR, MONTH, [entry('2026-10-09')])); // cancelled: the day it began on is over
+      const today = (await kit.dailyPlans.findByUserAndDate(MR, '2026-10-10'))!;
+      await kit.approvals.submit({ kind: 'DAILY_PLAN', recordId: today.id, submitterId: MR });
+      await kit.approvals.decide('DAILY_PLAN', today.id, 'APPROVED');
       await expectLocked(save.execute(MR, MONTH, [trip('2026-10-09', '2026-10-10')])); // would end today
-      await expectLocked(save.execute(MR, MONTH, [entry('2026-10-09')])); // cancelled
       const longer = await save.execute(MR, MONTH, [trip('2026-10-09', '2026-10-15')]);
       expect(longer.entries.at(-1)).toMatchObject({ planDate: '2026-10-15', dayKind: 'TRANSIT' });
+    });
+
+    it('a trip that began today can change route while today’s daily plan is not approved, and not after (decision-log 2026-11-19)', async () => {
+      await approveWith([trip('2026-10-10', '2026-10-13')]);
+      await kit.approvals.decide('MONTHLY_PLAN', planId, 'REOPENED');
+      const other = { ...trip('2026-10-10', '2026-10-13'), routeIds: [OUT, OTHER] };
+      const saved = await save.execute(MR, MONTH, [other]);
+      expect(saved.entries.map((e) => e.routeIds)).toEqual([[OUT, OTHER], [OUT, OTHER], [OUT, OTHER], [OUT, OTHER]]);
+      const today = (await kit.dailyPlans.findByUserAndDate(MR, '2026-10-10'))!;
+      kit.dailyPlans.rows.set(today.id, { ...today, routeIds: [OUT, OTHER] }); // the daily plan follows the Tour Plan
+      await kit.approvals.submit({ kind: 'DAILY_PLAN', recordId: today.id, submitterId: MR });
+      await kit.approvals.decide('DAILY_PLAN', today.id, 'APPROVED');
+      await expectLocked(save.execute(MR, MONTH, [trip('2026-10-10', '2026-10-13')]));
+    });
+
+    it('a trip that began before today cannot change route, because its first day is over', async () => {
+      await approveWith([trip('2026-10-09', '2026-10-13')]);
+      await kit.approvals.decide('MONTHLY_PLAN', planId, 'REOPENED');
+      await expectLocked(save.execute(MR, MONTH, [{ ...trip('2026-10-09', '2026-10-13'), routeIds: [OUT, OTHER] }]));
     });
 
     it('a trip cannot be started from a day that is over', async () => {
@@ -153,12 +175,13 @@ describe('a Tour Plan that was approved keeps the days already worked or sent (d
     });
   });
 
-  it('a plan that was never approved is not locked by the calendar', async () => {
+  it('a plan that was never approved can still change today and later, but not a day that is over (decision-log 2026-11-19)', async () => {
     clock.set('2026-09-20T04:00:00Z');
-    await save.execute(MR, MONTH, [entry('2026-10-05')]);
+    await save.execute(MR, MONTH, [entry('2026-10-05'), entry('2026-10-10'), entry('2026-10-20')]);
     clock.set('2026-10-10T04:00:00Z');
-    const saved = await save.execute(MR, MONTH, [entry('2026-10-05', { routeIds: [OTHER] })]);
-    expect(saved.entries[0]?.routeIds).toEqual([OTHER]);
+    const saved = await save.execute(MR, MONTH, [entry('2026-10-05'), entry('2026-10-10', { routeIds: [OTHER] }), entry('2026-10-20', { routeIds: [OTHER] })]);
+    expect(saved.entries.map((e) => e.routeIds)).toEqual([[ROUTE], [OTHER], [OTHER]]);
+    await expect(save.execute(MR, MONTH, [entry('2026-10-05', { routeIds: [OTHER] }), entry('2026-10-10'), entry('2026-10-20')])).rejects.toMatchObject({ statusCode: 409 });
   });
 
   describe('the Tour Plan mirrors an approved Daily Plan', () => {

@@ -47,7 +47,7 @@ export const mineQuerySchema = listBase.omit({ submitterId: true });
 export const approveBodySchema = z.object({ cycle: cycleSchema, comment: commentSchema.optional() });
 export const rejectBodySchema = z.object({ cycle: cycleSchema, comment: commentSchema.min(1, 'A reason is required to reject.') });
 export const withdrawBodySchema = z.object({ comment: commentSchema.optional() });
-export const reopenBodySchema = z.object({ comment: commentSchema.min(1, 'A reason is required to reopen.') });
+export const reopenBodySchema = z.object({ comment: commentSchema.min(1, 'A reason is required to reopen.'), duration: z.enum(['30m', '1h', '12h']).optional() });
 export const bulkDecideBodySchema = z
   .object({
     decision: z.enum(['APPROVE', 'REJECT']),

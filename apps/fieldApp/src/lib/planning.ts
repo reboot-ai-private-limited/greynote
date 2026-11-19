@@ -423,4 +423,5 @@ export function planErrorText(err: unknown): string {
  * A manager (or Admin) reopens an approved Tour Plan of someone below them (decision-log 2026-11-19): it goes back to the employee, who changes the days after today
  * and sends it again; days that are over or already sent can't change. A reason is required. Online only.
  */
-export const reopenTourPlan = (requestId: string, comment: string) => apiPost<unknown>(`/approvals/${requestId}/reopen`, { comment: comment.trim() }, { auth: true });
+export type ReopenDuration = '30m' | '1h' | '12h';
+export const reopenTourPlan = (requestId: string, comment: string, duration: ReopenDuration = '1h') => apiPost<unknown>(`/approvals/${requestId}/reopen`, { comment: comment.trim(), duration }, { auth: true });

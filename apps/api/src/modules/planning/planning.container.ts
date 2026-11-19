@@ -5,6 +5,7 @@ import type { SyncPublicContract } from '@/modules/sync/sync.public.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
 import { monthRange } from '@/shared/time/businessTime.js';
 import { PlanDeadlines } from './application/planDeadlines.js';
+import { makeReopenGrantHandler } from './application/reopenGrantHandler.js';
 import { makeDailyPlanMirrorHandler, mirrorDayIntoMonth } from './application/dailyToMonthMirror.js';
 import { PlanDayLocks } from './application/dayLocks.js';
 import { PlanSubmitter } from './application/planSubmitter.js';
@@ -41,6 +42,7 @@ import { SubmitMonthlyPlanUseCase } from './application/usecases/submitMonthlyPl
 import type { ApprovalsPort } from './domain/approvals.port.js';
 import { dayTitle, describeEach, monthTitle } from '@/modules/approval/approval.public.js';
 import type { ConfigProviderPort } from './domain/configProvider.port.js';
+import type { PlanKind } from './domain/plan.js';
 import type { RouteDirectoryPort } from './domain/routeDirectory.port.js';
 import type { UserDirectoryPort } from './domain/userDirectory.port.js';
 import { MongoDailyPlanAdapter } from './infrastructure/mongoDailyPlan.adapter.js';
@@ -86,10 +88,11 @@ export function buildPlanningContainer(
   const deadlines = new PlanDeadlines(config);
   const offDays = new OffDays();
   const dayLocks = new PlanDayLocks(dailyPlans, approvals, deadlines);
+  const reopenGrant = (kind: PlanKind) => makeReopenGrantHandler(kind, dailyPlans, monthlyPlans, grants, config, deadlines.now);
   // Plans are approved once, by the submitter's manager or by Admin, whoever acts first (managerOnly). A Daily Plan's
   // status lives in the approval module; an approved Monthly Plan writes its days into Daily Plans (see below).
-  approvals.registerKind({ kind: 'DAILY_PLAN', finalApproverRoles: ['HR', 'ADMIN'], overrideRoles: ['HR', 'ADMIN'], managerOnly: true, onStatusChange: makeDailyPlanMirrorHandler(dailyPlans, monthlyPlans, deadlines), describeRecords: describeEach((id) => dailyPlans.findById(id), (plan) => ({ title: dayTitle(plan.planDate), subtitle: null })) });
-  approvals.registerKind({ kind: 'MONTHLY_PLAN', finalApproverRoles: ['HR', 'ADMIN'], overrideRoles: ['HR', 'ADMIN'], managerOnly: true, managerReopen: true, describeRecords: describeEach((id) => monthlyPlans.findById(id), (plan) => ({ title: monthTitle(plan.planMonth), subtitle: null })), onStatusChange: makeMonthlyPlanInheritHandler(monthlyPlans, dailyPlans, approvals, deadlines, offDays, dayLocks) });
+  approvals.registerKind({ kind: 'DAILY_PLAN', finalApproverRoles: ['HR', 'ADMIN'], overrideRoles: ['HR', 'ADMIN'], managerOnly: true, onStatusChange: async (change, ctx) => { await makeDailyPlanMirrorHandler(dailyPlans, monthlyPlans, deadlines)(change, ctx); await reopenGrant('DAILY_PLAN')(change); }, describeRecords: describeEach((id) => dailyPlans.findById(id), (plan) => ({ title: dayTitle(plan.planDate), subtitle: null })) });
+  approvals.registerKind({ kind: 'MONTHLY_PLAN', finalApproverRoles: ['HR', 'ADMIN'], overrideRoles: ['HR', 'ADMIN'], managerOnly: true, managerReopen: true, describeRecords: describeEach((id) => monthlyPlans.findById(id), (plan) => ({ title: monthTitle(plan.planMonth), subtitle: null })), onStatusChange: async (change, ctx) => { await makeMonthlyPlanInheritHandler(monthlyPlans, dailyPlans, approvals, deadlines, offDays, dayLocks)(change, ctx); await reopenGrant('MONTHLY_PLAN')(change); } });
   const views = new PlanViews(approvals, grants, deadlines, offDays, dayLocks);
   const scope = new ManagerScope(users, config, routes);
   const submitter = new PlanSubmitter(users, routes, approvals, grants, transactions, deadlines.now, scope);

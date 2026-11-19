@@ -91,9 +91,15 @@ describe('Resubmit window after a rejection — Daily Plan', () => {
     expect((await kit.dailyPlans.findById(planId))?.lateResubmits).toBe(0);
   });
 
-  it('opens no window after the MR’s own withdraw', async () => {
-    kit.approvals.setStatus('DAILY_PLAN', planId, 'WITHDRAWN', ist('09:59'));
-    clock.current = ist('10:10');
+  it('gives the same window after the MR’s own withdraw (decision-log 2026-11-19)', async () => {
+    kit.approvals.setStatus('DAILY_PLAN', planId, 'WITHDRAWN', ist('10:20'));
+    clock.current = ist('10:40');
+    expect((await submit.execute(MR, planId)).status).toBe('SUBMITTED');
+  });
+
+  it('a withdraw gives no window past 11:30', async () => {
+    kit.approvals.setStatus('DAILY_PLAN', planId, 'WITHDRAWN', ist('11:40'));
+    clock.current = ist('11:45');
     await expectLate(submit.execute(MR, planId));
   });
 

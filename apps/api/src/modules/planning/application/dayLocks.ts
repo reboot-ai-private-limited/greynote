@@ -15,7 +15,7 @@ export type LockReason = 'PAST' | 'SENT';
  * today or earlier, or its Daily Plan is waiting or approved. Nobody changes a locked day, by any route: the employee's save, a manager's
  * edit of a waiting plan, Admin or HR. A trip falls out of the same rule, because its stay and transit days are ordinary entries: a trip
  * can't be made to end before a locked day, and a locked day can't be turned into a trip day.
- * A plan that was never approved has nothing worked yet, so only a day whose Daily Plan has been sent is locked.
+ * A plan that was never approved can still plan today and later, but a day that is over is locked all the same; a Daily Plan that was sent locks its day.
  */
 export class PlanDayLocks {
   constructor(
@@ -37,9 +37,13 @@ export class PlanDayLocks {
       const daily = dailies.get(date);
       if (daily) {
         const request = await this.approvals.getForRecord('DAILY_PLAN', daily.id);
-        if (request && !isEditableBySubmitter(request.status)) locked.set(date, 'SENT');
+        // Today's own Daily Plan only locks the day once it is approved: while it is still waiting it can be changed (the approver then sees a mismatch and
+        // the employee withdraws it), decision-log 2026-11-19. Any later day is locked as soon as it is sent.
+        const approved = request?.status === 'APPROVED' || request?.status === 'MANAGER_APPROVED';
+        if (request && !isEditableBySubmitter(request.status) && (date !== today || approved)) locked.set(date, 'SENT');
       }
-      if (everApproved && date <= today && !locked.has(date)) locked.set(date, 'PAST');
+      // Once approved, today stays open until its Daily Plan is approved; a day that is over never changes.
+      if (date < today && !locked.has(date)) locked.set(date, 'PAST');
     }
     return { locked, dailies };
   }
@@ -54,7 +58,9 @@ export class PlanDayLocks {
     if (hit) {
       throw AppError.conflict(
         locked.get(hit.date) === 'SENT'
-          ? `The daily plan for ${dayLabel(hit.date)} has already been sent for approval, so that day can’t be changed.`
+          ? hit.date === today
+            ? `Today’s daily plan is already approved, so today can’t change. Change the days after today.`
+            : `The daily plan for ${dayLabel(hit.date)} has already been sent for approval, so that day can’t be changed.`
           : `${dayLabel(hit.date)} is ${hit.date === today ? 'today' : 'in the past'}, so it can’t be changed.`,
         { reason: 'PLAN_DAY_LOCKED', planDate: hit.date },
       );

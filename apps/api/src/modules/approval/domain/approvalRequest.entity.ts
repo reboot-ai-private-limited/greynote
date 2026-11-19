@@ -46,6 +46,8 @@ export interface ApprovalAction {
   resultingStatus: ApprovalStatus;
   /** Which submission round this action belongs to (1 = the first submission). */
   cycle: number;
+  /** Only on a REOPEN: how long the submitter has to send it again. Not stored; the owning module turns it into its own exception in `onStatusChange`. */
+  reopenDuration?: '30m' | '1h' | '12h';
 }
 
 /**

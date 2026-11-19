@@ -1,3 +1,4 @@
+import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Spacing } from '@/constants/theme';
@@ -8,6 +9,7 @@ import { prettyMonth, weekdayOf } from '@/offline/day';
 
 import { ThemedText } from './themed-text';
 
+const LOCK: SymbolViewProps['name'] = { ios: 'lock.fill', android: 'lock', web: 'lock' } as SymbolViewProps['name'];
 const HEADS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 type Props = {
@@ -18,10 +20,12 @@ type Props = {
   today: string;
   /** Set when the plan can be edited: tapping a working day opens it. */
   onPressDay?: (date: string) => void;
+  /** A day that can't change any more: drawn faded with a lock mark. */
+  isLocked?: (date: string) => boolean;
 };
 
 /** The month at a glance: each day coloured by what is planned on it. Rows are seven equal cells, so it fits a phone and a tablet alike. */
-export function PlanCalendar({ month, days, entries, isOff, today, onPressDay }: Props) {
+export function PlanCalendar({ month, days, entries, isOff, today, onPressDay, isLocked }: Props) {
   const theme = useTheme();
   const blanks = days.length > 0 ? weekdayOf(days[0]!) : 0;
   const cells: (string | null)[] = [...Array.from({ length: blanks }, () => null), ...days];
@@ -51,6 +55,7 @@ export function PlanCalendar({ month, days, entries, isOff, today, onPressDay }:
             const colors = off ? OFF_COLORS : entry ? typeColors(entry.workingType) : null;
             const isToday = date === today;
             const tappable = Boolean(onPressDay) && !off;
+            const locked = Boolean(isLocked?.(date)) && !off;
             return (
               <View key={i} style={styles.cellBox}>
                 <Pressable
@@ -68,9 +73,10 @@ export function PlanCalendar({ month, days, entries, isOff, today, onPressDay }:
                   ]}>
                   <ThemedText
                     type="smallBold"
-                    style={[styles.num, { color: colors ? colors.solid : theme.textSecondary }, off && styles.offNum]}>
+                    style={[styles.num, { color: colors ? colors.solid : theme.textSecondary }, (off || locked) && styles.offNum]}>
                     {Number(date.slice(8))}
                   </ThemedText>
+                  {locked ? <SymbolView name={LOCK} size={8} tintColor={theme.textSecondary} style={styles.lock} /> : null}
                 </Pressable>
               </View>
             );
@@ -107,6 +113,7 @@ const styles = StyleSheet.create({
   cell: { aspectRatio: 1, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   num: { fontSize: 12, lineHeight: 16 },
   offNum: { opacity: 0.7 },
+  lock: { position: 'absolute', right: 2, bottom: 2 },
   legend: { flexDirection: 'row', flexWrap: 'wrap', columnGap: Spacing.three, rowGap: Spacing.one, marginTop: Spacing.two },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 8, height: 8, borderRadius: 4 },

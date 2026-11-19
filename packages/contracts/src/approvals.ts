@@ -77,6 +77,8 @@ export interface RejectDto {
 export interface ReopenDto {
   /** Required. */
   comment: string;
+  /** How long the person has to send it again: `30m`, `1h` (default) or `12h`. Only a plan (Daily or Tour) uses it. */
+  duration?: '30m' | '1h' | '12h';
 }
 
 export const MAX_BULK_DECISIONS = 100;

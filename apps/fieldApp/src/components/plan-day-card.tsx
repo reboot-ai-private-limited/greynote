@@ -10,6 +10,7 @@ import { prettyDay, weekdayName } from '@/offline/day';
 
 import { ThemedText } from './themed-text';
 
+const LOCK: SymbolViewProps['name'] = { ios: 'lock.fill', android: 'lock', web: 'lock' } as SymbolViewProps['name'];
 const PENCIL: SymbolViewProps['name'] = { ios: 'pencil', android: 'edit', web: 'edit' } as SymbolViewProps['name'];
 
 type Props = {
@@ -46,9 +47,12 @@ export function PlanDayCard({ date, entry, off, offLabel, editable, locked, name
     ? 'No activity planned'
     : entry
       ? [locked ? 'Locked: already worked or sent' : null, people.length > 0 ? `With ${people.join(', ')}` : null, routes.length > 0 ? entry.remarks : null].filter(Boolean).join(' · ')
-      : null;
+      : locked
+        ? 'Locked'
+        : null;
 
-  const tappable = editable && !off;
+  // A locked day stays pressable so a tap can say why it can't change.
+  const tappable = (editable || locked) && !off;
   return (
     <Pressable
       disabled={!tappable}
@@ -60,6 +64,7 @@ export function PlanDayCard({ date, entry, off, offLabel, editable, locked, name
         { backgroundColor: theme.background, borderColor: theme.border },
         off && styles.off,
         pressed && styles.pressed,
+        locked && !off && styles.lockedCard,
       ]}>
       <View style={[styles.date, { backgroundColor: colors ? colors.bg : theme.backgroundElement }]}>
         <ThemedText type="smallBold" style={[styles.dayNum, { color: colors ? colors.solid : theme.textSecondary }]}>
@@ -99,7 +104,7 @@ export function PlanDayCard({ date, entry, off, offLabel, editable, locked, name
       </View>
       {tappable ? (
         <View style={[styles.edit, { borderColor: theme.border }]}>
-          <SymbolView name={PENCIL} size={14} tintColor={theme.textSecondary} />
+          <SymbolView name={locked ? LOCK : PENCIL} size={14} tintColor={theme.textSecondary} />
         </View>
       ) : null}
     </Pressable>
@@ -118,6 +123,7 @@ const styles = StyleSheet.create({
   },
   off: { opacity: 0.6 },
   pressed: { opacity: 0.75 },
+  lockedCard: { opacity: 0.8 },
   date: { width: 38, height: 38, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   dayNum: { fontSize: 15, lineHeight: 18 },
   dayName: { fontSize: 9, lineHeight: 11, fontWeight: 600 },

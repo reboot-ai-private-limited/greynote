@@ -52,7 +52,7 @@ doc('post', '/{id}/approve', 'Approve (as manager, final approver, or Admin over
 doc('post', '/{id}/reject', 'Reject — reason required', { params: approvalIdParamsSchema, body: rejectBodySchema });
 doc('post', '/bulk', 'Approve or reject up to 100 at once; per-item results', { body: bulkDecideBodySchema });
 doc('post', '/{id}/withdraw', 'Submitter: withdraw before the manager acts', { params: approvalIdParamsSchema, body: withdrawBodySchema });
-doc('post', '/{id}/reopen', 'Admin and HR: reopen an approved request for changes — reason required; a field manager may reopen their team member\'s approved Tour Plan', { params: approvalIdParamsSchema, body: reopenBodySchema });
+doc('post', '/{id}/reopen', 'Admin: reopen an approved request for changes — reason required, and optionally how long they have to send it again (30m, 1h, 12h). A field manager may reopen their team member\'s approved Tour Plan; only Admin reopens a Daily Plan', { params: approvalIdParamsSchema, body: reopenBodySchema });
 
 export function buildApprovalRouter(c: Record<'inbox' | 'inboxSummary' | 'all' | 'team' | 'mine' | 'detail' | 'approve' | 'reject' | 'bulk' | 'withdraw' | 'reopen', RequestHandler>): Router {
   const router = Router();

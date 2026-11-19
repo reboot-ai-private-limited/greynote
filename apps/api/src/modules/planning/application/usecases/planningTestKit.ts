@@ -278,12 +278,12 @@ export class FakeApprovals implements ApprovalsPort {
     const request = this.requests.get(`${kind}:${recordId}`);
     if (!request) throw new Error('no request');
     const history =
-      status === 'REJECTED'
+      status === 'REJECTED' || status === 'WITHDRAWN'
         ? [
             ...request.history,
             {
-              action: 'REJECT' as const,
-              authority: 'MANAGER' as const,
+              action: status === 'REJECTED' ? ('REJECT' as const) : ('WITHDRAW' as const),
+              authority: status === 'REJECTED' ? ('MANAGER' as const) : ('SUBMITTER' as const),
               actorId: 'manager',
               actorRole: 'FIELD' as const,
               comment: 'no',

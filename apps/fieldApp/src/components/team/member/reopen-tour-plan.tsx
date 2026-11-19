@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { Spacing } from '@/constants/theme';
 import { ApiError, NetworkError } from '@/lib/api';
-import { reopenTourPlan, type getTeamMemberTourPlan } from '@/lib/planning';
+import { reopenTourPlan, type getTeamMemberTourPlan, type ReopenDuration } from '@/lib/planning';
 import { useOnline } from '@/offline';
 import { monthOf, nowMs } from '@/offline/day';
 
@@ -15,6 +15,7 @@ import { ThemedText } from '../../themed-text';
 type TourPlan = NonNullable<Awaited<ReturnType<typeof getTeamMemberTourPlan>>>;
 
 const REASON_MAX = 500;
+const DURATIONS: [ReopenDuration, string][] = [['30m', '30 min'], ['1h', '1 hour'], ['12h', '12 hours']];
 
 /**
  * **Reopen Tour Plan** (decision-log 2026-11-19): a manager sends an approved plan of someone below them back to that person, with a reason. They change the days
@@ -25,6 +26,7 @@ export function ReopenTourPlan({ plan, personName, onDone }: { plan: TourPlan | 
   const online = useOnline();
   const [asking, setAsking] = useState(false);
   const [reason, setReason] = useState('');
+  const [duration, setDuration] = useState<ReopenDuration>('1h');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: 'danger' | 'success'; text: string } | null>(null);
   if (!plan || plan.planMonth < monthOf(new Date(nowMs()).toISOString().slice(0, 10))) return null;
@@ -40,7 +42,7 @@ export function ReopenTourPlan({ plan, personName, onDone }: { plan: TourPlan | 
     setBusy(true);
     setMsg(null);
     try {
-      await reopenTourPlan(requestId, reason);
+      await reopenTourPlan(requestId, reason, duration);
       setAsking(false);
       setReason('');
       setMsg({ tone: 'success', text: `Sent back to ${personName}. They can change the days after today and send it again.` });
@@ -58,6 +60,12 @@ export function ReopenTourPlan({ plan, personName, onDone }: { plan: TourPlan | 
       {asking ? (
         <>
           <TextField label={`Why reopen it? ${personName} sees this`} value={reason} onChangeText={setReason} maxLength={REASON_MAX} multiline editable={!busy} />
+          <ThemedText type="small" themeColor="textSecondary">How long do they have to send it again?</ThemedText>
+          <View style={styles.row}>
+            {DURATIONS.map(([value, label]) => (
+              <PrimaryButton key={value} label={label} variant={duration === value ? 'filled' : 'text'} disabled={busy} onPress={() => setDuration(value)} />
+            ))}
+          </View>
           <ThemedText type="small" themeColor="textSecondary">
             {`${personName} can change the days after today and send it again; days that are over, or whose daily plan was sent, stay as they are. They can keep working meanwhile.`}
           </ThemedText>
@@ -71,4 +79,4 @@ export function ReopenTourPlan({ plan, personName, onDone }: { plan: TourPlan | 
   );
 }
 
-const styles = StyleSheet.create({ stack: { gap: Spacing.two } });
+const styles = StyleSheet.create({ stack: { gap: Spacing.two }, row: { flexDirection: 'row', gap: Spacing.two } });

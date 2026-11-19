@@ -102,7 +102,7 @@ export function makeApprovalControllers(useCases: {
       sendSuccess(req, res, updated, 'Withdrawn.', 200);
     }),
     reopen: asyncHandler(async (req, res) => {
-      const updated = await useCases.reopen.execute(requiredParam(req.params, 'id'), actorOf(req), req.body.comment);
+      const updated = await useCases.reopen.execute(requiredParam(req.params, 'id'), actorOf(req), req.body.comment, req.body.duration);
       sendSuccess(req, res, updated, 'Reopened for changes.', 200);
     }),
   };

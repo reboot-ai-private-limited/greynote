@@ -21,7 +21,7 @@ export class ReopenApprovalUseCase {
     private readonly users?: UserDirectoryPort,
   ) {}
 
-  async execute(requestId: string, actor: Actor, reason: string): Promise<ApprovalRequest> {
+  async execute(requestId: string, actor: Actor, reason: string, duration?: '30m' | '1h' | '12h'): Promise<ApprovalRequest> {
     const comment = reason.trim();
     if (comment === '') throw AppError.badRequest('A reason is required to reopen.', { field: 'comment' });
 
@@ -45,6 +45,7 @@ export class ReopenApprovalUseCase {
         at: new Date(),
         resultingStatus: 'REOPENED',
         cycle: request.cycle,
+        ...(duration ? { reopenDuration: duration } : {}),
       },
     });
   }

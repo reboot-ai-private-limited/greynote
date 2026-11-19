@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { FormField } from '@/components/ui/FormField';
 import { Textarea } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { useSession } from '@/lib/auth/SessionProvider';
 import { useDecision, type DecisionAction } from '../hooks/useApprovals';
 import { useDcr } from '../hooks/usePreviews';
@@ -33,6 +34,9 @@ export function DecisionDialog({
   const copy = COPY[action];
   const [comment, setComment] = useState('');
   const [error, setError] = useState<string | undefined>();
+  const [duration, setDuration] = useState<'30m' | '1h' | '12h'>('1h');
+  // Only a Daily or Tour Plan comes back with a deadline to send it again (decision-log 2026-11-19).
+  const asksDuration = action === 'reopen' && (request.kind === 'DAILY_PLAN' || request.kind === 'MONTHLY_PLAN');
   const decision = useDecision(request.id, action, onDone);
   // A daily report's flagged calls stay unaccepted when the report is approved; say so. Same query as the preview, so no extra request.
   const dcr = useDcr(request.recordId, request.kind === 'DCR' && action === 'approve');
@@ -45,7 +49,7 @@ export function DecisionDialog({
     const problem = reasonError(comment, copy.required);
     setError(problem);
     if (problem) return;
-    decision.mutate({ cycle: request.cycle, comment });
+    decision.mutate({ cycle: request.cycle, comment, ...(asksDuration && { duration }) });
   }
 
   return (
@@ -70,6 +74,20 @@ export function DecisionDialog({
           maxLength={1000}
         />
       </FormField>
+      {asksDuration ? (
+        <FormField label="Time to send it again" htmlFor="reopen-duration" hint="After this the employee needs a late-submission exception.">
+          <Select
+            id="reopen-duration"
+            value={duration}
+            onValueChange={(v) => setDuration(v as typeof duration)}
+            options={[
+              { value: '30m', label: '30 minutes' },
+              { value: '1h', label: '1 hour' },
+              { value: '12h', label: '12 hours' },
+            ]}
+          />
+        </FormField>
+      ) : null}
     </FormDialog>
   );
 }

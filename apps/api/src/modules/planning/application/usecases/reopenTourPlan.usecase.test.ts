@@ -39,14 +39,27 @@ describe('a reopened Tour Plan (decision-log 2026-11-19)', () => {
     clock.set('2026-10-10T04:00:00Z'); // the running month, long after the submit deadline
   });
 
-  it('can be sent again in the running month once reopened, with a day after today changed', async () => {
+  /** What the real reopen does: the status change, and the late-submission exception that lasts as long as the reopen's deadline (here an hour). */
+  const reopen = async (minutes = 60) => {
     await kit.approvals.decide('MONTHLY_PLAN', planId, 'REOPENED');
+    await kit.grants.create({ userId: MR, kind: 'MONTHLY_PLAN', planKey: MONTH, reason: 'Reopened', grantedBy: ASM, grantedByRole: 'FIELD', grantedAt: clock.now(), expiresAt: new Date(clock.now().getTime() + minutes * 60_000) }, clock.now());
+  };
+
+  it('cannot be sent after its reopen deadline ran out', async () => {
+    await reopen(30);
+    await save.execute(MR, MONTH, [entry('2026-10-05'), entry('2026-10-15', { routeIds: [OTHER] }), entry('2026-10-16')]);
+    clock.set('2026-10-10T04:31:00Z');
+    expect(await code(submit.execute(MR, planId))).toBe('PLAN_SUBMIT_LATE');
+  });
+
+  it('can be sent again in the running month once reopened, with a day after today changed', async () => {
+    await reopen();
     await save.execute(MR, MONTH, [entry('2026-10-05'), entry('2026-10-15', { routeIds: [OTHER] }), entry('2026-10-16')]);
     expect((await submit.execute(MR, planId)).status).toBe('SUBMITTED');
   });
 
   it('a past day cannot change in the edit, and a day whose daily plan is sent stays as it is', async () => {
-    await kit.approvals.decide('MONTHLY_PLAN', planId, 'REOPENED');
+    await reopen();
     expect(await code(save.execute(MR, MONTH, [entry('2026-10-05', { routeIds: [OTHER] }), entry('2026-10-15'), entry('2026-10-16')]))).toBe('CONFLICT');
     const day = (await kit.dailyPlans.findByUserAndDate(MR, '2026-10-15'))!;
     await kit.approvals.submit({ kind: 'DAILY_PLAN', recordId: day.id, submitterId: MR });
@@ -62,7 +75,7 @@ describe('a reopened Tour Plan (decision-log 2026-11-19)', () => {
 
   it('the month stays open for daily work while it is reopened or waiting again; a never-approved month stays closed', async () => {
     expect(await status.isMonthlyPlanApproved(MR, MONTH)).toBe(true);
-    await kit.approvals.decide('MONTHLY_PLAN', planId, 'REOPENED');
+    await reopen();
     expect(await status.isMonthlyPlanApproved(MR, MONTH)).toBe(true);
     await save.execute(MR, MONTH, [entry('2026-10-05'), entry('2026-10-15'), entry('2026-10-16', { routeIds: [OTHER] })]);
     await submit.execute(MR, planId);
@@ -74,7 +87,7 @@ describe('a reopened Tour Plan (decision-log 2026-11-19)', () => {
   });
 
   it('re-approval changes the untouched future day and keeps the days already worked', async () => {
-    await kit.approvals.decide('MONTHLY_PLAN', planId, 'REOPENED');
+    await reopen();
     await save.execute(MR, MONTH, [entry('2026-10-05'), entry('2026-10-15', { routeIds: [OTHER] }), entry('2026-10-16')]);
     await submit.execute(MR, planId);
     await kit.approvals.decide('MONTHLY_PLAN', planId, 'APPROVED');

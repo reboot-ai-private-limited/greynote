@@ -16,7 +16,7 @@ export async function assertRoutesMatchTourPlan(monthly: MonthlyPlanRepositoryPo
   const entry = plan?.entries.find((e) => e.planDate === planDate);
   if (!entry || sameRoutes(entry.routeIds, routeIds)) return;
   throw AppError.conflict(
-    `The routes for ${dayLabel(planDate)} are not the ones in the Tour Plan. Ask your manager or Admin to change the Tour Plan for that day first; the daily plan then follows it.`,
+    `The routes for ${dayLabel(planDate)} are not the ones in the Tour Plan. If the Tour Plan changed after this plan was sent, the employee withdraws it and sends it again (or you reject it); otherwise ask your manager or Admin to change the Tour Plan for that day first; the daily plan then follows it.`,
     { reason: 'PLAN_ROUTE_MISMATCH', planDate },
   );
 }
