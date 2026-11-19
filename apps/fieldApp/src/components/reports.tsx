@@ -7,6 +7,8 @@ import { apiGet } from '@/lib/api';
 import { STATUS_LABEL, statusLabel, type ApprovalStatus } from '@/lib/approvals';
 import { formatRupees } from '@/lib/money';
 import { getMyDcrCoverage, getMyDcrYear, getMyTaDaDays, getMyTaDaYear, type TaDaDay } from '@/lib/my-reports';
+import { downloadTourPlan } from '@/lib/work-reports';
+import { useSessionUser } from '@/lib/session';
 import { getRejectionReason, workingTypeLabel, type DailyPlanDetail, type MonthlyPlanDetail } from '@/lib/planning';
 import { useCachedFetch } from '@/offline/cached-fetch';
 import { datesInMonth, formatWhen, prettyDay, prettyMonth } from '@/offline/day';
@@ -183,6 +185,23 @@ export function TpReport({ month, year }: { month: string; year: number }) {
   const monthly = useCachedFetch<MonthlyPlanDetail[]>(`rep-tpm:${year}:${month}`, () => apiGet<MonthlyPlanDetail[]>(`/planning/monthly?from=${month}&to=${month}`, { auth: true, fy: true }));
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const plan = (monthly.data ?? []).find((m) => m.planMonth === month) ?? null;
+  const me = useSessionUser();
+  const [downloading, setDownloading] = useState(false);
+  const [note, setNote] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null);
+  const approved = plan?.status === 'APPROVED' || plan?.status === 'MANAGER_APPROVED';
+  const download = async () => {
+    if (!me) return;
+    setDownloading(true);
+    setNote(null);
+    try {
+      const done = await downloadTourPlan({ id: me.id, name: me.name ?? 'Me' }, month, prettyMonth(month));
+      if (done) setNote({ tone: 'success', text: done });
+    } catch (err) {
+      setNote({ tone: 'danger', text: err instanceof Error ? err.message : 'Couldn’t make the file. Please try again.' });
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const showReason = async (key: string, requestId: string) => {
     try {
@@ -209,6 +228,13 @@ export function TpReport({ month, year }: { month: string; year: number }) {
             <PrimaryButton label="See the reason" variant="text" onPress={() => showReason('monthly', plan.approval!.requestId)} />
           )
         ) : null}
+        {plan ? (
+          <>
+            <PrimaryButton label="Download Tour Plan (Excel)" variant="text" loading={downloading} disabled={!approved} onPress={download} />
+            {!approved ? <ThemedText type="small" themeColor="textSecondary">You can download it once it is approved.</ThemedText> : null}
+          </>
+        ) : null}
+        {note ? <Notice tone={note.tone}>{note.text}</Notice> : null}
       </ThemedView>
 
     </View>

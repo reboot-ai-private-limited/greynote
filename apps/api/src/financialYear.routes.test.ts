@@ -203,6 +203,7 @@ const TIMELESS = [
   '/api/team/expenses', // takes its own month
   '/api/reports/secondary-sheet', // takes its own year (and defaults to the current one)
   '/api/reports/employee-monthly-work', // takes its own month (the current one when left out)
+  '/api/reports/tour-plan', // takes its own month
   '/api/team/leaves', // a short window the phone chooses (at most 93 days)
   '/api/inbox/messages',
   // Background sync: the phone never sends the year header on it (decision-log 2026-09-30).

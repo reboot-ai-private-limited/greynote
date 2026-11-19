@@ -171,7 +171,7 @@ export interface DoctorCallsPort {
 }
 
 export interface TerritoryPort {
-  getRoute(routeId: string): Promise<{ id: string; name: string } | null>;
+  getRoute(routeId: string): Promise<{ id: string; name: string; routeType?: string } | null>;
 }
 
 export interface ZoneNamePort {
@@ -213,6 +213,15 @@ export interface DailyWorkPlanningPort {
   listDailyPlanDays(userId: string, from: string, to: string): Promise<Array<{ date: string; status: string; workingType: string; routeIds: string[]; workWith: string[]; doctorIds: string[]; remarks: string | null; changedFromMonthly: boolean }>>;
   listMonthlyPlanDays(userId: string, planMonth: string): Promise<Array<{ date: string; workingType: string; dayKind: string; routeIds: string[] }>>;
   listPlannedDoctors(userId: string, planMonth: string): Promise<Array<{ doctorId: string; plannedDays: number; missedSince: string | null }>>;
+}
+
+/** Planning's read of one person's Tour Plan for the Tour Plan Excel: its status, every entry, and the month's weekly offs and holidays. `null` with no Plan. */
+export interface TourPlanExportPort {
+  readTourPlanForExport(userId: string, planMonth: string): Promise<{
+    status: string;
+    entries: Array<{ date: string; workingType: string; dayKind: string; routeIds: string[]; workWith: string[]; remarks: string | null; returnDate: string | null }>;
+    offDays: Array<{ date: string; reason: 'WEEKLY_OFF' | 'HOLIDAY'; name: string | null }>;
+  } | null>;
 }
 
 /** Field Activity's read of one person's days: each report's status and its calls. */

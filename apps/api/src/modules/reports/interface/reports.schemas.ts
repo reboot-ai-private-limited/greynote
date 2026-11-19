@@ -62,4 +62,5 @@ export const salesByEmployeeQuerySchema = z.object({ ...salesWindowShape, search
 export const secondarySheetQuerySchema = z.object({ userId: objectId, year: z.coerce.number().int().min(2000).max(2100).optional() });
 
 /** One employee's month: the Daily Work report and the Expense report (the month that holds today when left out). */
+export const tourPlanQuerySchema = z.object({ userId: objectId, month: monthSchema });
 export const employeeMonthQuerySchema = z.object({ userId: objectId, month: monthSchema.optional() });

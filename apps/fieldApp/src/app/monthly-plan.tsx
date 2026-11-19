@@ -22,8 +22,7 @@ import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useTheme } from '@/hooks/use-theme';
-import { deliverCsv } from '@/lib/csv';
-import { exportFileName, tourPlanCsv } from '@/lib/exports';
+import { downloadTourPlan } from '@/lib/work-reports';
 import {
   EDITABLE,
   EMPTY_DAY,
@@ -455,15 +454,10 @@ export default function MonthlyPlanScreen() {
   const me = useSessionUser();
   const [downloading, setDownloading] = useState(false);
   const downloadPlan = async () => {
-    if (!existing) return;
-    const csv = tourPlanCsv(month, existing.entries, {
-      offLabel: (d) => (isOff(d) ? offLabelOf(d) : null),
-      routes: territory.data?.routes,
-      personName: (id) => names.colleagues.get(id)?.name ?? null,
-    });
+    if (!existing || !me) return;
     setDownloading(true);
     try {
-      const done = await deliverCsv(exportFileName('tour-plan', { name: me?.name, employeeCode: me?.employeeCode }, month), csv, `Tour Plan · ${prettyMonth(month)}`);
+      const done = await downloadTourPlan({ id: me.id, name: me.name ?? 'Me' }, month, prettyMonth(month));
       if (done) setMsg({ tone: 'success', text: done });
     } catch (err) {
       setMsg({ tone: 'danger', text: err instanceof Error ? err.message : 'Couldn’t make the file. Please try again.' });
@@ -471,7 +465,13 @@ export default function MonthlyPlanScreen() {
       setDownloading(false);
     }
   };
-  const download = existing ? <PrimaryButton label="Open, share or download Tour Plan (CSV)" variant="text" loading={downloading} onPress={downloadPlan} /> : null;
+  const planApproved = status === 'APPROVED' || status === 'MANAGER_APPROVED';
+  const download = existing ? (
+    <>
+      <PrimaryButton label="Download Tour Plan (Excel)" variant="text" loading={downloading} disabled={!planApproved} onPress={downloadPlan} />
+      {!planApproved ? <ThemedText type="small" themeColor="textSecondary">You can download it once it is approved.</ThemedText> : null}
+    </>
+  ) : null;
   const approval = <PlanApprovalSteps status={status} rejection={rejection} approval={detail?.approval ?? null} timeZone={timeZone} />;
   const dayWise = (
     <View style={styles.dayWise}>

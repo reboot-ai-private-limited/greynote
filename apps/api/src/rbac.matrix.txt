@@ -162,6 +162,7 @@ GET    /api/reports/stock  ADMIN
 GET    /api/reports/ta-da  ADMIN
 GET    /api/reports/ta-da/days  ADMIN
 GET    /api/reports/team/overview  ADMIN,FIELD
+GET    /api/reports/tour-plan  ACCOUNTANT,ADMIN,FIELD,HR
 GET    /api/sales/distributor-payments  ACCOUNTANT,ADMIN
 GET    /api/sales/distributor-payments/balances  ACCOUNTANT,ADMIN
 GET    /api/sales/distributor-payments/outstanding  ACCOUNTANT,ADMIN

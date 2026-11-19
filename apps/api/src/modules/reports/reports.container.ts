@@ -2,6 +2,7 @@ import type { Router } from 'express';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import { DoctorVisitsReport } from './application/doctorVisitsReport.js';
 import { EmployeeSalesReport } from './application/employeeSalesReport.js';
+import { TourPlanReport } from './application/tourPlanReport.js';
 import { EmployeeMonthlyWorkReport } from './application/employeeMonthlyWorkReport.js';
 import { SecondarySheetReport } from './application/secondarySheetReport.js';
 import { DcrReport } from './application/dcrReport.js';
@@ -14,7 +15,7 @@ import { StockReport } from './application/stockReport.js';
 import { TeamOverviewReport } from './application/teamOverviewReport.js';
 import { TaDaReport } from './application/taDaReport.js';
 import { MrStockFigures } from './application/mrStockFigures.js';
-import type { LeaveDaysPort, DailyWorkActivityPort, DailyWorkPlanningPort, DoctorNamesPort, ExpenseStatementPort, SecondaryLinesPort, SecondaryRollupsPort, AttendancePort, DesignationLevelsPort, EmployeeSalesPort, StatementsPort, DoctorCallsPort, FieldActivityPort, FieldDaysPort, FieldRosterPort, IdentityPort, MarketingPort, MasterPort, PayrollPort, PlanningPort, PlannedDoctorsPort, SalesPort, TerritoryPort, ZoneNamePort } from './domain/ports.js';
+import type { LeaveDaysPort, DailyWorkActivityPort, DailyWorkPlanningPort, DoctorNamesPort, ExpenseStatementPort, SecondaryLinesPort, SecondaryRollupsPort, AttendancePort, DesignationLevelsPort, EmployeeSalesPort, StatementsPort, DoctorCallsPort, FieldActivityPort, FieldDaysPort, FieldRosterPort, IdentityPort, MarketingPort, MasterPort, PayrollPort, PlanningPort, PlannedDoctorsPort, TourPlanExportPort, SalesPort, TerritoryPort, ZoneNamePort } from './domain/ports.js';
 import type { ReportsPublicContract } from './reports.public.js';
 import { makeReportsControllers } from './interface/reports.controller.js';
 import { buildReportsRouter } from './interface/reports.route.js';
@@ -36,7 +37,7 @@ export function buildReportsContainer(
   fieldActivity: FieldActivityPort & FieldDaysPort & DoctorCallsPort & DailyWorkActivityPort & ExpenseStatementPort,
   territory: TerritoryPort & ZoneNamePort,
   payroll: PayrollPort,
-  planning: PlanningPort & PlannedDoctorsPort & DailyWorkPlanningPort,
+  planning: PlanningPort & PlannedDoctorsPort & DailyWorkPlanningPort & TourPlanExportPort,
   attendance: AttendancePort,
   marketing: MarketingPort,
   config: ConfigReader,
@@ -53,11 +54,12 @@ export function buildReportsContainer(
   const employeeSales = new EmployeeSalesReport(sales, marketing, master, identity, identity, achievement);
   const secondarySheet = new SecondarySheetReport(marketing, master, identity, config, achievement);
   const monthlyWork = new EmployeeMonthlyWorkReport(planning, fieldActivity, attendance, sales, territory, identity, master, fieldActivity, hr, config);
+  const tourPlan = new TourPlanReport(planning, territory, identity);
   const salesBreakdown = new SalesBreakdownReport(salesDashboard, marketing, master, achievement, identity, config);
   const doctorVisits = new DoctorVisitsReport(identity, master, fieldActivity, planning);
   const teamOverview = new TeamOverviewReport(salesDashboard, fieldActivity, attendance);
   return {
     contract: { readTeamOverview: (input) => teamOverview.read(input) },
-    buildRouter: () => buildReportsRouter(makeReportsControllers(orders, salesReport, stockReport, taDaReport, dcrReport, salaryReport, salesDashboard, employeeSales, doctorVisits, teamOverview, salesBreakdown, secondarySheet, monthlyWork)),
+    buildRouter: () => buildReportsRouter(makeReportsControllers(orders, salesReport, stockReport, taDaReport, dcrReport, salaryReport, salesDashboard, employeeSales, doctorVisits, teamOverview, salesBreakdown, secondarySheet, monthlyWork, tourPlan)),
   };
 }

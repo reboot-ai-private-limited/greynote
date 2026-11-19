@@ -2953,3 +2953,8 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 
 - **Today's lock.** Today locks only when its own Daily Plan is **approved**; while it is draft, waiting, withdrawn or reopened, today can change, so a trip that began today can change route. Days before today stay locked, and a later day locks as soon as its Daily Plan is sent.
 - **Old daily plan vs new Tour Plan.** If the Tour Plan's routes change after today's Daily Plan was sent, approving that Daily Plan is refused (`PLAN_ROUTE_MISMATCH`) with a message saying to reject it or have the employee withdraw it and send it again. The phone shows the same warning on that Daily Plan with a Withdraw button. When the re-sent Tour Plan is approved and today's Daily Plan got approved meanwhile, approval keeps today as it was (as it already does for locked days).
+
+## 2026-11-19 (later): one Tour Plan Excel from the server, on the phone and the web
+
+- **Why.** The phone's Tour Plan CSV showed `####` in the date column when opened in Excel (a CSV can't set column widths), and the web's CSV had different columns from the phone's.
+- **What.** The server builds one workbook, `GET /api/reports/tour-plan`, in the phone's layout (Date, Day, Work type, Trip, Routes, From, To, Work with, Remarks, a row for every day); the date is a real date in a wide column. The phone and the web only download it, so they match. Only an approved plan can be downloaded, on both. The employee can also download their own from Reports → TP Report; a manager from Team; Admin from the web (Employees, and the approval page). The phone's and the web's own CSV builders for the Tour Plan are removed.

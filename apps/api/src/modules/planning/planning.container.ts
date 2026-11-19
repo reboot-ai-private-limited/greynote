@@ -163,6 +163,15 @@ export function buildPlanningContainer(
         return range.from > to ? [] : carryOver.monthSummary(userId, range.from, to);
       },
       listMonthlyPlanDays: async (userId, planMonth) => ((await monthlyPlans.findByUserAndMonth(userId, planMonth))?.entries ?? []).map((e) => ({ date: e.planDate, workingType: e.workingType, dayKind: e.dayKind, routeIds: e.routeIds })),
+      readTourPlanForExport: async (userId, planMonth) => {
+        const plan = await monthlyPlans.findByUserAndMonth(userId, planMonth);
+        if (!plan) return null;
+        return {
+          status: (await status.monthly(userId, planMonth)) ?? 'DRAFT',
+          entries: plan.entries.map((e) => ({ date: e.planDate, workingType: e.workingType, dayKind: e.dayKind, routeIds: e.routeIds, workWith: e.workWith, remarks: e.remarks, returnDate: e.returnDate })),
+          offDays: await offDays.forMonth(userId, planMonth),
+        };
+      },
       getDailyPlanStatus: (userId, planDate) => status.daily(userId, planDate),
       getMonthlyPlanStatus: (userId, planMonth) => status.monthly(userId, planMonth),
     },

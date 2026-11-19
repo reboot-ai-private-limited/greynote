@@ -1,7 +1,6 @@
 'use client';
 
 import type { ApprovalDetailDto } from '@greynote/contracts';
-import { isDownloadable, monthlyPlanCsv, notApprovedMessage } from '@/features/planning/lib/monthlyPlanCsv';
 import { resolveWorkWithLabels } from '@/features/planning/lib/workWithLabels';
 import { doctorsCsv } from '@/features/field-master-data/lib/doctorsCsv';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
@@ -17,13 +16,13 @@ import { expenseMonthCsv } from '../lib/requestCsv/expenseMonthCsv';
 import { secondarySalesCsv } from '../lib/requestCsv/secondarySalesCsv';
 
 /** The kinds whose record is a table worth taking out. A leave or a doctor service is one record of a few fields. */
-const CSV_KINDS = new Set(['MONTHLY_PLAN', 'DAILY_PLAN', 'DCR', 'EXPENSE_MONTH', 'SECONDARY_SALES', 'NEW_DOCTOR']);
+const CSV_KINDS = new Set(['DAILY_PLAN', 'DCR', 'EXPENSE_MONTH', 'SECONDARY_SALES', 'NEW_DOCTOR']);
 
 type Request = Pick<ApprovalDetailDto, 'kind' | 'recordId' | 'status' | 'submitter'>;
 
-/** Why a download is off for this request, or undefined when it is on. A monthly plan is handed out only once approved. */
-export function csvDisabledReason(request: Pick<Request, 'kind' | 'status'>): string | undefined {
-  return request.kind === 'MONTHLY_PLAN' && request.status !== 'APPROVED' ? 'Only an approved plan can be downloaded.' : undefined;
+/** Why a download is off for this request, or undefined when it is on. (A Tour Plan's Excel has its own button, `DownloadTourPlanButton`.) */
+export function csvDisabledReason(_request: Pick<Request, 'kind' | 'status'>): string | undefined {
+  return undefined;
 }
 
 /**
@@ -37,12 +36,6 @@ export function useApprovalCsv(request: Request) {
     const owner = submitterId ? await resolveExportOwner(token, submitterId) : {};
     const people = (ids: string[]) => resolveWorkWithLabels(token, ids);
     switch (request.kind) {
-      case 'MONTHLY_PLAN': {
-        const plan = await planningApi.monthly(token, request.recordId);
-        if (!isDownloadable(plan.status)) throw new Error(notApprovedMessage(plan.planMonth));
-        const label = await people(plan.entries.flatMap((e) => e.workWith));
-        return { filename: exportFilename(owner, 'monthly-plan', plan.planMonth), csv: monthlyPlanCsv(plan, { routeLabel: directory.routeLabel, personName: (id) => label.get(id) ?? '—' }) };
-      }
       case 'DAILY_PLAN': {
         const plan = await planningApi.daily(token, request.recordId);
         const label = await people(plan.workWith);

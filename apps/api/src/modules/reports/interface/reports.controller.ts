@@ -9,6 +9,8 @@ import type { OrdersReport } from '../application/ordersReport.js';
 import type { DoctorVisitsReport } from '../application/doctorVisitsReport.js';
 import type { EmployeeSalesReport } from '../application/employeeSalesReport.js';
 import type { EmployeeMonthlyWorkReport } from '../application/employeeMonthlyWorkReport.js';
+import { buildTourPlanWorkbook } from '../application/tourPlanXlsx.js';
+import type { TourPlanReport } from '../application/tourPlanReport.js';
 import { buildMonthlyWorkWorkbook } from '../application/employeeMonthlyWorkXlsx.js';
 import { buildSecondarySheetWorkbook } from '../application/secondarySheetXlsx.js';
 import type { SecondarySheetReport } from '../application/secondarySheetReport.js';
@@ -19,9 +21,9 @@ import type { SalesReport } from '../application/salesReport.js';
 import type { SalaryReport } from '../application/salaryReport.js';
 import type { StockReport } from '../application/stockReport.js';
 import type { TaDaReport } from '../application/taDaReport.js';
-import type { myMonthQuerySchema, doctorVisitsQuerySchema, dcrCoverageQuerySchema, employeeSalesQuerySchema, secondarySheetQuerySchema, employeeMonthQuerySchema, dcrYearQuerySchema, ordersQuerySchema, salaryYearQuerySchema, salesDashboardQuerySchema, salesByProductQuerySchema, salesByDistributorQuerySchema, salesByEmployeeQuerySchema, teamOverviewQuerySchema, salesStatementQuerySchema, salesYearQuerySchema, stockQuerySchema, taDaDaysQuerySchema, taDaYearQuerySchema } from './reports.schemas.js';
+import type { myMonthQuerySchema, doctorVisitsQuerySchema, dcrCoverageQuerySchema, employeeSalesQuerySchema, secondarySheetQuerySchema, employeeMonthQuerySchema, tourPlanQuerySchema, dcrYearQuerySchema, ordersQuerySchema, salaryYearQuerySchema, salesDashboardQuerySchema, salesByProductQuerySchema, salesByDistributorQuerySchema, salesByEmployeeQuerySchema, teamOverviewQuerySchema, salesStatementQuerySchema, salesYearQuerySchema, stockQuerySchema, taDaDaysQuerySchema, taDaYearQuerySchema } from './reports.schemas.js';
 
-export function makeReportsControllers(orders: OrdersReport, sales: SalesReport, stock: StockReport, taDa: TaDaReport, dcr: DcrReport, salary: SalaryReport, salesDashboard: SalesDashboardReport, employeeSales: EmployeeSalesReport, doctorVisits: DoctorVisitsReport, teamOverview: TeamOverviewReport, breakdown: SalesBreakdownReport, secondarySheet: SecondarySheetReport, monthlyWork: EmployeeMonthlyWorkReport): Record<'monthlyWorkSheet' | 'secondarySheet' | 'salesByProduct' | 'salesByDistributor' | 'salesByEmployee' | 'orders' | 'doctorVisits' | 'teamOverview' | 'salesDashboard' | 'employeeSales' | 'order' | 'salesYear' | 'salesStatement' | 'stock' | 'taDaYear' | 'taDaDays' | 'dcrYear' | 'dcrCoverage' | 'salaryYear' | 'myTaDaYear' | 'myTaDaDays' | 'myDcrYear' | 'myDcrCoverage', RequestHandler> {
+export function makeReportsControllers(orders: OrdersReport, sales: SalesReport, stock: StockReport, taDa: TaDaReport, dcr: DcrReport, salary: SalaryReport, salesDashboard: SalesDashboardReport, employeeSales: EmployeeSalesReport, doctorVisits: DoctorVisitsReport, teamOverview: TeamOverviewReport, breakdown: SalesBreakdownReport, secondarySheet: SecondarySheetReport, monthlyWork: EmployeeMonthlyWorkReport, tourPlan: TourPlanReport): Record<'tourPlanSheet' | 'monthlyWorkSheet' | 'secondarySheet' | 'salesByProduct' | 'salesByDistributor' | 'salesByEmployee' | 'orders' | 'doctorVisits' | 'teamOverview' | 'salesDashboard' | 'employeeSales' | 'order' | 'salesYear' | 'salesStatement' | 'stock' | 'taDaYear' | 'taDaDays' | 'dcrYear' | 'dcrCoverage' | 'salaryYear' | 'myTaDaYear' | 'myTaDaDays' | 'myDcrYear' | 'myDcrCoverage', RequestHandler> {
   return {
     orders: asyncHandler(async (req, res) => {
       const q = req.query as unknown as z.output<typeof ordersQuerySchema>;
@@ -91,6 +93,15 @@ export function makeReportsControllers(orders: OrdersReport, sales: SalesReport,
     salaryYear: asyncHandler(async (req, res) => {
       const q = req.query as unknown as z.output<typeof salaryYearQuerySchema>;
       sendSuccess(req, res, await salary.year({ year: q.year }), 'Salary for the financial year.', 200);
+    }),
+    tourPlanSheet: asyncHandler(async (req, res) => {
+      if (!req.user) throw AppError.unauthenticated();
+      const q = req.query as unknown as z.output<typeof tourPlanQuerySchema>;
+      const model = await tourPlan.read({ actor: { id: req.user.sub, role: req.user.role }, userId: q.userId, month: q.month });
+      const file = await buildTourPlanWorkbook(model);
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="GREYNOTE TOUR PLAN ${model.month}.xlsx"`);
+      res.status(200).send(file);
     }),
     monthlyWorkSheet: asyncHandler(async (req, res) => {
       if (!req.user) throw AppError.unauthenticated();

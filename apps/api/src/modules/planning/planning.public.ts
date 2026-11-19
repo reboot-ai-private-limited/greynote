@@ -46,6 +46,15 @@ export interface PlanningPublicContract {
   listPlannedDoctors(userId: string, planMonth: string): Promise<Array<{ doctorId: string; plannedDays: number; missedSince: string | null }>>;
   /** The days of this user's Monthly Plan (the Tour Plan) whatever its state, oldest first; empty with no Plan: what the Tour Plan said before any day was changed. */
   listMonthlyPlanDays(userId: string, planMonth: string): Promise<Array<{ date: string; workingType: WorkingType; dayKind: DayKind; routeIds: string[] }>>;
+  /**
+   * The Tour Plan for a month as an export needs it (the Tour Plan Excel): its status, every entry with work-with, remarks and return date, and the weekly offs and
+   * holidays that fall in the month. `null` when the person has no Plan for that month.
+   */
+  readTourPlanForExport(userId: string, planMonth: string): Promise<{
+    status: PlanApprovalStatus;
+    entries: Array<{ date: string; workingType: WorkingType; dayKind: DayKind; routeIds: string[]; workWith: string[]; remarks: string | null; returnDate: string | null }>;
+    offDays: Array<{ date: string; reason: 'WEEKLY_OFF' | 'HOLIDAY'; name: string | null }>;
+  } | null>;
   /** `null` when there's no Plan for that month at all. */
   getMonthlyPlanStatus(userId: string, planMonth: string): Promise<PlanApprovalStatus | null>;
 }
