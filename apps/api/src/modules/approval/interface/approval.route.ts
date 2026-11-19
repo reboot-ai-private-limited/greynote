@@ -52,7 +52,7 @@ doc('post', '/{id}/approve', 'Approve (as manager, final approver, or Admin over
 doc('post', '/{id}/reject', 'Reject — reason required', { params: approvalIdParamsSchema, body: rejectBodySchema });
 doc('post', '/bulk', 'Approve or reject up to 100 at once; per-item results', { body: bulkDecideBodySchema });
 doc('post', '/{id}/withdraw', 'Submitter: withdraw before the manager acts', { params: approvalIdParamsSchema, body: withdrawBodySchema });
-doc('post', '/{id}/reopen', 'Admin: reopen an approved request for changes — reason required', { params: approvalIdParamsSchema, body: reopenBodySchema });
+doc('post', '/{id}/reopen', 'Admin and HR: reopen an approved request for changes — reason required; a field manager may reopen their team member\'s approved Tour Plan', { params: approvalIdParamsSchema, body: reopenBodySchema });
 
 export function buildApprovalRouter(c: Record<'inbox' | 'inboxSummary' | 'all' | 'team' | 'mine' | 'detail' | 'approve' | 'reject' | 'bulk' | 'withdraw' | 'reopen', RequestHandler>): Router {
   const router = Router();
@@ -70,6 +70,6 @@ export function buildApprovalRouter(c: Record<'inbox' | 'inboxSummary' | 'all' |
   router.post('/:id/approve', withId(approveBodySchema), c.approve);
   router.post('/:id/reject', withId(rejectBodySchema), c.reject);
   router.post('/:id/withdraw', withId(withdrawBodySchema), c.withdraw);
-  router.post('/:id/reopen', requireRole('ADMIN', 'HR'), withId(reopenBodySchema), c.reopen);
+  router.post('/:id/reopen', requireRole('FIELD', 'ADMIN', 'HR'), withId(reopenBodySchema), c.reopen);
   return router;
 }

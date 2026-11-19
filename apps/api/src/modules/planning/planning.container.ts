@@ -14,7 +14,6 @@ import { makeMonthlyPlanInheritHandler } from './application/monthlyPlanInheritH
 import { BackfillInheritedDaysUseCase } from './application/usecases/backfillInheritedDays.usecase.js';
 import { ListPlanOwnerRoutesUseCase } from './application/usecases/listPlanOwnerRoutes.usecase.js';
 import { DeleteMonthlyPlanUseCase } from './application/usecases/deleteMonthlyPlan.usecase.js';
-import { MONTHLY_PLAN_CHANGE, ProposeMonthlyChange, makeMonthlyPlanChangeHandler, planIdOfChange } from './application/monthlyPlanChange.js';
 import { AmendMonthlyPlanUseCase } from './application/usecases/amendMonthlyPlan.usecase.js';
 import { AmendDailyPlanUseCase, type DayReportedCheck } from './application/usecases/amendDailyPlan.usecase.js';
 import { CarryOver } from './application/carryOver.js';
@@ -91,23 +90,7 @@ export function buildPlanningContainer(
   // Plans are approved once, by the submitter's manager or by Admin, whoever acts first (managerOnly). A Daily Plan's
   // status lives in the approval module; an approved Monthly Plan writes its days into Daily Plans (see below).
   approvals.registerKind({ kind: 'DAILY_PLAN', finalApproverRoles: ['HR', 'ADMIN'], overrideRoles: ['HR', 'ADMIN'], managerOnly: true, onStatusChange: makeDailyPlanMirrorHandler(dailyPlans, monthlyPlans, deadlines), describeRecords: describeEach((id) => dailyPlans.findById(id), (plan) => ({ title: dayTitle(plan.planDate), subtitle: null })) });
-  approvals.registerKind({ kind: 'MONTHLY_PLAN', finalApproverRoles: ['HR', 'ADMIN'], overrideRoles: ['HR', 'ADMIN'], managerOnly: true, describeRecords: describeEach((id) => monthlyPlans.findById(id), (plan) => ({ title: monthTitle(plan.planMonth), subtitle: null })), onStatusChange: makeMonthlyPlanInheritHandler(monthlyPlans, dailyPlans, approvals, deadlines, offDays, dayLocks) });
-  // A manager's change to an approved month: decided by the manager above them (or Admin); approving it applies it (monthlyPlanChange.ts).
-  approvals.registerKind({
-    kind: MONTHLY_PLAN_CHANGE,
-    finalApproverRoles: ['HR', 'ADMIN'],
-    overrideRoles: ['HR', 'ADMIN'],
-    managerOnly: true,
-    describeRecords: async (recordIds) => {
-      const out = new Map<string, { title: string; subtitle: string | null }>();
-      for (const recordId of recordIds) {
-        const plan = await monthlyPlans.findById(planIdOfChange(recordId));
-        if (plan) out.set(recordId, { title: `${monthTitle(plan.planMonth)} change`, subtitle: null });
-      }
-      return out;
-    },
-    onStatusChange: makeMonthlyPlanChangeHandler(monthlyPlans, dailyPlans, approvals, deadlines, deadlines.now),
-  });
+  approvals.registerKind({ kind: 'MONTHLY_PLAN', finalApproverRoles: ['HR', 'ADMIN'], overrideRoles: ['HR', 'ADMIN'], managerOnly: true, managerReopen: true, describeRecords: describeEach((id) => monthlyPlans.findById(id), (plan) => ({ title: monthTitle(plan.planMonth), subtitle: null })), onStatusChange: makeMonthlyPlanInheritHandler(monthlyPlans, dailyPlans, approvals, deadlines, offDays, dayLocks) });
   const views = new PlanViews(approvals, grants, deadlines, offDays, dayLocks);
   const scope = new ManagerScope(users, config, routes);
   const submitter = new PlanSubmitter(users, routes, approvals, grants, transactions, deadlines.now, scope);
@@ -154,17 +137,7 @@ export function buildPlanningContainer(
   }, monthlyPlans);
 
   const planOwnerRoutes = new ListPlanOwnerRoutesUseCase(monthlyPlans, users, routes, scope);
-  const proposeChange = new ProposeMonthlyChange(monthlyPlans, approvals, submitter, dailyPlans, deadlines, transactions, deadlines.now);
-  const amendMonthly = new AmendMonthlyPlanUseCase(monthlyPlans, users, approvals, submitter, views, offDays, deadlines.now, { deadlines, daily: dailyPlans, transactions }, dayLocks, proposeChange);
-  // Once a change is approved and applied, the employee is told, as for any amendment of their month.
-  appEvents.on('approval.decided', async (e) => {
-    if (e.kind !== MONTHLY_PLAN_CHANGE || e.status !== 'APPROVED') return;
-    const plan = await monthlyPlans.findById(planIdOfChange(e.recordId));
-    const last = plan?.amendments.at(-1);
-    if (!plan || !last) return;
-    const byName = (await users.getUserSummaries([last.by]))[0]?.name ?? 'Your manager';
-    appEvents.emit('monthly.plan.amended', { userId: plan.userId, planId: plan.id, planMonth: plan.planMonth, by: last.by, byName, reason: last.reason });
-  });
+  const amendMonthly = new AmendMonthlyPlanUseCase(monthlyPlans, users, approvals, submitter, views, offDays, deadlines.now, { deadlines, daily: dailyPlans, transactions }, dayLocks);
 
   const deleteMonthly = new DeleteMonthlyPlanUseCase(monthlyPlans, dailyPlans, approvals, deadlines, transactions);
 

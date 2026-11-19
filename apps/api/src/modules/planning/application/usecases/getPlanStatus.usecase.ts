@@ -53,9 +53,15 @@ export class GetPlanStatusUseCase {
     return plan && planStatus(await this.approvals.getForRecord('MONTHLY_PLAN', plan.id));
   }
 
+  /**
+   * Is the month open for daily work? Approved, or approved before and now reopened or waiting again (decision-log 2026-11-19); a rejection or withdrawal closes it: reopening a running month for
+   * changes must not stop the MR logging the days that were already approved. A plan never approved stays closed.
+   */
   async isMonthlyPlanApproved(userId: string, planMonth: string): Promise<boolean> {
-    const status = await this.monthly(userId, planMonth);
-    return status === 'MANAGER_APPROVED' || status === 'APPROVED';
+    const plan = await this.monthlyPlans.findByUserAndMonth(userId, planMonth);
+    if (!plan) return false;
+    const status = planStatus(await this.approvals.getForRecord('MONTHLY_PLAN', plan.id));
+    return status === 'MANAGER_APPROVED' || status === 'APPROVED' || (plan.approvedEntries !== undefined && (status === 'REOPENED' || status === 'SUBMITTED'));
   }
 
   async isDailyPlanApproved(userId: string, planDate: string): Promise<boolean> {

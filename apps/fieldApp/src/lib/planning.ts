@@ -140,9 +140,6 @@ export type MonthlyPlanEntry = PlanDay & { planDate: string };
 /** A manager's or Admin's change to a waiting month (docs/mobile/monthlyplan.md rule 19), with the days it replaced. `by` is a user id. */
 export type MonthlyPlanAmendment = { by: string; at: string; reason: string; previous: MonthlyPlanEntry[] };
 
-/** A manager's change to an approved month, waiting for the manager above them or Admin (decision-log 2026-11-19). `by` is a user id; `id` names it in its approval's `recordId` (`<plan id>:<id>`). */
-export type MonthlyPlanPending = { id: string; by: string; at: string; reason: string; baseRevision: number; entries: MonthlyPlanEntry[] };
-
 export type MonthlyPlanView = StateView & {
   /** Whose plan it is. */
   userId: string;
@@ -152,8 +149,6 @@ export type MonthlyPlanView = StateView & {
   offDays?: PlanOffDay[];
   /** Changes a manager or Admin made while the plan waited, oldest first. Absent from older servers. */
   amendments?: MonthlyPlanAmendment[];
-  /** A manager's change waiting to be approved; absent when none. */
-  pendingChange?: MonthlyPlanPending;
   /** Days nobody can change any more: over, or their Daily Plan already sent. */
   lockedDays?: string[];
 };
@@ -333,10 +328,7 @@ export async function getTeamMemberTourPlan(userId: string, month: string) {
 /** The plan owner's active routes, A–Z: what a manager editing the plan may choose from. Online only. */
 export const listPlanOwnerRoutes = (id: string) => apiGet<NamedRoute[]>(`/planning/monthly/${id}/routes`, { auth: true });
 
-/**
- * Replaces the whole month of a `SUBMITTED` plan, with a reason (≤ 500): the plan keeps waiting and the employee is told. On an approved month, Admin/HR's change
- * applies at once (days after today); a manager's becomes a change request for the manager above them or Admin (the plan shows `pendingChange`).
- */
+/** Replaces the whole month of a `SUBMITTED` plan, with a reason (≤ 500). The plan keeps waiting; the employee is told. */
 export const amendMonthlyPlan = (id: string, entries: MonthlyPlanEntry[], reason: string) =>
   apiPatch<MonthlyPlanView>(`/planning/monthly/${id}/amend`, { entries: entriesToSend(entries), reason: reason.trim() }, { auth: true });
 
@@ -371,6 +363,13 @@ export async function getRejectionReason(requestId: string): Promise<string | nu
   const history = detail.history ?? detail.request?.history ?? [];
   const rejection = [...history].reverse().find((h) => h.action === 'REJECT');
   return rejection?.comment ?? null;
+}
+
+/** The reason a manager or Admin gave when they reopened the plan (the newest REOPEN in the request's history), or null. */
+export async function getReopenReason(requestId: string): Promise<string | null> {
+  const detail = await apiGet<{ history?: HistoryEntry[]; request?: { history?: HistoryEntry[] } }>(`/approvals/${requestId}`);
+  const history = detail.history ?? detail.request?.history ?? [];
+  return [...history].reverse().find((h) => h.action === 'REOPEN')?.comment ?? null;
 }
 
 type HistoryEntry = { action: string; comment: string | null };
@@ -419,3 +418,9 @@ export function planErrorText(err: unknown): string {
   }
   return err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.';
 }
+
+/**
+ * A manager (or Admin) reopens an approved Tour Plan of someone below them (decision-log 2026-11-19): it goes back to the employee, who changes the days after today
+ * and sends it again; days that are over or already sent can't change. A reason is required. Online only.
+ */
+export const reopenTourPlan = (requestId: string, comment: string) => apiPost<unknown>(`/approvals/${requestId}/reopen`, { comment: comment.trim() }, { auth: true });

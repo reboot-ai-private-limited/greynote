@@ -72,7 +72,9 @@ export class PlanSubmitter {
     const now = this.now();
     let inWindow = false;
     let grant: LateSubmitGrant | null = null;
-    if (now > s.deadline) {
+    // A Tour Plan its manager or Admin reopened can be sent again in the running month: the reopen is the permission (decision-log 2026-11-19).
+    const reopened = s.kind === 'MONTHLY_PLAN' && existing?.status === 'REOPENED';
+    if (now > s.deadline && !reopened) {
       const windowEnd = resubmitWindowEnd(existing, s.deadline, s.resubmitPolicy, s.lateResubmits);
       inWindow = windowEnd !== null && now <= windowEnd;
       if (!inWindow) grant = await this.grants.findUsable(s.ownerId, s.kind, s.planKey, now);

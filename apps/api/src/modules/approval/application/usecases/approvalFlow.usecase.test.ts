@@ -138,6 +138,7 @@ const PLAN: ApprovalKindDefinition = { kind: 'TEST_PLAN', finalApproverRoles: ['
 const QUICK: ApprovalKindDefinition = { kind: 'TEST_QUICK', finalApproverRoles: ['ADMIN'] };
 const LEAVE: ApprovalKindDefinition = { kind: 'TEST_LEAVE', finalApproverRoles: ['HR', 'ADMIN'] };
 const HR_PLAN: ApprovalKindDefinition = { kind: 'TEST_HR_PLAN', finalApproverRoles: ['HR', 'ADMIN'], overrideRoles: ['HR', 'ADMIN'], managerOnly: true };
+const TOUR: ApprovalKindDefinition = { kind: 'TEST_TOUR', finalApproverRoles: ['ADMIN'], managerOnly: true, managerReopen: true };
 const CHANGE: ApprovalKindDefinition = { kind: 'TEST_CHANGE', finalApproverRoles: ['ADMIN'], managerOnly: true };
 
 /** The `APPROVAL_MANAGER_ONLY_KINDS` value; TEST_QUICK skips the final stage. */
@@ -167,11 +168,11 @@ beforeEach(() => {
   requests = new FakeRequests();
   transactions = new FakeTransactions(requests);
   const kinds = new ApprovalKindRegistry();
-  [PLAN, QUICK, LEAVE, CHANGE, HR_PLAN].forEach((k) => kinds.register(k));
+  [PLAN, QUICK, LEAVE, CHANGE, HR_PLAN, TOUR].forEach((k) => kinds.register(k));
   submit = new SubmitApprovalUseCase(requests, users, kinds, config);
   decide = new DecideApprovalUseCase(requests, users, kinds, transactions);
   withdraw = new WithdrawApprovalUseCase(requests, kinds, transactions);
-  reopen = new ReopenApprovalUseCase(requests, kinds, transactions);
+  reopen = new ReopenApprovalUseCase(requests, kinds, transactions, users);
   lists = new ListApprovalsUseCase(requests, users, kinds, config);
   detail = new GetApprovalDetailUseCase(requests, users, kinds, config);
   bulk = new BulkDecideApprovalUseCase(decide, (requestId, err) => faults.push({ requestId, err }));
@@ -426,6 +427,28 @@ describe('reopen', () => {
     await approve(req.id, 'admin');
     await expect(reopen.execute(req.id, as('asm'), 'x')).rejects.toMatchObject({ statusCode: 403 });
     await expect(reopen.execute(req.id, as('hr'), 'x')).rejects.toMatchObject({ statusCode: 403 });
+  });
+});
+
+describe('a manager reopens a Tour Plan (decision-log 2026-11-19)', () => {
+  it('the submitter’s manager, and a manager above them, may reopen an approved plan of this kind; the owner resubmits', async () => {
+    const plan = await submitAs('mr', TOUR.kind);
+    await approve(plan.id, 'asm');
+    expect(await reopen.execute(plan.id, as('asm'), 'Customer moved')).toMatchObject({ status: 'REOPENED' });
+    expect((await submitAs('mr', TOUR.kind)).cycle).toBe(2);
+    await approve(plan.id, 'asm');
+    expect(await reopen.execute(plan.id, as('nsm'), 'Again')).toMatchObject({ status: 'REOPENED' });
+  });
+
+  it('not someone outside the chain, not the owner, not before it is approved, and not for another kind', async () => {
+    const plan = await submitAs('mr', TOUR.kind);
+    await expect(reopen.execute(plan.id, as('asm'), 'x')).rejects.toMatchObject({ statusCode: 409 });
+    await approve(plan.id, 'asm');
+    await expect(reopen.execute(plan.id, as('asm2'), 'x')).rejects.toMatchObject({ statusCode: 403 });
+    await expect(reopen.execute(plan.id, as('mr'), 'x')).rejects.toMatchObject({ statusCode: 403 });
+    const other = await submitAs('mr', CHANGE.kind);
+    await approve(other.id, 'asm');
+    await expect(reopen.execute(other.id, as('asm'), 'x')).rejects.toMatchObject({ statusCode: 403 });
   });
 });
 

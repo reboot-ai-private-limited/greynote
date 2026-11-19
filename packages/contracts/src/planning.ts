@@ -89,22 +89,8 @@ export interface MonthlyPlanDto extends PlanStateDto {
   entries: MonthlyPlanEntryDto[];
   /** The month's locked days for this employee, as they stand now (a holiday HR adds later shows up here). No entry may sit on one. */
   offDays: PlanOffDayDto[];
-  /** A change a manager sent for approval; absent when none. */
-  pendingChange?: MonthlyPlanPendingChangeDto;
   revision: number;
   updatedAt: string;
-}
-
-/** A manager's change to an approved month, waiting for the manager above them or Admin (decision-log 2026-11-19). `id` names it in its approval's `recordId` (`<plan id>:<id>`). */
-export interface MonthlyPlanPendingChangeDto {
-  id: string;
-  /** The user id of the manager who sent it. */
-  by: string;
-  at: string;
-  reason: string;
-  baseRevision: number;
-  /** The whole proposed month. */
-  entries: MonthlyPlanEntryDto[];
 }
 
 /** A route as the plan screens name it. */

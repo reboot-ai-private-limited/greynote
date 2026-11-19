@@ -17,7 +17,7 @@ describe('approvalTabsFor', () => {
     expect(approvalTabsFor('ADMIN').find((t) => t.value === 'SECONDARY_SALES')?.label).toBe('Secondary sales');
   });
   it('gives HR the plan and leave tabs only', () => {
-    expect(approvalTabsFor('HR').map((t) => t.value)).toEqual(['DAILY_PLAN', 'MONTHLY_PLAN', 'MONTHLY_PLAN_CHANGE', 'LEAVE']);
+    expect(approvalTabsFor('HR').map((t) => t.value)).toEqual(['DAILY_PLAN', 'MONTHLY_PLAN', 'LEAVE']);
   });
 });
 

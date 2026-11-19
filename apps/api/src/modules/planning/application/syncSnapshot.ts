@@ -62,6 +62,8 @@ export function makePlanningSource(deps: { deadlines: PlanDeadlines; daily: List
           planMonth: p.planMonth,
           entries: p.entries.map((e) => withPeople(e, peopleOf)),
           lockedDays: p.lockedDays,
+          // Approved at some point: a reopened or re-sent month still lets the days already approved be worked (decision-log 2026-11-19).
+          wasApproved: p.approvedEntries !== undefined,
           revision: p.revision,
           status: p.status,
           approvalRequestId: p.approval?.requestId ?? null,

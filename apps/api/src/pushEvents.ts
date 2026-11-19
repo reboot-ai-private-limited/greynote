@@ -44,6 +44,16 @@ export function registerPushEvents(inbox: InboxPublicContract, config: ConfigRea
     });
   });
 
+  appEvents.on('approval.reopened', async (e) => {
+    const kind = KINDS[e.kind] ?? { label: 'request', route: '/inbox' };
+    const plan = e.kind === 'MONTHLY_PLAN';
+    await send(e.submitterId, `Your ${kind.label} was reopened`, `${e.comment ? `${e.comment}. ` : ''}${plan ? 'Change the days after today and send it again; days already worked stay as they are.' : 'Change it and send it again.'}`, {
+      type: `REOPENED_${e.kind}`,
+      route: kind.route,
+      recordId: e.recordId,
+    });
+  });
+
   appEvents.on('submit.exception.granted', async (e) => {
     const { timeZone } = await readBusinessDay(config);
     const until = new Intl.DateTimeFormat('en-GB', { timeZone, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false }).format(e.expiresAt);

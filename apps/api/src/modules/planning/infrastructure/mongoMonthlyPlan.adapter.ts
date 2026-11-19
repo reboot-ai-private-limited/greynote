@@ -1,6 +1,6 @@
 import { Types, type ClientSession } from 'mongoose';
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
-import type { MonthlyPlan, MonthlyPlanAmendment, MonthlyPlanEntry, MonthlyPlanPendingChange } from '../domain/monthlyPlan.entity.js';
+import type { MonthlyPlan, MonthlyPlanAmendment, MonthlyPlanEntry } from '../domain/monthlyPlan.entity.js';
 import type { MonthlyPlanRepositoryPort } from '../domain/monthlyPlan.repository.port.js';
 import { MonthlyPlanModel, type MonthlyPlanDoc, type MonthlyPlanEntryDoc } from './monthlyPlan.schema.js';
 import { isDuplicateKey, toDayDoc, toPlanDay } from './planDoc.js';
@@ -16,7 +16,6 @@ function toPlan(doc: MonthlyPlanDoc & { _id: unknown }): MonthlyPlan {
     entries: toEntries(doc.entries),
     amendments: (doc.amendments ?? []).map((a) => ({ by: String(a.by), at: a.at, reason: a.reason, previous: toEntries(a.previous) })),
     ...(doc.approvedEntries ? { approvedEntries: toEntries(doc.approvedEntries) } : {}),
-    ...(doc.pendingChange ? { pendingChange: { id: doc.pendingChange.id, by: String(doc.pendingChange.by), at: doc.pendingChange.at, reason: doc.pendingChange.reason, baseRevision: doc.pendingChange.baseRevision, entries: toEntries(doc.pendingChange.entries) } } : {}),
     revision: doc.revision,
     lateResubmits: doc.lateResubmits ?? 0,
     updatedAt: doc.updatedAt,
@@ -89,21 +88,6 @@ export class MongoMonthlyPlanAdapter implements MonthlyPlanRepositoryPort {
       { new: true, session: (ctx as ClientSession | undefined) ?? null },
     ).lean();
     return doc ? toPlan(doc) : null;
-  }
-
-  async setPendingChange(id: string, change: MonthlyPlanPendingChange, ctx?: TransactionContext): Promise<boolean> {
-    if (!Types.ObjectId.isValid(id)) return false;
-    const result = await MonthlyPlanModel.updateOne(
-      { _id: id, pendingChange: { $exists: false } },
-      { $set: { pendingChange: { id: change.id, by: new Types.ObjectId(change.by), at: change.at, reason: change.reason, baseRevision: change.baseRevision, entries: toEntryDocs(change.entries) } } },
-      { ...(ctx ? { session: ctx as ClientSession } : {}) },
-    );
-    return result.modifiedCount === 1;
-  }
-
-  async clearPendingChange(id: string, ctx?: TransactionContext): Promise<void> {
-    if (!Types.ObjectId.isValid(id)) return;
-    await MonthlyPlanModel.updateOne({ _id: id }, { $unset: { pendingChange: '' } }, { ...(ctx ? { session: ctx as ClientSession } : {}) });
   }
 
   async recordApproved(id: string, entries: MonthlyPlanEntry[], ctx: TransactionContext): Promise<void> {

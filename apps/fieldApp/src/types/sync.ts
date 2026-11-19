@@ -47,6 +47,8 @@ export type PlanningSnapshot = {
     planMonth: string;
     /** Days nobody can change any more (over, or their Daily Plan has gone to approval). Absent from older servers. */
     lockedDays?: string[];
+    /** Approved at some point, so a reopened or re-sent month still lets the days already approved be worked. Absent from older servers. */
+    wasApproved?: boolean;
     entries: {
       planDate: string;
       workingType: WorkingTypeName;

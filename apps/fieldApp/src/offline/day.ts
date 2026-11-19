@@ -66,7 +66,7 @@ export function computeDayGate(input: {
   /** From the `fieldActivity` pull source; null when never pulled. */
   blocked: boolean | null;
   /** From the `planning` pull source; null when never pulled. */
-  monthlyPlans?: { planMonth: string; status: PlanStatus }[] | null;
+  monthlyPlans?: { planMonth: string; status: PlanStatus; wasApproved?: boolean }[] | null;
 }): DayGate {
   if (input.blocked === true) return { state: 'blocked', reason: BLOCKED_REASON, planStatus: null };
   if (input.plans === null || input.blocked === null) {
@@ -79,7 +79,8 @@ export function computeDayGate(input: {
   if (Array.isArray(input.monthlyPlans)) {
     const month = monthOf(input.today);
     const monthPlan = input.monthlyPlans.find((m) => m.planMonth === month);
-    const isApproved = monthPlan?.status === 'MANAGER_APPROVED' || monthPlan?.status === 'APPROVED';
+    // A month approved before and now reopened or waiting again stays open for the days already approved (decision-log 2026-11-19).
+    const isApproved = monthPlan?.status === 'MANAGER_APPROVED' || monthPlan?.status === 'APPROVED' || (monthPlan?.wasApproved === true && (monthPlan.status === 'REOPENED' || monthPlan.status === 'SUBMITTED'));
     if (!isApproved) {
       return {
         state: 'closed',

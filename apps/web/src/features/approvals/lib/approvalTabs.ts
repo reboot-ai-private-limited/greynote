@@ -8,9 +8,9 @@ export interface ApprovalTab {
 }
 
 /** The order of the tabs: the daily work first (it is the most, and the default), then the monthly, then the occasional. */
-const TAB_ORDER = ['DAILY_PLAN', 'DCR', 'MONTHLY_PLAN', 'MONTHLY_PLAN_CHANGE', 'EXPENSE_MONTH', 'SECONDARY_SALES', 'LEAVE', 'NEW_DOCTOR', 'NEW_CHEMIST', 'DOCTOR_SERVICE'];
+const TAB_ORDER = ['DAILY_PLAN', 'DCR', 'MONTHLY_PLAN', 'EXPENSE_MONTH', 'SECONDARY_SALES', 'LEAVE', 'NEW_DOCTOR', 'NEW_CHEMIST', 'DOCTOR_SERVICE'];
 /** What HR decides: leave, and (like Admin) the plans. */
-const HR_KINDS = ['DAILY_PLAN', 'MONTHLY_PLAN', 'MONTHLY_PLAN_CHANGE', 'LEAVE'];
+const HR_KINDS = ['DAILY_PLAN', 'MONTHLY_PLAN', 'LEAVE'];
 const rank = (kind: string): number => {
   const i = TAB_ORDER.indexOf(kind);
   return i === -1 ? TAB_ORDER.length : i;

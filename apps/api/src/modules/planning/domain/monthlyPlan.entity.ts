@@ -21,22 +21,6 @@ export interface MonthlyPlanAmendment {
 }
 
 /**
- * A manager's change to an approved month, waiting for the manager above them (or Admin) — the proposed whole month. Its approval is the
- * `MONTHLY_PLAN_CHANGE` request whose `recordId` is `<plan id>:<id>`. One at a time per plan; nothing of the plan changes until it is approved.
- */
-export interface MonthlyPlanPendingChange {
-  /** Names this proposal in its approval request's `recordId`, so a second proposal after a rejection is a new request. */
-  id: string;
-  by: string;
-  at: Date;
-  reason: string;
-  /** The plan's revision when it was proposed: an approval is refused if someone changed the month since (it would overwrite their change). */
-  baseRevision: number;
-  /** The whole proposed month, trips expanded. */
-  entries: MonthlyPlanEntry[];
-}
-
-/**
  * One user's plan for one month, submitted as a whole. Its approval state is the
  * `MONTHLY_PLAN` `ApprovalRequest` whose `recordId` is this `id`.
  */
@@ -54,8 +38,6 @@ export interface MonthlyPlan {
    * worked between a resubmission and its approval (decision-log 2026-11-18). Absent on plans approved before it existed.
    */
   approvedEntries?: MonthlyPlanEntry[];
-  /** A manager's change waiting to be approved (absent when none). */
-  pendingChange?: MonthlyPlanPendingChange;
   /** Bumped on every save; submit is conditional on the revision it validated. */
   revision: number;
   /** Resubmits made through the after-rejection window; capped by `PLAN_RESUBMIT_GRACE_MAX`. */

@@ -8,7 +8,7 @@ import { router } from 'expo-router';
 import { getTeamMemberDays, reportChip, type TeamMemberDays } from '@/lib/team-section';
 import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
-import { monthOf, prettyDay } from '@/offline/day';
+import { prettyDay } from '@/offline/day';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useWindowed } from '@/hooks/use-windowed';
 
@@ -22,6 +22,7 @@ import { StockCountsCard } from '../../stock-counts-card';
 import { DoctorLines } from '../doctor-lines';
 import { DoctorsToday } from '../doctors-today';
 import { DayLines } from './day-lines';
+import { ReopenTourPlan } from './reopen-tour-plan';
 import { tourWordsOn, useTourPlan } from './tour-plan-data';
 
 /** The person's month, day by day: the Daily Plan (routes and doctors by name, remarks, status) and, under it, what was done. Newest first. */
@@ -50,19 +51,7 @@ export function PlansTab({ userId, month, personName, onOpenReport }: { userId: 
   return (
     <View style={styles.stack}>
       {!online && !data ? <Notice tone="info">Connect to see this person’s plans.</Notice> : null}
-      {tour.data?.pendingChange ? (
-        <Notice tone="info" title="A change to this Tour Plan is waiting for approval">
-          {`${tour.data.pendingChange.reason ? `Reason: ${tour.data.pendingChange.reason}. ` : ''}It takes effect only after the manager above, or Admin, approves it.`}
-        </Notice>
-      ) : null}
-      {tour.data && tour.data.planMonth >= monthOf(today) ? (
-        <PrimaryButton
-          label="Edit Tour Plan"
-          variant="text"
-          disabled={!online}
-          onPress={() => router.push({ pathname: '/amend-monthly-plan', params: { id: tour.data!.id, who: personName } })}
-        />
-      ) : null}
+      <ReopenTourPlan plan={tour.data ?? null} personName={personName} onDone={() => void tour.reload()} />
       {days.error && online ? <Notice tone="danger">{days.error}</Notice> : null}
       {loading ? <Skeleton cards={3} lines={3} /> : null}
       {data && dates.length === 0 ? <Notice tone="info">Nothing is planned or reported for this month.</Notice> : null}

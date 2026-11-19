@@ -39,6 +39,11 @@ export interface ApprovalKindDefinition {
    * `APPROVAL_MANAGER_ONLY_KINDS` says. For a kind whose design is "the manager decides" (no kind uses it today), as opposed to one Admin may relax later through that setting.
    */
   managerOnly?: boolean;
+  /**
+   * A field manager may reopen an approved request of someone below them, not only Admin (decision-log 2026-11-19): the Tour Plan, which the employee then
+   * edits and sends again. Other kinds stay with Admin and the roles in `overrideRoles`.
+   */
+  managerReopen?: boolean;
   /** What each record is about, for the rows of a list (one batched call per page); a record left out shows by its kind alone. */
   describeRecords?: (recordIds: string[]) => Promise<Map<string, ApprovalSubject>>;
   /**

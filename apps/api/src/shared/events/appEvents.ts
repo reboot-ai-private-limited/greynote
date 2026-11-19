@@ -16,6 +16,8 @@ export interface AppEvents {
     actorId: string;
     auto: boolean;
   };
+  /** An approved request was reopened so its owner can change it and send it again (the Tour Plan: by their manager or Admin). */
+  'approval.reopened': { kind: string; recordId: string; submitterId: string; actorId: string; comment: string | null };
   /** An exception that lets the employee submit after the deadline was given. */
   'submit.exception.granted': {
     userId: string;

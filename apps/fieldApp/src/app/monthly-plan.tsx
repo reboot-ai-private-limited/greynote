@@ -32,6 +32,7 @@ import {
   placePlanDay,
   getMonthlyPlanDetail,
   getRejectionReason,
+  getReopenReason,
   isFieldDay,
   isTripDay,
   offDayLabel,
@@ -121,6 +122,7 @@ export default function MonthlyPlanScreen() {
   const [msg, setMsg] = useState<Msg | null>(null);
   // What the server said, kept with the plan it belongs to: another month or plan reads as "not loaded yet".
   const [rejectionState, setRejectionState] = useState<{ key: string; text: string | null } | null>(null);
+  const [reopenState, setReopenState] = useState<{ key: string; text: string | null } | null>(null);
   const [detailState, setDetailState] = useState<{ key: string; detail: MonthlyPlanDetail | null } | null>(null);
 
   const existing = planning.data?.monthlyPlans.find((p) => p.planMonth === month) ?? null;
@@ -165,6 +167,10 @@ export default function MonthlyPlanScreen() {
   const lockedPlanned = editable ? Object.keys(entries).filter((d) => offByDate.has(d)).sort() : [];
   const rejectionKey = status === 'REJECTED' ? (existing?.approvalRequestId ?? null) : null;
   const rejection = rejectionKey !== null && rejectionState?.key === rejectionKey ? rejectionState.text : null;
+  // Reopened by the manager or Admin: the plan comes back to the employee, who changes the days after today and sends it again (decision-log 2026-11-19).
+  const reopened = status === 'REOPENED';
+  const reopenKey = reopened ? (existing?.approvalRequestId ?? null) : null;
+  const reopenReason = reopenKey !== null && reopenState?.key === reopenKey ? reopenState.text : null;
 
   /** Asks the server for the full plan; `null` offline or on a failure. */
   const fetchDetail = useCallback(async () => {
@@ -219,7 +225,10 @@ export default function MonthlyPlanScreen() {
     if (rejectionKey && online) {
       getRejectionReason(rejectionKey).then((text) => setRejectionState({ key: rejectionKey, text })).catch(() => undefined);
     }
-  }, [rejectionKey, online]);
+    if (reopenKey && online) {
+      getReopenReason(reopenKey).then((text) => setReopenState({ key: reopenKey, text })).catch(() => undefined);
+    }
+  }, [rejectionKey, reopenKey, online]);
 
   // The server's deadline only — never worked out on the phone (it ends with the business day, which follows DAY_START_TIME).
   // Before the first save there is none to show; the server still judges the submit.
@@ -227,7 +236,8 @@ export default function MonthlyPlanScreen() {
   const deadlinePassed = deadlineIso !== null && nowMs() > Date.parse(deadlineIso);
   const resubmitUntil = detail?.resubmitAllowedUntil ?? null;
   const lateUntil = detail?.lateSubmitAllowedUntil ?? null;
-  const lateButAllowed = editable && deadlinePassed && (resubmitUntil !== null || lateUntil !== null);
+  // A reopened plan can be sent again whatever the deadline: the reopen is the permission.
+  const lateButAllowed = editable && deadlinePassed && (reopened || resubmitUntil !== null || lateUntil !== null);
   const lateAndRefused = editable && deadlinePassed && !lateButAllowed;
   const planned = Object.keys(entries).filter((d) => !offByDate.has(d)).length;
 
@@ -479,6 +489,11 @@ export default function MonthlyPlanScreen() {
         deadlineText={editable && !deadlinePassed && deadlineIso ? `Submit by ${formatWhen(deadlineIso, timeZone)}` : null}
         daysLeft={daysLeft}
       />
+      {reopened ? (
+        <Notice tone="info" title="Reopened for changes">
+          {`${reopenReason ? `${reopenReason}. ` : ''}Change the days after today and send it again. Days that are over, or whose daily plan was sent, can’t change. You can keep working the days already approved.`}
+        </Notice>
+      ) : null}
       {lateAndRefused ? (
         <Notice tone="warning" title="Deadline passed">
           {deadlineIso ? `${LATE_TEXT} (It was due by ${formatWhen(deadlineIso, timeZone)}.)` : LATE_TEXT}

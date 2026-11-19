@@ -41,7 +41,7 @@ export function buildApprovalContainer(users: UserDirectoryPort, config: ConfigP
   const submit = new SubmitApprovalUseCase(requestRepository, users, kinds, config);
   const decide = new DecideApprovalUseCase(requestRepository, users, kinds, transactions);
   const withdraw = new WithdrawApprovalUseCase(requestRepository, kinds, transactions);
-  const reopen = new ReopenApprovalUseCase(requestRepository, kinds, transactions);
+  const reopen = new ReopenApprovalUseCase(requestRepository, kinds, transactions, users);
   const autoReject = new AutoRejectApprovalUseCase(requestRepository, kinds, transactions);
   const getForRecord = new GetApprovalForRecordUseCase(requestRepository);
   const list = new ListApprovalsUseCase(requestRepository, users, kinds, config);

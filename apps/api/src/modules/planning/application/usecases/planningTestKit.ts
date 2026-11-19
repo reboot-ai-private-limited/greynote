@@ -5,7 +5,6 @@ import { AppError } from '@/shared/errors/AppError.js';
 import type { ApprovalKindDefinition } from '@/modules/approval/approval.public.js';
 import { makeDailyPlanMirrorHandler } from '../dailyToMonthMirror.js';
 import { PlanDayLocks } from '../dayLocks.js';
-import { MONTHLY_PLAN_CHANGE, ProposeMonthlyChange, makeMonthlyPlanChangeHandler } from '../monthlyPlanChange.js';
 import { makeMonthlyPlanInheritHandler } from '../monthlyPlanInheritHandler.js';
 import { AmendDailyPlanUseCase } from './amendDailyPlan.usecase.js';
 import type { ApprovalsPort } from '../../domain/approvals.port.js';
@@ -13,7 +12,7 @@ import type { DailyPlan, PlanAmendment } from '../../domain/dailyPlan.entity.js'
 import type { DailyPlanRepositoryPort } from '../../domain/dailyPlan.repository.port.js';
 import type { LateSubmitGrant } from '../../domain/lateSubmitGrant.entity.js';
 import type { LateSubmitGrantFilter, LateSubmitGrantRepositoryPort } from '../../domain/lateSubmitGrant.repository.port.js';
-import type { MonthlyPlan, MonthlyPlanAmendment, MonthlyPlanEntry, MonthlyPlanPendingChange } from '../../domain/monthlyPlan.entity.js';
+import type { MonthlyPlan, MonthlyPlanAmendment, MonthlyPlanEntry } from '../../domain/monthlyPlan.entity.js';
 import type { MonthlyPlanRepositoryPort } from '../../domain/monthlyPlan.repository.port.js';
 import type { PlanDay, PlanKind, PlannedDoctor, PlanSource } from '../../domain/plan.js';
 import type { DirectoryUser, UserDirectoryPort } from '../../domain/userDirectory.port.js';
@@ -153,19 +152,6 @@ export class FakeMonthlyPlans implements MonthlyPlanRepositoryPort {
     const next = { ...plan, entries, revision: plan.revision + 1, amendments: [...plan.amendments, amendment], updatedAt: amendment.at };
     this.rows.set(id, next);
     return next;
-  }
-  async setPendingChange(id: string, change: MonthlyPlanPendingChange) {
-    const plan = this.rows.get(id);
-    if (!plan || plan.pendingChange) return false;
-    this.rows.set(id, { ...plan, pendingChange: change });
-    return true;
-  }
-  async clearPendingChange(id: string) {
-    const plan = this.rows.get(id);
-    if (!plan) return;
-    const next = { ...plan };
-    delete next.pendingChange;
-    this.rows.set(id, next);
   }
   async recordApproved(id: string, entries: MonthlyPlanEntry[]) {
     const plan = this.rows.get(id);
@@ -447,8 +433,6 @@ export function planningKit(clock: Clock) {
     onStatusChange: makeMonthlyPlanInheritHandler(monthlyPlans, dailyPlans, approvals, deadlines, offDays, new PlanDayLocks(dailyPlans, approvals, deadlines)),
   });
   approvals.registerKind({ kind: 'DAILY_PLAN', finalApproverRoles: ['ADMIN'], onStatusChange: makeDailyPlanMirrorHandler(dailyPlans, monthlyPlans, deadlines) });
-  approvals.registerKind({ kind: MONTHLY_PLAN_CHANGE, finalApproverRoles: ['ADMIN'], onStatusChange: makeMonthlyPlanChangeHandler(monthlyPlans, dailyPlans, approvals, deadlines, clock.now) });
-  const propose = new ProposeMonthlyChange(monthlyPlans, approvals, submitter, dailyPlans, deadlines, inlineTransactions, clock.now);
   /** Dates (`userId:YYYY-MM-DD`) whose DCR the test says is already submitted. */
   const reported = new Set<string>();
   /** Months (`userId:YYYY-MM`) whose Monthly Plan the test says is not approved; every other month is. */
@@ -466,7 +450,7 @@ export function planningKit(clock: Clock) {
   const setDoctors = new SetDailyPlanDoctorsUseCase(dailyPlans, approvals, carryOver, views, scope);
   const teamSuggest = new SuggestFromTeamUseCase(dailyPlans, monthlyPlans, approvals, users, carryOver, scope);
   const setDay = new SetDailyPlanUseCase(dailyPlans, approvals, users, submitter, carryOver, scope, views);
-  return { offDays, scope, setDay, teamSuggest, doctors, calls, carryOver, setDoctors, users, routes, approvals, config, dailyPlans, monthlyPlans, grants, deadlines, views, submitter, amend, propose, reported, monthlyBlocked, monthlyApproved };
+  return { offDays, scope, setDay, teamSuggest, doctors, calls, carryOver, setDoctors, users, routes, approvals, config, dailyPlans, monthlyPlans, grants, deadlines, views, submitter, amend, reported, monthlyBlocked, monthlyApproved };
 }
 
 /**

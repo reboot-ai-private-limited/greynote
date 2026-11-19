@@ -47,5 +47,8 @@ export async function applyTransition(
       auto: change.action.authority === 'AUTO',
     });
   }
+  if (updated.status === 'REOPENED') {
+    appEvents.emit('approval.reopened', { kind: updated.kind, recordId: updated.recordId, submitterId: updated.submitterId, actorId: change.action.actorId, comment: change.action.comment });
+  }
   return updated;
 }

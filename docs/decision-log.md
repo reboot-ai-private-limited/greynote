@@ -2919,3 +2919,9 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 ## 2026-11-19: An MR Distributors screen; both lists are searchable
 
 - **Decision.** Home → Marketing gets **Distributors** for everyone: the distributors handed to the signed-in person, from the last pull (works offline), with name, place, contact person, mobile (tap to call), GST and the routes they serve, and a search over all of those. A manager sees the same for their own and a "Team distributors" button to the server-searched team list (Team → Reports → Distributors, which already searched by name, GST and contact). No server change: the snapshot already carried the contact fields.
+
+
+## 2026-11-19: Reopen replaces the manager change request for an approved Tour Plan
+
+- **Decision.** Supersedes "A manager's change to an approved Tour Plan is a change request" of the same day (that code is removed). A manager above the employee, or Admin/HR, **reopens** an approved Tour Plan with a reason (`POST /approvals/:id/reopen`, now open to a field manager for a `managerReopen` kind, only for someone below them); the employee changes days after today under the existing locks and **sends it again even in the running month** (a `REOPENED` plan skips the submit deadline); the employee's manager or Admin approves again. While it is reopened or waiting again a month that was approved before stays open for calls and Daily Plans (`isMonthlyPlanApproved`, and `wasApproved` in the sync snapshot so the phone agrees); a rejection or withdrawal closes it. The employee gets a push on reopen (`approval.reopened`).
+- The route rule (a Daily Plan's routes equal its Tour Plan's) stands.

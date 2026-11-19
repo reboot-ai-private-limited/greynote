@@ -146,13 +146,12 @@ The list/history reads (`GET /planning/daily`, `GET /planning/monthly`) do not c
 The web plan and call previews show each person with their designation, like `Ravi (MR), Asha (ASM)`. The designation is the person's **current** one; a later promotion changes how an old day reads. (Keeping it as it was on the day would need a snapshot on every plan day and call — not done.)
 
 
-## 8. A manager changes an approved Tour Plan (2026-11-19)
+## 8. A manager reopens an approved Tour Plan (2026-11-19)
 
-- Team → the person → Plans → **Edit Tour Plan** (this month and next). On an approved month, tap a day after today to change it. Days that are over, today, or whose Daily Plan is sent or approved can't change.
-- **Admin/HR** changes apply at once and the employee is told. **A manager's** change is sent for approval to the manager above them (else Admin) and nothing changes until it is approved; the person's page and the edit screen say "A change is waiting for approval". It appears in the approver's Approvals as **Tour plan change** with each changed day, now and would-become.
-- When it is approved the server checks again: a day that became today or past, a day whose Daily Plan was sent meanwhile, or a month someone else changed since, can't be approved (the approver rejects it and the manager sends a new one). On approval the month changes, the untouched Daily Plans follow, and the employee is told.
-- One change waits at a time. A trip that runs into next month can't be changed from the phone (ask Admin).
-
+- Team -> the person -> Plans -> **Reopen Tour Plan** (this month and later, an approved plan of someone below you), with a reason. Admin and HR can reopen as before. The plan goes **back to the employee** (status `REOPENED`), who is told.
+- The employee changes the days **after today** and **sends it again, even in the running month** (the reopen is the permission; a plan that was never reopened still needs its deadline or a late exception). Days that are over, or whose Daily Plan is sent or approved, can't change (rule 23). Their manager, or Admin, approves it again; the untouched Daily Plans follow it (rule 24).
+- **The employee keeps working meanwhile**: a month that was approved before stays open for calls and Daily Plans while it is reopened or waiting again. A rejection or withdrawal closes it as for any plan.
+- A manager does not edit an approved plan directly any more (the change-request idea of the same day is dropped); a plan waiting for a manager's decision can still be edited by them (rule 19), and Admin/HR can still change an approved month's later days (rule 20).
 
 ## 9. Trips over weekly offs and holidays (2026-11-19)
 

@@ -5,17 +5,20 @@ import type { ApprovalRequestRepositoryPort } from '../../domain/approvalRequest
 import { canOverride, type Actor } from '../../domain/approvalRules.js';
 import type { ApprovalKindRegistry } from '../approvalKindRegistry.js';
 import { applyTransition } from '../applyTransition.js';
+import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 
 /**
  * Admin unlocks an approved request so the submitter can change the record and resubmit — the
  * override on "approved means locked" (decision-log 2026-09-24). A reason is required, and the
- * approval it undoes stays in the history.
+ * approval it undoes stays in the history. For a kind that says `managerReopen` (the Tour Plan, 2026-11-19) a field manager above the
+ * submitter may do it too, never for their own request.
  */
 export class ReopenApprovalUseCase {
   constructor(
     private readonly requests: ApprovalRequestRepositoryPort,
     private readonly kinds: ApprovalKindRegistry,
     private readonly transactions: TransactionRunnerPort,
+    private readonly users?: UserDirectoryPort,
   ) {}
 
   async execute(requestId: string, actor: Actor, reason: string): Promise<ApprovalRequest> {
@@ -24,7 +27,10 @@ export class ReopenApprovalUseCase {
 
     const request = await this.requests.findById(requestId);
     if (!request) throw AppError.notFound();
-    if (!canOverride(this.kinds.find(request.kind), actor.role)) throw AppError.forbidden('You cannot reopen this request.');
+    const kind = this.kinds.find(request.kind);
+    if (!canOverride(kind, actor.role) && !(await this.managerMayReopen(kind?.managerReopen === true, request.submitterId, actor))) {
+      throw AppError.forbidden('You cannot reopen this request.');
+    }
     if (request.status !== 'APPROVED') throw AppError.conflict('Only an approved request can be reopened.');
 
     return applyTransition({ requests: this.requests, kinds: this.kinds, transactions: this.transactions }, request, {
@@ -41,5 +47,11 @@ export class ReopenApprovalUseCase {
         cycle: request.cycle,
       },
     });
+  }
+
+  /** A field manager above the submitter (any level), never the submitter themselves. */
+  private async managerMayReopen(allowed: boolean, submitterId: string, actor: Actor): Promise<boolean> {
+    if (!allowed || !this.users || actor.role !== 'FIELD' || actor.id === submitterId) return false;
+    return (await this.users.getManagerChain(submitterId)).some((m) => m.id === actor.id);
   }
 }
