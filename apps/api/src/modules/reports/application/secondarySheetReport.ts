@@ -2,7 +2,7 @@ import { AppError } from '@/shared/errors/AppError.js';
 import { readBusinessDay, readConfig, type ConfigReader } from '@/shared/config/readConfig.js';
 import { businessDate, leaveYearRange, parseMonthName } from '@/shared/time/businessTime.js';
 import { yearMonths } from '../domain/salesFigures.js';
-import { fyLabel, monthlyUnits, previousYearMonths, sumRows, type SecondarySheetModel, type SheetRow } from '../domain/secondarySheet.js';
+import { fyLabel, monthlyPaise, monthlyUnits, previousYearMonths, sumRows, type SecondarySheetModel, type SheetRow } from '../domain/secondarySheet.js';
 import type { DesignationLevelsPort, FieldRosterPort, IdentityPort, MarketingPort, MasterPort } from '../domain/ports.js';
 import { MrRollup } from './mrRollup.js';
 import type { MrStockFigures } from './mrStockFigures.js';
@@ -82,8 +82,13 @@ export class SecondarySheetReport {
       const row = rowOf(l.userId, l.productId);
       row.prevSec = (row.prevSec ?? 0) + l.issuedQty;
     }
+    // A target with no product, or with no quantity, is in rupees: it has no product row to sit on, so it is kept apart and shown in its own row.
+    const rupeeTargetPaise = months.map(() => 0);
     for (const t of shares) {
-      if (!t.productId) continue; // a target for all products is in rupees, not units
+      if (!t.productId || t.qty === null) {
+        monthlyPaise(t, months).forEach((v, i) => (rupeeTargetPaise[i]! += v));
+        continue;
+      }
       const units = monthlyUnits(t, months);
       const row = rowOf(t.userId, t.productId);
       row.tgt = row.tgt.map((v, i) => v + units[i]!);
@@ -98,7 +103,7 @@ export class SecondarySheetReport {
       startMonth,
       label: fyLabel(year, startMonth),
       months,
-      person: { id: input.userId, name, code, designation: who?.designation ?? null, kind: isManager ? 'TEAM' : 'MR', members: isManager ? memberIds.length : 1, rows },
+      person: { id: input.userId, name, code, designation: who?.designation ?? null, kind: isManager ? 'TEAM' : 'MR', members: isManager ? memberIds.length : 1, rows, rupeeTargetPaise },
     };
   }
 

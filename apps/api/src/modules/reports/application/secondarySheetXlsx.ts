@@ -26,6 +26,8 @@ const FIRST_BLOCK_COL = 10; // J
 const WIDTH = 4; // TGT, SEC, a narrow spare column, % ACH
 const HEAD_ROW = 5;
 const FIRST_ROW = 6;
+/** The id of the one row that holds the rupee targets, which belongs to no product. */
+const RUPEE_ROW = 'RUPEE_TARGET';
 const blockCol = (b: number) => FIRST_BLOCK_COL + b * WIDTH;
 const pct = (sec: number, tgt: number) => (tgt > 0 ? (sec * 100) / tgt : 0);
 
@@ -76,7 +78,11 @@ const colourOf = (b: Block): string | undefined => (b.kind === 'month' ? undefin
 const THIN: Partial<ExcelJS.Borders> = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
 
 function writePerson(ws: ExcelJS.Worksheet, p: SheetPerson, model: SecondarySheetModel): void {
-  const rows = p.rows;
+  // Targets set in rupees (for all products) have no product: they get a row of their own, priced at ₹1 a unit so it adds up with the others.
+  const rupeeRow: SheetRow | null = p.rupeeTargetPaise.some((v) => v !== 0)
+    ? { productId: RUPEE_ROW, name: 'TARGET SET IN ₹ (not by product)', sku: '', nsrPaise: 100, tgt: p.rupeeTargetPaise.map((v) => v / 100), sec: p.rupeeTargetPaise.map(() => 0), prevSec: null }
+    : null;
+  const rows = rupeeRow ? [...p.rows, rupeeRow] : p.rows;
   const last = FIRST_ROW + rows.length - 1;
   const totalRow = last + 1;
 
@@ -127,7 +133,7 @@ function writePerson(ws: ExcelJS.Worksheet, p: SheetPerson, model: SecondaryShee
     const fig = figures(priced);
     ws.getCell(r, 1).value = k + 1;
     ws.getCell(r, 2).value = row.name;
-    ws.getCell(r, 3).value = row.nsrPaise === null ? null : rupees(row.nsrPaise);
+    ws.getCell(r, 3).value = row.nsrPaise === null || row.productId === RUPEE_ROW ? null : rupees(row.nsrPaise);
     ws.getCell(r, 3).numFmt = '#,##0.00';
     BLOCKS.forEach((b, n) => {
       const col = blockCol(n);
@@ -214,7 +220,7 @@ function writePerson(ws: ExcelJS.Worksheet, p: SheetPerson, model: SecondaryShee
     cell.fill = TOTAL_FILL;
   }
 
-  ws.getCell(totalRow + 2, 1).value = 'All figures are in rupees: units × N.S.R. (the product\'s PTS). TGT = the target, spread evenly over the months it covers. SEC = secondary the MR sent and the manager approved; a month not approved shows 0. % GR. = this year\'s secondary against the year before, both at the same N.S.R. A product with no N.S.R. shows 0 (it cannot be priced).';
+  ws.getCell(totalRow + 2, 1).value = 'All figures are in rupees: units × N.S.R. (the product\'s PTS). TGT = the target, spread evenly over the months it covers. SEC = secondary the MR sent and the manager approved; a month not approved shows 0. % GR. = this year\'s secondary against the year before, both at the same N.S.R. A product with no N.S.R. shows 0 (it cannot be priced). A target set in rupees for all products is in its own row.';
   ws.getCell(totalRow + 2, 1).font = { italic: true, color: { argb: 'FF666666' } };
 
   ws.getColumn(1).width = 7;

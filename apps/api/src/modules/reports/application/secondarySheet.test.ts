@@ -39,9 +39,10 @@ const people = [
   { id: 'mr2', employeeCode: 'MR2', name: 'Sunita', designation: 'MR' },
   { id: 'other', employeeCode: 'MR9', name: 'Outside', designation: 'MR' },
 ];
-const build = () =>
+type Share = { id: string; userId: string; productId: string | null; fromMonth: string; toMonth: string; amountPaise: number; qty: number | null; sharePaise: number; shareQty: number | null };
+const build = (more: Share[] = []) =>
   new SecondarySheetReport(
-    { async listTargetShares(ids) { return ids.includes('mr1') ? [{ id: 't', userId: 'mr1', productId: 'p1', fromMonth: '2026-04', toMonth: '2026-06', amountPaise: 0, qty: 90, sharePaise: 0, shareQty: 90 }, { id: 'g', userId: 'mr1', productId: null, fromMonth: '2026-04', toMonth: '2027-03', amountPaise: 500_000, qty: null, sharePaise: 0, shareQty: null }] : []; } },
+    { async listTargetShares(ids) { return [...(ids.includes('mr1') ? [{ id: 't', userId: 'mr1', productId: 'p1', fromMonth: '2026-04', toMonth: '2026-06', amountPaise: 0, qty: 90, sharePaise: 0, shareQty: 90 }, { id: 'g', userId: 'mr1', productId: null, fromMonth: '2026-04', toMonth: '2027-03', amountPaise: 500_000, qty: null, sharePaise: 0, shareQty: null }] : []), ...more.filter((m) => ids.includes(m.userId))]; } },
     { async listNames() { return { distributors: [], chemists: [], products: [{ id: 'p1', name: 'NEEDPRO BN', sku: '02', ptrPaise: 0, ptsPaise: 50_000 }, { id: 'p2', name: 'ALBU', sku: '01', ptrPaise: 0, ptsPaise: null }] }; }, async listAssignedDoctors() { return []; }, async listActiveOutlets() { return { distributors: [], chemists: [] }; }, async listDistributorAssignees() { return []; } },
     {
       async getUserSummaries() { return []; },
@@ -87,6 +88,49 @@ describe('one employee’s Secondary Sales sheet data', () => {
     await expect(build().read({ actor: { id: 'asm', role: 'FIELD' }, userId: 'other', year: 2026 })).rejects.toMatchObject({ statusCode: 403 });
     await expect(build().read({ actor: { id: 'mr1', role: 'FIELD' }, userId: 'mr2', year: 2026 })).rejects.toMatchObject({ statusCode: 403 });
     await expect(build().read({ actor: { id: 'x', role: 'EMPLOYEE' as never }, userId: 'mr1', year: 2026 })).rejects.toMatchObject({ statusCode: 403 });
+  });
+});
+
+describe('targets set in rupees', () => {
+  const rupees = (userId: string, productId: string | null, qty: number | null, sharePaise: number): Share => ({ id: `r-${userId}-${productId}`, userId, productId, fromMonth: '2026-04', toMonth: '2027-03', amountPaise: sharePaise, qty, sharePaise, shareQty: qty });
+
+  it('an all-products target and a product target with no quantity are kept in rupees per month, not dropped', async () => {
+    const m = await build([rupees('mr1', null, null, 12_000_000), rupees('mr1', 'p2', null, 2_400_000)]).read({ actor: asAdmin, userId: 'mr1', year: 2026 });
+    expect(m.person.rupeeTargetPaise).toEqual(months.map(() => 1_200_000));
+    expect(m.person.rows.map((r) => r.productId)).toEqual(['p1']);
+  });
+
+  it('a manager adds up the rupee targets of the MRs below', async () => {
+    const m = await build([rupees('mr1', null, null, 1_200_000), rupees('mr2', null, null, 2_400_000)]).read({ actor: asAdmin, userId: 'asm', year: 2026 });
+    expect(m.person.rupeeTargetPaise).toEqual(months.map(() => 300_000));
+  });
+
+  it('is nothing without such a target', async () => {
+    const m = await build().read({ actor: asAdmin, userId: 'mr1', year: 2026 });
+    expect(m.person.rupeeTargetPaise).toEqual(months.map(() => 0));
+  });
+
+  it('the workbook has a row of its own for it, and the grand total and % ACH count it', async () => {
+    const model = await build([rupees('mr1', null, null, 12_000_000)]).read({ actor: asAdmin, userId: 'mr1', year: 2026 });
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load((await buildSecondarySheetWorkbook(model)) as never);
+    const ws = wb.getWorksheet('Ravi')!;
+    expect(ws.getCell('B7').value).toBe('TARGET SET IN ₹ (not by product)');
+    expect(ws.getCell('C7').value).toBeNull();
+    // 1,20,000 a year of this target in rupees: 10,000 a month. J = April's TGT.
+    expect(ws.getCell('J7').value).toBe(10_000);
+    expect(ws.getCell('K7').value).toBe(0);
+    expect(ws.getCell('D7').value).toMatchObject({ result: 120_000 });
+    // The grand total is on the row below: product target 45,000 in the first quarter plus 1,20,000, in lakh.
+    expect(ws.getCell('B8').value).toBe('GRAND TOTAL (₹ lakh)');
+    expect((ws.getCell('D8').value as { result: number }).result).toBeCloseTo((45_000 + 120_000) / 100_000, 6);
+  });
+
+  it('a sheet with no rupee target has no extra row', async () => {
+    const model = await build().read({ actor: asAdmin, userId: 'mr1', year: 2026 });
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load((await buildSecondarySheetWorkbook(model)) as never);
+    expect(wb.getWorksheet('Ravi')!.getCell('B7').value).toBe('GRAND TOTAL (₹ lakh)');
   });
 });
 

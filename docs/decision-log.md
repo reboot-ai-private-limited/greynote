@@ -2996,3 +2996,7 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 
 - The deep solid section headers (white text on `-700` colours) are replaced by a pale header with a coloured left edge, and the setting rows under it carry a faint tint of the same colour, so the section reads as one block. Every module has its own light colour (Salary and payouts, which holds the expense deadlines, is red). The "invalid" chip stays solid red.
 - Sections now start open; a fold the person chose is still remembered. Web only; no setting or rule changed.
+
+## Secondary sheet counts rupee targets (2026-11-20)
+
+The Secondary sales sheet dropped targets set in rupees (all products, or a product with no quantity), so an employee whose target was set that way (e.g. a ₹38,10,000 target) showed 0 target and the Sales report disagreed with the file. They now have one row of their own in the file ("TARGET SET IN ₹ (not by product)") and are counted in the grand total and % ACH. `GET /reports/secondary-sheet` is unchanged apart from that row.

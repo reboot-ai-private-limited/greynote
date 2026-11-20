@@ -25,6 +25,11 @@ export interface SheetPerson {
   /** MRs behind the figures (1 for an MR). */
   members: number;
   rows: SheetRow[];
+  /**
+   * Targets set in rupees with no unit count (for all products, or for a product without a quantity), per month of the year in paise (12). They cannot sit on
+   * a product row, so the file shows them in one row of their own and the totals count them, as the Sales report does.
+   */
+  rupeeTargetPaise: number[];
 }
 
 export interface SecondarySheetModel {
@@ -64,6 +69,13 @@ export function sumRows(groups: readonly (readonly SheetRow[])[]): SheetRow[] {
     }
   }
   return [...out.values()].sort((a, b) => a.sku.localeCompare(b.sku, undefined, { numeric: true }) || a.name.localeCompare(b.name));
+}
+
+/** A target in rupees spread evenly over its months, rounded per month: the paise it adds to each month of the year. Months outside the target get 0. */
+export function monthlyPaise(target: { fromMonth: string; toMonth: string; sharePaise: number }, months: readonly string[]): number[] {
+  const span = (Number(target.toMonth.slice(0, 4)) - Number(target.fromMonth.slice(0, 4))) * 12 + Number(target.toMonth.slice(5)) - Number(target.fromMonth.slice(5)) + 1;
+  const each = Math.round(target.sharePaise / Math.max(1, span));
+  return months.map((m) => (m >= target.fromMonth && m <= target.toMonth ? each : 0));
 }
 
 /** A target spread evenly over its months, rounded per month: the units it adds to each month of the year. Months outside the target get 0. */
