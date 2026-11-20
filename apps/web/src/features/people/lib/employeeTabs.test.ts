@@ -17,10 +17,12 @@ describe('employeeTabOf', () => {
     expect(employeeTabOf('promotion', false)).toBe('career');
   });
 
-  it('keeps Access (devices, security) for Admin', () => {
+  it('keeps Access (devices, security) and Targets for Admin and HR', () => {
+    expect(employeeTabOf('targets', true)).toBe('targets');
+    expect(employeeTabOf('targets', false)).toBe('profile');
     expect(employeeTabOf('devices', true)).toBe('access');
     expect(employeeTabOf('security', false)).toBe('profile');
-    expect(employeeTabsFor(true)).toEqual(['profile', 'team', 'pay', 'time', 'career', 'access']);
+    expect(employeeTabsFor(true)).toEqual(['profile', 'team', 'pay', 'time', 'targets', 'career', 'access']);
     expect(employeeTabsFor(false)).toEqual(['profile', 'team', 'pay', 'time', 'career']);
   });
 });

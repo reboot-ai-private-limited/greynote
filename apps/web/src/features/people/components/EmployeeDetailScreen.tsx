@@ -27,6 +27,7 @@ import { BasicSection } from './BasicSection';
 import { AssignedSection } from './AssignedSection';
 import { CompensationTab } from './CompensationTab';
 import { PhotoPicker } from './PhotoPicker';
+import { EmployeeTargetsPanel } from '@/features/reports/components/EmployeeTargetsPanel';
 import { TerritoryCard } from './TerritoryCard';
 import { RoutesSection } from './RoutesSection';
 import { TeamTab } from './TeamTab';
@@ -129,6 +130,11 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                   <EmployeeCalendarTab userId={user.id} />
                   <EmployeeLeaveTab userId={user.id} />
                 </TabsContent>
+                {canView ? (
+                  <TabsContent value="targets" className="mt-6">
+                    <EmployeeTargetsPanel userId={user.id} name={user.name} />
+                  </TabsContent>
+                ) : null}
                 <TabsContent value="career" className="mt-6">
                   <PromotionTab user={user} readOnly={readOnly} />
                 </TabsContent>

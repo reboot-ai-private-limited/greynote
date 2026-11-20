@@ -2,7 +2,7 @@
 
 import type { SecondaryAttachmentDto } from '@greynote/contracts';
 import { useQuery } from '@tanstack/react-query';
-import { marketingApi, type SetTargetBody, type UpdateTargetBody } from '@/lib/api/endpoints/marketing';
+import { marketingApi, type SetTargetBody, type SetTargetsBulkBody, type TargetLineBody, type UpdateTargetBody } from '@/lib/api/endpoints/marketing';
 import { reportsApi, type EmployeeSalesQuery } from '@/lib/api/endpoints/reports';
 import { salesApi, type EditSecondaryStockBody } from '@/lib/api/endpoints/sales';
 import { authedQueryOptions } from '@/lib/query/factory';
@@ -64,6 +64,24 @@ export function useSetTarget(onDone: () => void) {
     call: (token, body) => marketingApi.setTarget(token, body),
     invalidates: [keys.reports.all()],
     successMessage: 'Target saved.',
+    onSuccess: onDone,
+  });
+}
+
+export function useSetTargetsBulk(onDone: () => void) {
+  return useApiMutation<SetTargetsBulkBody>({
+    call: (token, body) => marketingApi.setTargetsBulk(token, body),
+    invalidates: [keys.reports.all()],
+    successMessage: 'Targets saved.',
+    onSuccess: onDone,
+  });
+}
+
+export function useSplitTarget(onDone: () => void) {
+  return useApiMutation<{ id: string; items: TargetLineBody[] }>({
+    call: (token, { id, items }) => marketingApi.splitTarget(token, id, items),
+    invalidates: [keys.reports.all()],
+    successMessage: 'Target split by product.',
     onSuccess: onDone,
   });
 }

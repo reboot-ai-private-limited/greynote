@@ -7,12 +7,27 @@ export interface SetTargetBody {
   month: string;
   /** The last month; the same as `month` when left out. */
   toMonth?: string;
-  /** `null` = a target for all products. */
+  /** A product is required: a target is set per product (an old all-products one can only be split). */
   productId: string | null;
   /** Give an amount or units; for a product target the other follows from its PTS. */
   targetAmountPaise?: number;
   /** Units: a product target only. */
   targetQty?: number;
+}
+
+/** One product's line in a bulk set or a split: an amount (or, for a bulk set, units). */
+export interface TargetLineBody {
+  productId: string;
+  targetAmountPaise?: number;
+  targetQty?: number;
+}
+
+/** `POST /marketing/targets/bulk`: one run of months, several products. */
+export interface SetTargetsBulkBody {
+  userId: string;
+  month: string;
+  toMonth?: string;
+  items: TargetLineBody[];
 }
 
 /** `PATCH /marketing/targets/:id`: the target as it should now be. The employee stays, so it isn't sent. */
@@ -54,6 +69,10 @@ export const marketingApi = {
   /** A target over a run of whole months of the current financial year; setting the same range and product again replaces it. */
   setTarget: (token: string, body: SetTargetBody) =>
     request<unknown>('/marketing/targets', { method: 'POST', token, body }),
+  /** Targets for several products over one run of months, all or nothing; `409 TARGET_CLASH` names a product that already has a target over exactly those months. */
+  setTargetsBulk: (token: string, body: SetTargetsBulkBody) => request<unknown>('/marketing/targets/bulk', { method: 'POST', token, body }),
+  /** Splits an old all-products target across products; the amounts must add up to it. */
+  splitTarget: (token: string, id: string, items: TargetLineBody[]) => request<unknown>(`/marketing/targets/${id}/split`, { method: 'POST', token, body: { items } }),
   /** Edits a target in place (months, product, amount or units); `409 TARGET_CLASH` if another target already has that product and months. */
   updateTarget: (token: string, id: string, body: UpdateTargetBody) =>
     request<unknown>(`/marketing/targets/${id}`, { method: 'PATCH', token, body }),

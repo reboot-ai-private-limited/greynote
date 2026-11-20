@@ -14,6 +14,7 @@ export function FormDialog({
   formId,
   pending,
   disabled = false,
+  submitLabel = 'Save',
   onClose,
   onSubmit,
   wide,
@@ -25,6 +26,8 @@ export function FormDialog({
   pending: boolean;
   /** Keeps Save off without saying "Saving…" (the form is not ready yet). */
   disabled?: boolean;
+  /** The text of the button that submits the form; Save unless the form says otherwise. */
+  submitLabel?: string;
   onClose: () => void;
   onSubmit: () => void;
   wide?: boolean;
@@ -43,7 +46,7 @@ export function FormDialog({
             Cancel
           </Button>
           <Button type="submit" form={formId} disabled={pending || disabled}>
-            {pending ? 'Saving…' : 'Save'}
+            {pending ? 'Saving…' : submitLabel}
           </Button>
         </>
       }
