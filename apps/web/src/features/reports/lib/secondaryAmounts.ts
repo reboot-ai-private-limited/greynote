@@ -1,4 +1,5 @@
 import type { SecondaryReportLineDto } from '@greynote/contracts';
+import { matchesSearch } from '@/lib/search';
 
 /** A figure in paise, or `null` when the product has no PTS (its units cannot be priced). */
 export type Amount = number | null;
@@ -36,3 +37,6 @@ export function totalAmounts(lines: readonly Pick<SecondaryReportLineDto, 'openi
   }
   return t;
 }
+
+/** The distributors whose name has every word of `search` in it (any case); an empty search keeps them all. */
+export const filterDistributors = <T extends { name: string }>(distributors: readonly T[], search: string): T[] => distributors.filter((d) => matchesSearch(d.name, search));

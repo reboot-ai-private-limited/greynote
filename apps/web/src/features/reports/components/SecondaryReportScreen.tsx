@@ -1,10 +1,12 @@
 'use client';
 
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, X } from 'lucide-react';
 import { Fragment, useState } from 'react';
 import type { SecondaryReportLineDto } from '@greynote/contracts';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { DataState } from '@/components/ui/DataState';
+import { SearchInput } from '@/components/ui/ListToolbar';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Select } from '@/components/ui/Select';
 import { StatTile } from '@/components/ui/StatTile';
@@ -15,9 +17,10 @@ import { istDate } from '@/lib/dates';
 import { financialYearOf } from '@/lib/financial-year';
 import { formatMoney } from '@/lib/format';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
+import { useSearchFilter } from '@/lib/hooks/useSearchFilter';
 import { useFinancialYear } from '@/lib/useFinancialYear';
 import { useSecondaryReport } from '../hooks/useSalesReport';
-import { lineAmounts, priced, totalAmounts } from '../lib/secondaryAmounts';
+import { filterDistributors, lineAmounts, priced, totalAmounts } from '../lib/secondaryAmounts';
 
 const money = (p: number | null): string => (p === null ? '—' : formatMoney(p));
 
@@ -61,14 +64,22 @@ function ProductRow({ line }: { line: SecondaryReportLineDto }) {
  * product is counted once however many MRs serve the distributor. Shown as amounts: units × PTS (hover a figure for its units).
  */
 export function SecondaryReportScreen() {
-  const { values, update } = useFilterParams(['month']);
+  const { values, update } = useFilterParams(['month', 'search']);
+  // The box updates at once; the URL follows after a pause, so a search survives a reload and a month change.
+  const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
   const { year } = useFinancialYear();
   const months = monthsInYear(year ?? financialYearOf(istDate()), istDate());
   const month = months.includes(values.month) ? values.month : (months[0] ?? '');
   const query = useSecondaryReport(month);
   const report = query.data;
-  const empty = !report || report.distributors.length === 0;
-  const all = totalAmounts((report?.distributors ?? []).flatMap((d) => d.lines));
+  // The query keeps the previous month's figures while the new month loads (so a table does not blank); here they would sit under the new month's
+  // name, so they count as loading: the skeleton shows and the tiles wait.
+  const loading = query.isLoading || query.isPlaceholderData;
+  const everyone = report?.distributors ?? [];
+  const shown = filterDistributors(everyone, search);
+  const searching = search.trim() !== '';
+  const empty = !report || everyone.length === 0;
+  const all = totalAmounts(shown.flatMap((d) => d.lines));
   return (
     <>
       <PageHeader
@@ -79,23 +90,44 @@ export function SecondaryReportScreen() {
         <div className="w-52">
           <Select aria-label="Month" value={month} options={months.map((m) => ({ value: m, label: monthLabel(m) }))} onValueChange={(v) => update({ month: v })} />
         </div>
+        <SearchInput label="Find a distributor" placeholder="Find a distributor…" value={search} onChange={setSearch} />
+        {searching ? (
+          <>
+            <span className="text-[13px] text-text-muted" role="status">
+              {shown.length} of {everyone.length} distributors
+            </span>
+            <Button variant="ghost" size="sm" onClick={() => setSearch('')}>
+              <X aria-hidden className="size-4" /> Clear
+            </Button>
+          </>
+        ) : null}
       </div>
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatTile label="Secondary (₹)" value={formatMoney(all.issued)} />
-        <StatTile label="Closing stock (₹)" value={formatMoney(all.closing)} />
-        <StatTile label="Primary (₹)" value={formatMoney(all.primary)} />
-        <StatTile label="MRs approved" value={`${report?.approvedMrCount ?? 0} of ${report?.mrCount ?? 0}`} />
+        <StatTile label="Secondary (₹)" value={loading ? '…' : formatMoney(all.issued)} />
+        <StatTile label="Closing stock (₹)" value={loading ? '…' : formatMoney(all.closing)} />
+        <StatTile label="Primary (₹)" value={loading ? '…' : formatMoney(all.primary)} />
+        <StatTile label="MRs approved" value={loading ? '…' : `${report?.approvedMrCount ?? 0} of ${report?.mrCount ?? 0}`} />
       </div>
+      {searching && !empty && !loading ? <p className="mb-3 text-[12px] text-text-muted">Totals are for the {shown.length} {shown.length === 1 ? 'distributor' : 'distributors'} shown. MRs approved is for all.</p> : null}
       <Card flat>
         <DataState
-          isLoading={query.isLoading}
+          isLoading={loading}
           isFetching={query.isFetching}
           error={query.error ? toErrorState(query.error, () => void query.refetch()) : null}
           isEmpty={empty}
           empty={{ title: `No approved secondary for ${month ? monthLabel(month) : 'this month'}`, description: 'Figures appear here once an MR submits a month and the manager approves it.' }}
         >
           <div className="space-y-5 p-4">
-            {(report?.distributors ?? []).map((d) => (
+            {searching && shown.length === 0 ? (
+              <div className="py-10 text-center">
+                <p className="font-medium text-text">No distributor matches “{search.trim()}”</p>
+                <p className="mt-1 text-sm text-text-muted">Check the spelling, or try fewer words.</p>
+                <Button variant="secondary" size="sm" className="mt-3" onClick={() => setSearch('')}>
+                  Clear search
+                </Button>
+              </div>
+            ) : null}
+            {shown.map((d) => (
               <div key={d.distributorId} className="overflow-x-auto">
                 <h3 className="mb-1.5 text-[13px] font-semibold text-text">{d.name}</h3>
                 <table className="w-full min-w-[38rem] text-[13px]">
