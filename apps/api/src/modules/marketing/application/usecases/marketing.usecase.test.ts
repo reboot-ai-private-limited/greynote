@@ -4,7 +4,7 @@ import type { CampaignRepositoryPort, TargetRepositoryPort, VisualRepositoryPort
 import { MARKETING_CODES, MarketingRefusal } from '../../domain/marketingRefusal.js';
 import type { DirectoryUser, ProductPort, SalesPort, UserDirectoryPort } from '../../domain/ports.js';
 import { targetShare } from '../../domain/targetRange.js';
-import { DeleteTargetUseCase, GetTargetSummaryUseCase, ListTargetSharesUseCase, SetTargetUseCase, UpdateTargetUseCase } from './targets.usecase.js';
+import { DeleteTargetUseCase, GetTargetSummaryUseCase, ListTargetSharesUseCase, SetTargetUseCase, SetTargetsBulkUseCase, SplitTargetUseCase, UpdateTargetUseCase } from './targets.usecase.js';
 import { CreateCampaignUseCase, CreateVisualUseCase, DeleteVisualUseCase, GetVisualDeleteImpactUseCase, ListCampaignsUseCase, ListVisualsUseCase, ReplaceVisualFileUseCase } from './visualsAndCampaigns.usecase.js';
 
 const k = (t: TargetKey) => `${t.userId}|${t.month}|${t.toMonth}|${t.productId}|${t.campaignId}`;
@@ -15,6 +15,16 @@ class FakeTargets implements TargetRepositoryPort {
     const row: Target = { id: old?.id ?? `t${this.rows.size + 1}`, ...key, targetAmountPaise: amountPaise, targetQty: qty, createdBy: by, createdAt: old?.createdAt ?? at, updatedAt: at };
     this.rows.set(k(key), row);
     return row;
+  }
+  async insertMany(items: { key: TargetKey; amountPaise: number; qty: number | null }[], by: string, at: Date) {
+    const made: Target[] = [];
+    for (const { key, amountPaise, qty } of items) {
+      if (this.rows.has(k(key))) throw new Error('duplicate key');
+      const row: Target = { id: `t${this.rows.size + 1}`, ...key, targetAmountPaise: amountPaise, targetQty: qty, createdBy: by, createdAt: at, updatedAt: at };
+      this.rows.set(k(key), row);
+      made.push(row);
+    }
+    return made;
   }
   async findById(id: string) {
     return [...this.rows.values()].find((t) => t.id === id) ?? null;
@@ -135,13 +145,14 @@ const f = (id: string) => ({ id, role: 'FIELD' });
 
 describe('target units and amount', () => {
   const code = (p: Promise<unknown>) => p.then(() => null, (e: unknown) => (e instanceof MarketingRefusal ? e.code : 'OTHER'));
-  it('units × PTS is the amount; an amount restates as units; no PTS or all products means amount only', async () => {
+  it('units × PTS is the amount; an amount restates as units; no PTS means amount only; no product is refused', async () => {
     const targets = new FakeTargets();
     const set = new SetTargetUseCase(targets, {} as never, products, { findUserSummary: async () => ({ id: 'mr1', status: 'active', role: 'FIELD' }), getDownline: async () => [], getDesignationLevels: async () => [{ userId: 'mr1', level: 1 }] } as never, config, () => new Date('2026-10-12T05:00:00Z'));
     const base = { userId: 'mr1', month: '2026-10', productId: 'prod1', campaignId: null };
     expect(await set.execute(admin, { ...base, targetQty: 50 })).toMatchObject({ targetQty: 50, targetAmountPaise: 60_000 });
     expect(await set.execute(admin, { ...base, targetAmountPaise: 120_000 })).toMatchObject({ targetQty: 100, targetAmountPaise: 120_000 });
-    expect(await set.execute(admin, { ...base, productId: null, targetAmountPaise: 5_000 })).toMatchObject({ targetQty: null });
+    expect(await set.execute(admin, { ...base, productId: 'prodNoPts', targetAmountPaise: 5_000 })).toMatchObject({ targetQty: null });
+    expect(await code(set.execute(admin, { ...base, productId: null, targetAmountPaise: 5_000 }))).toBe(MARKETING_CODES.productRequired);
     expect(await code(set.execute(admin, { ...base, productId: 'prodNoPts', targetQty: 5 }))).toBe(MARKETING_CODES.invalidDates);
   });
 });
@@ -152,7 +163,7 @@ describe('targets', () => {
   let sold: Array<{ userIds: string[]; from: string; to: string; productId?: string | undefined }>;
   let set: SetTargetUseCase;
   let summary: GetTargetSummaryUseCase;
-  const general = { month: '2026-10', productId: null, campaignId: null };
+  const general = { month: '2026-10', productId: 'prod1', campaignId: null };
   const code = (p: Promise<unknown>) => p.then(() => null, (e: unknown) => (e instanceof MarketingRefusal ? e.code : 'OTHER'));
 
   beforeEach(() => {
@@ -171,9 +182,9 @@ describe('targets', () => {
     expect([...targets.rows.values()][0]).toMatchObject({ targetAmountPaise: 700_000, createdBy: 'admin' });
   });
 
-  it('a product-specific and a general target for the same month are different rows', async () => {
+  it('two products, or the same product over other months, are different rows', async () => {
     await set.execute(admin, { userId: 'mr1', ...general, targetAmountPaise: 500_000 });
-    await set.execute(admin, { userId: 'mr1', ...general, productId: 'prod1', targetAmountPaise: 100_000 });
+    await set.execute(admin, { userId: 'mr1', ...general, productId: 'prodNoPts', targetAmountPaise: 100_000 });
     expect(targets.rows.size).toBe(2);
   });
 
@@ -193,8 +204,10 @@ describe('targets', () => {
       const edited = await edit().execute(hr, t.id, { month: '2026-11', toMonth: '2027-01', productId: 'prod1', targetAmountPaise: 120_000 });
       expect(edited).toMatchObject({ id: t.id, userId: 'mr1', month: '2026-11', toMonth: '2027-01', productId: 'prod1', targetAmountPaise: 120_000, targetQty: 100, createdBy: 'hr' });
       expect(targets.rows.size).toBe(1);
-      // Back to all products, as an amount; units only go with a product.
-      expect(await edit().execute(admin, t.id, { month: '2026-11', productId: null, targetAmountPaise: 90_000 })).toMatchObject({ productId: null, toMonth: '2026-11', targetQty: null });
+      // Narrowed to one month, as an amount: the units follow at the PTS.
+      expect(await edit().execute(admin, t.id, { month: '2026-11', productId: 'prod1', targetAmountPaise: 90_000 })).toMatchObject({ productId: 'prod1', toMonth: '2026-11', targetQty: 75 });
+      // And a target can no longer be turned into an all-products one.
+      expect(await code(edit().execute(admin, t.id, { month: '2026-11', productId: null, targetAmountPaise: 90_000 }))).toBe(MARKETING_CODES.productRequired);
     });
 
     it('takes units for a product target: the amount follows at PTS', async () => {
@@ -204,8 +217,8 @@ describe('targets', () => {
 
     it('refuses to become another target the employee already has, and leaves both as they were', async () => {
       const t = await first();
-      await set.execute(admin, { userId: 'mr1', ...general, productId: 'prod1', targetAmountPaise: 100_000 });
-      const err = await edit().execute(admin, t.id, { month: '2026-10', productId: 'prod1', targetAmountPaise: 1 }).catch((e: unknown) => e);
+      await set.execute(admin, { userId: 'mr1', ...general, productId: 'prodNoPts', targetAmountPaise: 100_000 });
+      const err = await edit().execute(admin, t.id, { month: '2026-10', productId: 'prodNoPts', targetAmountPaise: 1 }).catch((e: unknown) => e);
       expect(err).toMatchObject({ code: MARKETING_CODES.targetClash, message: 'There is already a target for this product over Oct 2026. Edit that one instead.' });
       expect((err as MarketingRefusal).status).toBe(409);
       expect(targets.rows.size).toBe(2);
@@ -214,10 +227,10 @@ describe('targets', () => {
 
     it('same rules as setting: the team, the financial year, an active product, an unknown target', async () => {
       const t = await first();
-      expect(await code(edit().execute(f('mr1'), t.id, { month: '2026-10', productId: null, targetAmountPaise: 1 }))).toBe(MARKETING_CODES.notYourTeam);
-      expect(await code(edit().execute(admin, t.id, { month: '2027-04', productId: null, targetAmountPaise: 1 }))).toBe(MARKETING_CODES.outsideFinancialYear);
+      expect(await code(edit().execute(f('mr1'), t.id, { month: '2026-10', productId: 'prod1', targetAmountPaise: 1 }))).toBe(MARKETING_CODES.notYourTeam);
+      expect(await code(edit().execute(admin, t.id, { month: '2027-04', productId: 'prod1', targetAmountPaise: 1 }))).toBe(MARKETING_CODES.outsideFinancialYear);
       expect(await code(edit().execute(admin, t.id, { month: '2026-10', productId: 'prodOff', targetAmountPaise: 1 }))).toBe(MARKETING_CODES.productNotFound);
-      expect(await code(edit().execute(admin, 'nope', { month: '2026-10', productId: null, targetAmountPaise: 1 }))).toBe(MARKETING_CODES.targetNotFound);
+      expect(await code(edit().execute(admin, 'nope', { month: '2026-10', productId: 'prod1', targetAmountPaise: 1 }))).toBe(MARKETING_CODES.targetNotFound);
     });
   });
 
@@ -284,7 +297,7 @@ describe('the financial-year bound', () => {
   const code = (p: Promise<unknown>) => p.then(() => null, (e: unknown) => (e instanceof MarketingRefusal ? e.code : 'OTHER'));
   const targets = new FakeTargets();
   const set = new SetTargetUseCase(targets, new FakeCampaigns(), products, users, config, today);
-  const general = { productId: null, campaignId: null };
+  const general = { productId: 'prod1', campaignId: null };
 
   it('a target is accepted for any month of the current FY (Apr 2026 – Mar 2027) and refused outside it', async () => {
     await set.execute(admin, { userId: 'mr1', month: '2026-04', ...general, targetAmountPaise: 1 });
@@ -329,10 +342,10 @@ describe('targets over a run of months', () => {
 
   it('lists the shares of the general targets that touch a window, and not a campaign target', async () => {
     await set.execute(admin, { ...base, month: '2026-10', toMonth: '2026-12', targetAmountPaise: 300 });
-    await set.execute(admin, { ...base, productId: null, month: '2026-11', targetAmountPaise: 50 });
-    await set.execute(admin, { userId: 'mr2', productId: null, campaignId: null, month: '2026-04', targetAmountPaise: 70 });
+    await set.execute(admin, { ...base, productId: 'prod1', month: '2026-11', targetAmountPaise: 50 });
+    await set.execute(admin, { userId: 'mr2', productId: 'prod1', campaignId: null, month: '2026-04', targetAmountPaise: 70 });
     const rows = await new ListTargetSharesUseCase(targets).execute(['mr1', 'mr2'], '2026-11', '2026-11');
-    expect(rows.map((r) => [r.userId, r.productId, r.sharePaise])).toEqual([['mr1', 'prod1', 100], ['mr1', null, 50]]);
+    expect(rows.map((r) => [r.userId, r.productId, r.sharePaise])).toEqual([['mr1', 'prod1', 100], ['mr1', 'prod1', 50]]);
   });
 
   it('removes a target: Admin or HR; not a manager, not a missing one', async () => {
@@ -342,6 +355,72 @@ describe('targets over a run of months', () => {
     expect(await code(del.execute(f('asm'), t.id))).toBe(MARKETING_CODES.notYourTeam);
     expect(await code(del.execute(hr, t.id))).toBeNull();
     expect(await code(del.execute(admin, t.id))).toBe(MARKETING_CODES.targetNotFound);
+  });
+});
+
+describe('targets for several products at once', () => {
+  const code = (p: Promise<unknown>) => p.then(() => null, (e: unknown) => (e instanceof MarketingRefusal ? e.code : 'OTHER'));
+  let targets: FakeTargets;
+  let bulk: SetTargetsBulkUseCase;
+  let split: SplitTargetUseCase;
+  const range = { userId: 'mr1', month: '2026-11', toMonth: '2027-03' };
+  beforeEach(() => {
+    targets = new FakeTargets();
+    bulk = new SetTargetsBulkUseCase(targets, new FakeCampaigns(), products, users, config, today);
+    split = new SplitTargetUseCase(targets, new FakeCampaigns(), products, users, config, today);
+  });
+
+  it('creates one target per product over the same months, with units from the PTS where there is one', async () => {
+    const made = await bulk.execute(hr, { ...range, items: [{ productId: 'prod1', targetAmountPaise: 120_000 }, { productId: 'prodNoPts', targetAmountPaise: 50_000 }] });
+    expect(made.map((t) => [t.productId, t.targetAmountPaise, t.targetQty, t.month, t.toMonth, t.createdBy])).toEqual([
+      ['prod1', 120_000, 100, '2026-11', '2027-03', 'hr'],
+      ['prodNoPts', 50_000, null, '2026-11', '2027-03', 'hr'],
+    ]);
+  });
+
+  it('is all or nothing: one bad line writes none', async () => {
+    expect(await code(bulk.execute(hr, { ...range, items: [{ productId: 'prod1', targetAmountPaise: 1_000 }, { productId: 'prodOff', targetAmountPaise: 1_000 }] }))).toBe(MARKETING_CODES.productNotFound);
+    expect(await code(bulk.execute(hr, { ...range, items: [{ productId: 'prod1', targetAmountPaise: 1_000 }, { productId: 'prodNoPts', targetQty: 5 }] }))).toBe(MARKETING_CODES.invalidDates);
+    expect(targets.rows.size).toBe(0);
+  });
+
+  it('refuses the whole call when a product already has a target over exactly these months, and replaces nothing', async () => {
+    await bulk.execute(hr, { ...range, items: [{ productId: 'prod1', targetAmountPaise: 120_000 }] });
+    expect(await code(bulk.execute(hr, { ...range, items: [{ productId: 'prodNoPts', targetAmountPaise: 1_000 }, { productId: 'prod1', targetAmountPaise: 9_999 }] }))).toBe(MARKETING_CODES.targetClash);
+    expect(targets.rows.size).toBe(1);
+    expect([...targets.rows.values()][0]!.targetAmountPaise).toBe(120_000);
+    // The same product over other months is a different target and adds up with it.
+    await bulk.execute(hr, { ...range, month: '2026-11', toMonth: '2026-12', items: [{ productId: 'prod1', targetAmountPaise: 24_000 }] });
+    expect(targets.rows.size).toBe(2);
+  });
+
+  it('same rules as one target: Admin or HR only, an MR as the subject, the current financial year, a product listed once', async () => {
+    expect(await code(bulk.execute(f('asm'), { ...range, items: [{ productId: 'prod1', targetAmountPaise: 1 }] }))).toBe(MARKETING_CODES.notYourTeam);
+    expect(await code(bulk.execute(hr, { ...range, userId: 'asm', items: [{ productId: 'prod1', targetAmountPaise: 1 }] }))).toBe(MARKETING_CODES.invalidDates);
+    expect(await code(bulk.execute(hr, { ...range, toMonth: '2027-04', items: [{ productId: 'prod1', targetAmountPaise: 1 }] }))).toBe(MARKETING_CODES.outsideFinancialYear);
+    expect(await code(bulk.execute(hr, { ...range, items: [] }))).toBe(MARKETING_CODES.invalidDates);
+    expect(await code(bulk.execute(hr, { ...range, items: [{ productId: 'prod1', targetAmountPaise: 1 }, { productId: 'prod1', targetAmountPaise: 2 }] }))).toBe(MARKETING_CODES.invalidDates);
+  });
+
+  const legacy = async (amount = 1_000_000) => targets.upsert({ userId: 'mr1', month: '2026-10', toMonth: '2027-03', productId: null, campaignId: null }, amount, null, 'admin', today());
+
+  it('splits an old all-products target: the product targets replace it and add up to it', async () => {
+    const old = await legacy();
+    const made = await split.execute(hr, old.id, [{ productId: 'prod1', targetAmountPaise: 400_000 }, { productId: 'prodNoPts', targetAmountPaise: 600_000 }]);
+    expect(made.map((t) => [t.productId, t.targetAmountPaise])).toEqual([['prod1', 400_000], ['prodNoPts', 600_000]]);
+    expect(await targets.findById(old.id)).toBeNull();
+    expect([...targets.rows.values()].reduce((n, t) => n + t.targetAmountPaise, 0)).toBe(1_000_000);
+  });
+
+  it('refuses a split that does not add up, or a target that is not an all-products one, and keeps the old target', async () => {
+    const old = await legacy();
+    expect(await code(split.execute(hr, old.id, [{ productId: 'prod1', targetAmountPaise: 400_000 }]))).toBe(MARKETING_CODES.invalidDates);
+    expect(await targets.findById(old.id)).not.toBeNull();
+    expect(targets.rows.size).toBe(1);
+    const [one] = await bulk.execute(hr, { ...range, items: [{ productId: 'prod1', targetAmountPaise: 1_000 }] });
+    expect(await code(split.execute(hr, one!.id, [{ productId: 'prod1', targetAmountPaise: 1_000 }]))).toBe(MARKETING_CODES.invalidDates);
+    expect(await code(split.execute(hr, 'nope', [{ productId: 'prod1', targetAmountPaise: 1 }]))).toBe(MARKETING_CODES.targetNotFound);
+    expect(await code(split.execute(f('asm'), old.id, [{ productId: 'prod1', targetAmountPaise: 1_000_000 }]))).toBe(MARKETING_CODES.notYourTeam);
   });
 });
 

@@ -36,6 +36,8 @@ export interface CampaignRepositoryPort {
 export interface TargetRepositoryPort {
   /** Creates the target for this key or replaces its amount and setter — one conditional write, so two racing sets leave one row. */
   upsert(key: TargetKey, amountPaise: number, qty: number | null, by: string, at: Date): Promise<Target>;
+  /** Creates several targets in one write, none replacing another: a duplicate key fails the whole call (the caller checks first). */
+  insertMany(items: { key: TargetKey; amountPaise: number; qty: number | null }[], by: string, at: Date): Promise<Target[]>;
   findById(id: string): Promise<Target | null>;
   /**
    * Edits a target in place: its months, product, amount and units, and who set it. `'clash'` when another target of the same employee

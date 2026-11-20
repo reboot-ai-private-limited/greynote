@@ -5,10 +5,10 @@ import { asyncHandler } from '@/shared/http/asyncHandler.js';
 import { requiredParam } from '@/shared/http/params.util.js';
 import { sendSuccess } from '@/shared/http/response.util.js';
 import { MarketingRefusal } from '../domain/marketingRefusal.js';
-import type { DeleteTargetUseCase, GetTargetSummaryUseCase, ListTargetsUseCase, SetTargetUseCase, UpdateTargetUseCase } from '../application/usecases/targets.usecase.js';
+import type { DeleteTargetUseCase, GetTargetSummaryUseCase, ListTargetsUseCase, SetTargetUseCase, SetTargetsBulkUseCase, SplitTargetUseCase, UpdateTargetUseCase } from '../application/usecases/targets.usecase.js';
 import type { AddDoctorVisualsUseCase, ListDoctorVisualsUseCase, RemoveDoctorVisualUseCase } from '../application/usecases/doctorVisuals.usecase.js';
 import type { Actor, CreateCampaignUseCase, CreateVisualUseCase, DeleteVisualUseCase, GetVisualDeleteImpactUseCase, ReplaceVisualFileUseCase, ListCampaignsUseCase, ListVisualsUseCase, SetCampaignStatusUseCase, UpdateVisualUseCase } from '../application/usecases/visualsAndCampaigns.usecase.js';
-import type { addDoctorVisualsBodySchema, createCampaignBodySchema, createVisualBodySchema, listCampaignsQuerySchema, listVisualsQuerySchema, setCampaignStatusBodySchema, updateVisualBodySchema, setTargetBodySchema, updateTargetBodySchema, listTargetsQuerySchema, targetQuerySchema } from './marketing.schemas.js';
+import type { addDoctorVisualsBodySchema, createCampaignBodySchema, createVisualBodySchema, listCampaignsQuerySchema, listVisualsQuerySchema, setCampaignStatusBodySchema, updateVisualBodySchema, setTargetBodySchema, setTargetsBulkBodySchema, splitTargetBodySchema, updateTargetBodySchema, listTargetsQuerySchema, targetQuerySchema } from './marketing.schemas.js';
 
 function actorOf(req: Request): Actor {
   if (!req.user) throw AppError.unauthenticated();
@@ -27,7 +27,7 @@ async function refusing<T>(run: () => Promise<T>): Promise<T> {
   }
 }
 
-export type MarketingHandlers = Record<'replaceVisualFile' | 'visualDeleteImpact' | 'deleteVisual' | 'createVisual' | 'listVisuals' | 'updateVisual' | 'listDoctorVisuals' | 'addDoctorVisuals' | 'removeDoctorVisual' | 'createCampaign' | 'listCampaigns' | 'setCampaignStatus' | 'setTarget' | 'updateTarget' | 'deleteTarget' | 'listTargets' | 'getTarget', RequestHandler>;
+export type MarketingHandlers = Record<'replaceVisualFile' | 'visualDeleteImpact' | 'deleteVisual' | 'createVisual' | 'listVisuals' | 'updateVisual' | 'listDoctorVisuals' | 'addDoctorVisuals' | 'removeDoctorVisual' | 'createCampaign' | 'listCampaigns' | 'setCampaignStatus' | 'setTarget' | 'setTargetsBulk' | 'splitTarget' | 'updateTarget' | 'deleteTarget' | 'listTargets' | 'getTarget', RequestHandler>;
 
 export function makeMarketingControllers(u: {
   createVisual: CreateVisualUseCase;
@@ -43,6 +43,8 @@ export function makeMarketingControllers(u: {
   listCampaigns: ListCampaignsUseCase;
   setCampaignStatus: SetCampaignStatusUseCase;
   setTarget: SetTargetUseCase;
+  setTargetsBulk: SetTargetsBulkUseCase;
+  splitTarget: SplitTargetUseCase;
   updateTarget: UpdateTargetUseCase;
   deleteTarget: DeleteTargetUseCase;
   listTargets: ListTargetsUseCase;
@@ -87,6 +89,12 @@ export function makeMarketingControllers(u: {
     ),
     setTarget: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await refusing(() => u.setTarget.execute(actorOf(req), req.body as z.output<typeof setTargetBodySchema>)), 'The target was saved.', 200),
+    ),
+    setTargetsBulk: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await refusing(() => u.setTargetsBulk.execute(actorOf(req), req.body as z.output<typeof setTargetsBulkBodySchema>)), 'The targets were saved.', 200),
+    ),
+    splitTarget: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await refusing(() => u.splitTarget.execute(actorOf(req), requiredParam(req.params, 'id'), (req.body as z.output<typeof splitTargetBodySchema>).items)), 'The target was split by product.', 200),
     ),
     updateTarget: asyncHandler(async (req, res) =>
       sendSuccess(

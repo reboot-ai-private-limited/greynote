@@ -325,6 +325,8 @@ POST   /api/late-grants/bulk  ADMIN,FIELD
 POST   /api/marketing/campaigns  ADMIN
 POST   /api/marketing/doctors/:doctorId/visuals  ADMIN,FIELD
 POST   /api/marketing/targets  ADMIN,HR
+POST   /api/marketing/targets/:id/split  ADMIN,HR
+POST   /api/marketing/targets/bulk  ADMIN,HR
 POST   /api/marketing/visuals  ADMIN
 POST   /api/marketing/visuals/:id/file  ADMIN
 POST   /api/payroll/:id/adjustments  ADMIN,HR

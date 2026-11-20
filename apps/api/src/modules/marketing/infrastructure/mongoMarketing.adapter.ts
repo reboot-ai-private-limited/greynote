@@ -125,6 +125,15 @@ export class MongoTargetAdapter implements TargetRepositoryPort {
     }
   }
 
+  async insertMany(items: { key: TargetKey; amountPaise: number; qty: number | null }[], by: string, at: Date): Promise<Target[]> {
+    if (items.length === 0) return [];
+    const docs = await TargetModel.insertMany(
+      items.map(({ key, amountPaise, qty }) => ({ userId: oid(key.userId), month: key.month, toMonth: key.toMonth, productId: oidOrNull(key.productId), campaignId: oidOrNull(key.campaignId), targetAmountPaise: amountPaise, targetQty: qty, createdBy: oid(by), createdAt: at, updatedAt: at })),
+      { ordered: true },
+    );
+    return docs.map((d) => toTarget(d.toObject() as TargetDoc & { _id: unknown }));
+  }
+
   async findById(id: string): Promise<Target | null> {
     const doc = await TargetModel.findById(id).lean();
     return doc ? toTarget(doc) : null;

@@ -51,6 +51,15 @@ function checkTarget(b: TargetFields, ctx: z.RefinementCtx): void {
 export const setTargetBodySchema = z
   .object({ userId: objectIdSchema, ...targetFields, campaignId: objectIdSchema.nullish().transform((v) => v ?? null) })
   .superRefine(checkTarget);
+const targetLineSchema = z
+  .object({ productId: objectIdSchema, targetAmountPaise: paiseSchema.refine((n) => n > 0, 'A target must be more than zero.').optional(), targetQty: z.number().int().min(1).max(100_000_000).optional() })
+  .refine((l) => l.targetAmountPaise !== undefined || l.targetQty !== undefined, { message: 'Give an amount or units.', path: ['targetAmountPaise'] });
+/** `POST /targets/bulk`: one run of months, several products, each with an amount or units. */
+export const setTargetsBulkBodySchema = z
+  .object({ userId: objectIdSchema, month: calendarMonthSchema, toMonth: calendarMonthSchema.optional(), items: z.array(targetLineSchema).min(1).max(200) })
+  .refine((b) => !b.toMonth || b.toMonth >= b.month, { message: 'A target cannot end before it starts.', path: ['toMonth'] });
+/** `POST /targets/:id/split`: an old all-products target as product amounts that add up to it. */
+export const splitTargetBodySchema = z.object({ items: z.array(targetLineSchema.refine((l) => l.targetQty === undefined, { message: 'Give amounts when splitting a target.', path: ['targetQty'] })).min(1).max(200) });
 /** `PATCH /targets/:id`: the whole target as it should now be; the employee (and any campaign) stays. */
 export const updateTargetBodySchema = z.object(targetFields).superRefine(checkTarget);
 export const listTargetsQuerySchema = z

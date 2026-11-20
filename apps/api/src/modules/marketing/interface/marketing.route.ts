@@ -7,7 +7,7 @@ import { requireRole } from '@/shared/http/authorize.middleware.js';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { MarketingHandlers } from './marketing.controller.js';
-import { addDoctorVisualsBodySchema, createCampaignBodySchema, createVisualBodySchema, doctorIdParamsSchema, doctorVisualParamsSchema, idParamsSchema, updateVisualBodySchema, listCampaignsQuerySchema, listVisualsQuerySchema, setCampaignStatusBodySchema, setTargetBodySchema, updateTargetBodySchema, listTargetsQuerySchema, targetQuerySchema, userIdParamsSchema } from './marketing.schemas.js';
+import { addDoctorVisualsBodySchema, createCampaignBodySchema, createVisualBodySchema, doctorIdParamsSchema, doctorVisualParamsSchema, idParamsSchema, updateVisualBodySchema, listCampaignsQuerySchema, listVisualsQuerySchema, setCampaignStatusBodySchema, setTargetBodySchema, setTargetsBulkBodySchema, splitTargetBodySchema, updateTargetBodySchema, listTargetsQuerySchema, targetQuerySchema, userIdParamsSchema } from './marketing.schemas.js';
 
 const TAG = 'Marketing';
 const MAX_VISUAL_BYTES = 25 * 1024 * 1024;
@@ -41,7 +41,9 @@ doc('delete', '/doctors/{doctorId}/visuals/{visualId}', 'Take a visual off a doc
 doc('post', '/campaigns', 'Admin: create a company-wide Campaign', { body: createCampaignBodySchema });
 doc('get', '/campaigns', 'Campaigns — field staff see the active ones; Admin all', { query: listCampaignsQuerySchema });
 doc('patch', '/campaigns/{id}', 'Admin: set a Campaign active, inactive or completed', { params: idParamsSchema, body: setCampaignStatusBodySchema });
-doc('post', '/targets', 'Admin or HR: set a Target over a run of whole months of the current financial year (replaces the same user + range + product + campaign)', { body: setTargetBodySchema });
+doc('post', '/targets', 'Admin or HR: set a Target over a run of whole months of the current financial year (replaces the same user + range + product + campaign); a product is required', { body: setTargetBodySchema });
+doc('post', '/targets/bulk', 'Admin or HR: set Targets for several products over one run of months (an amount or units each); all or nothing, 409 TARGET_CLASH if a product already has a target over exactly those months', { body: setTargetsBulkBodySchema });
+doc('post', '/targets/{id}/split', 'Admin or HR: split an old all-products Target across products; the amounts must add up to it', { params: idParamsSchema, body: splitTargetBodySchema });
 doc('patch', '/targets/{id}', 'Admin or HR: edit a Target in place — months, product (or all products), amount or units; the employee stays. 409 TARGET_CLASH if another target already has that product and those months', { params: idParamsSchema, body: updateTargetBodySchema });
 doc('get', '/targets', 'An employee\'s targets touching a range of months, each with its share inside the range — self, the manager above, Admin or HR', { query: listTargetsQuerySchema });
 doc('delete', '/targets/{id}', 'Admin or HR: take a Target away (current financial year)', { params: idParamsSchema });
@@ -63,6 +65,8 @@ export function buildMarketingRouter(c: MarketingHandlers): Router {
   router.get('/campaigns', requireRole('FIELD', 'ADMIN'), validate({ query: listCampaignsQuerySchema }), c.listCampaigns);
   router.patch('/campaigns/:id', requireRole('ADMIN'), validate({ params: idParamsSchema, body: setCampaignStatusBodySchema }), c.setCampaignStatus);
   router.post('/targets', requireRole('ADMIN', 'HR'), validate({ body: setTargetBodySchema }), c.setTarget);
+  router.post('/targets/bulk', requireRole('ADMIN', 'HR'), validate({ body: setTargetsBulkBodySchema }), c.setTargetsBulk);
+  router.post('/targets/:id/split', requireRole('ADMIN', 'HR'), validate({ params: idParamsSchema, body: splitTargetBodySchema }), c.splitTarget);
   router.get('/targets', requireRole('FIELD', 'ADMIN', 'HR'), validate({ query: listTargetsQuerySchema }), c.listTargets);
   router.patch('/targets/:id', requireRole('ADMIN', 'HR'), validate({ params: idParamsSchema, body: updateTargetBodySchema }), c.updateTarget);
   router.delete('/targets/:id', requireRole('ADMIN', 'HR'), validate({ params: idParamsSchema }), c.deleteTarget);

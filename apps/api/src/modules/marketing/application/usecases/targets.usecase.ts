@@ -74,6 +74,8 @@ async function resolveTarget(
   if ((await managerIds(deps.users, [userId])).has(userId)) {
     throw new MarketingRefusal(MARKETING_CODES.invalidDates, 'A manager’s target is the total of the MRs in their team. Set the target on each MR instead.');
   }
+  // From 2026-11-20 a target is always for one product (a rupee total is split across products when it is set); only a campaign's may have none.
+  if (!input.productId && !input.campaignId) throw new MarketingRefusal(MARKETING_CODES.productRequired, 'Choose a product: a target is set per product. To enter a total, split it across the products.');
   await assertScope(deps.products, deps.campaigns, input);
   const key: TargetKey = { userId, month: input.month, toMonth, productId: input.productId, campaignId: input.campaignId };
   // Units and amount are one figure at the product's PTS: either given, both kept. A target for all products is an amount only.
@@ -89,6 +91,87 @@ async function resolveTarget(
   }
   if (!amount) throw new MarketingRefusal(MARKETING_CODES.invalidDates, 'A target must be more than zero.');
   return { key, amount, qty };
+}
+
+/** A target as a form of several products sends each line: a product and an amount or units. */
+export interface TargetLine {
+  productId: string;
+  targetAmountPaise?: Paise | undefined;
+  targetQty?: number | undefined;
+}
+
+const monthsText = (month: string, toMonth: string): string => (month === toMonth ? monthName(month) : `${monthName(month)} – ${monthName(toMonth)}`);
+
+/** Names the products that already have a target over exactly these months, so the caller edits those instead of the call replacing them. */
+async function refuseIfTargetsExist(targets: TargetRepositoryPort, products: ProductPort, userId: string, month: string, toMonth: string, productIds: string[]): Promise<void> {
+  const taken = (await targets.listOverlapping([userId], month, toMonth, { campaignId: null })).filter((t) => t.month === month && t.toMonth === toMonth && t.productId !== null && productIds.includes(t.productId));
+  if (taken.length === 0) return;
+  const names = await Promise.all(taken.map(async (t) => (await products.getProduct(t.productId!))?.name ?? 'a product'));
+  throw new MarketingRefusal(MARKETING_CODES.targetClash, `There is already a target over ${monthsText(month, toMonth)} for ${names.join(', ')}. Edit ${names.length === 1 ? 'that one' : 'those'} instead.`);
+}
+
+type TargetDeps = { products: ProductPort; campaigns: CampaignRepositoryPort; users: UserDirectoryPort; config: ConfigReader; now: () => Date };
+
+/**
+ * Set targets for several products at once over one run of months (decision-log 2026-11-20): the form splits a total across the products by
+ * percentage, or takes an amount per product. Every line is checked first and nothing is written unless all of them pass; a product that
+ * already has a target over exactly these months refuses the whole call (edit that one), rather than being replaced.
+ */
+export class SetTargetsBulkUseCase {
+  constructor(
+    private readonly targets: TargetRepositoryPort,
+    private readonly campaigns: CampaignRepositoryPort,
+    private readonly products: ProductPort,
+    private readonly users: UserDirectoryPort,
+    private readonly config: ConfigReader,
+    private readonly now: () => Date = () => new Date(),
+  ) {}
+
+  async execute(actor: Actor, input: { userId: string; month: string; toMonth?: string | undefined; items: TargetLine[] }): Promise<Target[]> {
+    if (input.items.length === 0) throw new MarketingRefusal(MARKETING_CODES.invalidDates, 'Add at least one product.');
+    if (new Set(input.items.map((i) => i.productId)).size !== input.items.length) throw new MarketingRefusal(MARKETING_CODES.invalidDates, 'A product is listed twice.');
+    const deps: TargetDeps = { products: this.products, campaigns: this.campaigns, users: this.users, config: this.config, now: this.now };
+    const resolved = [];
+    for (const item of input.items) resolved.push(await resolveTarget(deps, actor, input.userId, { month: input.month, toMonth: input.toMonth, productId: item.productId, campaignId: null, targetAmountPaise: item.targetAmountPaise, targetQty: item.targetQty }));
+    const first = resolved[0]!.key;
+    await refuseIfTargetsExist(this.targets, this.products, input.userId, first.month, first.toMonth, input.items.map((i) => i.productId));
+    return this.targets.insertMany(resolved.map((r) => ({ key: r.key, amountPaise: r.amount, qty: r.qty })), actor.id, this.now());
+  }
+}
+
+/**
+ * Splits an old all-products target across products. The amounts must add up to the old target's, so the total does not move; the product
+ * targets are written first and the old one removed after, so a failure in between leaves an extra, never a smaller, total.
+ */
+export class SplitTargetUseCase {
+  constructor(
+    private readonly targets: TargetRepositoryPort,
+    private readonly campaigns: CampaignRepositoryPort,
+    private readonly products: ProductPort,
+    private readonly users: UserDirectoryPort,
+    private readonly config: ConfigReader,
+    private readonly now: () => Date = () => new Date(),
+  ) {}
+
+  async execute(actor: Actor, id: string, items: TargetLine[]): Promise<Target[]> {
+    const current = await this.targets.findById(id);
+    if (!current) throw new MarketingRefusal(MARKETING_CODES.targetNotFound, 'No such target.');
+    if (current.productId !== null || current.campaignId !== null) throw new MarketingRefusal(MARKETING_CODES.invalidDates, 'Only an all-products target can be split.');
+    await assertMayAct(this.users, actor, current.userId, 'set');
+    await assertMonthInCurrentFinancialYear(this.config, current.month, this.now(), 'A target');
+    if (items.length === 0) throw new MarketingRefusal(MARKETING_CODES.invalidDates, 'Add at least one product.');
+    if (new Set(items.map((i) => i.productId)).size !== items.length) throw new MarketingRefusal(MARKETING_CODES.invalidDates, 'A product is listed twice.');
+    const deps: TargetDeps = { products: this.products, campaigns: this.campaigns, users: this.users, config: this.config, now: this.now };
+    const resolved = [];
+    // Amounts only: the split must add up exactly, and units follow from each product's PTS.
+    for (const item of items) resolved.push(await resolveTarget(deps, actor, current.userId, { month: current.month, toMonth: current.toMonth, productId: item.productId, campaignId: null, targetAmountPaise: item.targetAmountPaise }));
+    const total = resolved.reduce((n, r) => n + r.amount, 0);
+    if (total !== current.targetAmountPaise) throw new MarketingRefusal(MARKETING_CODES.invalidDates, 'The products must add up to the whole target.');
+    await refuseIfTargetsExist(this.targets, this.products, current.userId, current.month, current.toMonth, items.map((i) => i.productId));
+    const created = await this.targets.insertMany(resolved.map((r) => ({ key: r.key, amountPaise: r.amount, qty: r.qty })), actor.id, this.now());
+    await this.targets.remove(id);
+    return created;
+  }
 }
 
 /** Set (or replace) one target over a run of months. A manager sets their own and their downline's; Admin anyone's. */

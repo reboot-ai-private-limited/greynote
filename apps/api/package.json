@@ -45,6 +45,7 @@
         "cleanup:manager-routes": "tsx src/scripts/cleanup-manager-copied-routes.ts",
         "migrate:late-grants": "tsx src/scripts/migrate-late-grants.ts",
         "migrate:targets": "tsx src/scripts/migrate-targets-to-ranges.ts",
+        "migrate:split-targets": "tsx src/scripts/migrate-split-all-product-targets.ts",
         "report:manager-targets": "tsx src/scripts/report-manager-targets.ts",
         "migrate:expense-months": "tsx src/scripts/migrate-expense-month-approval.ts",
         "migrate:expense-finalized": "tsx src/scripts/migrate-expense-finalized.ts",
