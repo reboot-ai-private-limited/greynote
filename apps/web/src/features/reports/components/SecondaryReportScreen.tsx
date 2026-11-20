@@ -72,7 +72,7 @@ export function SecondaryReportScreen() {
   return (
     <>
       <PageHeader
-        title="Secondary sales"
+        title="Distributor sales"
         description="Approved secondary of the MRs, by distributor and product. Closing is opening + primary − secondary. Every figure is in rupees: units × the product's PTS (hover for the units). A product with no PTS shows —."
       />
       <div className="mb-4 flex flex-wrap items-center gap-3">

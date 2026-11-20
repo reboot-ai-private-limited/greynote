@@ -94,7 +94,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Expense claims', href: '/expense-claims', icon: CalendarRange, group: 'Payouts', roles: ['ADMIN', 'ACCOUNTANT'] },
 
   { label: 'Sales report', href: '/reports/sales', icon: BarChart3, group: 'Reports', roles: ['ADMIN', 'ACCOUNTANT', 'HR'] },
-  { label: 'Secondary sales', href: '/reports/secondary', icon: Boxes, group: 'Reports', roles: ['ADMIN'] },
+  { label: 'Distributor sales', href: '/reports/secondary', icon: Boxes, group: 'Reports', roles: ['ADMIN'] },
+  { label: 'Secondary sales', href: '/reports/secondary-sales', icon: Boxes, group: 'Reports', roles: ['ADMIN', 'HR'] },
   { label: 'Monthly work', href: '/reports/monthly-work', icon: CalendarDays, group: 'Reports', roles: ['ADMIN', 'HR'] },
   { label: 'Stock report', href: '/reports/stock', icon: Boxes, group: 'Reports', roles: ['ADMIN'] },
   { label: 'Daily reports', href: '/reports/dcr', icon: ClipboardList, group: 'Reports', roles: ['ADMIN'] },

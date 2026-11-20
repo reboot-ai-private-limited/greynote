@@ -86,3 +86,27 @@ export function useSecondaryReport(month: string) {
     }),
   );
 }
+
+/** One employee's Monthly Work Excel for a month, as a file: the sheet screen draws it and the Download button saves the very same file. */
+export function useMonthlyWorkFile(userId: string, month: string) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.reports.monthlyWork(userId, month),
+      fetch: (token, signal) => reportsApi.employeeMonthlyWork(token, { userId, month }, signal),
+      staleTime: staleTime.live,
+      enabled: userId !== '' && month !== '',
+    }),
+  );
+}
+
+/** One employee's Secondary Sales Excel for a financial year (the start year), as a file. */
+export function useSecondarySheetFile(userId: string, year: number) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.reports.secondarySheet(userId, year),
+      fetch: (token, signal) => reportsApi.secondarySheet(token, { userId, year }, signal),
+      staleTime: staleTime.live,
+      enabled: userId !== '',
+    }),
+  );
+}
