@@ -1,6 +1,6 @@
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import { LOG_CODES, LogRefusal } from '../../domain/logRefusal.js';
-import type { ChemistCall, DoctorCall, Followup, GeofenceOutcome, SampleLine } from '../../domain/call.entity.js';
+import type { ChemistCall, DoctorCall, Followup, GeofenceOutcome, LblLine, SampleLine } from '../../domain/call.entity.js';
 import type { FieldMasterDataPort } from '../../domain/fieldMasterData.port.js';
 import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, FollowupRepositoryPort } from '../../domain/records.repository.port.js';
 import type { CallChecks } from '../callChecks.js';
@@ -53,7 +53,7 @@ export class LogDoctorCallUseCase {
     private readonly visitGap: DoctorVisitGap,
   ) {}
 
-  async execute(rec: RecordContext, input: CallInput & { doctorId: string; workWith: string[]; samples: Array<{ productId: string; quantity: number }> }, ctx: TransactionContext): Promise<CallResult> {
+  async execute(rec: RecordContext, input: CallInput & { doctorId: string; workWith: string[]; samples: Array<{ productId: string; quantity: number }>; lbl?: Array<{ productId: string }> }, ctx: TransactionContext): Promise<CallResult> {
     const dcr = await this.gate.open(rec.userId, input.reportDate, rec.recordedAt);
     const doctor = await this.checks.doctor(rec.userId, input.doctorId);
     const day = await this.checks.day(rec.userId, input.reportDate);
@@ -63,22 +63,28 @@ export class LogDoctorCallUseCase {
     await this.checks.workWith(rec.userId, input.workWith);
     const geofence = await this.geofence.requirePass('doctor', await this.master.getDoctorLocation(input.doctorId), input.capturedLocation, input.accuracyMeters);
 
+    // Samples and LBL are what the employee says they gave: no allocation or credit is checked (2026-11). Only the product has to exist and be active.
     const samples: SampleLine[] = [];
     for (const line of input.samples) {
-      const allocation = await this.master.getSampleAllocation(input.doctorId, line.productId);
-      if (!allocation) throw new LogRefusal(LOG_CODES.noSampleAllocation, 'No samples of this product have been issued for this doctor.');
-      // One conditional update: two calls racing for the last units can't both succeed, and one refused line rolls back the rest.
-      if (!(await this.master.decrementRemaining(allocation.id, line.quantity, ctx))) {
-        throw new LogRefusal(LOG_CODES.samplesExhausted, `Not enough samples left: ${allocation.quantityRemaining} available, ${line.quantity} asked for.`);
-      }
-      samples.push({ allocationId: allocation.id, productId: line.productId, quantity: line.quantity });
+      await this.requireProduct(line.productId);
+      samples.push({ allocationId: null, productId: line.productId, quantity: line.quantity });
+    }
+    const lbl: LblLine[] = [];
+    for (const line of input.lbl ?? []) {
+      await this.requireProduct(line.productId);
+      lbl.push({ productId: line.productId });
     }
 
     const call = await this.calls.create(
-      { dcrId: dcr.id, userId: rec.userId, reportDate: input.reportDate, doctorId: input.doctorId, workingType: day.workingType, routeId, routeType, routeNotInPlan, workWith: input.workWith, remarks: input.remarks, capturedLocation: input.capturedLocation, accuracyMeters: input.accuracyMeters, geofence, samples, notInPlan, clientId: rec.clientId, recordedAt: rec.recordedAt },
+      { dcrId: dcr.id, userId: rec.userId, reportDate: input.reportDate, doctorId: input.doctorId, workingType: day.workingType, routeId, routeType, routeNotInPlan, workWith: input.workWith, remarks: input.remarks, capturedLocation: input.capturedLocation, accuracyMeters: input.accuracyMeters, geofence, samples, lbl, notInPlan, clientId: rec.clientId, recordedAt: rec.recordedAt },
       ctx,
     );
     return resultOf(call.id, geofence);
+  }
+
+  private async requireProduct(productId: string): Promise<void> {
+    const product = await this.master.getProduct(productId);
+    if (!product || product.status !== 'active') throw new LogRefusal(LOG_CODES.productNotFound, 'This product isn’t on the list any more.');
   }
 }
 

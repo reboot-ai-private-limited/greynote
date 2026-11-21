@@ -1,5 +1,7 @@
 import type {
   AllocateGiftDto,
+  MarkSampleRequestDoneDto,
+  SampleRequestDto,
   CreateAdminServiceDto,
   DcrDetailDto,
   DcrSummaryDto,
@@ -73,6 +75,12 @@ export const fieldActivityApi = {
   /** Admin: every gift, newest first, optionally only pending or done. */
   doctorGifts: (token: string, query: { status?: 'PENDING' | 'DONE' | undefined }, signal?: AbortSignal) =>
     request<DoctorGiftDto[]>('/field-activity/doctor-gifts', { token, query: { ...query }, signal }),
+  /** Admin, Accounts, HR: every sample and LBL request, newest first. */
+  sampleRequests: (token: string, query: { status?: 'REQUESTED' | 'DONE' | 'CANCELLED' | undefined; kind?: 'SAMPLE' | 'LBL' | undefined }, signal?: AbortSignal) =>
+    request<SampleRequestDto[]>('/field-activity/sample-requests', { token, query: { ...query }, signal }),
+  /** Marks a request done and credits the employee (a quantity can be changed per product). */
+  markSampleRequestDone: (token: string, id: string, body: MarkSampleRequestDoneDto) =>
+    request<SampleRequestDto>(`/field-activity/sample-requests/${id}/done`, { method: 'POST', token, body }),
   /** Admin: allocates a gift (a name and its value) to a Doctor; the assigned MR marks it done. */
   allocateGift: (token: string, body: AllocateGiftDto) => request<DoctorGiftDto>('/field-activity/admin/doctor-gifts', { method: 'POST', token, body }),
 

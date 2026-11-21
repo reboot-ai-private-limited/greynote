@@ -57,6 +57,9 @@ GET    /api/field-activity/expense-months/overview  ACCOUNTANT,ADMIN,HR
 GET    /api/field-activity/expense-months/review  ACCOUNTANT,ADMIN,HR
 GET    /api/field-activity/expense-payouts  ACCOUNTANT,ADMIN
 GET    /api/field-activity/expenses  ACCOUNTANT,ADMIN
+GET    /api/field-activity/sample-account  ACCOUNTANT,ADMIN,FIELD,HR
+GET    /api/field-activity/sample-requests  ACCOUNTANT,ADMIN,HR
+GET    /api/field-activity/sample-requests/mine  FIELD
 GET    /api/field-master-data/chemists  ACCOUNTANT,ADMIN
 GET    /api/field-master-data/chemists/:id  ACCOUNTANT,ADMIN
 GET    /api/field-master-data/chemists/:id/assignments  ADMIN
@@ -262,6 +265,9 @@ POST   /api/field-activity/expense-payouts/pay  ACCOUNTANT,ADMIN
 POST   /api/field-activity/expenses/:id/mark-paid  ACCOUNTANT,ADMIN
 POST   /api/field-activity/expenses/other  FIELD
 POST   /api/field-activity/expenses/other/:id/attachments  FIELD
+POST   /api/field-activity/sample-requests  FIELD
+POST   /api/field-activity/sample-requests/:id/cancel  FIELD
+POST   /api/field-activity/sample-requests/:id/done  ACCOUNTANT,ADMIN,HR
 POST   /api/field-master-data/assignments/chemists  ADMIN
 POST   /api/field-master-data/assignments/distributors  ACCOUNTANT,ADMIN
 POST   /api/field-master-data/assignments/doctors  ADMIN

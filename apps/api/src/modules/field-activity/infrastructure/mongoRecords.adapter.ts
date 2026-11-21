@@ -37,7 +37,7 @@ const callBase = (d: CallDocLike & { _id: unknown }) => ({
 });
 
 /** Domain → columns for the fields every call shares. */
-const callColumns = (c: Omit<DoctorCall, 'id' | 'doctorId' | 'samples' | 'notInPlan' | 'routeNotInPlan'> | Omit<ChemistCall, 'id' | 'chemistId' | 'routeNotInPlan'>) => ({
+const callColumns = (c: Omit<DoctorCall, 'id' | 'doctorId' | 'samples' | 'lbl' | 'notInPlan' | 'routeNotInPlan'> | Omit<ChemistCall, 'id' | 'chemistId' | 'routeNotInPlan'>) => ({
   dcrId: oid(c.dcrId),
   userId: oid(c.userId),
   reportDate: c.reportDate,
@@ -64,7 +64,8 @@ const toDoctorCall = (d: DoctorCallDoc & { _id: unknown }): DoctorCall => ({
   workWith: d.workWith.map(String),
   notInPlan: d.notInPlan ?? false,
   routeNotInPlan: d.routeNotInPlan ?? false,
-  samples: d.samples.map((s) => ({ allocationId: String(s.allocationId), productId: String(s.productId), quantity: s.quantity })),
+  samples: d.samples.map((s) => ({ allocationId: s.allocationId ? String(s.allocationId) : null, productId: String(s.productId), quantity: s.quantity })),
+  lbl: (d.lbl ?? []).map((l) => ({ productId: String(l.productId) })),
 });
 const toChemistCall = (d: ChemistCallDoc & { _id: unknown }): ChemistCall => ({ ...callBase(d), chemistId: String(d.chemistId), routeNotInPlan: d.routeNotInPlan ?? false });
 const toFollowup = (d: FollowupDoc & { _id: unknown }): Followup => ({
@@ -145,7 +146,7 @@ export class MongoDoctorCallAdapter implements DoctorCallRepositoryPort {
   }
   async create(input: Omit<DoctorCall, 'id'>, ctx: TransactionContext): Promise<DoctorCall> {
     const [doc] = await DoctorCallModel.create(
-      [{ ...callColumns(input), doctorId: oid(input.doctorId), workWith: input.workWith.map(oid), notInPlan: input.notInPlan, routeNotInPlan: input.routeNotInPlan, samples: input.samples.map((s) => ({ allocationId: oid(s.allocationId), productId: oid(s.productId), quantity: s.quantity })) }],
+      [{ ...callColumns(input), doctorId: oid(input.doctorId), workWith: input.workWith.map(oid), notInPlan: input.notInPlan, routeNotInPlan: input.routeNotInPlan, samples: input.samples.map((s) => ({ allocationId: s.allocationId ? oid(s.allocationId) : null, productId: oid(s.productId), quantity: s.quantity })), lbl: input.lbl.map((l) => ({ productId: oid(l.productId) })) }],
       session(ctx),
     );
     return toDoctorCall(doc!.toObject());

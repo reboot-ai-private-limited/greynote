@@ -80,7 +80,9 @@ export interface DoctorCallDto extends CallBaseDto {
   notInPlan: boolean;
   /** The Doctor's Route isn't one the day's plan lists. */
   routeNotInPlan: boolean;
-  samples: { allocationId: string; productId: string; productName: string; quantity: number }[];
+  samples: { allocationId?: string | null; productId: string; productName: string; quantity: number }[];
+  /** LBL given in the call; absent from older servers. */
+  lbl?: { productId: string; productName: string }[];
 }
 
 export interface ChemistCallDto extends CallBaseDto {
@@ -205,6 +207,24 @@ export interface PayOutcomeDto {
   userId: string;
   paidCount: number;
   paidPaise: number;
+}
+
+/** A request for samples or LBL (the product's page left with a doctor). Admin, Accounts or HR mark it done, which credits the employee. */
+export interface SampleRequestDto {
+  id: string;
+  userId: string;
+  userName: string;
+  kind: 'SAMPLE' | 'LBL';
+  lines: { productId: string; productName: string; quantity: number; creditedQuantity: number | null }[];
+  remarks: string | null;
+  status: 'REQUESTED' | 'DONE' | 'CANCELLED';
+  requestedAt: string;
+  doneBy: string | null;
+  doneAt: string | null;
+}
+/** What to credit when marking a request done; a product left out is credited as requested. */
+export interface MarkSampleRequestDoneDto {
+  credits: { productId: string; quantity: number }[];
 }
 
 /** A gift Admin allocated to a Doctor: the assigned MR marks it done once delivered. No approval. */

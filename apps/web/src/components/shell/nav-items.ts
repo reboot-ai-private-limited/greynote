@@ -112,6 +112,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Products', href: '/products', icon: Package, group: 'Master data', section: 'Catalogue', roles: ['ADMIN'] },
   { label: 'Specialities', href: '/specialties', icon: Tags, group: 'Master data', section: 'Catalogue', roles: ['ADMIN'] },
   { label: 'Doctor services', href: '/doctor-services', icon: HandCoins, group: 'Master data', section: 'Catalogue', roles: ['ADMIN', 'ACCOUNTANT'] },
+  { label: 'Sample & LBL', href: '/sample-requests', icon: Pill, group: 'Master data', section: 'Catalogue', roles: ['ADMIN', 'ACCOUNTANT', 'HR'] },
   { label: 'Doctor gifts', href: '/doctor-gifts', icon: Gift, group: 'Master data', section: 'Catalogue', roles: ['ADMIN'] },
   { label: 'Visuals', href: '/visuals', icon: Images, group: 'Master data', section: 'Catalogue', roles: ['ADMIN'] },
   { label: 'Designations', href: '/designations', icon: Award, group: 'Master data', section: 'HR setup', roles: ['ADMIN', 'HR'] },

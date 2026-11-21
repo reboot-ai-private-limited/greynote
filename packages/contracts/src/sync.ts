@@ -121,12 +121,14 @@ export interface DoctorCallPayload {
   capturedLocation: GeoPoint | null;
   /** The phone's reported accuracy for that reading, in meters. */
   accuracyMeters?: number | null;
-  /** Samples given during the call; each draws down the Doctor's allocation of that product. */
+  /** Samples given during the call: any active product and a quantity. Nothing is checked against a balance (2026-11). */
   samples?: Array<{ productId: string; quantity: number }>;
+  /** LBL given (the product's page): just the product, each counts as one. */
+  lbl?: Array<{ productId: string }>;
 }
 
 /** A Chemist Call (`CHEMIST_CALL`) — the same, without samples and without `workWith` (an older build that sends one is ignored). */
-export type ChemistCallPayload = Omit<DoctorCallPayload, 'doctorId' | 'samples' | 'workWith'> & { chemistId: string };
+export type ChemistCallPayload = Omit<DoctorCallPayload, 'doctorId' | 'samples' | 'lbl' | 'workWith'> & { chemistId: string };
 
 /** A follow-up (`DOCTOR_FOLLOWUP`, `CHEMIST_FOLLOWUP`): the name and remarks, recorded where the MR is — the same location rule as a call. */
 export interface DoctorFollowupPayload {
@@ -208,6 +210,7 @@ export const DCR_REFUSAL_CODES = [
   'INVALID_WORK_WITH',
   'NO_SAMPLE_ALLOCATION',
   'SAMPLES_EXHAUSTED',
+  'PRODUCT_NOT_FOUND',
   'GIFT_NOT_FOUND',
   'GIFT_ALREADY_DONE',
   /** A doctor call or follow-up within `DOCTOR_VISIT_GAP_DAYS` of another by the same employee; `details`: `lastVisit`, `nextAllowed`, `gapDays`. */

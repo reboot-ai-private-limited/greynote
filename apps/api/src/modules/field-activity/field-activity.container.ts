@@ -56,6 +56,8 @@ import type { TerritoryPort } from './domain/territory.port.js';
 import type { UserDirectoryPort } from './domain/userDirectory.port.js';
 import type { FieldActivityPublicContract } from './field-activity.public.js';
 import { MongoDoctorGiftAdapter, MongoDoctorServiceAdapter } from './infrastructure/mongoServiceGift.adapter.js';
+import { MongoSampleRequestAdapter } from './infrastructure/mongoSampleRequest.adapter.js';
+import { CancelSampleRequestUseCase, CreateSampleRequestUseCase, ListSampleRequestsUseCase, MarkSampleRequestDoneUseCase, SampleAccountUseCase } from './application/usecases/sampleRequests.usecase.js';
 import { CloudinaryProofStorage } from './infrastructure/cloudinaryProofStorage.adapter.js';
 import { ExpenseProof } from './application/expenseProof.js';
 import { MongoDcrAdapter } from './infrastructure/mongoDcr.adapter.js';
@@ -111,6 +113,7 @@ export function buildFieldActivityContainer(
   const expenseMonths = new MongoExpenseMonthAdapter();
   const services = new MongoDoctorServiceAdapter();
   const gifts = new MongoDoctorGiftAdapter();
+  const sampleRequests = new MongoSampleRequestAdapter();
 
   // A DCR goes manager, then Admin (client F1). Past the manager it earns its TA/DA; sent back, the unpaid computed rows are cancelled.
   const taDa = new TaDaLifecycle(dcrs, planning, territory, users, expenses, config);
@@ -278,6 +281,11 @@ export function buildFieldActivityContainer(
           markServiceDone: new MarkDoctorServiceDoneUseCase(services, approvals, master),
           allocateGift: new AllocateGiftUseCase(master, gifts),
           listGifts: new ListGiftsUseCase(gifts, master, users),
+          createSampleRequest: new CreateSampleRequestUseCase(sampleRequests, master, users),
+          cancelSampleRequest: new CancelSampleRequestUseCase(sampleRequests),
+          listSampleRequests: new ListSampleRequestsUseCase(sampleRequests, master, users),
+          markSampleRequestDone: new MarkSampleRequestDoneUseCase(sampleRequests, master, users),
+          sampleAccount: new SampleAccountUseCase(sampleRequests, sampleRequests, master, users),
           listExpenses: new ListExpensesUseCase(expenses, users),
           markPaid: new MarkExpensePaidUseCase(expenses, config),
           expenseMonths: monthService,

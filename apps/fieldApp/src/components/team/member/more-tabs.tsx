@@ -34,6 +34,8 @@ import { SelectField } from '../../select-field';
 import { Skeleton } from '../../skeleton';
 import { ThemedText } from '../../themed-text';
 import { CardSection, InfoCard, Pill, SummaryStrip, sym } from '../../ui-cards';
+import { SampleMatrix } from '../../sample-matrix';
+import { getSampleAccount, statusText, type SampleAccount } from '@/lib/sample-requests';
 import { AttendanceCalendar } from './attendance-calendar';
 
 const monthEnd = (month: string) => {
@@ -284,5 +286,41 @@ export function DistributorsTab({ userId }: { userId: string }) {
         </InfoCard>
       )}
     />
+  );
+}
+
+/**
+ * What the person asked for, was credited ("got") and gave their doctors, per product — samples and LBL — and their recent requests with where each stands.
+ * Read only. Left can be below zero (a call never checks a balance): shown in red so you can see who gave more than they were credited.
+ */
+export function SamplesTab({ userId }: { userId: string }) {
+  const online = useOnline();
+  const q = useCachedFetch<SampleAccount>(`team-member-samples:${userId}`, () => getSampleAccount(userId));
+  const data = q.data;
+  return (
+    <View style={styles.stack}>
+      {!online && !data ? <Offline what="this person’s samples and LBL" /> : null}
+      {q.error && online ? <Notice tone="danger">{q.error}</Notice> : null}
+      {q.loading && !data ? <Skeleton cards={2} lines={4} /> : null}
+      {data ? (
+        <>
+          <CardSection icon={sym('pills', 'medication')} accent="amber" title="Samples">
+            <SampleMatrix rows={data.samples} empty="No samples requested or given." />
+          </CardSection>
+          <CardSection icon={sym('doc.text', 'description')} accent="teal" title="LBL">
+            <SampleMatrix rows={data.lbl} empty="No LBL requested or given." />
+          </CardSection>
+          <ThemedText type="small" themeColor="textSecondary">Asked = requested, Got = credited by Admin/Accounts/HR, Gave = given in doctor calls, Left = Got − Gave.</ThemedText>
+          <ThemedText type="smallBold">Requests</ThemedText>
+          {data.requests.length === 0 ? <Notice tone="info">No requests.</Notice> : null}
+          {data.requests.map((r) => (
+            <InfoCard key={r.id}>
+              <ThemedText type="smallBold">{`${r.kind === 'SAMPLE' ? 'Sample' : 'LBL'} · ${prettyDay(r.requestedAt.slice(0, 10))} · ${statusText(r.status)}`}</ThemedText>
+              <ThemedText type="small">{r.lines.map((l) => `${l.productName} × ${l.creditedQuantity ?? l.quantity}${l.creditedQuantity !== null && l.creditedQuantity !== l.quantity ? ` (asked ${l.quantity})` : ''}`).join(', ')}</ThemedText>
+            </InfoCard>
+          ))}
+        </>
+      ) : null}
+    </View>
   );
 }

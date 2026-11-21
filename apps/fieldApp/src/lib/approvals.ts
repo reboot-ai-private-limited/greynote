@@ -214,6 +214,8 @@ export type DcrDoctorCall = CallBase & {
   doctorId: string;
   doctorName: string;
   samples: { productName: string; quantity: number }[];
+  /** LBL given in the call; absent from older servers. */
+  lbl?: { productName: string }[];
   /** The day's plan lists doctors and this one wasn't among them. */
   notInPlan?: boolean;
 };

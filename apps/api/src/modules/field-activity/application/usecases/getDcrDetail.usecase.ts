@@ -6,7 +6,7 @@ import type { DcrView } from '../dcrViews.js';
 import type { GetDcrUseCase, Actor } from './readDcrs.usecase.js';
 
 export interface DcrDetail extends DcrView {
-  doctorCalls: Array<DoctorCall & { doctorName: string; samples: Array<DoctorCall['samples'][number] & { productName: string }> }>;
+  doctorCalls: Array<DoctorCall & { doctorName: string; samples: Array<DoctorCall['samples'][number] & { productName: string }>; lbl: Array<DoctorCall['lbl'][number] & { productName: string }> }>;
   chemistCalls: Array<ChemistCall & { chemistName: string }>;
   followups: Array<Followup & { subjectName: string }>;
   expenses: Expense[];
@@ -39,6 +39,7 @@ export class GetDcrDetailUseCase {
           ...c,
           doctorName: await name(() => this.master.getDoctor(c.doctorId)),
           samples: await Promise.all(c.samples.map(async (s) => ({ ...s, productName: await name(() => this.master.getProduct(s.productId)) }))),
+          lbl: await Promise.all(c.lbl.map(async (l) => ({ ...l, productName: await name(() => this.master.getProduct(l.productId)) }))),
         })),
       ),
       chemistCalls: await Promise.all(chemistCalls.map(async (c) => ({ ...c, chemistName: await name(() => this.master.getChemist(c.chemistId)) }))),

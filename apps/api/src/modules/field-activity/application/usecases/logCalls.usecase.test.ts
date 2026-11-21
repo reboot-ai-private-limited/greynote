@@ -187,36 +187,27 @@ describe('logging the day’s calls and follow-ups', () => {
       });
     });
 
-    describe('samples given', () => {
-      it('draw the Doctor’s allocation down by exactly what was given, and are kept on the call', async () => {
-        await log({ samples: [{ productId: 'p1', quantity: 4 }, { productId: 'p2', quantity: 1 }] });
-        expect(kit.fmd.allocations.get('d1:p1')!.quantityRemaining).toBe(6);
-        expect(kit.fmd.allocations.get('d1:p2')!.quantityRemaining).toBe(2);
+    describe('samples and LBL given (the employee’s own credit: nothing is checked against a balance)', () => {
+      it('are kept on the call exactly as given, with no allocation drawn', async () => {
+        await log({ samples: [{ productId: 'p1', quantity: 40 }, { productId: 'p2', quantity: 1 }], lbl: [{ productId: 'p1' }] });
         expect(kit.doctorCalls.rows[0]!.samples).toEqual([
-          { allocationId: 'a1', productId: 'p1', quantity: 4 },
-          { allocationId: 'a2', productId: 'p2', quantity: 1 },
+          { allocationId: null, productId: 'p1', quantity: 40 },
+          { allocationId: null, productId: 'p2', quantity: 1 },
         ]);
+        expect(kit.doctorCalls.rows[0]!.lbl).toEqual([{ productId: 'p1' }]);
+        // the old per-doctor allocation is left alone
+        expect(kit.fmd.allocations.get('d1:p1')!.quantityRemaining).toBe(10);
       });
 
-      it('a line the allocation can’t cover → SAMPLES_EXHAUSTED, and the lines before it and the call itself are undone', async () => {
-        const err = await refusal(log({ samples: [{ productId: 'p1', quantity: 4 }, { productId: 'p2', quantity: 5 }] }));
-        expect(err.code).toBe('SAMPLES_EXHAUSTED');
-        expect(err.message).toContain('3 available');
-        tx.rollback(); // what the sync engine does when the record fails
-        expect(kit.fmd.allocations.get('d1:p1')!.quantityRemaining).toBe(10); // p1's earlier draw-down undone
+      it('a quantity above any allocation is fine, and a call with neither is fine', async () => {
+        expect((await log({ samples: [{ productId: 'p2', quantity: 500 }] })).serverId).toBeDefined();
+        expect((await kit.logDoctorCall.execute({ ...REC, clientId: 'none' }, call(), new Tx())).serverId).toBeDefined();
+      });
+
+      it('a product that does not exist or is inactive → PRODUCT_NOT_FOUND, for samples and for LBL', async () => {
+        expect((await refusal(log({ samples: [{ productId: 'p9', quantity: 1 }] }))).code).toBe('PRODUCT_NOT_FOUND');
+        expect((await refusal(log({ lbl: [{ productId: 'p3' }] }))).code).toBe('PRODUCT_NOT_FOUND');
         expect(kit.doctorCalls.rows).toHaveLength(0);
-      });
-
-      it('a product never issued for this Doctor → NO_SAMPLE_ALLOCATION', async () => {
-        expect((await refusal(log({ samples: [{ productId: 'p9', quantity: 1 }] }))).code).toBe('NO_SAMPLE_ALLOCATION');
-      });
-
-      it('two calls racing for the last units: as many succeed as there is stock', async () => {
-        const results = await Promise.allSettled(
-          Array.from({ length: 8 }, (_, i) => kit.logDoctorCall.execute({ ...REC, clientId: `race-${i}` }, call({ samples: [{ productId: 'p2', quantity: 1 }] }), new Tx())),
-        );
-        expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(3); // p2 had 3
-        expect(kit.fmd.allocations.get('d1:p2')!.quantityRemaining).toBe(0);
       });
     });
   });

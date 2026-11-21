@@ -107,6 +107,9 @@ const TIMELESS = [
   '/api/config', // system settings: global, not a dated record
   '/api/config/public',
   '/api/field-activity/expense-grants', // standing late-expense exceptions, not dated records
+  '/api/field-activity/sample-requests/mine', // an account, not a dated report: what was asked for, credited and given, all time
+  '/api/field-activity/sample-requests',
+  '/api/field-activity/sample-account',
   '/api/documents', // a library, not a dated record: the same whichever year is being looked at
   '/api/config/financial-year', // closing a year is an Admin action on the system, not a dated report
   // Operational and master data — the same whichever year is being looked at.

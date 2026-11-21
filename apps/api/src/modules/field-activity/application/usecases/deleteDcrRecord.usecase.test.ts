@@ -31,8 +31,8 @@ describe('removing a call or follow-up before the report is submitted', () => {
     del = new DeleteDcrRecordUseCase(kit.dcrs, kit.approvals, kit.doctorCalls, kit.chemistCalls, kit.followups, kit.fmd, runner);
   });
 
-  it('removes a doctor call and gives its samples back', async () => {
-    expect(kit.fmd.allocations.get('d1:p1')!.quantityRemaining).toBe(6);
+  it('removes a doctor call; samples are the employee’s own credit now, so there is no allocation to give back', async () => {
+    expect(kit.fmd.allocations.get('d1:p1')!.quantityRemaining).toBe(10);
     await del.deleteCall('mr1', dcrId, doctorCallId);
     expect(kit.doctorCalls.rows).toHaveLength(0);
     expect(kit.fmd.allocations.get('d1:p1')!.quantityRemaining).toBe(10);
@@ -59,7 +59,7 @@ describe('removing a call or follow-up before the report is submitted', () => {
   it('once the report is submitted it is 409; after it is sent back, it can be edited again', async () => {
     await kit.submit.execute('mr1', DAY, REC.recordedAt, new Tx());
     expect(await statusOf(del.deleteCall('mr1', dcrId, doctorCallId))).toBe(409);
-    expect(kit.fmd.allocations.get('d1:p1')!.quantityRemaining).toBe(6);
+    expect(kit.doctorCalls.rows).toHaveLength(1);
     kit.approvals.setStatus(dcrId, 'REJECTED');
     await del.deleteCall('mr1', dcrId, doctorCallId);
     expect(kit.doctorCalls.rows).toHaveLength(0);

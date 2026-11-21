@@ -7,7 +7,7 @@ import { GeofenceBadge } from '@/components/geofence-badge';
 import { Notice } from '@/components/notice';
 import { OutletPicker } from '@/components/outlet-picker';
 import { PrimaryButton } from '@/components/primary-button';
-import { SamplesEditor, type SampleLine } from '@/components/samples-editor';
+import { ProductGivenEditor, type GivenLine } from '@/components/product-given-editor';
 import { ScreenShell } from '@/components/screen-shell';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
@@ -20,7 +20,6 @@ import { useDayGate } from '@/hooks/use-day-gate';
 import { useDoctorVisitGap } from '@/hooks/use-doctor-visit-gap';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { useReportSent } from '@/hooks/use-report-sent';
-import { listDoctorSamples } from '@/lib/added-doctors';
 import { getDoctorVisits, type DoctorVisitsReport } from '@/lib/doctor-visits';
 import { useFinancialYear } from '@/lib/financial-year';
 import { confirmRemove, removeDayRecord } from '@/lib/day-records';
@@ -90,7 +89,8 @@ export function CallScreen({ subject }: { subject: Subject }) {
   const [editing, setEditing] = useState<OutboxRecord | 'new' | null>(null);
   const [outletId, setOutletId] = useState<string | null>(null);
   const [workWith, setWorkWith] = useState<string[]>([]);
-  const [samples, setSamples] = useState<SampleLine[]>([]);
+  const [samples, setSamples] = useState<GivenLine[]>([]);
+  const [lbl, setLbl] = useState<GivenLine[]>([]);
   const [remarks, setRemarks] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: 'danger' | 'success' | 'info'; text: string } | null>(null);
@@ -120,34 +120,8 @@ export function CallScreen({ subject }: { subject: Subject }) {
   const todays = records.filter((r) => !r.deleted && r.kind === kind && (r.payload as CallPayload).reportDate === gate.today);
   const calledIds = new Set(todays.filter((r) => r !== editing).map(idOf));
 
-  // The snapshot has samples for my own doctors only, so a team doctor's are read for that doctor, and re-read once a call has gone up.
-  const teamDoctorId = isDoctor && outletId && callDoctorById.get(outletId)?.mrLabel !== undefined ? outletId : null;
-  const teamSamples = useCachedFetch(
-    teamDoctorId ? `doctor-samples:${teamDoctorId}` : 'doctor-samples:none',
-    async () => (teamDoctorId ? listDoctorSamples(teamDoctorId) : []),
-    todays.filter((r) => r.status === 'SYNCED').length,
-  );
-
-  /** What the doctor can still be given: the allocation, less what other unsent calls today already use. */
-  const sampleOptions = useMemo(() => {
-    if (!isDoctor || !outletId) return [];
-    const used = new Map<string, number>();
-    for (const r of todays) {
-      const p = r.payload as CallPayload;
-      if (r === editing || r.status === 'SYNCED' || p.doctorId !== outletId) continue;
-      for (const s of p.samples ?? []) used.set(s.productId, (used.get(s.productId) ?? 0) + s.quantity);
-    }
-    const allocations = teamDoctorId ? (teamSamples.data ?? []) : (master.data?.sampleAllocations ?? []).filter((a) => a.doctorId === outletId);
-    return allocations
-      .map((a) => ({
-        productId: a.productId,
-        name: products.get(a.productId)?.name ?? 'Product',
-        packSize: products.get(a.productId)?.packSize ?? null,
-        available: Math.max(0, a.quantityRemaining - (used.get(a.productId) ?? 0)),
-      }))
-      .filter((o) => o.available > 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDoctor, outletId, master.data, products, records, editing, teamDoctorId, teamSamples.data]);
+  /** Any product on the phone can be given: samples are the employee's own credit, nothing is checked here (the manager reads requested, credited and given). */
+  const givenProducts = useMemo(() => (master.data?.products ?? []).map((p) => ({ id: p.id, name: p.name, packSize: p.packSize })), [master.data]);
 
   const start = (record: OutboxRecord | 'new') => {
     setMsg(null);
@@ -156,12 +130,14 @@ export function CallScreen({ subject }: { subject: Subject }) {
       setOutletId(null);
       setWorkWith([]); // picked per call; not copied from the day's plan
       setSamples([]);
+      setLbl([]);
       setRemarks('');
     } else {
       const p = record.payload as CallPayload;
       setOutletId(idOf(record));
       setWorkWith(p.workWith ?? []);
       setSamples(p.samples ?? []);
+      setLbl((p.lbl ?? []).map((l) => ({ productId: l.productId, quantity: 1 })));
       setRemarks(p.remarks ?? '');
     }
     setEditing(record);
@@ -206,7 +182,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
         remarks: remarks.trim() || null,
         capturedLocation: fix?.point ?? null,
         accuracyMeters: fix?.accuracyMeters ?? null,
-        ...(isDoctor ? { samples } : {}),
+        ...(isDoctor ? { samples: samples.filter((l) => l.quantity > 0), lbl: lbl.map((l) => ({ productId: l.productId })) } : {}),
       };
       await saveCall(kind, payload, editing && editing !== 'new' ? editing : undefined);
       setEditing(null);
@@ -226,7 +202,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
       }
       try {
         await removeDayRecord(r);
-        setMsg({ tone: 'info', text: isDoctor && r.status === 'SYNCED' ? 'Call removed. Its samples were given back.' : 'Call removed.' });
+        setMsg({ tone: 'info', text: 'Call removed.' });
       } catch (err) {
         setMsg({ tone: 'danger', text: err instanceof Error ? err.message : 'Could not remove it.' });
       }
@@ -304,6 +280,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
           onChange={(id) => {
             setOutletId(id);
             setSamples([]);
+            setLbl([]);
             setMsg(null);
             fe.clear('outlet');
           }}
@@ -348,20 +325,26 @@ export function CallScreen({ subject }: { subject: Subject }) {
         ) : null}
 
         {isDoctor ? (
-          <CardSection icon={sym('pills', 'medication')} accent="amber" title="Samples given (optional)">
-            {outletId ? (
-              <>
-                {teamDoctorId && !teamSamples.loading && teamSamples.data === null ? (
-                  <Notice tone="info">This doctor’s samples aren’t on this phone. Connect to the internet to give samples.</Notice>
-                ) : null}
-                <SamplesEditor options={sampleOptions} value={samples} onChange={setSamples} disabled={busy} />
-              </>
-            ) : (
-              <ThemedText type="small" themeColor="textSecondary">
-                Choose the doctor first.
-              </ThemedText>
-            )}
-          </CardSection>
+          <>
+            <CardSection icon={sym('pills', 'medication')} accent="amber" title="Samples given (optional)">
+              {outletId ? (
+                <ProductGivenEditor products={givenProducts} value={samples} onChange={setSamples} withQuantity disabled={busy} />
+              ) : (
+                <ThemedText type="small" themeColor="textSecondary">
+                  Choose the doctor first.
+                </ThemedText>
+              )}
+            </CardSection>
+            <CardSection icon={sym('doc.text', 'description')} accent="teal" title="LBL given (optional)">
+              {outletId ? (
+                <ProductGivenEditor products={givenProducts} value={lbl} onChange={setLbl} withQuantity={false} disabled={busy} />
+              ) : (
+                <ThemedText type="small" themeColor="textSecondary">
+                  Choose the doctor first.
+                </ThemedText>
+              )}
+            </CardSection>
+          </>
         ) : null}
 
         <CardSection icon={sym('text.bubble', 'chat')} accent="teal" title="Remarks">
@@ -415,7 +398,12 @@ export function CallScreen({ subject }: { subject: Subject }) {
               />
               {p.samples?.length ? (
                 <ThemedText type="small" themeColor="textSecondary">
-                  {p.samples.map((s) => `${products.get(s.productId)?.name ?? 'Product'} × ${s.quantity}`).join(', ')}
+                  {`Samples: ${p.samples.map((s) => `${products.get(s.productId)?.name ?? 'Product'} × ${s.quantity}`).join(', ')}`}
+                </ThemedText>
+              ) : null}
+              {p.lbl?.length ? (
+                <ThemedText type="small" themeColor="textSecondary">
+                  {`LBL: ${p.lbl.map((l) => products.get(l.productId)?.name ?? 'Product').join(', ')}`}
                 </ThemedText>
               ) : null}
               {p.remarks ? (

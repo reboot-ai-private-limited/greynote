@@ -34,7 +34,8 @@ export class DeleteDcrRecordUseCase {
     if (doctorCall && doctorCall.dcrId === dcr.id) {
       await this.transactions.run(async (ctx) => {
         if (!(await this.doctorCalls.delete(doctorCall.id, ctx))) throw AppError.notFound('No such call on this report.');
-        for (const line of doctorCall.samples) await this.master.restoreRemaining(line.allocationId, line.quantity, ctx);
+        // Only a call made on the old per-doctor allocation has anything to give back.
+        for (const line of doctorCall.samples) if (line.allocationId) await this.master.restoreRemaining(line.allocationId, line.quantity, ctx);
       });
       return;
     }

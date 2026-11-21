@@ -88,6 +88,10 @@ export const keys = {
     detail: (id: string) => [...keys.doctorServices.all(), 'detail', id] as const,
     list: (query: object) => [...keys.doctorServices.all(), 'list', query] as const,
   },
+  sampleRequests: {
+    all: () => ['sample-requests'] as const,
+    list: (query: object) => [...keys.sampleRequests.all(), 'list', query] as const,
+  },
   doctorGifts: {
     all: () => ['doctor-gifts', fy()] as const,
     list: (query: object) => [...keys.doctorGifts.all(), 'list', query] as const,

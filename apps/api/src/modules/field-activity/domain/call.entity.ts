@@ -18,11 +18,19 @@ export interface GeofenceOutcome {
   overrideComment: string | null;
 }
 
-/** One line of samples given: it drew `quantity` down from this allocation, in the call's transaction. */
+/**
+ * One line of samples given. `allocationId` is only on calls made before samples became the employee's own credit (2026-11): those drew down a
+ * per-doctor allocation; newer ones record what was given and check nothing.
+ */
 export interface SampleLine {
-  allocationId: string;
+  allocationId: string | null;
   productId: string;
   quantity: number;
+}
+
+/** One LBL (the product's page, left with the doctor) given in a call; each line counts as one. */
+export interface LblLine {
+  productId: string;
 }
 
 interface CallBase {
@@ -50,6 +58,8 @@ export interface DoctorCall extends CallBase {
   /** Accompanying colleagues' user ids. A chemist call has no such field. */
   workWith: string[];
   samples: SampleLine[];
+  /** LBL given during the call. Absent on calls from before it existed: read as none. */
+  lbl: LblLine[];
   /** The day's approved plan lists doctors and this one wasn't among them: allowed by `ALLOW_UNPLANNED_DOCTOR_CALLS`, shown as "Not in plan". */
   notInPlan: boolean;
   /** The Doctor's Route isn't one the day's plan lists (a flag, never a refusal). */

@@ -9,7 +9,7 @@ import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import { MAX_EXPENSE_ATTACHMENT_BYTES } from '../domain/expense.entity.js';
 import type { FieldActivityHandlers } from './field-activity.controller.js';
-import { finalizeExpensesBodySchema, adjustExpenseRowBodySchema, addExpenseRowBodySchema, expenseReviewQuerySchema, expenseOverviewQuerySchema, grantExpenseMonthBodySchema, listExpenseGrantsQuerySchema, expenseAttachmentParamsSchema, expenseHistoryQuerySchema, expenseMonthParamsSchema, expenseMonthQuerySchema, otherExpenseBodySchema, listExpensesQuerySchema, listExpensePayoutsQuerySchema, payExpensesBodySchema, allocateGiftBodySchema, callParamsSchema, doctorServiceFieldsSchema, idParamsSchema, listGiftsQuerySchema, listServicesQuerySchema, serviceSummaryQuerySchema, overrideBodySchema, listDcrsQuerySchema, listTeamDcrsQuerySchema } from './field-activity.schemas.js';
+import { createSampleRequestBodySchema, listSampleRequestsQuerySchema, sampleRequestDoneBodySchema, sampleAccountQuerySchema, finalizeExpensesBodySchema, adjustExpenseRowBodySchema, addExpenseRowBodySchema, expenseReviewQuerySchema, expenseOverviewQuerySchema, grantExpenseMonthBodySchema, listExpenseGrantsQuerySchema, expenseAttachmentParamsSchema, expenseHistoryQuerySchema, expenseMonthParamsSchema, expenseMonthQuerySchema, otherExpenseBodySchema, listExpensesQuerySchema, listExpensePayoutsQuerySchema, payExpensesBodySchema, allocateGiftBodySchema, callParamsSchema, doctorServiceFieldsSchema, idParamsSchema, listGiftsQuerySchema, listServicesQuerySchema, serviceSummaryQuerySchema, overrideBodySchema, listDcrsQuerySchema, listTeamDcrsQuerySchema } from './field-activity.schemas.js';
 
 const TAG = 'Field Activity';
 
@@ -199,5 +199,15 @@ export function buildFieldActivityRouter(c: FieldActivityHandlers): Router {
   router.post('/doctor-services/:id/done', requireRole('ADMIN'), validate({ params: idParamsSchema }), c.markServiceDone);
   router.post('/admin/doctor-services', requireRole('ADMIN'), validate({ body: doctorServiceFieldsSchema }), c.createAdminService);
   router.post('/admin/doctor-gifts', requireRole('ADMIN'), validate({ body: allocateGiftBodySchema }), c.allocateGift);
+  // Sample and LBL requests (2026-11): the employee asks, Admin/Accounts/HR mark done (which credits them), a manager reads a team member's account.
+  doc('/sample-requests/mine', 'My sample and LBL requests, newest first');
+  doc('/sample-requests', 'Admin, Accounts, HR: every sample and LBL request (filter by status, kind or employee)', { query: listSampleRequestsQuerySchema });
+  doc('/sample-account', 'Samples and LBL per product: requested, credited, given, left. Mine, or a person I may see', { query: sampleAccountQuerySchema });
+  router.post('/sample-requests', requireRole('FIELD'), validate({ body: createSampleRequestBodySchema }), c.createSampleRequest);
+  router.get('/sample-requests/mine', requireRole('FIELD'), c.mySampleRequests);
+  router.get('/sample-requests', requireRole('ADMIN', 'ACCOUNTANT', 'HR'), validate({ query: listSampleRequestsQuerySchema }), c.sampleRequestQueue);
+  router.post('/sample-requests/:id/cancel', requireRole('FIELD'), validate({ params: idParamsSchema }), c.cancelSampleRequest);
+  router.post('/sample-requests/:id/done', requireRole('ADMIN', 'ACCOUNTANT', 'HR'), validate({ params: idParamsSchema, body: sampleRequestDoneBodySchema }), c.markSampleRequestDone);
+  router.get('/sample-account', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT', 'HR'), validate({ query: sampleAccountQuerySchema }), c.sampleAccount);
   return router;
 }

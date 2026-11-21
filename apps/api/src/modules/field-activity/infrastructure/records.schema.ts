@@ -28,7 +28,8 @@ interface CallDocBase {
 export interface DoctorCallDoc extends CallDocBase {
   doctorId: Types.ObjectId;
   workWith: Types.ObjectId[];
-  samples: Array<{ allocationId: Types.ObjectId; productId: Types.ObjectId; quantity: number }>;
+  samples: Array<{ allocationId?: Types.ObjectId | null; productId: Types.ObjectId; quantity: number }>;
+  lbl?: Array<{ productId: Types.ObjectId }>;
   /** Absent on calls from before the rule: read as in plan. */
   notInPlan?: boolean;
   routeNotInPlan?: boolean;
@@ -87,9 +88,10 @@ const doctorCallSchema = new Schema<DoctorCallDoc>({
   notInPlan: { type: Boolean, default: false },
   routeNotInPlan: { type: Boolean, default: false },
   samples: {
-    type: [new Schema({ allocationId: ref('SampleAllocation'), productId: ref('Product'), quantity: { type: Number, required: true, min: 1 } }, { _id: false })],
+    type: [new Schema({ allocationId: { type: Schema.Types.ObjectId, ref: 'SampleAllocation', default: null }, productId: ref('Product'), quantity: { type: Number, required: true, min: 1 } }, { _id: false })],
     default: [],
   },
+  lbl: { type: [new Schema({ productId: ref('Product') }, { _id: false })], default: [] },
 });
 doctorCallSchema.index({ dcrId: 1, recordedAt: 1 });
 // Visits per Doctor in a month (the visit-frequency report).

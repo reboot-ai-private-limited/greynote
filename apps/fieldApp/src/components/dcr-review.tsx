@@ -137,12 +137,14 @@ function CallCard({
   name,
   call,
   samples,
+  lbl,
   canAccept,
   onAccept,
 }: {
   name: string;
   call: DcrDoctorCall | DcrChemistCall;
   samples?: string;
+  lbl?: string;
   canAccept: boolean;
   onAccept: (callId: string, comment: string) => Promise<string | null>;
 }) {
@@ -200,6 +202,13 @@ function CallCard({
         <Row label="Samples">
           <ThemedText type="small" style={styles.value}>
             {samples}
+          </ThemedText>
+        </Row>
+      ) : null}
+      {lbl ? (
+        <Row label="LBL">
+          <ThemedText type="small" style={styles.value}>
+            {lbl}
           </ThemedText>
         </Row>
       ) : null}
@@ -297,6 +306,7 @@ export function DcrSummary({ recordId, canAct, aside, submitterId }: { recordId:
               name={c.doctorName}
               call={c}
               samples={c.samples.length ? c.samples.map((s) => `${s.productName} × ${s.quantity}`).join(', ') : undefined}
+              lbl={c.lbl?.length ? c.lbl.map((l) => l.productName).join(', ') : undefined}
               canAccept={canAct}
               onAccept={accept}
             />

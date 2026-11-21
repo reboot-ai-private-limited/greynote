@@ -18,14 +18,15 @@ import type { OverrideGeofenceUseCase } from '../application/usecases/overrideGe
 import type { GetDcrDetailUseCase } from '../application/usecases/getDcrDetail.usecase.js';
 import type { Actor, ListAllDcrsUseCase, ListMyDcrsUseCase, ListTeamDcrsUseCase } from '../application/usecases/readDcrs.usecase.js';
 import type { ExpenseProof } from '../application/expenseProof.js';
-import type { serviceSummaryQuerySchema, grantExpenseMonthBodySchema, listExpenseGrantsQuerySchema, expenseHistoryQuerySchema, expenseMonthQuerySchema, expenseReviewQuerySchema, expenseOverviewQuerySchema, adjustExpenseRowBodySchema, addExpenseRowBodySchema, finalizeExpensesBodySchema, otherExpenseBodySchema, listExpensesQuerySchema, allocateGiftBodySchema, doctorServiceFieldsSchema, listDcrsQuerySchema, listGiftsQuerySchema, listServicesQuerySchema, listTeamDcrsQuerySchema, overrideBodySchema } from './field-activity.schemas.js';
+import type { CancelSampleRequestUseCase, CreateSampleRequestUseCase, ListSampleRequestsUseCase, MarkSampleRequestDoneUseCase, SampleAccountUseCase } from '../application/usecases/sampleRequests.usecase.js';
+import type { createSampleRequestBodySchema, listSampleRequestsQuerySchema, sampleRequestDoneBodySchema, sampleAccountQuerySchema, serviceSummaryQuerySchema, grantExpenseMonthBodySchema, listExpenseGrantsQuerySchema, expenseHistoryQuerySchema, expenseMonthQuerySchema, expenseReviewQuerySchema, expenseOverviewQuerySchema, adjustExpenseRowBodySchema, addExpenseRowBodySchema, finalizeExpensesBodySchema, otherExpenseBodySchema, listExpensesQuerySchema, allocateGiftBodySchema, doctorServiceFieldsSchema, listDcrsQuerySchema, listGiftsQuerySchema, listServicesQuerySchema, listTeamDcrsQuerySchema, overrideBodySchema } from './field-activity.schemas.js';
 
 function actorOf(req: Request): Actor {
   if (!req.user) throw AppError.unauthenticated();
   return { id: req.user.sub, role: req.user.role };
 }
 
-export type FieldActivityHandlers = Record<'listDcrs' | 'teamDcrs' | 'getDcr' | 'overrideGeofence' | 'deleteCall' | 'deleteFollowup' | 'createAdminService' | 'listServices' | 'serviceSummary' | 'serviceReport' | 'getService' | 'markServiceDone' | 'allocateGift' | 'listGifts' | 'listExpenses' | 'markExpensePaid' | 'listExpensePayouts' | 'payExpenses' | 'expenseStatement' | 'expenseHistory' | 'expenseStatementById' | 'expenseReview' | 'expenseOverview' | 'finalizeExpenses' | 'adjustExpenseRow' | 'addExpenseRow' | 'addOtherExpense' | 'updateOtherExpense' | 'deleteOtherExpense' | 'addExpenseProof' | 'removeExpenseProof' | 'submitExpenseMonth' | 'grantExpenseMonth' | 'listExpenseGrants' | 'revokeExpenseGrant', RequestHandler>;
+export type FieldActivityHandlers = Record<'listDcrs' | 'teamDcrs' | 'getDcr' | 'overrideGeofence' | 'deleteCall' | 'deleteFollowup' | 'createAdminService' | 'listServices' | 'serviceSummary' | 'serviceReport' | 'getService' | 'markServiceDone' | 'allocateGift' | 'listGifts' | 'createSampleRequest' | 'mySampleRequests' | 'cancelSampleRequest' | 'sampleRequestQueue' | 'markSampleRequestDone' | 'sampleAccount' | 'listExpenses' | 'markExpensePaid' | 'listExpensePayouts' | 'payExpenses' | 'expenseStatement' | 'expenseHistory' | 'expenseStatementById' | 'expenseReview' | 'expenseOverview' | 'finalizeExpenses' | 'adjustExpenseRow' | 'addExpenseRow' | 'addOtherExpense' | 'updateOtherExpense' | 'deleteOtherExpense' | 'addExpenseProof' | 'removeExpenseProof' | 'submitExpenseMonth' | 'grantExpenseMonth' | 'listExpenseGrants' | 'revokeExpenseGrant', RequestHandler>;
 
 export function makeFieldActivityControllers(u: {
   listMine: ListMyDcrsUseCase;
@@ -41,6 +42,11 @@ export function makeFieldActivityControllers(u: {
   markServiceDone: MarkDoctorServiceDoneUseCase;
   allocateGift: AllocateGiftUseCase;
   listGifts: ListGiftsUseCase;
+  createSampleRequest: CreateSampleRequestUseCase;
+  cancelSampleRequest: CancelSampleRequestUseCase;
+  listSampleRequests: ListSampleRequestsUseCase;
+  markSampleRequestDone: MarkSampleRequestDoneUseCase;
+  sampleAccount: SampleAccountUseCase;
   listExpenses: ListExpensesUseCase;
   listPayouts: ListExpensePayoutsUseCase;
   payExpenses: PayMonthExpensesUseCase;
@@ -105,6 +111,19 @@ export function makeFieldActivityControllers(u: {
     getService: asyncHandler(async (req, res) => sendSuccess(req, res, await u.getService.execute(actorOf(req), requiredParam(req.params, 'id')), 'Doctor service.', 200)),
     allocateGift: asyncHandler(async (req, res) => sendSuccess(req, res, await u.allocateGift.execute(actorOf(req).id, req.body as z.output<typeof allocateGiftBodySchema>), 'The gift was allocated.', 201)),
     listGifts: asyncHandler(async (req, res) => sendSuccess(req, res, await u.listGifts.execute(actorOf(req), req.query as unknown as z.output<typeof listGiftsQuerySchema>), 'Doctor gifts.', 200)),
+    createSampleRequest: asyncHandler(async (req, res) => sendSuccess(req, res, await u.createSampleRequest.execute(actorOf(req).id, req.body as z.output<typeof createSampleRequestBodySchema>), 'The request was sent.', 201)),
+    mySampleRequests: asyncHandler(async (req, res) => sendSuccess(req, res, await u.listSampleRequests.mine(actorOf(req).id), 'My sample and LBL requests.', 200)),
+    cancelSampleRequest: asyncHandler(async (req, res) => {
+      await u.cancelSampleRequest.execute(actorOf(req).id, requiredParam(req.params, 'id'));
+      sendSuccess(req, res, null, 'The request was cancelled.', 200);
+    }),
+    sampleRequestQueue: asyncHandler(async (req, res) => sendSuccess(req, res, await u.listSampleRequests.queue(actorOf(req), req.query as unknown as z.output<typeof listSampleRequestsQuerySchema>), 'Sample and LBL requests.', 200)),
+    markSampleRequestDone: asyncHandler(async (req, res) => sendSuccess(req, res, await u.markSampleRequestDone.execute(actorOf(req), requiredParam(req.params, 'id'), (req.body as z.output<typeof sampleRequestDoneBodySchema>).credits), 'The request was marked done and the employee credited.', 200)),
+    sampleAccount: asyncHandler(async (req, res) => {
+      const actor = actorOf(req);
+      const { userId } = req.query as unknown as z.output<typeof sampleAccountQuerySchema>;
+      sendSuccess(req, res, await u.sampleAccount.execute(actor, userId ?? actor.id), 'Samples and LBL: requested, credited, given.', 200);
+    }),
     listExpenses: asyncHandler(async (req, res) => sendSuccess(req, res, await u.listExpenses.execute(req.query as unknown as z.output<typeof listExpensesQuerySchema>), 'Expenses to audit.', 200)),
     expenseStatement: asyncHandler(async (req, res) => {
       const { month, userId } = req.query as unknown as z.output<typeof expenseMonthQuerySchema>;

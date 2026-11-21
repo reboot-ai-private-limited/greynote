@@ -220,7 +220,7 @@ const CLINIC = { latitude: 26.7271, longitude: 88.3953 };
 export class FakeFmd implements FieldMasterDataPort {
   doctors = new Map<string, { id: string; name: string; status: 'active' | 'inactive'; routeId: string }>([['d1', { id: 'd1', name: 'Dr Rao', status: 'active', routeId: 'route-1' }]]);
   chemists = new Map<string, { id: string; name: string; status: 'active' | 'inactive'; routeId: string }>([['c1', { id: 'c1', name: 'Sai Pharmacy', status: 'active', routeId: 'route-1' }]]);
-  products = new Map([['p1', { id: 'p1', name: 'Cough Syrup', sku: 'CS' }], ['p2', { id: 'p2', name: 'Vitamin', sku: 'VT' }]]);
+  products = new Map([['p1', { id: 'p1', name: 'Cough Syrup', sku: 'CS', status: 'active' }], ['p2', { id: 'p2', name: 'Vitamin', sku: 'VT', status: 'active' }], ['p3', { id: 'p3', name: 'Retired Tonic', sku: 'RT', status: 'inactive' }]]);
   assigned = new Set(['mr1:d1']);
   doctorLocation: Record<string, { latitude: number; longitude: number } | null> = { d1: CLINIC };
   chemistLocation: Record<string, { latitude: number; longitude: number } | null> = { c1: CLINIC };

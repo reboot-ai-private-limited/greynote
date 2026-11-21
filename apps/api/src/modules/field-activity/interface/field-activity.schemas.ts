@@ -46,8 +46,11 @@ export const doctorCallPayloadSchema = z
     workWith: z.array(objectIdSchema).max(20).default([]),
     doctorId: objectIdSchema,
     samples: z.array(z.object({ productId: objectIdSchema, quantity: z.number().int().min(1).max(1_000) })).max(50).default([]),
+    /** LBL given: just the product, one each. */
+    lbl: z.array(z.object({ productId: objectIdSchema })).max(50).default([]),
   })
-  .refine((c) => new Set(c.samples.map((s) => s.productId)).size === c.samples.length, { message: 'A product is listed twice — give it one line.', path: ['samples'] });
+  .refine((c) => new Set(c.samples.map((s) => s.productId)).size === c.samples.length, { message: 'A product is listed twice — give it one line.', path: ['samples'] })
+  .refine((c) => new Set(c.lbl.map((s) => s.productId)).size === c.lbl.length, { message: 'A product is listed twice in LBL.', path: ['lbl'] });
 /** No `workWith`: a chemist call has no colleague field. An older phone build that still sends one has it stripped, not refused. */
 export const chemistCallPayloadSchema = z.object({ ...callFields, chemistId: objectIdSchema });
 export const doctorFollowupPayloadSchema = z.object({ reportDate: calendarDateSchema, doctorId: objectIdSchema, remarks: z.string().trim().min(1, 'Remarks are required.').max(1000), ...gpsFields });
@@ -86,6 +89,17 @@ export const listServicesQuerySchema = z.object({ userId: objectIdSchema.optiona
 const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be a date like 2026-11-19.');
 /** The totals and the Excel download share one filter: who (scope), which doctor, and the business dates the requests were made between. */
 export const serviceSummaryQuerySchema = z.object({ userId: objectIdSchema.optional(), doctorId: objectIdSchema.optional(), scope: z.enum(['mine', 'team']).optional(), from: isoDay.optional(), to: isoDay.optional() });
+// ---- Sample and LBL requests (2026-11) -----------------------------------------------------------
+import { SAMPLE_REQUEST_KINDS, SAMPLE_REQUEST_STATUSES } from '../domain/sampleRequest.entity.js';
+export const createSampleRequestBodySchema = z.object({
+  kind: z.enum(SAMPLE_REQUEST_KINDS),
+  lines: z.array(z.object({ productId: objectIdSchema, quantity: z.number().int().min(1).max(10_000) })).min(1, 'Add at least one product.').max(50),
+  remarks: z.string().trim().max(500).nullish().transform((v) => v || null),
+});
+export const listSampleRequestsQuerySchema = z.object({ status: z.enum(SAMPLE_REQUEST_STATUSES).optional(), kind: z.enum(SAMPLE_REQUEST_KINDS).optional(), userId: objectIdSchema.optional() });
+export const sampleRequestDoneBodySchema = z.object({ credits: z.array(z.object({ productId: objectIdSchema, quantity: z.number().int().min(0).max(100_000) })).max(50).default([]) });
+export const sampleAccountQuerySchema = z.object({ userId: objectIdSchema.optional() });
+
 export const listGiftsQuerySchema = z.object({ status: z.enum(['PENDING', 'DONE']).optional(), scope: z.enum(['mine', 'team']).optional() });
 
 // ---- Monthly expense statement ------------------------------------------------------------------

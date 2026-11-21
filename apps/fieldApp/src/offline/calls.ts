@@ -24,6 +24,8 @@ export type CallPayload = {
   capturedLocation: GeoPoint | null;
   accuracyMeters: number | null;
   samples?: { productId: string; quantity: number }[];
+  /** LBL given: just the product, each counts as one. */
+  lbl?: { productId: string }[];
 };
 
 export type ExpenseType = 'TRAVEL' | 'MEAL' | 'MISC';

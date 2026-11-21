@@ -10,6 +10,7 @@ export const LOG_CODES = {
   invalidWorkWith: 'INVALID_WORK_WITH',
   noSampleAllocation: 'NO_SAMPLE_ALLOCATION',
   samplesExhausted: 'SAMPLES_EXHAUSTED',
+  productNotFound: 'PRODUCT_NOT_FOUND',
   giftNotFound: 'GIFT_NOT_FOUND',
   giftAlreadyDone: 'GIFT_ALREADY_DONE',
   doctorVisitTooSoon: 'DOCTOR_VISIT_TOO_SOON',
