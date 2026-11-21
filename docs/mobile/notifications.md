@@ -6,9 +6,11 @@ Server built 2026-10-15; **the phone is not built** (the app team's). Design: [`
 
 ## What the phone does
 
+**iOS (2026-11-21):** the same payload goes to iPhones. The server adds an `apns` block (sound, priority 10, alert type) to each send; nothing changes for Android and no API change is needed.
+
 | # | Item | Status |
 |---|---|---|
-| 1 | **Ask for notification permission** (Android 13+, iOS), then get the Firebase (FCM) token. | phone |
+| 1 | **Ask for notification permission** (Android 13+, iOS), then get the Firebase (FCM) token. On iOS the phone swaps its APNs token for an FCM token through the Firebase SDK, so the server only ever sees FCM tokens; the APNs key is uploaded to Firebase, not to the server. | phone |
 | 2 | **Register the token after every login**, and whenever Firebase gives a new one: `PUT /identity/auth/push-token` `{ deviceId, token }` (same `deviceId` as login). `404` means no live session for that device; log in first. | ✅ server; phone open |
 | 3 | **On logout** nothing is needed (the session ends, the token stops receiving). If the user turns notifications off in the app, call `DELETE /identity/auth/push-token` `{ deviceId }`. | ✅ server; phone open |
 | 4 | **Show the push** with the system tray (the server sends `notification` + `data`). In the foreground, show an in-app banner and refresh `GET /inbox/unread-count`. | phone |

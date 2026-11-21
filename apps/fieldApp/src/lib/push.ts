@@ -11,8 +11,9 @@ import { storage } from './storage';
 /**
  * Push notifications through Firebase (docs/mobile/notifications.md). The server sends to the phone's own FCM token; every push
  * is also an Inbox message, so a missed push loses nothing and the phone never trusts a push for state: it only refreshes the
- * Inbox count and, on a tap, opens the screen the server named. Android only for now (iOS needs the Firebase SDK and an Apple
- * key). Remote push does not work in Expo Go: it needs a development build, and there registering simply does nothing.
+ * Inbox count and, on a tap, opens the screen the server named. Android hands out the FCM token itself; on iOS the device token
+ * is an APNs token that FCM rejects, so the Firebase SDK exchanges it for an FCM token (the APNs key is uploaded to Firebase).
+ * Remote push does not work in Expo Go: it needs a development build, and there registering simply does nothing.
  */
 
 type NotificationsModule = typeof import('expo-notifications');
@@ -37,6 +38,39 @@ export function notifications(): NotificationsModule | null {
     loaded = null;
   }
   return loaded;
+}
+
+type FirebaseModule = typeof import('@react-native-firebase/messaging');
+type FirebaseMessaging = { fb: FirebaseModule; messaging: ReturnType<FirebaseModule['getMessaging']> };
+let firebase: FirebaseMessaging | null | undefined;
+
+/** Firebase Messaging, used on iOS only to get the FCM token. Null where its native module is missing (Expo Go) or off iOS. */
+function iosMessaging(): FirebaseMessaging | null {
+  if (firebase !== undefined) return firebase;
+  if (Platform.OS !== 'ios') {
+    firebase = null;
+    return firebase;
+  }
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fb = require('@react-native-firebase/messaging') as FirebaseModule;
+    firebase = { fb, messaging: fb.getMessaging() };
+  } catch {
+    firebase = null;
+  }
+  return firebase;
+}
+
+/** This phone's FCM token: Android's own, or on iOS the one Firebase swaps for the APNs token. Empty when unavailable. */
+async function fcmToken(n: NotificationsModule): Promise<string> {
+  if (Platform.OS === 'ios') {
+    const m = iosMessaging();
+    if (!m) throw new Error('Firebase Messaging is not in this build');
+    await m.fb.registerDeviceForRemoteMessages(m.messaging);
+    return m.fb.getToken(m.messaging);
+  }
+  const token = await n.getDevicePushTokenAsync();
+  return typeof token.data === 'string' ? token.data : '';
 }
 
 /** The user switched notifications off in the app: nothing is registered until they switch them on again. */
@@ -86,7 +120,7 @@ async function sendToken(token: string) {
 export async function registerForPush(): Promise<boolean> {
   const n = notifications();
   if (!n) return fail('notifications module not loaded');
-  if (Platform.OS !== 'android') return fail(`platform is ${Platform.OS}`);
+  if (Platform.OS !== 'android' && Platform.OS !== 'ios') return fail(`platform is ${Platform.OS}`);
   if (!Device.isDevice) return fail('not a real device');
   if (await isPushOff()) return fail('switched off in the app');
   let step = 'channel';
@@ -95,10 +129,10 @@ export async function registerForPush(): Promise<boolean> {
     step = 'permission';
     if (!(await allowed(n))) return fail('permission not granted');
     step = 'firebase token';
-    const token = await n.getDevicePushTokenAsync();
-    if (typeof token.data !== 'string' || token.data === '') return fail('empty token');
+    const token = await fcmToken(n);
+    if (token === '') return fail('empty token');
     step = 'sending token to server';
-    await sendToken(token.data);
+    await sendToken(token);
     pushStatus = 'registered';
     return true;
   } catch (err) {
@@ -119,9 +153,14 @@ function fail(reason: string): false {
 export function watchPushToken(): () => void {
   const n = notifications();
   if (!n) return () => undefined;
-  const sub = n.addPushTokenListener((token) => {
-    if (typeof token.data === 'string') void isPushOff().then((off) => (off ? undefined : sendToken(token.data).catch(() => undefined)));
-  });
+  const send = (token: unknown) => {
+    if (typeof token === 'string' && token !== '') void isPushOff().then((off) => (off ? undefined : sendToken(token).catch(() => undefined)));
+  };
+  // On iOS the expo listener reports the APNs token, which FCM cannot use, so Firebase's own refresh event is the one to follow.
+  const m = iosMessaging();
+  if (m) return m.fb.onTokenRefresh(m.messaging, send);
+  if (Platform.OS === 'ios') return () => undefined;
+  const sub = n.addPushTokenListener((token) => send(token.data));
   return () => sub.remove();
 }
 

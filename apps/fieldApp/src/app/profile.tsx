@@ -87,7 +87,7 @@ export default function ProfileScreen() {
             <Row label="Model" value={[Device.brand, Device.modelName].filter(Boolean).join(' ')} />
           </ThemedView>
 
-          {Platform.OS === 'android' ? (
+          {Platform.OS === 'android' || Platform.OS === 'ios' ? (
             <ThemedView type="backgroundElement" style={styles.card}>
               <Row label="Notifications" value={pushOff === null ? '…' : pushOff ? 'Off' : 'On'} />
               <ThemedText type="small" themeColor="textSecondary">

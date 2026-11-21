@@ -39,6 +39,7 @@ export class FcmPushSender implements PushSenderPort {
           notification: { title: message.title, body: message.body },
           data: message.data ?? {},
           android: { priority: 'high' },
+          apns: { headers: { 'apns-priority': '10', 'apns-push-type': 'alert' }, payload: { aps: { sound: 'default' } } },
         });
         response.responses.forEach((r, index) => {
           if (r.success) result.sent += 1;

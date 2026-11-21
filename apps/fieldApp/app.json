@@ -8,8 +8,14 @@
     "scheme": "fieldapp",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true,
-      "icon": "./assets/expo.icon"
+      "bundleIdentifier": "com.greynote.app",
+      "buildNumber": "1",
+      "supportsTablet": false,
+      "icon": "./assets/expo.icon",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.greynote.app",
@@ -39,7 +45,9 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "My Greynote uses your location to confirm where a doctor or chemist call took place."
+          "locationWhenInUsePermission": "My Greynote uses your location to confirm where a doctor or chemist call took place.",
+          "locationAlwaysPermission": false,
+          "locationAlwaysAndWhenInUsePermission": false
         }
       ],
       [
@@ -64,7 +72,17 @@
         }
       ],
       "expo-sqlite",
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging"
     ],
     "experiments": {
       "typedRoutes": true,
