@@ -30,6 +30,8 @@ export interface ChemistRepositoryPort {
   /** An employee-added Chemist. Throws `DuplicateRecordError` if this employee already created one with the same `clientRequestId`. */
   createProposed(input: Omit<Chemist, 'id'>, ctx: TransactionContext): Promise<Chemist>;
   findByClientRequest(addedBy: string, clientRequestId: string): Promise<Chemist | null>;
+  /** A pending or active Chemist with this phone number (any spelling of it), leaving out `excludeId`; `null` when the number is free. */
+  findByPhone(phone: string, excludeId?: string): Promise<Chemist | null>;
   /** Chemists this user added, in any status, newest first. */
   listAdded(addedBy: string, page: PageQuery): Promise<PaginatedResult<Chemist>>;
   update(id: string, change: Partial<Omit<Chemist, 'id'>>, ctx?: TransactionContext): Promise<Chemist | null>;

@@ -68,7 +68,8 @@ function dateError(v: string): string | undefined {
 
 function phoneError(v: string): string | undefined {
   const phone = v.replace(/[\s-]/g, '');
-  return phone !== '' && !/^\+?\d{10,15}$/.test(phone) ? 'Enter a phone number of 10 to 15 digits.' : undefined;
+  if (phone === '') return 'Enter the doctor’s phone number.';
+  return /^\+?\d{10,15}$/.test(phone) ? undefined : 'Enter a phone number of 10 to 15 digits.';
 }
 
 function errorsFor(draft: DoctorDraft): Record<string, string | undefined> {
@@ -92,6 +93,7 @@ function errorsFor(draft: DoctorDraft): Record<string, string | undefined> {
     email: email !== '' && !EMAIL.test(email) ? 'Enter a valid email address.' : undefined,
     clinicName: squash(draft.clinicName).length > TEXT_MAX ? `Keep it to ${TEXT_MAX} characters.` : undefined,
     phone: phoneError(draft.phone),
+    visitFrequency: draft.visitFrequency === '' ? 'Choose how many visits a month.' : undefined,
     dateOfBirth: dateError(draft.dateOfBirth),
     anniversary: dateError(draft.anniversary),
   };
@@ -115,6 +117,7 @@ const DETAIL_FIELDS = [
   'email',
   'clinicName',
   'phone',
+  'visitFrequency',
   'dateOfBirth',
   'anniversary',
 ];
@@ -145,10 +148,10 @@ export function buildDoctor(draft: DoctorDraft): BuildResult<CreateDoctorDto> {
       qualification: squash(draft.qualification),
       email: draft.email.trim() === '' ? null : draft.email.trim(),
       clinicName: squash(draft.clinicName) || null,
-      phone: draft.phone.replace(/[\s-]/g, '') || null,
+      phone: draft.phone.replace(/[\s-]/g, ''),
       dateOfBirth: draft.dateOfBirth || null,
       anniversary: draft.anniversary || null,
-      visitFrequency: draft.visitFrequency === '' ? null : Number(draft.visitFrequency),
+      visitFrequency: Number(draft.visitFrequency),
       location: point.point,
     },
   };
@@ -168,10 +171,10 @@ export function buildDoctorUpdate(
   const qualification = squash(draft.qualification);
   const email = draft.email.trim() === '' ? null : draft.email.trim();
   const clinicName = squash(draft.clinicName) || null;
-  const phone = draft.phone.replace(/[\s-]/g, '') || null;
+  const phone = draft.phone.replace(/[\s-]/g, '');
   const dateOfBirth = draft.dateOfBirth || null;
   const anniversary = draft.anniversary || null;
-  const visitFrequency = draft.visitFrequency === '' ? null : Number(draft.visitFrequency);
+  const visitFrequency = Number(draft.visitFrequency);
   return {
     ok: true,
     body: {

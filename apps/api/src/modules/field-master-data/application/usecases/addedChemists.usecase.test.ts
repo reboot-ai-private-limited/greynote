@@ -46,6 +46,23 @@ describe('An employee adds a Chemist', () => {
     expect((await add({}, 'mr1').then(() => added.add('mr1', { ...input, clientRequestId: 'client-req-0002' }))).chemist.phone).toBeNull();
   });
 
+  it('refuses a phone number another chemist already has, however it is written', async () => {
+    await add({ phone: '9876543210' });
+    for (const same of ['9876543210', '+919876543210', '09876543210']) {
+      const err = await added.add('mr1', { ...input, phone: same, clientRequestId: `client-req-${same}` }).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(AppError);
+      expect((err as AppError).statusCode).toBe(409);
+      expect((err as AppError).publicDetails).toEqual({ field: 'phone' });
+    }
+    expect(chemists.rows).toHaveLength(1);
+  });
+
+  it('lets an inactive chemist’s number be used again', async () => {
+    await add({ phone: '9876543210' });
+    chemists.rows[0]!.status = 'inactive';
+    await expect(added.add('mr1', { ...input, phone: '9876543210', clientRequestId: 'client-req-0099' })).resolves.toMatchObject({ created: true });
+  });
+
   it('is not usable until approved, then becomes active', async () => {
     const { chemist } = await add();
     expect(await chemists.listActiveOnRoutes(['route-1'])).toEqual([]);

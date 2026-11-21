@@ -25,8 +25,7 @@ import { getDoctorVisits, type DoctorVisitsReport } from '@/lib/doctor-visits';
 import { useFinancialYear } from '@/lib/financial-year';
 import { confirmRemove, removeDayRecord } from '@/lib/day-records';
 import { LocationCard } from '@/components/location-card';
-import { useLocationReading } from '@/hooks/use-location-reading';
-import { captureLocation } from '@/lib/location';
+import { callLocationProblem, useLocationReading } from '@/hooks/use-location-reading';
 import { isFieldDay, routeTypeLabel, workingTypeLabel } from '@/lib/planning';
 import { notAtLocationReason, refreshNow, saveCall, serverGeofence, useOnline, useRecords, type CallPayload, type OutboxRecord } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
@@ -36,7 +35,7 @@ import type { FieldMasterDataSnapshot, PlanningSnapshot, TerritorySnapshot } fro
 type Subject = 'DOCTOR' | 'CHEMIST';
 
 /** The call form's fields top to bottom, so a failed save scrolls to the first one with a problem. */
-const FIELD_ORDER = ['outlet'];
+const FIELD_ORDER = ['outlet', 'location'];
 const STATUS_TEXT: Record<OutboxRecord['status'], string> = {
   DRAFT: 'Saved on this phone',
   QUEUED: 'Ready to send',
@@ -181,12 +180,18 @@ export function CallScreen({ subject }: { subject: Subject }) {
       fe.fail({ outlet: soon.text });
       return;
     }
+    if (loc.busy) return setMsg({ tone: 'info', text: 'Still reading your location. Wait for the result, then save.' });
+    // The call is saved from a reading the user has seen (Refresh location, under two minutes old, for this doctor or chemist), never from a silent one.
+    const locationIssue = callLocationProblem(loc.reading, outletId, noun);
+    if (locationIssue) {
+      setMsg({ tone: 'danger', text: 'The call was not saved.' });
+      fe.fail({ location: locationIssue });
+      return;
+    }
     fe.clearAll();
     setBusy(true);
-    setMsg({ tone: 'info', text: 'Getting your location…' });
     try {
-      // A reading from Refresh location (under two minutes old, for this doctor or chemist) is used; otherwise GPS is read now.
-      const fix = loc.fresh(outletId) ?? (await captureLocation());
+      const fix = loc.fresh(outletId);
       // The server stores a call only at the place: check here first so a call that would be refused is never kept.
       const away = await notAtLocationReason(outletById.get(outletId)?.location ?? null, fix, noun);
       if (away) {
@@ -316,17 +321,24 @@ export function CallScreen({ subject }: { subject: Subject }) {
         ) : null}
         </CardSection>
 
-        <LocationCard
-          mode="visit"
-          noun={noun}
-          place={picked ? { id: picked.id, name: picked.name, hasLocation: Boolean(picked.location) } : null}
-          reading={loc.reading}
-          busy={loc.busy}
-          onRefresh={() => picked && void loc.refresh({ id: picked.id, point: picked.location ?? null })}
-          onCheckAgain={async () => {
-            await refreshNow();
-          }}
-        />
+        <FormField form={fe} name="location">
+          <LocationCard
+            mode="visit"
+            noun={noun}
+            place={picked ? { id: picked.id, name: picked.name, hasLocation: Boolean(picked.location) } : null}
+            reading={loc.reading}
+            busy={loc.busy}
+            progressMeters={loc.progress}
+            onRefresh={() => {
+              if (!picked) return;
+              fe.clear('location');
+              void loc.refresh({ id: picked.id, point: picked.location ?? null });
+            }}
+            onCheckAgain={async () => {
+              await refreshNow();
+            }}
+          />
+        </FormField>
 
         {/* A chemist call has no Work With (2026-11-02): only a doctor call records who joined. */}
         {isDoctor ? (

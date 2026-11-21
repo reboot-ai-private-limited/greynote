@@ -8,6 +8,7 @@ import type { DoctorRetirement } from '../doctorRetirement.js';
 import type { DoctorView, DoctorViews } from '../doctorViews.js';
 import type { SpecialtyCatalog } from '../specialtyCatalog.js';
 import { requireActiveRoute } from '../requireActiveRoute.js';
+import { requireUniquePhone } from '../phoneUniqueness.js';
 
 export type UpdateDoctorInput = Partial<
   Pick<Doctor, 'routeId' | 'name' | 'address' | 'email' | 'specialty' | 'qualification' | 'clinicName' | 'phone' | 'location' | 'status' | 'dateOfBirth' | 'anniversary' | 'visitFrequency'>
@@ -36,6 +37,7 @@ export class UpdateDoctorUseCase {
     if (current.status === 'pending' && change.status !== undefined) {
       throw AppError.conflict('This doctor is waiting for approval. Approve or reject it in the approvals inbox.', { field: 'status' });
     }
+    if (change.phone !== undefined) await requireUniquePhone((phone, exclude) => this.doctors.findByPhone(phone, exclude), change.phone, 'doctor', id);
     if (change.routeId !== undefined && change.routeId !== current.routeId) {
       await requireActiveRoute(this.territory, change.routeId);
     }

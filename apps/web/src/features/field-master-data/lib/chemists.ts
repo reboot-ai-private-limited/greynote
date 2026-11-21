@@ -38,14 +38,15 @@ export interface PlaceDraft {
   coordinates: CoordinateInputs;
 }
 
-/** A chemist's form: the shared place fields plus a phone number (optional). */
+/** A chemist's form: the shared place fields plus a phone number (required, and unique). */
 export interface ChemistDraft extends PlaceDraft {
   phone: string;
 }
 
 export function phoneError(v: string): string | undefined {
   const phone = v.replace(/[\s-]/g, '');
-  return phone !== '' && !/^\+?\d{10,15}$/.test(phone) ? 'Enter a phone number of 10 to 15 digits.' : undefined;
+  if (phone === '') return 'Enter the chemist’s phone number.';
+  return /^\+?\d{10,15}$/.test(phone) ? undefined : 'Enter a phone number of 10 to 15 digits.';
 }
 
 export const EMPTY_CHEMIST: ChemistDraft = {
@@ -102,7 +103,7 @@ export function buildChemist(draft: ChemistDraft): BuildResult<CreateChemistDto>
       routeId: draft.routeId,
       name: squash(draft.name),
       address: squash(draft.address),
-      phone: draft.phone.replace(/[\s-]/g, '') || null,
+      phone: draft.phone.replace(/[\s-]/g, ''),
       location: point.point,
     },
   };
@@ -118,7 +119,7 @@ export function buildChemistUpdate(
   if (Object.values(errors).some(Boolean) || !point.ok) return fail(errors);
   const name = squash(draft.name);
   const address = squash(draft.address);
-  const phone = draft.phone.replace(/[\s-]/g, '') || null;
+  const phone = draft.phone.replace(/[\s-]/g, '');
   return {
     ok: true,
     body: {

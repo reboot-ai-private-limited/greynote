@@ -155,7 +155,7 @@ function ChemistForm({ chemist }: { chemist?: ChemistDto }) {
           aria-invalid={invalid('address')}
         />
       </FormField>
-      <FormField label="Phone (optional)" htmlFor="chemist-phone" error={shown['phone']}>
+      <FormField label="Phone" htmlFor="chemist-phone" error={shown['phone']}>
         <Input
           id="chemist-phone"
           type="tel"

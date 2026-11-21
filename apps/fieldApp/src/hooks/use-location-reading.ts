@@ -41,6 +41,25 @@ export function locationProblem(reading: LocationReading | null, noun: 'doctor' 
 }
 
 /**
+ * Why a call or follow-up can't be saved from the current reading, or `null` when it can: no reading for this doctor or chemist yet, an old one, no GPS,
+ * a weak one, no registered location, or too far from the place. Says what to do next, and goes on the location card (red) rather than the top of the form.
+ */
+export function callLocationProblem(reading: LocationReading | null, outletId: string, noun: 'doctor' | 'chemist', now = Date.now()): string | null {
+  const mine = reading && reading.placeId === outletId ? reading : null;
+  if (!mine) return `Tap Refresh location first, at the ${noun}’s place. A call is saved only from a reading taken there.`;
+  if (!mine.fix) return 'No GPS reading. Turn on location (GPS), allow it for this app, and tap Refresh location again.';
+  if (now - mine.takenMs >= FRESH_MS) return `Your location reading is ${Math.floor((now - mine.takenMs) / 60_000)} min old. Tap Refresh location again.`;
+  const r = mine.result;
+  if (!r || r.status === 'PASS') return null;
+  if (r.reason === 'NO_REGISTERED_LOCATION') return `This ${noun} has no registered location yet. Ask Admin to set it, then tap Check again.`;
+  if (r.reason === 'LOW_ACCURACY') {
+    const accuracy = mine.fix.accuracyMeters;
+    return `Still weak (${accuracy === null ? 'accuracy unknown' : `±${Math.round(accuracy)} m`}, it needs ±${mine.maxAccuracyMeters} m or better). Move into the open at the ${noun}’s place and tap Refresh location again.`;
+  }
+  return `You are ${r.distanceMeters ?? '?'} m from the ${noun}’s place; the limit is ${mine.radiusMeters} m. Go closer and tap Refresh location again.`;
+}
+
+/**
  * The location card's state: the latest GPS reading and its check against a place. `refresh` listens to the GPS for a better reading (up to ~20 s; GPS needs no
  * internet) and keeps the most accurate one; `progress` is the best accuracy so far while it runs. `fresh` is the reading Save may use without asking GPS again
  * (under two minutes old, and for the place still chosen).

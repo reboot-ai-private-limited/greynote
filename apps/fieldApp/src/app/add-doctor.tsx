@@ -54,15 +54,14 @@ const APPROVAL_TEXT: Record<string, string> = {
 };
 
 /** The form's fields top to bottom, so a failed save scrolls to the first one with a problem. */
-const FIELD_ORDER = ['route', 'name', 'address', 'specialty', 'qualification', 'phone', 'email', 'birth', 'anniversary', 'location'];
+const FIELD_ORDER = ['route', 'name', 'address', 'specialty', 'qualification', 'phone', 'email', 'birth', 'anniversary', 'frequency', 'location'];
 const EMAIL =/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** 10 to 15 digits, with an optional leading `+` (spaces and dashes are stripped before checking). */
 const PHONE = /^\+?\d{10,15}$/;
 const cleanPhone = (s: string) => s.replace(/[\s-]/g, '');
 
 /** How many times a month the MR should visit this doctor: the server takes 1 to 4 (doctors.md rule 4). "No target" sends none. */
-const NO_TARGET = 'NONE';
-const FREQUENCIES = [...[1, 2, 3, 4].map((n) => ({ value: String(n), label: String(n) })), { value: NO_TARGET, label: 'No target' }];
+const FREQUENCIES = [1, 2, 3, 4].map((n) => ({ value: String(n), label: String(n) }));
 
 type Msg = { tone: 'danger' | 'success' | 'info' | 'warning'; text: string };
 /** What the form is working on: a new doctor, one waiting on the phone, or one already with the server. */
@@ -220,7 +219,9 @@ export default function AddDoctorScreen() {
     if (!address.trim()) problems.address = 'Enter the doctor’s address.';
     if (!specialty) problems.specialty = 'Choose the speciality.';
     if (!qualification.trim()) problems.qualification = 'Enter the qualification.';
-    if (phone.trim() && !PHONE.test(cleanPhone(phone))) problems.phone = 'Enter a phone number of 10 to 15 digits.';
+    if (!phone.trim()) problems.phone = 'Enter the doctor’s phone number.';
+    else if (!PHONE.test(cleanPhone(phone))) problems.phone = 'Enter a phone number of 10 to 15 digits.';
+    if (!frequency) problems.frequency = 'Choose how many times a month to visit this doctor.';
     if (email.trim() && !EMAIL.test(email.trim())) problems.email = 'That email doesn’t look right.';
     if (dob.error) problems.birth = dob.error;
     if (wedding.error) problems.anniversary = wedding.error;
@@ -248,10 +249,10 @@ export default function AddDoctorScreen() {
       qualification: qualification.trim(),
       email: email.trim() || null,
       clinicName: clinicName.trim() || null,
-      phone: phone.trim() ? cleanPhone(phone) : null,
+      phone: cleanPhone(phone),
       dateOfBirth: dob.iso,
       anniversary: wedding.iso,
-      visitFrequency: frequency && frequency !== NO_TARGET ? Number(frequency) : null,
+      visitFrequency: Number(frequency),
       location: fix.point,
     };
     try {
@@ -279,7 +280,12 @@ export default function AddDoctorScreen() {
         }
       }
     } catch (err) {
-      setMsg({ tone: 'danger', text: errorText(err) });
+      if (err instanceof ApiError && (err.status === 400 || err.status === 409) && err.data?.field === 'phone') {
+        setMsg({ tone: 'danger', text: 'Fix the fields marked in red.' });
+        form.fail({ phone: err.status === 409 ? errorText(err) : 'Enter a phone number of 10 to 15 digits.' });
+      } else {
+        setMsg({ tone: 'danger', text: errorText(err) });
+      }
     } finally {
       setBusy(false);
     }
@@ -454,10 +460,10 @@ export default function AddDoctorScreen() {
             </View>
           </CardSection>
         )}
-        <CardSection icon={sym('phone', 'call')} accent="green" title="Contact (optional)">
+        <CardSection icon={sym('phone', 'call')} accent="green" title="Contact">
           <FormField form={form} name="phone" outline={false}>
             <TextField
-              label="Phone (optional)"
+              label="Phone"
               value={phone}
               onChangeText={(v) => {
                 setPhone(v);
@@ -510,11 +516,13 @@ export default function AddDoctorScreen() {
             />
           </FormField>
         </CardSection>
-        <CardSection icon={sym('repeat', 'repeat')} accent="purple" title="Visits a month (optional)">
+        <CardSection icon={sym('repeat', 'repeat')} accent="purple" title="Visits a month">
           <ThemedText type="small" themeColor="textSecondary">
-            How many times you should visit this doctor each month (1 to 4). Missed Calls counts against it; with no target the doctor isn’t tracked.
+            How many times you should visit this doctor each month (1 to 4). Missed Calls counts against it.
           </ThemedText>
-          <ChoiceChips options={FREQUENCIES} value={frequency ?? NO_TARGET} onChange={(v) => setFrequency(v === NO_TARGET ? null : v)} disabled={busy} />
+          <FormField form={form} name="frequency">
+            <ChoiceChips options={FREQUENCIES} value={frequency} onChange={(v) => { setFrequency(v); form.clear('frequency'); }} disabled={busy} />
+          </FormField>
         </CardSection>
         <FormField form={form} name="location">
           <LocationCard mode="capture" noun="doctor" place={null} reading={loc.reading} busy={loc.busy} progressMeters={loc.progress} onRefresh={() => { form.clear('location'); void loc.refresh(); }} />

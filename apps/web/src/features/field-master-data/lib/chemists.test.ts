@@ -14,7 +14,7 @@ const chemist: ChemistDto = {
   routeId: 'r1',
   name: 'Apollo Pharmacy',
   address: 'Hill Cart Road, Siliguri',
-  phone: null,
+  phone: '9876543210',
   location: { latitude: 26.7271, longitude: 88.3953 },
   capturedLocation: null,
   status: 'active',
@@ -28,7 +28,7 @@ describe('buildChemist', () => {
     routeId: 'r1',
     name: '  Apollo   Pharmacy ',
     address: ' Hill Cart Road ',
-    phone: '',
+    phone: '9876543210',
     coordinates: { latitude: '26.7271', longitude: '88.3953' },
   };
 
@@ -39,7 +39,7 @@ describe('buildChemist', () => {
         routeId: 'r1',
         name: 'Apollo Pharmacy',
         address: 'Hill Cart Road',
-        phone: null,
+        phone: '9876543210',
         location: { latitude: 26.7271, longitude: 88.3953 },
       },
     });
@@ -57,7 +57,7 @@ describe('buildChemist', () => {
     const result = buildChemist(EMPTY_CHEMIST);
     expect(result.ok).toBe(false);
     if (!result.ok)
-      expect(Object.keys(result.errors).sort()).toEqual(['address', 'name', 'routeId']);
+      expect(Object.keys(result.errors).sort()).toEqual(['address', 'name', 'phone', 'routeId']);
   });
   it('refuses half a location, with the error on the missing coordinate', () => {
     expect(
@@ -87,10 +87,9 @@ describe('buildChemistUpdate', () => {
       body: { routeId: 'r2', address: 'New Road' },
     });
   });
-  it('sends a phone when added or changed, and null when cleared', () => {
-    expect(buildChemistUpdate(chemist, { ...draft, phone: '9876543210' })).toEqual({ ok: true, body: { phone: '9876543210' } });
-    const withPhone = { ...chemist, phone: '9876543210' };
-    expect(buildChemistUpdate(withPhone, { ...chemistToDraft(withPhone), phone: '' })).toEqual({ ok: true, body: { phone: null } });
+  it('sends a phone when changed, and refuses clearing it', () => {
+    expect(buildChemistUpdate(chemist, { ...draft, phone: '9876500000' })).toEqual({ ok: true, body: { phone: '9876500000' } });
+    expect(buildChemistUpdate(chemist, { ...draft, phone: '' })).toMatchObject({ ok: false, errors: { phone: 'Enter the chemist’s phone number.' } });
   });
   it('sends the new point when it moved, and null when it was cleared', () => {
     expect(
@@ -129,7 +128,7 @@ describe('chemistStepErrors', () => {
     routeId: 'r1',
     name: 'Apollo',
     address: 'Hill Cart Road',
-    phone: '',
+    phone: '9876543210',
     coordinates: { latitude: '26.7', longitude: '88.4' },
   };
   it('the details step checks only the details, the location step only the point, the review step everything', () => {

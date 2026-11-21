@@ -51,7 +51,7 @@ export function LocationCard({ mode, noun, place, reading, busy, progressMeters,
     }
   };
 
-  const needsRetry = !!mine && (!mine.fix || (mine.fix.accuracyMeters !== null && mine.fix.accuracyMeters > mine.maxAccuracyMeters));
+  const needsRetry = !!mine && (!mine.fix || (mine.fix.accuracyMeters !== null && mine.fix.accuracyMeters > mine.maxAccuracyMeters) || r?.status === 'FAIL');
   let line: { tone: 'info' | 'success' | 'warning' | 'danger'; text: string };
   if (busy) line = { tone: 'info', text: progressMeters != null ? `Improving your location… ±${Math.round(progressMeters)} m so far. Stay still, in the open.` : 'Getting your location… stay still, in the open.' };
   else if (!mine) line = { tone: 'info', text: mode === 'visit' && place ? `Your location has not been read yet. Tap Refresh to check you are at ${place.name}.` : 'Your location has not been read yet. Tap Refresh.' };

@@ -16,6 +16,8 @@ const payload = (over: Record<string, unknown> = {}): Record<string, unknown> & 
   address: '9 Lake Rd',
   specialty: 'ENT',
   qualification: 'MS',
+  phone: '9876543210',
+  visitFrequency: 2,
   location: { latitude: 26.71, longitude: 88.41 },
   ...over,
 });
@@ -100,7 +102,7 @@ describe('NEW_DOCTOR through the sync push', () => {
   it('a different MR’s record with the same client id is their own Doctor', async () => {
     territory.userRoutes.set('mr2', [ROUTE]);
     const a = await run(payload(), 'mr1');
-    const b = await run(payload(), 'mr2');
+    const b = await run(payload({ phone: '9876543211' }), 'mr2');
     expect(a.serverId).not.toBe(b.serverId);
     expect(doctors.rows).toHaveLength(2);
   });

@@ -6,6 +6,7 @@ import type { ChemistFilter, ChemistRepositoryPort } from '../domain/chemist.rep
 import { DuplicateRecordError } from '../domain/duplicateRecord.error.js';
 import type { PageQuery } from '../domain/masterStatus.js';
 import { ChemistModel, type ChemistDoc } from './chemist.schema.js';
+import { samePhoneRegex } from '../domain/phone.js';
 import { escapeRegex, isDuplicateKey } from './mongoHelpers.js';
 
 const toChemist = (doc: ChemistDoc & { _id: unknown }): Chemist => ({
@@ -110,6 +111,15 @@ export class MongoChemistAdapter implements ChemistRepositoryPort {
       if (isDuplicateKey(err)) throw new DuplicateRecordError('client request');
       throw err;
     }
+  }
+
+  async findByPhone(phone: string, excludeId?: string): Promise<Chemist | null> {
+    const doc = await ChemistModel.findOne({
+      phone: samePhoneRegex(phone),
+      status: { $in: ['pending', 'active'] },
+      ...(excludeId !== undefined && Types.ObjectId.isValid(excludeId) && { _id: { $ne: new Types.ObjectId(excludeId) } }),
+    }).lean();
+    return doc ? toChemist(doc) : null;
   }
 
   async findByClientRequest(addedBy: string, clientRequestId: string): Promise<Chemist | null> {

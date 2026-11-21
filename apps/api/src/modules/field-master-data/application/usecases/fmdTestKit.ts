@@ -1,3 +1,4 @@
+import { samePhoneRegex } from '../../domain/phone.js';
 import { buildPaginatedResult, type PaginatedResult } from '@/shared/http/pagination.js';
 import type { TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
@@ -122,6 +123,9 @@ export class FakeChemists implements ChemistRepositoryPort {
   async createProposed(input: Omit<Chemist, 'id'>, _ctx: unknown) {
     if (this.rows.some((c) => c.addedBy === input.addedBy && c.clientRequestId !== null && c.clientRequestId === input.clientRequestId)) throw new DuplicateRecordError('client request');
     return this.create(input);
+  }
+  async findByPhone(phone: string, excludeId?: string) {
+    return this.rows.find((r) => r.id !== excludeId && (r.status === 'pending' || r.status === 'active') && r.phone !== null && samePhoneRegex(phone).test(r.phone)) ?? null;
   }
   async findByClientRequest(addedBy: string, clientRequestId: string) {
     return this.rows.find((c) => c.addedBy === addedBy && c.clientRequestId === clientRequestId) ?? null;
@@ -378,6 +382,9 @@ export class FakeDoctors implements DoctorRepositoryPort {
     const row = { ...input, id: `doctor-${this.rows.length + 1}` };
     this.rows.push(row);
     return row;
+  }
+  async findByPhone(phone: string, excludeId?: string) {
+    return this.rows.find((r) => r.id !== excludeId && (r.status === 'pending' || r.status === 'active') && r.phone !== null && samePhoneRegex(phone).test(r.phone)) ?? null;
   }
   async findByClientRequest(addedBy: string, clientRequestId: string) {
     return this.rows.find((d) => d.addedBy === addedBy && d.clientRequestId === clientRequestId) ?? null;

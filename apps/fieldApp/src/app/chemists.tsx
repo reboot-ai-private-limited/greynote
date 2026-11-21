@@ -173,7 +173,8 @@ function MyChemistsScreen() {
     if (!routeId) problems.route = 'Choose the route this chemist is on.';
     if (!name.trim()) problems.name = 'Enter the chemist’s name.';
     if (!address.trim()) problems.address = 'Enter the chemist’s address.';
-    if (phone.trim() && !PHONE.test(cleanPhone(phone))) problems.phone = PHONE_ERROR;
+    if (!phone.trim()) problems.phone = 'Enter the chemist’s phone number.';
+    else if (!PHONE.test(cleanPhone(phone))) problems.phone = PHONE_ERROR;
     const locationIssue = locationProblem(loc.reading, 'chemist');
     if (locationIssue) problems.location = locationIssue;
     if (Object.keys(problems).length > 0 || !routeId) {
@@ -190,7 +191,7 @@ function MyChemistsScreen() {
     if (!fix) return;
     setBusy(true);
 
-    const payload = { routeId, name: name.trim(), address: address.trim(), phone: phone.trim() ? cleanPhone(phone) : null, location: fix.point };
+    const payload = { routeId, name: name.trim(), address: address.trim(), phone: cleanPhone(phone), location: fix.point };
     try {
       if (target && typeof target === 'object' && 'server' in target) {
         await editAddedChemist(target.server.id, payload);
@@ -215,9 +216,9 @@ function MyChemistsScreen() {
         }
       }
     } catch (err) {
-      if (err instanceof ApiError && err.status === 400 && err.data?.field === 'phone') {
+      if (err instanceof ApiError && (err.status === 400 || err.status === 409) && err.data?.field === 'phone') {
         setMsg({ tone: 'danger', text: 'Fix the fields marked in red.' });
-        form.fail({ phone: PHONE_ERROR });
+        form.fail({ phone: err.status === 409 ? errorText(err) : PHONE_ERROR });
       } else {
         setMsg({ tone: 'danger', text: errorText(err) });
       }
@@ -399,7 +400,7 @@ function MyChemistsScreen() {
           </FormField>
           <FormField form={form} name="phone" outline={false}>
             <TextField
-              label="Phone (optional)"
+              label="Phone"
               value={phone}
               onChangeText={(v) => {
                 setPhone(v);

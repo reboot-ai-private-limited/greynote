@@ -12,6 +12,7 @@ export const NEW_DOCTOR_SYNC_CODES = {
   routeNotAssigned: 'ROUTE_NOT_ASSIGNED',
   addedAtTheSameTime: 'ADDED_AT_THE_SAME_TIME',
   managerNotAllowed: 'MANAGER_NOT_ALLOWED',
+  phoneAlreadyUsed: 'PHONE_ALREADY_USED',
 } as const;
 
 /**
@@ -42,6 +43,9 @@ export function makeNewDoctorSyncHandler(added: AddedDoctors, parse: (payload: u
       } catch (err) {
         if (err instanceof AppError && (err.publicDetails as { field?: string } | undefined)?.field === 'routeId') {
           throw new SyncRejection(NEW_DOCTOR_SYNC_CODES.routeNotAssigned, 'You no longer have this doctor’s route. Choose another of your routes.');
+        }
+        if (err instanceof AppError && err.statusCode === 409 && (err.publicDetails as { field?: string } | undefined)?.field === 'phone') {
+          throw new SyncRejection(NEW_DOCTOR_SYNC_CODES.phoneAlreadyUsed, err.message);
         }
         if (err instanceof AppError && err.statusCode === 403) {
           throw new SyncRejection(NEW_DOCTOR_SYNC_CODES.managerNotAllowed, 'Managers can’t add doctors. Ask Admin.');

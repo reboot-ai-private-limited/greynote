@@ -193,7 +193,7 @@ export function DoctorDetailsForm({ doctor, review = false }: { doctor?: DoctorD
       <FormField label="Clinic name (optional)" htmlFor="doctor-clinic" error={shown['clinicName']}>
         <Input id="doctor-clinic" value={draft.clinicName} disabled={locked} onChange={(e) => set('clinicName')(e.target.value)} aria-invalid={invalid('clinicName')} />
       </FormField>
-      <FormField label="Phone (optional)" htmlFor="doctor-phone" error={shown['phone']}>
+      <FormField label="Phone" htmlFor="doctor-phone" error={shown['phone']}>
         <Input id="doctor-phone" type="tel" inputMode="tel" value={draft.phone} disabled={locked} onChange={(e) => set('phone')(e.target.value)} aria-invalid={invalid('phone')} />
       </FormField>
       <FormField label="Date of birth (optional)" htmlFor="doctor-dob" error={shown['dateOfBirth']}>
@@ -202,12 +202,12 @@ export function DoctorDetailsForm({ doctor, review = false }: { doctor?: DoctorD
       <FormField label="Anniversary (optional)" htmlFor="doctor-anniversary" error={shown['anniversary']}>
         <Input id="doctor-anniversary" type="date" value={draft.anniversary} disabled={locked} onChange={(e) => set('anniversary')(e.target.value)} aria-invalid={invalid('anniversary')} />
       </FormField>
-      <FormField label="Visit frequency (optional)" htmlFor="doctor-frequency" hint="How many times the MR should visit this doctor each month. Missed visits are tracked against it.">
+      <FormField label="Visit frequency" htmlFor="doctor-frequency" error={shown['visitFrequency']} hint="How many times the MR should visit this doctor each month. Missed visits are tracked against it.">
         <Select
           id="doctor-frequency"
           value={draft.visitFrequency || 'none'}
           onValueChange={(v) => set('visitFrequency')(v === 'none' ? '' : v)}
-          options={[{ value: 'none', label: 'No target' }, ...FREQUENCY_OPTIONS]}
+          options={[{ value: 'none', label: 'Choose…' }, ...FREQUENCY_OPTIONS]}
           disabled={locked}
         />
       </FormField>

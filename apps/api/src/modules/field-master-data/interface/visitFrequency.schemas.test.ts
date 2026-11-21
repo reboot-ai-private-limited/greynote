@@ -4,7 +4,8 @@ import { addDoctorBodySchema, createDoctorBodySchema, updateDoctorBodySchema, up
 describe('visit frequency', () => {
   it('is 1 to 4 visits a month on every way a doctor is saved (2026-10-22)', () => {
     expect(updateDoctorTargetsBodySchema.safeParse({ visitFrequency: 4 }).success).toBe(true);
-    expect(updateDoctorTargetsBodySchema.safeParse({ visitFrequency: null }).success).toBe(true);
+    // Required now: a target can be changed but not cleared.
+    expect(updateDoctorTargetsBodySchema.safeParse({ visitFrequency: null }).success).toBe(false);
     expect(updateDoctorTargetsBodySchema.safeParse({ visitFrequency: 5 }).success).toBe(false);
     expect(updateDoctorTargetsBodySchema.safeParse({ visitFrequency: 0 }).success).toBe(false);
     expect(updateDoctorBodySchema.safeParse({ visitFrequency: 5 }).success).toBe(false);

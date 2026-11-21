@@ -3,6 +3,7 @@ import type { Chemist } from '../../domain/chemist.entity.js';
 import type { ChemistRepositoryPort } from '../../domain/chemist.repository.port.js';
 import type { TerritoryPort } from '../../domain/territory.port.js';
 import { requireActiveRoute } from '../requireActiveRoute.js';
+import { requireUniquePhone } from '../phoneUniqueness.js';
 
 export class UpdateChemistUseCase {
   constructor(
@@ -16,6 +17,7 @@ export class UpdateChemistUseCase {
     if (current.status === 'pending' && change.status !== undefined) {
       throw AppError.conflict('This chemist is waiting for approval. Approve or reject it in Approvals.');
     }
+    if (change.phone !== undefined) await requireUniquePhone((phone, exclude) => this.chemists.findByPhone(phone, exclude), change.phone, 'chemist', id);
     if (change.routeId !== undefined && change.routeId !== current.routeId) {
       await requireActiveRoute(this.territory, change.routeId);
     }

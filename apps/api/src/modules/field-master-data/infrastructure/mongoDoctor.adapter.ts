@@ -12,6 +12,7 @@ import type {
 import type { PageQuery } from '../domain/masterStatus.js';
 import { DoctorModel, type DoctorDoc } from './doctor.schema.js';
 import { DoctorAssignmentModel } from './doctorAssignment.schema.js';
+import { samePhoneRegex } from '../domain/phone.js';
 import { escapeRegex, isDuplicateKey } from './mongoHelpers.js';
 
 export const toDoctor = (doc: DoctorDoc & { _id: unknown }): Doctor => ({
@@ -122,6 +123,15 @@ export class MongoDoctorAdapter implements DoctorRepositoryPort {
       if (isDuplicateKey(err)) throw new DuplicateRecordError('client request');
       throw err;
     }
+  }
+
+  async findByPhone(phone: string, excludeId?: string): Promise<Doctor | null> {
+    const doc = await DoctorModel.findOne({
+      phone: samePhoneRegex(phone),
+      status: { $in: ['pending', 'active'] },
+      ...(excludeId !== undefined && Types.ObjectId.isValid(excludeId) && { _id: { $ne: new Types.ObjectId(excludeId) } }),
+    }).lean();
+    return doc ? toDoctor(doc) : null;
   }
 
   async findByClientRequest(addedBy: string, clientRequestId: string): Promise<Doctor | null> {

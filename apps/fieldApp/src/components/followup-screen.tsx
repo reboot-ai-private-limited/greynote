@@ -18,8 +18,7 @@ import { useFormErrors } from '@/hooks/use-form-errors';
 import { useReportSent } from '@/hooks/use-report-sent';
 import { confirmRemove, removeDayRecord } from '@/lib/day-records';
 import { LocationCard } from '@/components/location-card';
-import { useLocationReading } from '@/hooks/use-location-reading';
-import { captureLocation } from '@/lib/location';
+import { callLocationProblem, useLocationReading } from '@/hooks/use-location-reading';
 import { isFieldDay, routeTypeLabel, workingTypeLabel } from '@/lib/planning';
 import { notAtLocationReason, refreshNow, saveCall, useOnline, useRecords, type FollowupPayload, type OutboxRecord } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
@@ -29,7 +28,7 @@ type Subject = 'DOCTOR' | 'CHEMIST';
 
 const MAX_REMARKS = 1000;
 /** The followup form's fields top to bottom, so a failed save scrolls to the first one with a problem. */
-const FIELD_ORDER = ['outlet', 'remarks'];
+const FIELD_ORDER = ['outlet', 'location', 'remarks'];
 
 const STATUS_TEXT: Record<OutboxRecord['status'], string> = {
   DRAFT: 'Saved on this phone',
@@ -117,12 +116,18 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
       fe.fail({ outlet: soon.text });
       return;
     }
+    if (loc.busy) return setMsg({ tone: 'info', text: 'Still reading your location. Wait for the result, then save.' });
+    // Saved from a reading the user has seen (Refresh location, under two minutes old, for this doctor or chemist), never from a silent one.
+    const locationIssue = callLocationProblem(loc.reading, outletId, noun);
+    if (locationIssue) {
+      setMsg({ tone: 'danger', text: 'The followup was not saved.' });
+      fe.fail({ location: locationIssue });
+      return;
+    }
     fe.clearAll();
     setBusy(true);
-    setMsg({ tone: 'info', text: 'Getting your location…' });
     try {
-      // A reading from Refresh location (under two minutes old, for this doctor or chemist) is used; otherwise GPS is read now.
-      const fix = loc.fresh(outletId) ?? (await captureLocation());
+      const fix = loc.fresh(outletId);
       const away = await notAtLocationReason(byId.get(outletId)?.location ?? null, fix, noun);
       if (away) {
         // Not at the place: the doctor or chemist field is the one to look at.
@@ -239,17 +244,24 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
           {`You must be at the ${noun}’s place.`}
         </ThemedText>
         </CardSection>
-        <LocationCard
-          mode="visit"
-          noun={noun}
-          place={picked ? { id: picked.id, name: picked.name, hasLocation: Boolean(picked.location) } : null}
-          reading={loc.reading}
-          busy={loc.busy}
-          onRefresh={() => picked && void loc.refresh({ id: picked.id, point: picked.location ?? null })}
-          onCheckAgain={async () => {
-            await refreshNow();
-          }}
-        />
+        <FormField form={fe} name="location">
+          <LocationCard
+            mode="visit"
+            noun={noun}
+            place={picked ? { id: picked.id, name: picked.name, hasLocation: Boolean(picked.location) } : null}
+            reading={loc.reading}
+            busy={loc.busy}
+            progressMeters={loc.progress}
+            onRefresh={() => {
+              if (!picked) return;
+              fe.clear('location');
+              void loc.refresh({ id: picked.id, point: picked.location ?? null });
+            }}
+            onCheckAgain={async () => {
+              await refreshNow();
+            }}
+          />
+        </FormField>
         <CardSection icon={sym('text.bubble', 'chat')} accent="teal" title="Remarks">
           <FormField form={fe} name="remarks" outline={false}>
             <TextField

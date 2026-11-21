@@ -9,7 +9,7 @@ import { editAddedChemistBodySchema } from './field-master-data.schemas.js';
 const ROUTE = 'a'.repeat(24);
 const OTHER_ROUTE = 'b'.repeat(24);
 const CLIENT_ID = '11111111-1111-4111-8111-111111111111';
-const payload = (over: Record<string, unknown> = {}) => ({ routeId: ROUTE, name: 'Sai Pharmacy', address: '4 Market Rd', location: { latitude: 26.71, longitude: 88.41 }, ...over });
+const payload = (over: Record<string, unknown> = {}) => ({ routeId: ROUTE, name: 'Sai Pharmacy', address: '4 Market Rd', phone: '9876543210', location: { latitude: 26.71, longitude: 88.41 }, ...over });
 
 describe('NEW_CHEMIST through the sync push', () => {
   let chemists: FakeChemists;

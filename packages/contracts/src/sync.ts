@@ -80,13 +80,14 @@ export interface NewDoctorPayload {
   specialty: string;
   qualification: string;
   email?: string | null;
-  /** Optional: the clinic or hospital, and a contact number. */
+  /** Optional: the clinic or hospital. */
   clinicName?: string | null;
-  phone?: string | null;
+  /** Required: 10–15 digits, optional leading `+`. No two doctors may share one (`409` on the `phone` field). */
+  phone: string;
   dateOfBirth?: string | null;
   anniversary?: string | null;
-  /** Visits per month (1–4). */
-  visitFrequency?: number | null;
+  /** Required: visits per month (1–4). */
+  visitFrequency: number;
   /** The phone's GPS when adding. */
   location: GeoPoint;
 }
@@ -97,8 +98,8 @@ export interface NewChemistPayload {
   routeId: string;
   name: string;
   address: string;
-  /** Optional: 10–15 digits, optional leading `+`. */
-  phone?: string | null;
+  /** Required: 10–15 digits, optional leading `+`. No two chemists may share one (`409` on the `phone` field). */
+  phone: string;
   /** The phone's GPS when adding. */
   location: GeoPoint;
 }
@@ -215,10 +216,10 @@ export const DCR_REFUSAL_CODES = [
 ] as const;
 
 /** What `NEW_CHEMIST` refuses with: the same codes as `NEW_DOCTOR`. */
-export const NEW_CHEMIST_REASON_CODES = ['INVALID_PAYLOAD', 'ROUTE_NOT_ASSIGNED', 'ADDED_AT_THE_SAME_TIME', 'MANAGER_NOT_ALLOWED'] as const;
+export const NEW_CHEMIST_REASON_CODES = ['INVALID_PAYLOAD', 'ROUTE_NOT_ASSIGNED', 'ADDED_AT_THE_SAME_TIME', 'MANAGER_NOT_ALLOWED', 'PHONE_ALREADY_USED'] as const;
 
 /** What `NEW_DOCTOR` refuses with, beyond the engine's codes. */
-export const NEW_DOCTOR_REASON_CODES = ['INVALID_PAYLOAD', 'ROUTE_NOT_ASSIGNED', 'ADDED_AT_THE_SAME_TIME', 'MANAGER_NOT_ALLOWED'] as const;
+export const NEW_DOCTOR_REASON_CODES = ['INVALID_PAYLOAD', 'ROUTE_NOT_ASSIGNED', 'ADDED_AT_THE_SAME_TIME', 'MANAGER_NOT_ALLOWED', 'PHONE_ALREADY_USED'] as const;
 
 // ---- Draft backup ------------------------------------------------------------------------------
 

@@ -12,6 +12,7 @@ export const NEW_CHEMIST_SYNC_CODES = {
   routeNotAssigned: 'ROUTE_NOT_ASSIGNED',
   addedAtTheSameTime: 'ADDED_AT_THE_SAME_TIME',
   managerNotAllowed: 'MANAGER_NOT_ALLOWED',
+  phoneAlreadyUsed: 'PHONE_ALREADY_USED',
 } as const;
 
 /**
@@ -42,6 +43,9 @@ export function makeNewChemistSyncHandler(added: AddedChemists, parse: (payload:
       } catch (err) {
         if (err instanceof AppError && (err.publicDetails as { field?: string } | undefined)?.field === 'routeId') {
           throw new SyncRejection(NEW_CHEMIST_SYNC_CODES.routeNotAssigned, 'You no longer have this chemist’s route. Choose another of your routes.');
+        }
+        if (err instanceof AppError && err.statusCode === 409 && (err.publicDetails as { field?: string } | undefined)?.field === 'phone') {
+          throw new SyncRejection(NEW_CHEMIST_SYNC_CODES.phoneAlreadyUsed, err.message);
         }
         if (err instanceof AppError && err.statusCode === 403) {
           throw new SyncRejection(NEW_CHEMIST_SYNC_CODES.managerNotAllowed, 'Managers can’t add chemists. Ask Admin.');

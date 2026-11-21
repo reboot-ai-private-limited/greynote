@@ -73,12 +73,12 @@ export const updateSpecialtyBodySchema = z
 export const listSpecialtiesQuerySchema = z.object({ ...pageFields });
 
 // ---- Chemists
-const mobileSchema = z.string().trim().regex(/^\+?\d{10,15}$/, 'Must be a phone number of 10 to 15 digits.');
+const mobileSchema = z.string({ required_error: 'Enter the phone number.' }).trim().regex(/^\+?\d{10,15}$/, 'Must be a phone number of 10 to 15 digits.');
 export const createChemistBodySchema = z.object({
   routeId: objectIdSchema,
   name: nameSchema,
   address: textSchema,
-  phone: mobileSchema.nullish().transform((v) => v ?? null),
+  phone: mobileSchema,
   /** Picked on a Google map. Omit to add the Chemist now and set the point later. */
   location: locationSchema.nullish().transform((v) => v ?? null),
 });
@@ -87,8 +87,8 @@ export const updateChemistBodySchema = z
     routeId: objectIdSchema.optional(),
     name: nameSchema.optional(),
     address: textSchema.optional(),
-    /** `null` clears it. */
-    phone: mobileSchema.nullable().optional(),
+    /** Required, so it can be changed but not cleared. */
+    phone: mobileSchema.optional(),
     /** `null` clears the registered location. */
     location: locationSchema.nullable().optional(),
     status: statusSchema.optional(),
@@ -102,7 +102,7 @@ const addedChemistFields = {
   routeId: objectIdSchema,
   name: nameSchema,
   address: textSchema,
-  phone: mobileSchema.nullish().transform((v) => v ?? null),
+  phone: mobileSchema,
   /** The phone's GPS when adding. Required — Admin reviews it on a map at approval. */
   location: locationSchema,
 };
@@ -120,10 +120,12 @@ const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD.').refi
 const frequencySchema = z.number().int().min(1).max(MAX_VISIT_FREQUENCY, `At most ${MAX_VISIT_FREQUENCY} visits a month.`);
 const doctorExtras = {
   clinicName: z.string().trim().max(150).nullish().transform((v) => (v ? v : null)),
-  phone: mobileSchema.nullish().transform((v) => v ?? null),
+  /** Required: the way to reach the doctor, and no two doctors share one. */
+  phone: mobileSchema,
   dateOfBirth: dateOnly.nullish().transform((v) => v ?? null),
   anniversary: dateOnly.nullish().transform((v) => v ?? null),
-  visitFrequency: frequencySchema.nullish().transform((v) => v ?? null),
+  /** Required: how many times a month the doctor should be visited. */
+  visitFrequency: frequencySchema,
 };
 const doctorFields = {
   name: nameSchema,
@@ -148,9 +150,9 @@ const doctorChangeObject = z.object({
     /** `null` clears. */
     dateOfBirth: dateOnly.nullable().optional(),
     anniversary: dateOnly.nullable().optional(),
-    visitFrequency: frequencySchema.nullable().optional(),
+    visitFrequency: frequencySchema.optional(),
     clinicName: z.string().trim().max(150).nullable().optional(),
-    phone: mobileSchema.nullable().optional(),
+    phone: mobileSchema.optional(),
     /** `null` clears it. */
     email: emailSchema.nullable().optional(),
     /** `null` clears the registered location. */
@@ -166,7 +168,7 @@ export const updateDoctorTargetsBodySchema = z
   .object({
     dateOfBirth: dateOnly.nullable().optional(),
     anniversary: dateOnly.nullable().optional(),
-    visitFrequency: frequencySchema.nullable().optional(),
+    visitFrequency: frequencySchema.optional(),
   })
   .refine((b) => Object.keys(b).length > 0, { message: 'Nothing to change.' });
 export const listDoctorsQuerySchema = z.object({

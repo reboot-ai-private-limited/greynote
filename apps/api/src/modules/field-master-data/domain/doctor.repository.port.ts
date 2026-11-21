@@ -41,6 +41,8 @@ export interface DoctorRepositoryPort {
   /** An MR-added Doctor. Throws `DuplicateRecordError` if this MR already created one with the same `clientRequestId`. */
   createProposed(input: Omit<Doctor, 'id'>, ctx: TransactionContext): Promise<Doctor>;
   findByClientRequest(addedBy: string, clientRequestId: string): Promise<Doctor | null>;
+  /** A pending or active Doctor with this phone number (any spelling of it), leaving out `excludeId`; `null` when the number is free. */
+  findByPhone(phone: string, excludeId?: string): Promise<Doctor | null>;
   update(id: string, change: Partial<Omit<Doctor, 'id'>>, ctx?: TransactionContext): Promise<Doctor | null>;
   /** Renames a speciality on every Doctor that carries it (the name compared ignoring case); returns how many. */
   renameSpecialty(from: string, to: string): Promise<number>;

@@ -13,6 +13,7 @@ import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { SpecialtyCatalog } from '../specialtyCatalog.js';
 import { NEW_DOCTOR_KIND } from '../doctorApproval.js';
 import type { DoctorView, DoctorViews } from '../doctorViews.js';
+import { requireUniquePhone } from '../phoneUniqueness.js';
 
 /** What an MR fills when adding a Doctor (sign-off C4): no status, no assignment — those come from the approval. */
 export interface AddedDoctorInput {
@@ -21,6 +22,7 @@ export interface AddedDoctorInput {
   address: string;
   email: string | null;
   clinicName?: string | null;
+  /** Required by the API's request schema (`addDoctorBodySchema`); optional here so internal callers and tests need not invent one. */
   phone?: string | null;
   specialty: string;
   qualification: string;
@@ -88,6 +90,7 @@ export class AddedDoctors {
   }
 
   private async insertAndSubmit(mrId: string, input: AddedDoctorInput & { clientRequestId: string }, ctx: TransactionContext): Promise<Doctor> {
+    await requireUniquePhone((phone, exclude) => this.doctors.findByPhone(phone, exclude), input.phone, 'doctor');
     const { clientRequestId, location, ...fields } = input;
     const doctor = await this.doctors.createProposed(
       { clinicName: null, phone: null, photo: null, dateOfBirth: null, anniversary: null, visitFrequency: null, ...fields, location, capturedLocation: location, clientRequestId, status: 'pending', addedBy: mrId, approvedAt: null },
@@ -111,6 +114,7 @@ export class AddedDoctors {
     }
     await this.requireMayAdd(mrId);
     if (input.routeId !== existing.routeId) await this.requireOwnRoute(mrId, input.routeId);
+    await requireUniquePhone((phone, exclude) => this.doctors.findByPhone(phone, exclude), input.phone, 'doctor', existing.id);
     input = { ...input, specialty: await this.specialties.resolve(input.specialty) };
 
     const updated = await this.transactions.run(async (ctx) => {

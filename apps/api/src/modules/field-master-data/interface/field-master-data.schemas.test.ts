@@ -12,7 +12,7 @@ import {
 } from './field-master-data.schemas.js';
 
 const route = 'a'.repeat(24);
-const base = { routeId: route, name: 'Sai', address: 'Main Rd' };
+const base = { routeId: route, name: 'Sai', address: 'Main Rd', phone: '9876543210' };
 
 describe('Field Master Data request schemas', () => {
   it('takes a chemist with a location, and turns a missing one into null', () => {
@@ -34,7 +34,7 @@ describe('Field Master Data request schemas', () => {
   });
 
   it('an MR-added doctor needs a phone location and a client request id', () => {
-    const doctor = { routeId: route, name: 'Dr X', address: 'Rd', specialty: 'ENT', qualification: 'MS', location: { latitude: 26.7, longitude: 88.4 }, clientRequestId: 'abcd-1234' };
+    const doctor = { routeId: route, name: 'Dr X', address: 'Rd', specialty: 'ENT', qualification: 'MS', phone: '9876543210', visitFrequency: 2, location: { latitude: 26.7, longitude: 88.4 }, clientRequestId: 'abcd-1234' };
     expect(addDoctorBodySchema.parse(doctor).email).toBeNull();
     expect(addDoctorBodySchema.safeParse({ ...doctor, location: undefined }).success).toBe(false);
     expect(addDoctorBodySchema.safeParse({ ...doctor, clientRequestId: 'short' }).success).toBe(false);

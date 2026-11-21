@@ -28,8 +28,7 @@ const errorText = (err: unknown) =>
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE = /^\+?\d{10,15}$/;
 const cleanPhone = (s: string) => s.replace(/[\s-]/g, '');
-const NO_TARGET = 'NONE';
-const FREQUENCIES = [...[1, 2, 3, 4].map((n) => ({ value: String(n), label: String(n) })), { value: NO_TARGET, label: 'No target' }];
+const FREQUENCIES = [1, 2, 3, 4].map((n) => ({ value: String(n), label: String(n) }));
 
 const sameDay = (a: string | null | undefined, b: string | null) => (a ?? null) === b;
 const coordinate = (text: string, limit: number): number | null => {
@@ -81,7 +80,7 @@ export default function ReviewDoctorScreen() {
         setClinicName(d.clinicName ?? '');
         setPhone(d.phone ?? '');
         setEmail(d.email ?? '');
-        setFrequency(d.visitFrequency ? String(d.visitFrequency) : NO_TARGET);
+        setFrequency(d.visitFrequency && d.visitFrequency <= 4 ? String(d.visitFrequency) : null);
         setBirth(partsFromIso(d.dateOfBirth));
         setAnniversary(partsFromIso(d.anniversary));
         const where = d.location ?? d.capturedLocation;
@@ -115,7 +114,9 @@ export default function ReviewDoctorScreen() {
     if (!specialty) return setMsg({ tone: 'danger', text: 'Choose the speciality.' });
     if (!qualification.trim()) return setMsg({ tone: 'danger', text: 'Enter the qualification.' });
     if (email.trim() && !EMAIL.test(email.trim())) return setMsg({ tone: 'danger', text: 'That email doesn’t look right.' });
-    if (phone.trim() && !PHONE.test(cleanPhone(phone))) return setMsg({ tone: 'danger', text: 'Enter a phone number of 10 to 15 digits.' });
+    if (!phone.trim()) return setMsg({ tone: 'danger', text: 'Enter the doctor’s phone number.' });
+    if (!PHONE.test(cleanPhone(phone))) return setMsg({ tone: 'danger', text: 'Enter a phone number of 10 to 15 digits.' });
+    if (!frequency) return setMsg({ tone: 'danger', text: 'Choose how many times a month to visit this doctor.' });
     const dob = isoFromParts(birth, today);
     if (dob.error) return setMsg({ tone: 'danger', text: `Date of birth: ${dob.error}` });
     const wedding = isoFromParts(anniversary, today);
@@ -133,12 +134,12 @@ export default function ReviewDoctorScreen() {
     if (specialty !== doctor.specialty) body.specialty = specialty;
     if (qualification.trim() !== doctor.qualification) body.qualification = qualification.trim();
     if ((clinicName.trim() || null) !== (doctor.clinicName ?? null)) body.clinicName = clinicName.trim() || null;
-    const newPhone = phone.trim() ? cleanPhone(phone) : null;
+    const newPhone = cleanPhone(phone);
     if (newPhone !== (doctor.phone ?? null)) body.phone = newPhone;
     if ((email.trim() || null) !== (doctor.email ?? null)) body.email = email.trim() || null;
     if (!sameDay(doctor.dateOfBirth, dob.iso)) body.dateOfBirth = dob.iso;
     if (!sameDay(doctor.anniversary, wedding.iso)) body.anniversary = wedding.iso;
-    const newFrequency = frequency && frequency !== NO_TARGET ? Number(frequency) : null;
+    const newFrequency = Number(frequency);
     if (newFrequency !== (doctor.visitFrequency ?? null)) body.visitFrequency = newFrequency;
     const was = doctor.location ?? doctor.capturedLocation;
     if (lat !== null && lng !== null && (!was || was.latitude !== lat || was.longitude !== lng)) body.location = { latitude: lat, longitude: lng };
@@ -188,7 +189,7 @@ export default function ReviewDoctorScreen() {
             />
             <TextField label="Qualification" value={qualification} onChangeText={setQualification} editable={!busy} maxLength={150} />
             <TextField label="Clinic or hospital (optional)" value={clinicName} onChangeText={setClinicName} editable={!busy} maxLength={150} />
-            <TextField label="Phone (optional)" value={phone} onChangeText={setPhone} keyboardType="phone-pad" editable={!busy} maxLength={20} />
+            <TextField label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" editable={!busy} maxLength={20} />
             <TextField label="Email (optional)" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" editable={!busy} maxLength={150} />
           </CardSection>
           <CardSection icon={sym('calendar', 'event')} accent="purple" title="Visits and dates">

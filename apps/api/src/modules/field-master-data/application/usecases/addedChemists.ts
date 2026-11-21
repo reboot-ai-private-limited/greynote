@@ -2,6 +2,7 @@ import { isEditableBySubmitter } from '@/modules/approval/approval.public.js';
 import type { TransactionContext, TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import { parseBoolean, readConfigOr, type ConfigReader } from '@/shared/config/readConfig.js';
 import { AppError } from '@/shared/errors/AppError.js';
+import { requireUniquePhone } from '../phoneUniqueness.js';
 import { buildPaginatedResult, type PaginatedResult } from '@/shared/http/pagination.js';
 import type { ApprovalsPort } from '../../domain/approvals.port.js';
 import type { Chemist } from '../../domain/chemist.entity.js';
@@ -17,6 +18,7 @@ export interface AddedChemistInput {
   routeId: string;
   name: string;
   address: string;
+  /** Required by the API's request schema (`addChemistBodySchema`). */
   phone?: string | null;
   /** The phone's GPS when the employee added the Chemist — becomes the registered location until Admin corrects it. */
   location: GeoPoint;
@@ -68,6 +70,7 @@ export class AddedChemists {
   }
 
   private async insertAndSubmit(userId: string, input: AddedChemistInput & { clientRequestId: string }, ctx: TransactionContext): Promise<Chemist> {
+    await requireUniquePhone((phone, exclude) => this.chemists.findByPhone(phone, exclude), input.phone, 'chemist');
     const { clientRequestId, location, ...fields } = input;
     const chemist = await this.chemists.createProposed(
       { phone: null, ...fields, location, capturedLocation: location, clientRequestId, status: 'pending', addedBy: userId, approvedAt: null },
@@ -91,6 +94,7 @@ export class AddedChemists {
     }
     await this.requireMayAdd(userId);
     if (input.routeId !== existing.routeId) await this.requireOwnRoute(userId, input.routeId);
+    await requireUniquePhone((phone, exclude) => this.chemists.findByPhone(phone, exclude), input.phone, 'chemist', existing.id);
 
     const updated = await this.transactions.run(async (ctx) => {
       const { location, ...fields } = input;

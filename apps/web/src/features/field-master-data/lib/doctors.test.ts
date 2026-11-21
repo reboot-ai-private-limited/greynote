@@ -10,9 +10,9 @@ const doctor: DoctorDto = {
   email: 'roy@example.com',
   specialty: 'Cardiology',
   qualification: 'MD',
-  clinicName: null, phone: null, photoUrl: null, dateOfBirth: null,
+  clinicName: null, phone: '9876543210', photoUrl: null, dateOfBirth: null,
   anniversary: null,
-  visitFrequency: null,
+  visitFrequency: 2,
   location: { latitude: 26.7, longitude: 88.4 },
   capturedLocation: null,
   status: 'active',
@@ -36,10 +36,10 @@ describe('buildDoctor', () => {
         qualification: 'MD',
         email: null,
         clinicName: null,
-        phone: null,
+        phone: '9876543210',
         dateOfBirth: null,
         anniversary: null,
-        visitFrequency: null,
+        visitFrequency: 2,
         location: { latitude: 26.7, longitude: 88.4 },
       },
     });
@@ -50,7 +50,7 @@ describe('buildDoctor', () => {
   it('reports every missing field at once, and not the optional email', () => {
     const result = buildDoctor(EMPTY_DOCTOR);
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(Object.keys(result.errors).sort()).toEqual(['address', 'name', 'qualification', 'routeId', 'specialty']);
+    if (!result.ok) expect(Object.keys(result.errors).sort()).toEqual(['address', 'name', 'phone', 'qualification', 'routeId', 'specialty', 'visitFrequency']);
   });
   it('refuses a malformed email', () => {
     expect(buildDoctor({ ...filled, email: 'roy@' })).toMatchObject({ ok: false, errors: { email: 'Enter a valid email address.' } });
@@ -122,11 +122,11 @@ describe('visit frequency and dates', () => {
     const built = buildDoctor({ ...filled, visitFrequency: '4', dateOfBirth: '1980-05-02', anniversary: '' });
     expect(built.ok && built.body).toMatchObject({ visitFrequency: 4, dateOfBirth: '1980-05-02', anniversary: null });
   });
-  it('an update sends only the changed target, and null to clear it', () => {
+  it('an update sends only the changed target, and a cleared target is refused', () => {
     const withTarget = { ...doctor, visitFrequency: 3 };
     expect(buildDoctorUpdate(withTarget, doctorToDraft(withTarget))).toEqual({ ok: true, body: {} });
     const changed = buildDoctorUpdate(withTarget, { ...doctorToDraft(withTarget), visitFrequency: '' });
-    expect(changed.ok && changed.body).toEqual({ visitFrequency: null });
+    expect(changed.ok).toBe(false);
   });
   it('refuses a date in the future or a malformed one', () => {
     expect(doctorStepErrors({ ...filled, dateOfBirth: '2999-01-01' }, 'details')['dateOfBirth']).toBeDefined();
@@ -135,7 +135,7 @@ describe('visit frequency and dates', () => {
 });
 
 describe('clinic name and phone', () => {
-  it('are optional, and a bad phone is reported', () => {
+  it('the clinic name is optional; the phone is required and a bad one is reported', () => {
     expect(buildDoctor({ ...filled, clinicName: ' City  Clinic ', phone: '98765 43210' })).toMatchObject({ ok: true, body: { clinicName: 'City Clinic', phone: '9876543210' } });
     expect(buildDoctor({ ...filled, phone: '123' })).toMatchObject({ ok: false });
   });
