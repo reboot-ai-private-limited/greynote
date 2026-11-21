@@ -104,16 +104,23 @@ function DailyPlanSummary({ recordId }: { recordId: string }) {
         <>
           {dayLines(data, data.routes)}
           {isFieldDay(data.workingType) && data.doctors ? (
-            <Line
-              label="Doctors"
-              value={
-                data.doctors.length === 0
-                  ? 'None chosen'
-                  : `${data.doctors.length} doctor${data.doctors.length === 1 ? '' : 's'}${
-                      data.doctors.some((d) => d.carriedFrom) ? ` (${data.doctors.filter((d) => d.carriedFrom).length} missed earlier)` : ''
-                    }`
-              }
-            />
+            <>
+              <Line
+                label="Doctors to call"
+                value={
+                  data.doctors.length === 0
+                    ? 'No doctors were chosen for this plan'
+                    : `${data.doctors.length} doctor${data.doctors.length === 1 ? '' : 's'}${
+                        data.doctors.some((d) => d.carriedFrom) ? ` (${data.doctors.filter((d) => d.carriedFrom).length} missed earlier)` : ''
+                      }`
+                }
+              />
+              {data.doctors.map((d, i) => (
+                <ThemedText key={d.doctorId} type="small">
+                  {`${i + 1}. ${d.name ?? 'Doctor'}${d.carriedFrom ? ` — missed since ${prettyDay(d.carriedFrom)}` : ''}`}
+                </ThemedText>
+              ))}
+            </>
           ) : null}
           {data.source === 'MONTHLY' ?<ThemedText type="small" themeColor="textSecondary">From the approved Tour Plan.</ThemedText> : null}
         </>
@@ -411,8 +418,15 @@ export function ApprovalSummary({ request, aside }: { request: ApprovalDetail; a
     default:
       record = <Notice tone="info">No preview for this kind of request. Its history is below.</Notice>;
   }
+  // Plans, leave, services and monthly expenses show no sender of their own: say who sent it and when, so the manager decides with the whole picture.
+  const sender = ['DAILY_PLAN', 'MONTHLY_PLAN', 'LEAVE', 'DOCTOR_SERVICE', 'EXPENSE_MONTH'].includes(request.kind) && request.submitter ? request.submitter : null;
   return (
     <View style={styles.stack}>
+      {sender ? (
+        <ThemedText type="small" themeColor="textSecondary">
+          {`Sent by ${sender.name} (${sender.employeeCode}) · ${formatWhen(request.submittedAt)}`}
+        </ThemedText>
+      ) : null}
       {record}
       {aside}
     </View>

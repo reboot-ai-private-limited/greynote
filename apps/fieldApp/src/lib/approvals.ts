@@ -268,7 +268,7 @@ export type DailyPlanRecord = PlanDayView & {
   planDate: string;
   source: 'MANUAL' | 'MONTHLY';
   /** The doctors to call (`carriedFrom` = a missed call still owed). Absent from older servers. */
-  doctors?: { doctorId: string; carriedFrom: string | null }[];
+  doctors?: { doctorId: string; carriedFrom: string | null; /** Absent from older servers. */ name?: string }[];
   /** The plan's routes named and typed. Absent from older servers. */
   routes?: NamedRoute[];
 };

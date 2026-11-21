@@ -109,7 +109,7 @@ function DayCarry({ userId, date, carry }: { userId: string; date: string; carry
   return (
     <>
       <PrimaryButton
-        label={`${open ? '▴' : '▾'} Missed ${carry.missed} · carried in ${carry.carriedIn} · carried ${carry.final ? 'on' : 'on so far'} ${carry.carriedOn}`}
+        label={`${open ? '▴' : '▾'} Doctors: missed ${carry.missed} · carried in ${carry.carriedIn} · carried ${carry.final ? 'on' : 'on so far'} ${carry.carriedOn} — tap for names`}
         variant="text"
         onPress={() => setOpen((o) => !o)}
         style={styles.carry}

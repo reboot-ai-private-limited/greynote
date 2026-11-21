@@ -26,6 +26,12 @@ export function DoctorsToday({ userId, date }: { userId: string; date: string })
   return (
     <CardSection icon={sym('stethoscope', 'medical_services')} accent="teal" title="Doctors today">
       <ThemedText type="small">{`Planned ${d.planned.length} · Visited ${visited} · Missed ${d.missedToday.length}`}</ThemedText>
+      {visited > 0 ? (
+        <View style={styles.block}>
+          <ThemedText type="smallBold" themeColor="primary">{`✓ Visited (${visited})`}</ThemedText>
+          <ThemedText type="small">{d.planned.filter((x) => x.visited).map((x) => x.name).join(', ')}</ThemedText>
+        </View>
+      ) : null}
       {d.carriedIn.length > 0 ? (
         <View style={styles.block}>
           <ThemedText type="smallBold" themeColor="warning">{`Carried in (${d.carriedIn.length})`}</ThemedText>
@@ -43,6 +49,9 @@ export function DoctorsToday({ userId, date }: { userId: string; date: string })
         <ThemedText type="smallBold" themeColor={d.carriedOn.length > 0 ? 'warning' : 'primary'}>{`${d.final ? 'Carried on to the next day' : 'Carried on so far'} (${d.carriedOn.length})`}</ThemedText>
         {d.carriedOn.length > 0 ? <ThemedText type="small">{names(d.carriedOn).join(', ')}</ThemedText> : null}
       </View>
+      <ThemedText type="small" themeColor="textSecondary">
+        Carried in = planned on an earlier day and still not called when this day began. Carried on = still owed when this day ends (carried in + today’s misses − anyone called today). A call on any later day clears it.
+      </ThemedText>
       <ThemedText type="small" themeColor="textSecondary">{`This month: ${d.month.doctorCalls} doctor calls · ${d.month.missedDays} missed planned visits · ${d.month.carriedNow} carried now`}</ThemedText>
     </CardSection>
   );

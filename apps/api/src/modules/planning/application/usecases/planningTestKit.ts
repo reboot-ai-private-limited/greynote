@@ -444,7 +444,7 @@ export function planningKit(clock: Clock) {
   const calls: Array<{ userId: string; doctorId: string; date: string }> = [];
   const carryOver = new CarryOver(dailyPlans, approvals, config);
   carryOver.bind(
-    { listAssignedDoctors: async (userId) => doctors.get(userId) ?? [] },
+    { listAssignedDoctors: async (userId) => doctors.get(userId) ?? [], getDoctorNames: async (ids) => ids.map((id) => ({ id, name: `Dr ${id}` })) },
     async (userId, { from, to }) => calls.filter((c) => c.userId === userId && c.date >= from && c.date <= to).map((c) => c.doctorId),
   );
   const setDoctors = new SetDailyPlanDoctorsUseCase(dailyPlans, approvals, carryOver, views, scope);

@@ -103,7 +103,7 @@ export function buildPlanningContainer(
   const routeOptions = new RouteOptionsUseCase(users, routes, scope, carryOver);
   const teamSuggest = new SuggestFromTeamUseCase(dailyPlans, monthlyPlans, approvals, users, carryOver, scope);
   const setDay = new SetDailyPlanUseCase(dailyPlans, approvals, users, submitter, carryOver, scope, views);
-  const getDaily = new GetDailyPlanUseCase(dailyPlans, users, views, routes);
+  const getDaily = new GetDailyPlanUseCase(dailyPlans, users, views, routes, () => carryOver.directory());
   const listDaily = new ListDailyPlansUseCase(dailyPlans, views);
   const saveMonthly = new SaveMonthlyPlanUseCase(monthlyPlans, approvals, views, offDays, dayLocks);
   const submitMonthly = new SubmitMonthlyPlanUseCase(monthlyPlans, deadlines, submitter, offDays);
