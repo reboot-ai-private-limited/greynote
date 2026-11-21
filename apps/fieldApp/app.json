@@ -11,7 +11,7 @@
       "bundleIdentifier": "com.greynote.app",
       "buildNumber": "1",
       "supportsTablet": false,
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/images/icon.png",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
