@@ -24,17 +24,38 @@ const FRESH_MS = 2 * 60_000;
 const clock = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
 /**
- * The location card's state: the latest GPS reading and its check against a place. `refresh` takes a new reading now (GPS needs no internet); `fresh` is the reading
- * Save may use without asking GPS again (under two minutes old, and for the place still chosen).
+ * Why a reading can't be saved as a doctor's or chemist's location, in words that say what to do next, or `null` when it can. Used by Save so the
+ * message sits on the location card instead of the top of the form.
+ */
+export function locationProblem(reading: LocationReading | null, noun: 'doctor' | 'chemist', now = Date.now()): string | null {
+  const where = noun === 'doctor' ? 'doctor’s place' : 'chemist’s shop';
+  if (!reading) return `Tap Refresh location first, at the ${where}. Its location is saved from that reading, so check it says ✓ before you save.`;
+  if (!reading.fix) return 'No GPS reading. Turn on location (GPS), allow it for this app, and tap Refresh location again.';
+  const ageMin = Math.floor((now - reading.takenMs) / 60_000);
+  if (now - reading.takenMs >= FRESH_MS) return `Your location reading is ${ageMin} min old. Tap Refresh location again.`;
+  const accuracy = reading.fix.accuracyMeters;
+  if (accuracy === null || accuracy > reading.maxAccuracyMeters) {
+    return `Still weak (${accuracy === null ? 'accuracy unknown' : `±${Math.round(accuracy)} m`}, it needs ±${reading.maxAccuracyMeters} m or better). Move into the open at the ${where} and tap Refresh location again.`;
+  }
+  return null;
+}
+
+/**
+ * The location card's state: the latest GPS reading and its check against a place. `refresh` listens to the GPS for a better reading (up to ~20 s; GPS needs no
+ * internet) and keeps the most accurate one; `progress` is the best accuracy so far while it runs. `fresh` is the reading Save may use without asking GPS again
+ * (under two minutes old, and for the place still chosen).
  */
 export function useLocationReading() {
   const [reading, setReading] = useState<LocationReading | null>(null);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<number | null>(null);
 
   const refresh = useCallback(async (place?: { id: string; point: GeoPoint | null }): Promise<LocationReading> => {
     setBusy(true);
+    setProgress(null);
     try {
-      const [fix, radiusMeters, maxAccuracyMeters] = await Promise.all([captureLocation(), getNumberSetting('GEO_FENCE_RADIUS_METERS'), getNumberSetting('GEO_MAX_ACCURACY_METERS')]);
+      const [radiusMeters, maxAccuracyMeters] = await Promise.all([getNumberSetting('GEO_FENCE_RADIUS_METERS'), getNumberSetting('GEO_MAX_ACCURACY_METERS')]);
+      const fix = await captureLocation({ maxAccuracyMeters, onProgress: setProgress });
       const now = new Date();
       const next: LocationReading = {
         fix,
@@ -49,10 +70,11 @@ export function useLocationReading() {
       return next;
     } finally {
       setBusy(false);
+      setProgress(null);
     }
   }, []);
 
   const fresh = (placeId: string | null): GpsFix | null => (reading?.fix && reading.placeId === placeId && Date.now() - reading.takenMs < FRESH_MS ? reading.fix : null);
 
-  return { reading, busy, refresh, fresh };
+  return { reading, busy, progress, refresh, fresh };
 }

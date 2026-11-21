@@ -17,6 +17,8 @@ type Props = {
   place: { id: string; name: string; hasLocation: boolean } | null;
   reading: LocationReading | null;
   busy: boolean;
+  /** Best accuracy so far (meters) while a reading is in progress. */
+  progressMeters?: number | null | undefined;
   onRefresh: () => void;
   /** Pulls the latest doctors and chemists from the server, for a place that has no registered location yet (needs the internet). */
   onCheckAgain?: (() => Promise<void>) | undefined;
@@ -27,7 +29,7 @@ type Props = {
  * the GPS is good enough; Save uses a reading under two minutes old, or reads again itself. For a place with no registered location, **Check again** reads the latest
  * from the server, which needs the internet ("Connect to the internet first" when there is none).
  */
-export function LocationCard({ mode, noun, place, reading, busy, onRefresh, onCheckAgain }: Props) {
+export function LocationCard({ mode, noun, place, reading, busy, progressMeters, onRefresh, onCheckAgain }: Props) {
   const online = useOnline();
   const [checking, setChecking] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -49,11 +51,12 @@ export function LocationCard({ mode, noun, place, reading, busy, onRefresh, onCh
     }
   };
 
+  const needsRetry = !!mine && (!mine.fix || (mine.fix.accuracyMeters !== null && mine.fix.accuracyMeters > mine.maxAccuracyMeters));
   let line: { tone: 'info' | 'success' | 'warning' | 'danger'; text: string };
-  if (busy) line = { tone: 'info', text: 'Getting your location…' };
+  if (busy) line = { tone: 'info', text: progressMeters != null ? `Improving your location… ±${Math.round(progressMeters)} m so far. Stay still, in the open.` : 'Getting your location… stay still, in the open.' };
   else if (!mine) line = { tone: 'info', text: mode === 'visit' && place ? `Your location has not been read yet. Tap Refresh to check you are at ${place.name}.` : 'Your location has not been read yet. Tap Refresh.' };
   else if (!mine.fix) line = { tone: 'danger', text: 'Couldn’t get your location. Turn on location (GPS), allow it for this app, and refresh.' };
-  else if (mine.fix.accuracyMeters !== null && mine.fix.accuracyMeters > mine.maxAccuracyMeters) line = { tone: 'warning', text: `GPS is weak (±${Math.round(mine.fix.accuracyMeters)} m, it needs ±${mine.maxAccuracyMeters} m or better). Move into the open and refresh.` };
+  else if (mine.fix.accuracyMeters !== null && mine.fix.accuracyMeters > mine.maxAccuracyMeters) line = { tone: 'warning', text: `GPS is weak (±${Math.round(mine.fix.accuracyMeters)} m, it needs ±${mine.maxAccuracyMeters} m or better). Move into the open and refresh.${mode === 'capture' ? ' It cannot be saved until it is.' : ''}` };
   else if (mode === 'capture') line = { tone: 'success', text: `✓ Location read (±${Math.round(mine.fix.accuracyMeters ?? 0)} m, ${mine.takenAt}). It becomes the ${noun}’s location when you save.` };
   else if (r?.reason === 'NO_REGISTERED_LOCATION') line = { tone: 'warning', text: `This ${noun} has no registered location yet, so a call can’t be saved. Ask Admin to set it, then check again.` };
   else if (r?.status === 'PASS') line = { tone: 'success', text: `✓ ${r.distanceMeters} m from ${place?.name ?? `the ${noun}`} (±${Math.round(mine.fix.accuracyMeters ?? 0)} m, ${mine.takenAt}). You are at the ${noun}.` };
@@ -63,7 +66,7 @@ export function LocationCard({ mode, noun, place, reading, busy, onRefresh, onCh
     <CardSection icon={sym('location', 'my_location')} accent={line.tone === 'success' ? 'green' : line.tone === 'danger' ? 'red' : 'blue'} title="Your location">
       <Notice tone={line.tone}>{line.text}</Notice>
       <View style={styles.row}>
-        <PrimaryButton label={busy ? 'Getting your location…' : 'Refresh location'} variant="text" disabled={busy || (mode === 'visit' && !place)} onPress={onRefresh} />
+        <PrimaryButton label={busy ? 'Getting your location…' : needsRetry ? 'Try again' : 'Refresh location'} variant="text" disabled={busy || (mode === 'visit' && !place)} onPress={onRefresh} />
         {onCheckAgain && mode === 'visit' && place && !place.hasLocation ? <PrimaryButton label={checking ? 'Checking…' : 'Check again'} variant="text" disabled={checking} onPress={() => void checkAgain()} /> : null}
       </View>
       {note ? <ThemedText type="small" themeColor="textSecondary">{note}</ThemedText> : null}

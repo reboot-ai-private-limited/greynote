@@ -20,13 +20,11 @@ import { ADDED_EDITABLE } from '@/lib/added-doctors';
 import { editAddedChemist, listAddedChemists, type AddedChemist } from '@/lib/added-chemists';
 import { ApiError, NetworkError } from '@/lib/api';
 import { LocationCard } from '@/components/location-card';
-import { useLocationReading } from '@/hooks/use-location-reading';
-import { captureLocation } from '@/lib/location';
+import { locationProblem, useLocationReading } from '@/hooks/use-location-reading';
 import { MANAGER_NOT_ALLOWED, mayAddChemist } from '@/lib/manager-add-doctors';
 import { getRejectionReason, withdrawPlan } from '@/lib/planning';
 import { usePublicFlags } from '@/lib/public-config';
 import {
-  getNumberSetting,
   getRecord,
   refreshNow,
   removeRecord,
@@ -53,7 +51,7 @@ const APPROVAL_TEXT: Record<string, string> = {
   REOPENED: 'Reopened by Admin — change it and send it again',
 };
 
-const FIELD_ORDER = ['route', 'name', 'address', 'phone'];
+const FIELD_ORDER = ['route', 'name', 'address', 'phone', 'location'];
 const PHONE = /^\+?\d{10,15}$/;
 const PHONE_ERROR = 'Enter a phone number of 10 to 15 digits.';
 const cleanPhone = (s: string) => s.replace(/[\s-]/g, '');
@@ -170,11 +168,14 @@ function MyChemistsScreen() {
   };
 
   const save = async () => {
+    if (loc.busy) return setMsg({ tone: 'info', text: 'Still reading your location. Wait for the result, then save.' });
     const problems: Record<string, string> = {};
     if (!routeId) problems.route = 'Choose the route this chemist is on.';
     if (!name.trim()) problems.name = 'Enter the chemist’s name.';
     if (!address.trim()) problems.address = 'Enter the chemist’s address.';
     if (phone.trim() && !PHONE.test(cleanPhone(phone))) problems.phone = PHONE_ERROR;
+    const locationIssue = locationProblem(loc.reading, 'chemist');
+    if (locationIssue) problems.location = locationIssue;
     if (Object.keys(problems).length > 0 || !routeId) {
       setMsg({ tone: 'danger', text: 'Fix the fields marked in red.' });
       return form.fail(problems);
@@ -184,19 +185,10 @@ function MyChemistsScreen() {
       return setMsg({ tone: 'info', text: 'You’re offline. Connect to the internet to send this again.' });
     }
 
+    // The checks above guarantee a recent reading good enough to save.
+    const fix = loc.fresh(null);
+    if (!fix) return;
     setBusy(true);
-    setMsg({ tone: 'info', text: 'Getting your location…' });
-    // A reading from Refresh location (under two minutes old) is used; otherwise GPS is read now.
-    const fix = loc.fresh(null) ?? (await captureLocation());
-    if (!fix) {
-      setBusy(false);
-      return setMsg({
-        tone: 'danger',
-        text: 'Your location is needed — it becomes the chemist’s location. Turn on location, allow it for this app, and stand at the chemist’s shop, then save again.',
-      });
-    }
-    const limit = await getNumberSetting('GEO_MAX_ACCURACY_METERS');
-    const weak = fix.accuracyMeters !== null && fix.accuracyMeters > limit;
 
     const payload = { routeId, name: name.trim(), address: address.trim(), phone: phone.trim() ? cleanPhone(phone) : null, location: fix.point };
     try {
@@ -217,12 +209,7 @@ function MyChemistsScreen() {
           if (after?.status === 'FAILED') {
             setMsg({ tone: 'danger', text: failureText(after) });
           } else {
-            setMsg({
-              tone: weak ? 'warning' : 'success',
-              text: weak
-                ? 'Sent for approval, but your location reading was weak. Your manager or Admin can look at it before approving.'
-                : 'Sent for approval. Your manager or Admin decides.',
-            });
+            setMsg({ tone: 'success', text: 'Sent for approval. Your manager or Admin decides.' });
           }
           reload();
         }
@@ -426,7 +413,9 @@ function MyChemistsScreen() {
             />
           </FormField>
         </CardSection>
-        <LocationCard mode="capture" noun="chemist" place={null} reading={loc.reading} busy={loc.busy} onRefresh={() => void loc.refresh()} />
+        <FormField form={form} name="location">
+          <LocationCard mode="capture" noun="chemist" place={null} reading={loc.reading} busy={loc.busy} progressMeters={loc.progress} onRefresh={() => { form.clear('location'); void loc.refresh(); }} />
+        </FormField>
       </ScreenShell>
     );
   }

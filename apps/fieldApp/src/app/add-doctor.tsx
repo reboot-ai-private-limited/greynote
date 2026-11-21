@@ -23,13 +23,11 @@ import { ApiError, NetworkError, type UploadFile } from '@/lib/api';
 import { ADDED_EDITABLE, editAddedDoctor, listAddedDoctors, type AddedDoctor } from '@/lib/added-doctors';
 import { PhotoPickError, pickDoctorPhoto, removeAddedDoctorPhoto, setAddedDoctorPhoto } from '@/lib/doctor-photo';
 import { LocationCard } from '@/components/location-card';
-import { useLocationReading } from '@/hooks/use-location-reading';
-import { captureLocation } from '@/lib/location';
+import { locationProblem, useLocationReading } from '@/hooks/use-location-reading';
 import { MANAGER_NOT_ALLOWED, mayAddDoctor } from '@/lib/manager-add-doctors';
 import { usePublicFlags } from '@/lib/public-config';
 import { getRejectionReason, withdrawPlan } from '@/lib/planning';
 import {
-  getNumberSetting,
   getRecord,
   removeRecord,
   saveCall,
@@ -56,7 +54,7 @@ const APPROVAL_TEXT: Record<string, string> = {
 };
 
 /** The form's fields top to bottom, so a failed save scrolls to the first one with a problem. */
-const FIELD_ORDER = ['route', 'name', 'address', 'specialty', 'qualification', 'phone', 'email', 'birth', 'anniversary'];
+const FIELD_ORDER = ['route', 'name', 'address', 'specialty', 'qualification', 'phone', 'email', 'birth', 'anniversary', 'location'];
 const EMAIL =/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** 10 to 15 digits, with an optional leading `+` (spaces and dashes are stripped before checking). */
 const PHONE = /^\+?\d{10,15}$/;
@@ -213,6 +211,7 @@ export default function AddDoctorScreen() {
   }, [openNew, canAdd, territory.loaded]);
 
   const save = async () => {
+    if (loc.busy) return setMsg({ tone: 'info', text: 'Still reading your location. Wait for the result, then save.' });
     const dob = isoFromParts(birth, today);
     const wedding = isoFromParts(anniversary, today);
     const problems: Record<string, string> = {};
@@ -225,6 +224,8 @@ export default function AddDoctorScreen() {
     if (email.trim() && !EMAIL.test(email.trim())) problems.email = 'That email doesn’t look right.';
     if (dob.error) problems.birth = dob.error;
     if (wedding.error) problems.anniversary = wedding.error;
+    const locationIssue = locationProblem(loc.reading, 'doctor');
+    if (locationIssue) problems.location = locationIssue;
     if (Object.keys(problems).length > 0 || !routeId || !specialty) {
       setMsg({ tone: 'danger', text: 'Fix the fields marked in red.' });
       return form.fail(problems);
@@ -234,19 +235,10 @@ export default function AddDoctorScreen() {
       return setMsg({ tone: 'info', text: 'You’re offline. Connect to the internet to send this again.' });
     }
 
+    // The checks above guarantee a recent reading good enough to save.
+    const fix = loc.fresh(null);
+    if (!fix) return;
     setBusy(true);
-    setMsg({ tone: 'info', text: 'Getting your location…' });
-    // A reading from Refresh location (under two minutes old) is used; otherwise GPS is read now.
-    const fix = loc.fresh(null) ?? (await captureLocation());
-    if (!fix) {
-      setBusy(false);
-      return setMsg({
-        tone: 'danger',
-        text: 'Your location is needed — it becomes the doctor’s location. Turn on location, allow it for this app, and stand at the doctor’s place, then save again.',
-      });
-    }
-    const limit = await getNumberSetting('GEO_MAX_ACCURACY_METERS');
-    const weak = fix.accuracyMeters !== null && fix.accuracyMeters > limit;
 
     const payload: NewDoctorPayload = {
       routeId,
@@ -281,12 +273,7 @@ export default function AddDoctorScreen() {
           if (after?.status === 'FAILED') {
             setMsg({ tone: 'danger', text: after.errorMessage ?? 'The server did not accept this doctor.' });
           } else {
-            setMsg({
-              tone: weak ? 'warning' : 'success',
-              text: weak
-                ? 'Sent for approval, but your location reading was weak. Your manager or Admin can correct it before approving.'
-                : 'Sent for approval. Your manager or Admin decides.',
-            });
+            setMsg({ tone: 'success', text: 'Sent for approval. Your manager or Admin decides.' });
           }
           reload();
         }
@@ -529,7 +516,9 @@ export default function AddDoctorScreen() {
           </ThemedText>
           <ChoiceChips options={FREQUENCIES} value={frequency ?? NO_TARGET} onChange={(v) => setFrequency(v === NO_TARGET ? null : v)} disabled={busy} />
         </CardSection>
-        <LocationCard mode="capture" noun="doctor" place={null} reading={loc.reading} busy={loc.busy} onRefresh={() => void loc.refresh()} />
+        <FormField form={form} name="location">
+          <LocationCard mode="capture" noun="doctor" place={null} reading={loc.reading} busy={loc.busy} progressMeters={loc.progress} onRefresh={() => { form.clear('location'); void loc.refresh(); }} />
+        </FormField>
       </ScreenShell>
     );
   }

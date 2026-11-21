@@ -18,7 +18,7 @@ import { reviewDoctor, type ReviewDoctorBody } from '@/lib/added-doctors';
 import { ApiError, NetworkError } from '@/lib/api';
 import { getDoctorRecord, type DoctorRecord } from '@/lib/approvals';
 import { captureLocation } from '@/lib/location';
-import { useOnline } from '@/offline';
+import { getNumberSetting, useOnline } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
 import type { FieldMasterDataSnapshot } from '@/types/sync';
 
@@ -97,8 +97,12 @@ export default function ReviewDoctorScreen() {
 
   const useMyLocation = async () => {
     setMsg({ tone: 'info', text: 'Getting your location…' });
-    const fix = await captureLocation();
+    const limit = await getNumberSetting('GEO_MAX_ACCURACY_METERS');
+    const fix = await captureLocation({ maxAccuracyMeters: limit });
     if (!fix) return setMsg({ tone: 'danger', text: 'Could not get your location. Turn on location and allow it for this app, or type the coordinates.' });
+    if (fix.accuracyMeters === null || fix.accuracyMeters > limit) {
+      return setMsg({ tone: 'danger', text: `Your GPS is too weak (${fix.accuracyMeters === null ? 'accuracy unknown' : `±${Math.round(fix.accuracyMeters)} m`}, it needs ±${limit} m or better). Move into the open and try again, or type the coordinates.` });
+    }
     setLatitude(String(fix.point.latitude));
     setLongitude(String(fix.point.longitude));
     setMsg(null);
