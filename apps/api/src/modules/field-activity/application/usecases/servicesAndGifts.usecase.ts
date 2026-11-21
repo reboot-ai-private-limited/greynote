@@ -292,7 +292,7 @@ export class ListGiftsUseCase {
 
   async execute(
     actor: Actor,
-    filter: { status?: DoctorGift['status'] | undefined; scope?: 'mine' | 'team' | undefined; notGiven?: boolean | undefined },
+    filter: { status?: DoctorGift['status'] | undefined; scope?: 'mine' | 'team' | undefined; notGiven?: boolean | undefined; userId?: string | undefined },
     limit = 200,
   ): Promise<Array<DoctorGift & { doctorName: string; userId?: string; userName?: string; requestedByName?: string }>> {
     // "Not given yet" = asked for and waiting for an answer, plus accepted and still to hand over.
@@ -300,7 +300,12 @@ export class ListGiftsUseCase {
     if (actor.role === 'ADMIN' || actor.role === 'ACCOUNTANT') return this.named(await this.gifts.list(status, limit));
     const holders = new Map<string, string>(); // doctor id -> the MR who holds it
     let people = [actor.id];
-    if (filter.scope === 'team' && this.users) people = [actor.id, ...(await this.users.getDownline(actor.id)).map((u) => u.id)];
+    if (filter.userId && filter.userId !== actor.id) {
+      // One person of the manager's team (the Gifts section of their page): refused unless they are below the asker.
+      if (!this.users || !(await this.users.getDownline(actor.id)).some((u) => u.id === filter.userId)) throw AppError.notFound('No such person.');
+      people = [filter.userId];
+      filter = { ...filter, scope: 'team' };
+    } else if (filter.scope === 'team' && this.users) people = [actor.id, ...(await this.users.getDownline(actor.id)).map((u) => u.id)];
     for (const userId of people) for (const d of await this.master.listAssignedDoctors(userId)) if (!holders.has(d.id)) holders.set(d.id, userId);
     const rows = await this.gifts.list({ ...status, doctorIds: [...holders.keys()] }, limit);
     if (filter.scope !== 'team' || !this.users) return this.named(rows);

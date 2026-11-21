@@ -270,6 +270,16 @@ describe('gift requests (2026-11)', () => {
     expect(((await refusal(review.reject({ id: 'admin', role: 'ADMIN' }, g.id, 'x'))) as AppError).statusCode).toBe(404);
   });
 
+  it('a manager reads one person’s gifts by userId; someone not below them is refused', async () => {
+    await kit.allocateGift.execute('admin', { doctorId: 'd1', productName: 'Lamp', amountPaise: 100 });
+    await request.execute('mr1', { doctorId: 'd1', productName: 'Clock', note: null });
+    const list = new ListGiftsUseCase(kit.gifts, kit.fmd, kit.users);
+    const mine = await list.execute({ id: 'asm', role: 'FIELD' }, { userId: 'mr1' });
+    expect(mine.map((g) => g.productName).sort()).toEqual(['Clock', 'Lamp']);
+    expect(mine.every((g) => g.userId === 'mr1')).toBe(true);
+    expect(((await refusal(list.execute({ id: 'mr2', role: 'FIELD' }, { userId: 'mr1' }))) as AppError).statusCode).toBe(404);
+  });
+
   it('the list shows both kinds to the employee, their manager and Admin; "not given yet" is requested plus pending', async () => {
     await kit.allocateGift.execute('admin', { doctorId: 'd1', productName: 'Lamp', amountPaise: 100 });
     const asked = await request.execute('mr1', { doctorId: 'd1', productName: 'Clock', note: null });

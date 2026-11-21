@@ -20,6 +20,12 @@ export type GiftView = {
   userName?: string;
 };
 
+/** One person of my team: their gifts (Admin's and their own requests), every status. */
+export const listPersonGifts = async (userId: string) => {
+  const data = await apiGet<GiftView[] | { items: GiftView[] }>(`/field-activity/doctor-gifts?userId=${userId}`, { auth: true });
+  return Array.isArray(data) ? data : data.items;
+};
+
 /** Ask for a gift for one of my doctors. Online only; Admin or Accounts answer it. */
 export const requestGift = (body: { doctorId: string; productName: string; note: string | null }) => apiPost<GiftView>('/field-activity/doctor-gifts/requests', body, { auth: true });
 

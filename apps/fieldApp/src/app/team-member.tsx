@@ -13,7 +13,7 @@ import { DayPicker } from '@/components/day-picker';
 import { DayLines } from '@/components/team/member/day-lines';
 import { PersonDownloads } from '@/components/team/member/person-downloads';
 import { tourWordsOn, useTourPlan } from '@/components/team/member/tour-plan-data';
-import { ChemistsTab, DistributorsTab, DoctorsMonthCard, DoctorsTab, ExpensesTab, LeaveTab, OrdersTab, SamplesTab } from '@/components/team/member/more-tabs';
+import { ChemistsTab, DistributorsTab, DoctorsMonthCard, DoctorsTab, ExpensesTab, LeaveTab, OrdersTab, SamplesTab, GiftsTab } from '@/components/team/member/more-tabs';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar, CardSection, InfoCard, Meter, Pill, SummaryStrip, sym } from '@/components/ui-cards';
 import { Spacing, type Accent } from '@/constants/theme';
@@ -36,8 +36,8 @@ export default function TeamMemberScreen() {
   const clamp = (m: string) => (m < fy.firstMonth ? fy.firstMonth : m > lastMonth ? lastMonth : m);
   const [picked, setMonth] = useState<string | null>(typeof monthParam === 'string' && /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : null);
   const month = clamp(picked ?? lastMonth);
-  type Tab = 'overview' | 'plans' | 'reports' | 'expenses' | 'leave' | 'doctors' | 'chemists' | 'distributors' | 'orders' | 'samples';
-  const TABS: Tab[] = ['overview', 'plans', 'reports', 'expenses', 'leave', 'doctors', 'chemists', 'distributors', 'orders', 'samples'];
+  type Tab = 'overview' | 'plans' | 'reports' | 'expenses' | 'leave' | 'doctors' | 'chemists' | 'distributors' | 'orders' | 'samples' | 'gifts';
+  const TABS: Tab[] = ['overview', 'plans', 'reports', 'expenses', 'leave', 'doctors', 'chemists', 'distributors', 'orders', 'samples', 'gifts'];
   // A screen can open the person on a tab (Team → Expenses opens their Expenses).
   const [tab, setTab] = useState<Tab>(TABS.find((t) => t === tabParam) ?? 'overview');
   // Set when the header's "Daily report: Yes" is tapped: that day's report is shown first in the Reports tab.
@@ -118,6 +118,7 @@ export default function TeamMemberScreen() {
               { value: 'distributors', label: 'Distributors' },
               { value: 'orders', label: 'Orders' },
               { value: 'samples', label: 'Samples & LBL' },
+              { value: 'gifts', label: 'Gifts' },
             ]}
             value={tab}
             onChange={(t) => {
@@ -170,6 +171,7 @@ export default function TeamMemberScreen() {
           {tab === 'distributors' ? <DistributorsTab userId={String(id)} /> : null}
           {tab === 'orders' ? <OrdersTab userId={String(id)} month={month} /> : null}
           {tab === 'samples' ? <SamplesTab userId={String(id)} /> : null}
+          {tab === 'gifts' ? <GiftsTab userId={String(id)} /> : null}
         </>
       ) : null}
     </ScreenShell>

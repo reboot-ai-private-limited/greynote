@@ -100,7 +100,7 @@ export const listSampleRequestsQuerySchema = z.object({ status: z.enum(SAMPLE_RE
 export const sampleRequestDoneBodySchema = z.object({ credits: z.array(z.object({ productId: objectIdSchema, quantity: z.number().int().min(0).max(100_000) })).max(50).default([]) });
 export const sampleAccountQuerySchema = z.object({ userId: objectIdSchema.optional() });
 
-export const listGiftsQuerySchema = z.object({ status: z.enum(['REQUESTED', 'PENDING', 'DONE', 'REJECTED']).optional(), scope: z.enum(['mine', 'team']).optional(), notGiven: z.enum(['true', 'false']).transform((v) => v === 'true').optional() });
+export const listGiftsQuerySchema = z.object({ status: z.enum(['REQUESTED', 'PENDING', 'DONE', 'REJECTED']).optional(), scope: z.enum(['mine', 'team']).optional(), notGiven: z.enum(['true', 'false']).transform((v) => v === 'true').optional(), userId: objectIdSchema.optional() });
 export const requestGiftBodySchema = z.object({ doctorId: objectIdSchema, productName: z.string().trim().min(1, 'Name the gift.').max(200), note: z.string().trim().max(500).nullish().transform((v) => v || null) });
 export const acceptGiftBodySchema = z.object({ amountPaise: paiseSchema });
 export const rejectGiftBodySchema = z.object({ reason: z.string().trim().min(1, 'Say why.').max(500) });

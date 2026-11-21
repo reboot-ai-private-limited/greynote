@@ -35,6 +35,7 @@ import { Skeleton } from '../../skeleton';
 import { ThemedText } from '../../themed-text';
 import { CardSection, InfoCard, Pill, SummaryStrip, sym } from '../../ui-cards';
 import { SampleMatrix } from '../../sample-matrix';
+import { giftStatusText, listPersonGifts, type GiftView } from '@/lib/gifts';
 import { getSampleAccount, statusText, type SampleAccount } from '@/lib/sample-requests';
 import { AttendanceCalendar } from './attendance-calendar';
 
@@ -321,6 +322,57 @@ export function SamplesTab({ userId }: { userId: string }) {
           ))}
         </>
       ) : null}
+    </View>
+  );
+}
+
+type GiftFilter = 'ALL' | 'NOT_GIVEN' | 'DONE';
+
+/**
+ * The person's gifts for their doctors, both kinds (Admin allocated, or asked for by them), with where each stands. "Not given yet" is requested plus accepted and
+ * still to hand over; a rejected request is in neither group. Read only.
+ */
+export function GiftsTab({ userId }: { userId: string }) {
+  const online = useOnline();
+  const [filter, setFilter] = useState<GiftFilter>('ALL');
+  const q = useCachedFetch<GiftView[]>(`team-member-gifts:${userId}`, () => listPersonGifts(userId));
+  const all = q.data ?? [];
+  const notGiven = (g: GiftView) => g.status === 'REQUESTED' || g.status === 'PENDING';
+  const rows = all.filter((g) => filter === 'ALL' || (filter === 'DONE' ? g.status === 'DONE' : notGiven(g)));
+  const { visible } = useWindowed(rows, `${userId}|${filter}`);
+  const requested = all.filter((g) => g.status === 'REQUESTED').length;
+  return (
+    <View style={styles.stack}>
+      <SummaryStrip
+        items={[
+          { label: 'Gifts', value: String(all.length).padStart(2, '0'), accent: 'blue' },
+          { label: 'Not given yet', value: String(all.filter(notGiven).length).padStart(2, '0'), accent: all.some(notGiven) ? 'amber' : 'slate' },
+          { label: 'Requested', value: String(requested).padStart(2, '0'), accent: requested > 0 ? 'indigo' : 'slate' },
+          { label: 'Given', value: String(all.filter((g) => g.status === 'DONE').length).padStart(2, '0'), accent: 'green' },
+        ]}
+      />
+      <ChoiceChips
+        options={[
+          { value: 'ALL', label: 'All' },
+          { value: 'NOT_GIVEN', label: 'Not given yet' },
+          { value: 'DONE', label: 'Given' },
+        ]}
+        value={filter}
+        onChange={setFilter}
+      />
+      {!online && !q.data ? <Offline what="this person’s gifts" /> : null}
+      {q.error && online ? <Notice tone="danger">{q.error}</Notice> : null}
+      {q.loading && !q.data ? <Skeleton cards={2} lines={3} /> : null}
+      {q.data && rows.length === 0 ? <Notice tone="info">No gifts.</Notice> : null}
+      {visible.map((g, i) => (
+        <NumberedRow key={g.id} n={i + 1}>
+          <InfoCard>
+            <ThemedText type="smallBold">{g.productName}</ThemedText>
+            <ThemedText type="small">{`For ${g.doctorName || 'a doctor'} · ${g.status === 'REQUESTED' ? 'amount set when accepted' : formatRupees(g.amountPaise)}`}</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">{`${g.origin === 'EMPLOYEE' ? `Asked for${g.requestNote ? `: ${g.requestNote}` : ''}` : 'Allocated by Admin'} · ${giftStatusText(g.status)}${g.status === 'DONE' && g.completedAt ? ` on ${prettyDay(g.completedAt.slice(0, 10))}` : ''}${g.status === 'REJECTED' && g.rejectReason ? `: ${g.rejectReason}` : ''}`}</ThemedText>
+          </InfoCard>
+        </NumberedRow>
+      ))}
     </View>
   );
 }
