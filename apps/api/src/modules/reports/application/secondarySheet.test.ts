@@ -151,7 +151,10 @@ describe('the workbook', () => {
     // Every figure is in rupees (units x N.S.R. 500). April: target 30 units = 15,000, secondary 50 units = 25,000; the first quarter adds April to June.
     expect(ws.getCell('J6').value).toBe(15_000);
     expect(ws.getCell('K6').value).toBe(25_000);
-    expect((ws.getCell('M6').value as { result: number }).result).toBeCloseTo(166.67, 1);
+    // The % ACH sits right beside its own SEC; the spare column after it separates it from the next month.
+    expect(ws.getCell('L5').value).toBe('% ACH');
+    expect((ws.getCell('L6').value as { result: number }).result).toBeCloseTo(166.67, 1);
+    expect(ws.getCell('M6').value).toBeNull();
     expect(ws.getCell('V6').value).toMatchObject({ result: 45_000 });
     expect(ws.getCell('W6').value).toMatchObject({ result: 45_000 });
     expect(ws.getCell('E6').value).toMatchObject({ result: 45_000 });

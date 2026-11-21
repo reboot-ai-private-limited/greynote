@@ -23,7 +23,7 @@ const BLOCKS: Block[] = [
 ];
 
 const FIRST_BLOCK_COL = 10; // J
-const WIDTH = 4; // TGT, SEC, a narrow spare column, % ACH
+const WIDTH = 4; // TGT, SEC, % ACH (beside its own SEC), then a narrow spare column that separates it from the next month
 const HEAD_ROW = 5;
 const FIRST_ROW = 6;
 /** The id of the one row that holds the rupee targets, which belongs to no product. */
@@ -77,6 +77,9 @@ const TOTAL_FILL: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: {
 const colourOf = (b: Block): string | undefined => (b.kind === 'month' ? undefined : b.kind === 'qtr' ? BLUE : RED);
 const THIN: Partial<ExcelJS.Borders> = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
 
+/** The first column of a month, quarter, half or year gets a heavier left edge, so where one block ends and the next begins is plain to see. */
+const BLOCK_START: Partial<ExcelJS.Borders> = { ...THIN, left: { style: 'medium' } };
+
 function writePerson(ws: ExcelJS.Worksheet, p: SheetPerson, model: SecondarySheetModel): void {
   // Targets set in rupees (for all products) have no product: they get a row of their own, priced at ₹1 a unit so it adds up with the others.
   const rupeeRow: SheetRow | null = p.rupeeTargetPaise.some((v) => v !== 0)
@@ -117,11 +120,11 @@ function writePerson(ws: ExcelJS.Worksheet, p: SheetPerson, model: SecondaryShee
     title.value = blockTitle(b, model);
     title.font = { bold: true, size: 11, ...(colourOf(b) ? { color: { argb: colourOf(b)! } } : {}) };
     title.alignment = { horizontal: 'center' };
-    ws.mergeCells(4, col, 4, col + 3);
+    ws.mergeCells(4, col, 4, col + 2);
     head(col, 'TGT (₹)');
     head(col + 1, 'SEC (₹)');
-    head(col + 3, '% ACH');
-    for (const c of [col, col + 1, col + 3]) if (colourOf(b)) ws.getCell(HEAD_ROW, c).font = { bold: true, color: { argb: colourOf(b)! } };
+    head(col + 2, '% ACH');
+    for (const c of [col, col + 1, col + 2]) if (colourOf(b)) ws.getCell(HEAD_ROW, c).font = { bold: true, color: { argb: colourOf(b)! } };
   });
 
   // Products.
@@ -141,7 +144,7 @@ function writePerson(ws: ExcelJS.Worksheet, p: SheetPerson, model: SecondaryShee
       ws.getCell(r, col).numFmt = '#,##0';
       ws.getCell(r, col + 1).numFmt = '#,##0';
       const s = colName(col + 1);
-      const pc = col + 3;
+      const pc = col + 2;
       const f = fig[n]!;
       if (b.kind === 'month') {
         ws.getCell(r, col).value = f.tgt;
@@ -178,8 +181,8 @@ function writePerson(ws: ExcelJS.Worksheet, p: SheetPerson, model: SecondaryShee
       ws.getCell(r, col).font = font(colour, b.kind === 'month');
       ws.getCell(r, col + 1).font = font(colour, b.kind === 'month');
       ws.getCell(r, col + 1).fill = YELLOW;
-      ws.getCell(r, col + 3).font = font(colour ?? BLUE, false);
-      for (const c of [col, col + 1, col + 3]) ws.getCell(r, c).border = THIN;
+      ws.getCell(r, col + 2).font = font(colour ?? BLUE, false);
+      for (const c of [col, col + 1, col + 2]) ws.getCell(r, c).border = c === col ? BLOCK_START : THIN;
     });
     ws.getCell(r, 1).font = font(undefined, true);
     ws.getCell(r, 2).font = font(undefined, true);
@@ -205,7 +208,7 @@ function writePerson(ws: ExcelJS.Worksheet, p: SheetPerson, model: SecondaryShee
     const col = blockCol(n);
     sumLakh(col, tgtLakh[n]!);
     sumLakh(col + 1, secLakh[n]!);
-    const pc = ws.getCell(totalRow, col + 3);
+    const pc = ws.getCell(totalRow, col + 2);
     pc.value = { formula: `IF(${colName(col)}${totalRow}=0,0,${colName(col + 1)}${totalRow}/${colName(col)}${totalRow}*100)`, result: pct(secLakh[n]!, tgtLakh[n]!) };
     pc.numFmt = '0.0';
   });
@@ -235,8 +238,8 @@ function writePerson(ws: ExcelJS.Worksheet, p: SheetPerson, model: SecondaryShee
   for (let n = 0; n < BLOCKS.length; n++) {
     ws.getColumn(blockCol(n)).width = 8;
     ws.getColumn(blockCol(n) + 1).width = 8;
-    ws.getColumn(blockCol(n) + 2).width = 2;
-    ws.getColumn(blockCol(n) + 3).width = 8;
+    ws.getColumn(blockCol(n) + 2).width = 8;
+    ws.getColumn(blockCol(n) + 3).width = 2;
   }
   ws.views = [{ state: 'frozen', xSplit: 3, ySplit: HEAD_ROW }];
 }
