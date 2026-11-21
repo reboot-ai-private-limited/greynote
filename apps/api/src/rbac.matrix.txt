@@ -44,7 +44,7 @@ GET    /api/documents  ADMIN,FIELD
 GET    /api/field-activity/dcr  ADMIN,FIELD
 GET    /api/field-activity/dcr/:id  ADMIN,FIELD
 GET    /api/field-activity/dcr/team  FIELD
-GET    /api/field-activity/doctor-gifts  ADMIN,FIELD
+GET    /api/field-activity/doctor-gifts  ACCOUNTANT,ADMIN,FIELD
 GET    /api/field-activity/doctor-services  ACCOUNTANT,ADMIN,FIELD
 GET    /api/field-activity/doctor-services/:id  ACCOUNTANT,ADMIN,FIELD
 GET    /api/field-activity/doctor-services/report  ACCOUNTANT,ADMIN,FIELD
@@ -255,6 +255,9 @@ POST   /api/documents  ADMIN
 POST   /api/field-activity/admin/doctor-gifts  ADMIN
 POST   /api/field-activity/admin/doctor-services  ADMIN
 POST   /api/field-activity/dcr/:id/calls/:callId/override-geofence  ADMIN,FIELD
+POST   /api/field-activity/doctor-gifts/:id/accept  ACCOUNTANT,ADMIN
+POST   /api/field-activity/doctor-gifts/:id/reject  ACCOUNTANT,ADMIN
+POST   /api/field-activity/doctor-gifts/requests  FIELD
 POST   /api/field-activity/doctor-services/:id/done  ADMIN
 POST   /api/field-activity/expense-grants  ADMIN,FIELD
 POST   /api/field-activity/expense-grants/:id/revoke  ADMIN,FIELD

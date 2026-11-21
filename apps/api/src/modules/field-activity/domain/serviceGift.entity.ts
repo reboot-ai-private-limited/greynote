@@ -30,14 +30,28 @@ export interface DoctorService {
   doneAt: Date | null;
 }
 
-/** Admin's allocation of a gift to a Doctor; the assigned MR's only action is marking it done. No approval. */
+/**
+ * A gift for a Doctor. Admin allocates one (`origin: 'ADMIN'`, `PENDING` at once) or the employee asks for one (`origin: 'EMPLOYEE'`, `REQUESTED` until Admin or
+ * Accounts accept it with an amount, which makes it `PENDING`, or reject it). The assigned MR marks a `PENDING` gift `DONE` once handed over, in a doctor call
+ * or from the Gifts screen. No manager approval.
+ */
+export const GIFT_STATUSES = ['REQUESTED', 'PENDING', 'DONE', 'REJECTED'] as const;
+export type GiftStatus = (typeof GIFT_STATUSES)[number];
 export interface DoctorGift {
   id: string;
   doctorId: string;
+  /** Admin: who allocated it. Employee request: who accepted it (`requestedBy` until then). */
   allocatedBy: string;
   productName: string;
+  /** Whole paise; 0 on a request nobody has accepted yet. */
   amountPaise: Paise;
-  status: 'PENDING' | 'DONE';
+  status: GiftStatus;
+  origin: 'ADMIN' | 'EMPLOYEE';
+  /** The employee who asked for it; `null` for an Admin allocation. */
+  requestedBy: string | null;
+  requestNote: string | null;
+  /** Why a request was rejected. */
+  rejectReason: string | null;
   completedBy: string | null;
   completedAt: Date | null;
   allocatedAt: Date;

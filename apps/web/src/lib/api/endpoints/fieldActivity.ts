@@ -1,4 +1,7 @@
 import type {
+  AcceptGiftDto,
+  GiftStatus,
+  RejectGiftDto,
   AllocateGiftDto,
   MarkSampleRequestDoneDto,
   SampleRequestDto,
@@ -73,8 +76,12 @@ export const fieldActivityApi = {
   createDoctorService: (token: string, body: CreateAdminServiceDto) =>
     request<DoctorServiceDto>('/field-activity/admin/doctor-services', { method: 'POST', token, body }),
   /** Admin: every gift, newest first, optionally only pending or done. */
-  doctorGifts: (token: string, query: { status?: 'PENDING' | 'DONE' | undefined }, signal?: AbortSignal) =>
+  doctorGifts: (token: string, query: { status?: GiftStatus | undefined; notGiven?: boolean | undefined }, signal?: AbortSignal) =>
     request<DoctorGiftDto[]>('/field-activity/doctor-gifts', { token, query: { ...query }, signal }),
+  /** Admin, Accounts: accept an employee's gift request with its amount (it becomes a pending gift). */
+  acceptGift: (token: string, id: string, body: AcceptGiftDto) => request<null>(`/field-activity/doctor-gifts/${id}/accept`, { method: 'POST', token, body }),
+  /** Admin, Accounts: reject an employee's gift request, with the reason. */
+  rejectGift: (token: string, id: string, body: RejectGiftDto) => request<null>(`/field-activity/doctor-gifts/${id}/reject`, { method: 'POST', token, body }),
   /** Admin, Accounts, HR: every sample and LBL request, newest first. */
   sampleRequests: (token: string, query: { status?: 'REQUESTED' | 'DONE' | 'CANCELLED' | undefined; kind?: 'SAMPLE' | 'LBL' | undefined }, signal?: AbortSignal) =>
     request<SampleRequestDto[]>('/field-activity/sample-requests', { token, query: { ...query }, signal }),

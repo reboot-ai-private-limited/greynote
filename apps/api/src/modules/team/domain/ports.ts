@@ -116,7 +116,9 @@ export interface TeamDoctorGift {
   doctorId: string;
   productName: string;
   amountPaise: number;
-  status: 'PENDING' | 'DONE';
+  status: 'REQUESTED' | 'PENDING' | 'DONE' | 'REJECTED';
+  /** Who started it: Admin allocated it, or the employee asked for it. */
+  origin?: 'ADMIN' | 'EMPLOYEE';
   allocatedAt: Date;
   completedAt: Date | null;
 }

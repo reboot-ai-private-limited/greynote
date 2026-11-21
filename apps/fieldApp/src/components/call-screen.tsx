@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Linking, StyleSheet, View } from 'react-native';
+import { Linking, StyleSheet, Switch, View } from 'react-native';
 
 import { FormField } from '@/components/form-field';
 import { GeofenceBadge } from '@/components/geofence-badge';
@@ -26,10 +26,11 @@ import { confirmRemove, removeDayRecord } from '@/lib/day-records';
 import { LocationCard } from '@/components/location-card';
 import { callLocationProblem, useLocationReading } from '@/hooks/use-location-reading';
 import { isFieldDay, routeTypeLabel, workingTypeLabel } from '@/lib/planning';
-import { notAtLocationReason, refreshNow, saveCall, serverGeofence, useOnline, useRecords, type CallPayload, type OutboxRecord } from '@/offline';
+import { createRecord, notAtLocationReason, refreshNow, saveCall, serverGeofence, useOnline, useRecords, type CallPayload, type OutboxRecord } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
 import { useCachedFetch } from '@/offline/cached-fetch';
-import type { FieldMasterDataSnapshot, PlanningSnapshot, TerritorySnapshot } from '@/types/sync';
+import type { FieldActivitySnapshot, FieldMasterDataSnapshot, PlanningSnapshot, TerritorySnapshot } from '@/types/sync';
+import { formatRupees } from '@/lib/money';
 
 type Subject = 'DOCTOR' | 'CHEMIST';
 
@@ -66,6 +67,10 @@ export function CallScreen({ subject }: { subject: Subject }) {
   const routeName = useMemo(() => new Map((territory.data?.routes ?? []).map((r) => [r.id, r.name])), [territory.data]);
   const reportSent = useReportSent(gate.today);
   const { records } = useRecords([kind]);
+  // Gifts Admin allocated (or accepted for a request) for the chosen doctor, still to hand over: each can be marked given as part of this call (the same GIFT_DONE record the Gifts screen sends).
+  const activity = useCachedSource<FieldActivitySnapshot>('fieldActivity');
+  const { records: giftDone } = useRecords(['GIFT_DONE']);
+  const [givenGifts, setGivenGifts] = useState<string[]>([]);
   const { doctors: callDoctors, byId: callDoctorById, teamMissing } = useCallDoctors();
 
   // Doctors with a visit target show how far along the month is (calls on submitted days; the Missed Calls screen shares this copy).
@@ -123,6 +128,10 @@ export function CallScreen({ subject }: { subject: Subject }) {
   /** Any product on the phone can be given: samples are the employee's own credit, nothing is checked here (the manager reads requested, credited and given). */
   const givenProducts = useMemo(() => (master.data?.products ?? []).map((p) => ({ id: p.id, name: p.name, packSize: p.packSize })), [master.data]);
 
+  const pendingGifts = (isDoctor && outletId ? (activity.data?.pendingGifts ?? []).filter((g) => g.doctorId === outletId) : []).filter(
+    (g) => !giftDone.some((r) => !r.deleted && r.status !== 'FAILED' && (r.payload as { giftId: string }).giftId === g.id),
+  );
+
   const start = (record: OutboxRecord | 'new') => {
     setMsg(null);
     fe.clearAll();
@@ -131,6 +140,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
       setWorkWith([]); // picked per call; not copied from the day's plan
       setSamples([]);
       setLbl([]);
+      setGivenGifts([]);
       setRemarks('');
     } else {
       const p = record.payload as CallPayload;
@@ -185,6 +195,11 @@ export function CallScreen({ subject }: { subject: Subject }) {
         ...(isDoctor ? { samples: samples.filter((l) => l.quantity > 0), lbl: lbl.map((l) => ({ productId: l.productId })) } : {}),
       };
       await saveCall(kind, payload, editing && editing !== 'new' ? editing : undefined);
+      // A gift marked given here is queued like any other; one already marked on this phone is not marked twice.
+      for (const giftId of givenGifts) {
+        if (!giftDone.some((r) => !r.deleted && r.status !== 'FAILED' && (r.payload as { giftId: string }).giftId === giftId)) await createRecord('GIFT_DONE', { giftId });
+      }
+      setGivenGifts([]);
       setEditing(null);
       setMsg({ tone: 'success', text: 'Call saved with your location. It goes up with Final Submission.' });
     } catch (err) {
@@ -281,6 +296,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
             setOutletId(id);
             setSamples([]);
             setLbl([]);
+            setGivenGifts([]);
             setMsg(null);
             fe.clear('outlet');
           }}
@@ -344,6 +360,26 @@ export function CallScreen({ subject }: { subject: Subject }) {
                 </ThemedText>
               )}
             </CardSection>
+            {pendingGifts.length > 0 ? (
+              <CardSection icon={sym('gift', 'redeem')} accent="pink" title="Gift for this doctor">
+                <ThemedText type="small" themeColor="textSecondary">A gift is waiting for this doctor. Switch it on if you gave it in this call; it is marked done when the report is sent.</ThemedText>
+                {pendingGifts.map((g) => (
+                  <View key={g.id} style={styles.giftRow}>
+                    <View style={styles.giftName}>
+                      <ThemedText type="default">{g.productName}</ThemedText>
+                      <ThemedText type="small" themeColor="textSecondary">{formatRupees(g.amountPaise)}</ThemedText>
+                    </View>
+                    <ThemedText type="small">Given</ThemedText>
+                    <Switch
+                      accessibilityLabel={`${g.productName} given`}
+                      value={givenGifts.includes(g.id)}
+                      disabled={busy}
+                      onValueChange={(on) => setGivenGifts((ids) => (on ? [...ids, g.id] : ids.filter((x) => x !== g.id)))}
+                    />
+                  </View>
+                ))}
+              </CardSection>
+            ) : null}
           </>
         ) : null}
 
@@ -443,4 +479,6 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 18, lineHeight: 24 },
   newButton: { paddingHorizontal: Spacing.four, paddingVertical: Spacing.two + 2 },
   phone: { alignSelf: 'flex-start' },
+  giftRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  giftName: { flex: 1 },
 });

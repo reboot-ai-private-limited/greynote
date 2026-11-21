@@ -8,12 +8,13 @@ import { PrimaryButton } from '@/components/primary-button';
 import { ScreenShell } from '@/components/screen-shell';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
-import { InfoCard, Pill, SummaryStrip } from '@/components/ui-cards';
+import { CardSection, InfoCard, Pill, SummaryStrip, sym } from '@/components/ui-cards';
+import { OutletPicker } from '@/components/outlet-picker';
 import { Spacing } from '@/constants/theme';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useDebounced } from '@/hooks/use-debounced';
 import { useWindowed } from '@/hooks/use-windowed';
-import { listGifts, type GiftView } from '@/lib/gifts';
+import { giftStatusText, listGifts, requestGift, type GiftView } from '@/lib/gifts';
 import { formatRupees } from '@/lib/money';
 import { useSessionUser } from '@/lib/session';
 import { createRecord, refreshNow, removeRecord, sendNow, useOnline, useRecords, type OutboxRecord } from '@/offline';
@@ -23,10 +24,10 @@ import { prettyDay } from '@/offline/day';
 import type { FieldActivitySnapshot, FieldMasterDataSnapshot } from '@/types/sync';
 
 type Msg = { tone: 'danger' | 'success' | 'info'; text: string };
-type Filter = 'ALL' | 'PENDING' | 'DONE';
+type Filter = 'ALL' | 'NOT_GIVEN' | 'DONE';
 const FILTERS: { value: Filter; label: string }[] = [
   { value: 'ALL', label: 'All' },
-  { value: 'PENDING', label: 'Not done' },
+  { value: 'NOT_GIVEN', label: 'Not given yet' },
   { value: 'DONE', label: 'Done' },
 ];
 
@@ -60,11 +61,41 @@ export default function GiftsScreen() {
 
   const own = (g: GiftView) => !g.userId || !me || g.userId === me.id;
   const done = (g: GiftView) => g.status === 'DONE';
+  // Not given yet = asked for and waiting, plus accepted and still to hand over; a rejected one is neither.
+  const notGivenYet = (g: GiftView) => g.status === 'REQUESTED' || g.status === 'PENDING';
   const rows = list
-    .filter((g) => (filter === 'ALL' || (filter === 'DONE') === done(g)) && (!term || `${g.doctorName} ${g.productName} ${g.userName ?? ''}`.toLowerCase().includes(term)))
+    .filter((g) => (filter === 'ALL' || (filter === 'DONE' ? done(g) : notGivenYet(g))) && (!term || `${g.doctorName} ${g.productName} ${g.userName ?? ''}`.toLowerCase().includes(term)))
     .sort((a, b) => b.allocatedAt.localeCompare(a.allocatedAt) || b.id.localeCompare(a.id));
   const { visible } = useWindowed(rows, `${filter}|${term}`);
-  const notDone = list.filter((g) => !done(g)).length;
+  const notDone = list.filter(notGivenYet).length;
+  const waitingAnswer = list.filter((g) => g.status === 'REQUESTED').length;
+
+  const [asking, setAsking] = useState(false);
+  const [askDoctor, setAskDoctor] = useState<string | null>(null);
+  const [askName, setAskName] = useState('');
+  const [askNote, setAskNote] = useState('');
+  const myDoctors = (master.data?.doctors ?? []).map((d) => ({ id: d.id, name: d.name, subtitle: d.address }));
+
+  const sendRequest = async () => {
+    if (!askDoctor) return setMsg({ tone: 'danger', text: 'Choose the doctor the gift is for.' });
+    if (!askName.trim()) return setMsg({ tone: 'danger', text: 'Name the gift you are asking for.' });
+    if (!online) return setMsg({ tone: 'info', text: 'Connect to the internet to send a request.' });
+    setBusy('ask');
+    setMsg(null);
+    try {
+      await requestGift({ doctorId: askDoctor, productName: askName.trim(), note: askNote.trim() || null });
+      setAsking(false);
+      setAskDoctor(null);
+      setAskName('');
+      setAskNote('');
+      setMsg({ tone: 'success', text: 'Request sent. Admin or Accounts will accept or reject it; you are told here and in your Inbox.' });
+      server.reload();
+    } catch (err) {
+      setMsg({ tone: 'danger', text: err instanceof Error ? err.message : 'Could not send the request.' });
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const markDone = async (giftId: string) => {
     setBusy(giftId);
@@ -110,10 +141,23 @@ export default function GiftsScreen() {
       {!online ? <Notice tone="info">You’re offline. Marking a gift done is kept on the phone and sent later.</Notice> : null}
       {server.error && online ? <Notice tone="danger">{server.error}</Notice> : null}
 
+      {asking ? (
+        <CardSection icon={sym('gift', 'redeem')} accent="pink" title="Request a gift">
+          <OutletPicker label="Doctor" options={myDoctors} value={askDoctor} onChange={setAskDoctor} disabled={busy !== null} emptyText="No doctors are assigned to you yet." searchable />
+          <TextField label="Gift" value={askName} onChangeText={setAskName} placeholder="e.g. Desk clock" maxLength={200} editable={busy === null} />
+          <TextField label="Note (optional)" value={askNote} onChangeText={setAskNote} multiline maxLength={500} editable={busy === null} />
+          <PrimaryButton label="Send request" loading={busy === 'ask'} onPress={() => void sendRequest()} />
+          <PrimaryButton label="Cancel" variant="text" disabled={busy !== null} onPress={() => setAsking(false)} />
+        </CardSection>
+      ) : (
+        <PrimaryButton label="Request a gift for a doctor" variant="text" onPress={() => { setMsg(null); setAsking(true); }} />
+      )}
+
       <SummaryStrip
         items={[
           { label: 'Gifts', value: String(list.length).padStart(2, '0'), accent: 'blue' },
-          { label: 'Not done', value: String(notDone).padStart(2, '0'), accent: notDone > 0 ? 'amber' : 'slate' },
+          { label: 'Not given yet', value: String(notDone).padStart(2, '0'), accent: notDone > 0 ? 'amber' : 'slate' },
+          { label: 'Requested', value: String(waitingAnswer).padStart(2, '0'), accent: waitingAnswer > 0 ? 'indigo' : 'slate' },
           { label: 'Done', value: String(list.length - notDone).padStart(2, '0'), accent: 'green' },
         ]}
       />
@@ -134,12 +178,17 @@ export default function GiftsScreen() {
               <View style={styles.spread}>
                 <View style={styles.grow}>
                   <ThemedText type="smallBold">{g.productName}</ThemedText>
-                  <ThemedText type="small">{`For ${g.doctorName || doctorName(g.doctorId)}${isManager ? ` (${mine ? 'Own' : (g.userName ?? 'Team')})` : ''} · ${formatRupees(g.amountPaise)}`}</ThemedText>
+                  <ThemedText type="small">{`For ${g.doctorName || doctorName(g.doctorId)}${isManager ? ` (${mine ? 'Own' : (g.userName ?? 'Team')})` : ''} · ${g.status === 'REQUESTED' ? 'amount set when accepted' : formatRupees(g.amountPaise)}`}</ThemedText>
                 </View>
-                <Pill text={done(g) || (rec && rec.status !== 'FAILED') ? 'Done' : 'Not done'} accent={done(g) || (rec && rec.status !== 'FAILED') ? 'green' : 'amber'} />
+                <Pill
+                  text={rec && rec.status !== 'FAILED' && g.status === 'PENDING' ? 'Done' : giftStatusText(g.status)}
+                  accent={done(g) || (rec && rec.status !== 'FAILED' && g.status === 'PENDING') ? 'green' : g.status === 'REJECTED' ? 'red' : g.status === 'REQUESTED' ? 'indigo' : 'amber'}
+                />
               </View>
               {done(g) && g.completedAt ? <ThemedText type="small" themeColor="textSecondary">{`Given on ${prettyDay(g.completedAt.slice(0, 10))}`}</ThemedText> : null}
-              {done(g) ? null : rec?.status === 'FAILED' ? (
+              {g.status === 'REQUESTED' ? <ThemedText type="small" themeColor="textSecondary">{`Asked for${g.requestedByName ? ` by ${g.requestedByName}` : ''}${g.requestNote ? ` · ${g.requestNote}` : ''}. Waiting for Admin or Accounts.`}</ThemedText> : null}
+              {g.status === 'REJECTED' ? <ThemedText type="small" themeColor="danger">{`Rejected${g.rejectReason ? `: ${g.rejectReason}` : '.'}`}</ThemedText> : null}
+              {done(g) || g.status === 'REQUESTED' || g.status === 'REJECTED' ? null : rec?.status === 'FAILED' ? (
                 <>
                   <ThemedText type="small" themeColor="danger">{rec.errorMessage ?? 'The server did not accept this.'}</ThemedText>
                   <View style={styles.row}>

@@ -227,18 +227,40 @@ export interface MarkSampleRequestDoneDto {
   credits: { productId: string; quantity: number }[];
 }
 
-/** A gift Admin allocated to a Doctor: the assigned MR marks it done once delivered. No approval. */
+/**
+ * A gift for a Doctor. Admin allocates one (`origin: 'ADMIN'`, `PENDING` at once) or an employee asks for one (`origin: 'EMPLOYEE'`, `REQUESTED` until Admin or Accounts accept
+ * it with an amount, which makes it `PENDING`, or reject it). The assigned MR marks a `PENDING` gift `DONE` once handed over. "Not given yet" = `REQUESTED` + `PENDING`.
+ */
+export type GiftStatus = 'REQUESTED' | 'PENDING' | 'DONE' | 'REJECTED';
 export interface DoctorGiftDto {
   id: string;
   doctorId: string;
   doctorName: string;
   allocatedBy: string;
   productName: string;
+  /** Whole paise; 0 on a request nobody has accepted yet. */
   amountPaise: number;
-  status: 'PENDING' | 'DONE';
+  status: GiftStatus;
+  /** Absent from older servers: read as `ADMIN`. */
+  origin?: 'ADMIN' | 'EMPLOYEE';
+  requestedBy?: string | null;
+  requestedByName?: string;
+  requestNote?: string | null;
+  rejectReason?: string | null;
   completedBy: string | null;
   completedAt: string | null;
   allocatedAt: string;
+}
+export interface RequestGiftDto {
+  doctorId: string;
+  productName: string;
+  note: string | null;
+}
+export interface AcceptGiftDto {
+  amountPaise: number;
+}
+export interface RejectGiftDto {
+  reason: string;
 }
 export interface AllocateGiftDto {
   doctorId: string;

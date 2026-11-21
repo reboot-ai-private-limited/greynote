@@ -38,7 +38,11 @@ export interface DoctorGiftDoc {
   allocatedBy: Types.ObjectId;
   productName: string;
   amountPaise: number;
-  status: 'PENDING' | 'DONE';
+  status: 'REQUESTED' | 'PENDING' | 'DONE' | 'REJECTED';
+  origin?: 'ADMIN' | 'EMPLOYEE';
+  requestedBy?: Types.ObjectId | null;
+  requestNote?: string | null;
+  rejectReason?: string | null;
   completedBy: Types.ObjectId | null;
   completedAt: Date | null;
   allocatedAt: Date;
@@ -48,7 +52,11 @@ const giftSchema = new Schema<DoctorGiftDoc>({
   allocatedBy: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
   productName: { type: String, required: true },
   amountPaise: { type: Number, required: true, min: 0 },
-  status: { type: String, required: true, enum: ['PENDING', 'DONE'], default: 'PENDING' },
+  status: { type: String, required: true, enum: ['REQUESTED', 'PENDING', 'DONE', 'REJECTED'], default: 'PENDING' },
+  origin: { type: String, enum: ['ADMIN', 'EMPLOYEE'], default: 'ADMIN' },
+  requestedBy: { type: Schema.Types.ObjectId, default: null, ref: 'User' },
+  requestNote: { type: String, default: null },
+  rejectReason: { type: String, default: null },
   completedBy: { type: Schema.Types.ObjectId, default: null, ref: 'User' },
   completedAt: { type: Date, default: null },
   allocatedAt: { type: Date, required: true },

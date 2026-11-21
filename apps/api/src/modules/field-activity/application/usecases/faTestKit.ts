@@ -562,8 +562,20 @@ export class FakeGifts implements DoctorGiftRepositoryPort {
   async findById(id: string) {
     return this.rows.find((r) => r.id === id) ?? null;
   }
-  async list(filter: { doctorIds?: string[]; status?: DoctorGift['status'] }, limit: number) {
-    return this.rows.filter((r) => (!filter.doctorIds || filter.doctorIds.includes(r.doctorId)) && (!filter.status || r.status === filter.status)).slice(0, limit);
+  async list(filter: { doctorIds?: string[]; status?: DoctorGift['status']; statuses?: DoctorGift['status'][] }, limit: number) {
+    return this.rows.filter((r) => (!filter.doctorIds || filter.doctorIds.includes(r.doctorId)) && (!filter.status || r.status === filter.status) && (!filter.statuses || filter.statuses.includes(r.status))).slice(0, limit);
+  }
+  async accept(id: string, by: string, amountPaise: number, at: Date) {
+    const g = this.rows.find((r) => r.id === id);
+    if (!g || g.status !== 'REQUESTED') return false;
+    Object.assign(g, { status: 'PENDING', amountPaise, allocatedBy: by, allocatedAt: at });
+    return true;
+  }
+  async reject(id: string, by: string, reason: string) {
+    const g = this.rows.find((r) => r.id === id);
+    if (!g || g.status !== 'REQUESTED') return false;
+    Object.assign(g, { status: 'REJECTED', allocatedBy: by, rejectReason: reason });
+    return true;
   }
   async markDone(id: string, by: string, at: Date, ctx: unknown) {
     const g = this.rows.find((r) => r.id === id);

@@ -131,7 +131,7 @@ describe('navGroupsFor', () => {
     expect(groups.map((g) => g.group)).toEqual(['Home', 'HR', 'Sales & Distribution', 'Payouts', 'Reports', 'Master data']);
     expect(groups.find((g) => g.group === 'Sales & Distribution')?.items.map((i) => i.href)).toEqual(['/reports/sales-dashboard', '/orders', '/invoices', '/distributors']);
     expect(groups.find((g) => g.group === 'Reports')?.items.map((i) => i.href)).toEqual(['/reports/sales']); // the sales report is open to the Accountant and HR from 2026-11-03
-    expect(groups.find((g) => g.group === 'Master data')?.items.map((i) => i.href)).toEqual(['/doctor-services', '/sample-requests']); // Accounts marks sample and LBL requests done (2026-11)
+    expect(groups.find((g) => g.group === 'Master data')?.items.map((i) => i.href)).toEqual(['/doctor-services', '/sample-requests', '/doctor-gifts']); // Accounts marks sample and LBL requests done (2026-11)
     expect(groups.find((g) => g.group === 'Payouts')?.items.map((i) => i.href)).toEqual(['/expenses', '/expense-claims']);
     expect(groups.find((g) => g.group === 'HR')?.items.map((i) => i.href)).toEqual(['/attendance']);
   });

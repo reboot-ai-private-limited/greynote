@@ -18,15 +18,57 @@ import { toErrorState } from '@/lib/api/toErrorState';
 import { formatDate, formatMoney } from '@/lib/format';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
-import { useAllocateGift, useDoctorGifts } from '../hooks/useDoctorSpend';
+import { useAcceptGift, useAllocateGift, useDoctorGifts, useRejectGift } from '../hooks/useDoctorSpend';
 import { buildGift, EMPTY_GIFT, type GiftDraft } from '../lib/doctorSpend';
 
 const ANY = 'all';
+const NOT_GIVEN = 'not-given';
 const STATUS_OPTIONS = [
-  { value: ANY, label: 'Pending and done' },
-  { value: 'PENDING', label: 'Pending' },
+  { value: ANY, label: 'All gifts' },
+  { value: NOT_GIVEN, label: 'Not given yet' },
+  { value: 'REQUESTED', label: 'Requested (waiting for you)' },
+  { value: 'PENDING', label: 'To give' },
   { value: 'DONE', label: 'Done' },
+  { value: 'REJECTED', label: 'Rejected' },
 ];
+const STATUS_TONE = { REQUESTED: 'accent', PENDING: 'warning', DONE: 'success', REJECTED: 'danger' } as const;
+const STATUS_LABEL = { REQUESTED: 'Requested', PENDING: 'To give', DONE: 'Done', REJECTED: 'Rejected' } as const;
+
+/** Accept an employee's request with an amount, or reject it with a reason. */
+function ReviewDialog({ gift, mode, onClose }: { gift: DoctorGiftDto; mode: 'accept' | 'reject'; onClose: () => void }) {
+  const [value, setValue] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const accept = useAcceptGift(onClose);
+  const reject = useRejectGift(onClose);
+
+  function submit() {
+    if (mode === 'accept') {
+      const rupees = Number(value);
+      if (!value.trim() || !Number.isFinite(rupees) || rupees < 0) return setError('Enter the gift’s value in rupees.');
+      setError(null);
+      accept.mutate({ id: gift.id, body: { amountPaise: Math.round(rupees * 100) } });
+    } else {
+      if (!value.trim()) return setError('Say why it is rejected.');
+      setError(null);
+      reject.mutate({ id: gift.id, body: { reason: value.trim() } });
+    }
+  }
+
+  return (
+    <FormDialog
+      title={mode === 'accept' ? 'Accept gift request' : 'Reject gift request'}
+      description={`${gift.requestedByName ?? 'An employee'} asked for “${gift.productName}” for ${gift.doctorName || 'a doctor'}${gift.requestNote ? ` (${gift.requestNote})` : ''}.`}
+      formId="gift-review-form"
+      pending={accept.isPending || reject.isPending}
+      onClose={onClose}
+      onSubmit={submit}
+    >
+      <FormField label={mode === 'accept' ? 'Value (₹)' : 'Reason'} htmlFor="gift-review" error={error ?? undefined}>
+        <Input id="gift-review" inputMode={mode === 'accept' ? 'decimal' : undefined} value={value} onChange={(e) => setValue(e.target.value)} aria-invalid={error ? true : undefined} />
+      </FormField>
+    </FormDialog>
+  );
+}
 
 function GiftDialog({ onClose }: { onClose: () => void }) {
   const [draft, setDraft] = useState<GiftDraft>(EMPTY_GIFT);
@@ -88,10 +130,12 @@ function GiftDialog({ onClose }: { onClose: () => void }) {
 export function DoctorGiftsScreen() {
   const readOnly = useIsReadOnly();
   const { values, update } = useFilterParams(['status']);
+  const notGiven = values.status === NOT_GIVEN;
   const status =
-    values.status === 'PENDING' || values.status === 'DONE' ? values.status : undefined;
+    values.status === 'REQUESTED' || values.status === 'PENDING' || values.status === 'DONE' || values.status === 'REJECTED' ? values.status : undefined;
   const [creating, setCreating] = useState(false);
-  const query = useDoctorGifts({ ...(status && { status }) });
+  const [reviewing, setReviewing] = useState<{ gift: DoctorGiftDto; mode: 'accept' | 'reject' } | null>(null);
+  const query = useDoctorGifts({ ...(status && { status }), ...(notGiven && { notGiven: true }) });
   const rows = query.data ?? [];
 
   const columns: readonly Column<DoctorGiftDto>[] = [
@@ -101,15 +145,32 @@ export function DoctorGiftsScreen() {
       render: (g) => <span className="font-medium">{g.doctorName || 'Unknown'}</span>,
     },
     { key: 'gift', header: 'Gift', render: (g) => g.productName },
-    { key: 'value', header: 'Value', numeric: true, render: (g) => formatMoney(g.amountPaise) },
+    { key: 'value', header: 'Value', numeric: true, render: (g) => (g.status === 'REQUESTED' ? '—' : formatMoney(g.amountPaise)) },
+    {
+      key: 'from',
+      header: 'From',
+      render: (g) => (g.origin === 'EMPLOYEE' ? `Asked by ${g.requestedByName ?? 'an employee'}${g.requestNote ? ` · ${g.requestNote}` : ''}` : 'Allocated by Admin'),
+    },
     {
       key: 'status',
       header: 'Status',
       render: (g) => (
-        <Badge tone={g.status === 'DONE' ? 'success' : 'warning'}>
-          {g.status === 'DONE' ? 'Done' : 'Pending'}
-        </Badge>
+        <>
+          <Badge tone={STATUS_TONE[g.status]}>{STATUS_LABEL[g.status]}</Badge>
+          {g.status === 'REJECTED' && g.rejectReason ? <span className="ml-2 text-sm text-muted">{g.rejectReason}</span> : null}
+        </>
       ),
+    },
+    {
+      key: 'review',
+      header: '',
+      render: (g) =>
+        g.status === 'REQUESTED' ? (
+          <span className="flex gap-2">
+            <Button onClick={() => setReviewing({ gift: g, mode: 'accept' })}>Accept</Button>
+            <Button onClick={() => setReviewing({ gift: g, mode: 'reject' })}>Reject</Button>
+          </span>
+        ) : null,
     },
     { key: 'allocated', header: 'Allocated', render: (g) => formatDate(g.allocatedAt) },
     {
@@ -137,7 +198,7 @@ export function DoctorGiftsScreen() {
       <div className="mb-6 w-56">
         <Select
           aria-label="Status"
-          value={status ?? ANY}
+          value={notGiven ? NOT_GIVEN : (status ?? ANY)}
           options={STATUS_OPTIONS}
           onValueChange={(v) => update({ status: v === ANY ? '' : v })}
         />
@@ -159,6 +220,7 @@ export function DoctorGiftsScreen() {
         </DataState>
       </Card>
       {creating ? <GiftDialog onClose={() => setCreating(false)} /> : null}
+      {reviewing ? <ReviewDialog gift={reviewing.gift} mode={reviewing.mode} onClose={() => setReviewing(null)} /> : null}
     </>
   );
 }

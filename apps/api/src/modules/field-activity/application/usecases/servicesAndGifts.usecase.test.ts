@@ -3,7 +3,7 @@ import { AppError } from '@/shared/errors/AppError.js';
 import { GateRefusal } from '../../domain/gateRefusal.js';
 import { LogRefusal } from '../../domain/logRefusal.js';
 import { faKit, Tx } from './faTestKit.js';
-import { GetDoctorServiceUseCase, ListDoctorServicesUseCase, ListGiftsUseCase, MarkDoctorServiceDoneUseCase } from './servicesAndGifts.usecase.js';
+import { GetDoctorServiceUseCase, ListDoctorServicesUseCase, ListGiftsUseCase, MarkDoctorServiceDoneUseCase, RequestGiftUseCase, ReviewGiftRequestUseCase } from './servicesAndGifts.usecase.js';
 
 const REC = { userId: 'mr1', clientId: 'c-1', recordedAt: new Date('2026-10-05T04:00:00Z') };
 const svc = { doctorId: 'd1', serviceType: 'TOUR_PACKAGE' as const, amountPaise: 1_500_000, remarks: null };
@@ -225,5 +225,62 @@ describe('a manager reads a team service (2026-11-18)', () => {
     kit.users.add('other-mgr', { role: 'FIELD', managerId: null });
     await expect(get.execute({ id: 'other-mgr', role: 'FIELD' }, serverId)).rejects.toMatchObject({ statusCode: 404 });
     await expect(get.execute({ id: 'mr2', role: 'FIELD' }, serverId)).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
+describe('gift requests (2026-11)', () => {
+  let kit: ReturnType<typeof faKit>;
+  let request: RequestGiftUseCase;
+  let review: ReviewGiftRequestUseCase;
+  beforeEach(() => {
+    kit = faKit();
+    request = new RequestGiftUseCase(kit.fmd, kit.gifts);
+    review = new ReviewGiftRequestUseCase(kit.gifts);
+  });
+
+  it('an employee asks for a gift for their own doctor: REQUESTED, no amount, from the employee', async () => {
+    const g = await request.execute('mr1', { doctorId: 'd1', productName: 'Desk clock', note: 'Birthday' });
+    expect(g).toMatchObject({ status: 'REQUESTED', origin: 'EMPLOYEE', requestedBy: 'mr1', amountPaise: 0, requestNote: 'Birthday' });
+  });
+
+  it('not for a doctor that is not theirs, or one that does not exist', async () => {
+    expect((await refusal(request.execute('mr2', { doctorId: 'd1', productName: 'x', note: null }))).message).toMatch(/not yours/);
+    expect(((await refusal(request.execute('mr1', { doctorId: 'nope', productName: 'x', note: null }))) as AppError).statusCode).toBe(404);
+  });
+
+  it('Admin or Accounts accept it with an amount and it becomes a normal pending gift the MR can mark done; nobody else can answer', async () => {
+    const g = await request.execute('mr1', { doctorId: 'd1', productName: 'Desk clock', note: null });
+    expect(((await refusal(review.accept({ id: 'asm', role: 'FIELD' }, g.id, 50_000))) as AppError).statusCode).toBe(403);
+    await review.accept({ id: 'acc1', role: 'ACCOUNTANT' }, g.id, 50_000);
+    expect(kit.gifts.rows[0]).toMatchObject({ status: 'PENDING', amountPaise: 50_000, allocatedBy: 'acc1', origin: 'EMPLOYEE', requestedBy: 'mr1' });
+    expect((await kit.markGiftDone.execute(REC, g.id, new Tx())).serverId).toBe(g.id);
+    expect(kit.gifts.rows[0]!.status).toBe('DONE');
+  });
+
+  it('a rejected request keeps the reason, never becomes pending, and cannot be answered twice or marked done', async () => {
+    const g = await request.execute('mr1', { doctorId: 'd1', productName: 'Desk clock', note: null });
+    await review.reject({ id: 'admin', role: 'ADMIN' }, g.id, 'Over budget');
+    expect(kit.gifts.rows[0]).toMatchObject({ status: 'REJECTED', rejectReason: 'Over budget' });
+    expect(((await refusal(review.accept({ id: 'admin', role: 'ADMIN' }, g.id, 100))) as AppError).statusCode).toBe(409);
+    expect(((await refusal(kit.markGiftDone.execute(REC, g.id, new Tx()))) as LogRefusal).code).toBe('GIFT_ALREADY_DONE');
+  });
+
+  it('an Admin allocation is not a request: it cannot be accepted or rejected', async () => {
+    const g = await kit.allocateGift.execute('admin', { doctorId: 'd1', productName: 'Lamp', amountPaise: 100 });
+    expect(((await refusal(review.reject({ id: 'admin', role: 'ADMIN' }, g.id, 'x'))) as AppError).statusCode).toBe(404);
+  });
+
+  it('the list shows both kinds to the employee, their manager and Admin; "not given yet" is requested plus pending', async () => {
+    await kit.allocateGift.execute('admin', { doctorId: 'd1', productName: 'Lamp', amountPaise: 100 });
+    const asked = await request.execute('mr1', { doctorId: 'd1', productName: 'Clock', note: null });
+    const rejected = await request.execute('mr1', { doctorId: 'd1', productName: 'Pen set', note: null });
+    await review.reject({ id: 'admin', role: 'ADMIN' }, rejected.id, 'No');
+    const done = await kit.allocateGift.execute('admin', { doctorId: 'd1', productName: 'Bag', amountPaise: 100 });
+    await kit.markGiftDone.execute(REC, done.id, new Tx());
+    const list = new ListGiftsUseCase(kit.gifts, kit.fmd, kit.users);
+    expect(await list.execute({ id: 'mr1', role: 'FIELD' }, {})).toHaveLength(4);
+    expect((await list.execute({ id: 'asm', role: 'FIELD' }, { scope: 'team' })).map((g) => g.id)).toContain(asked.id);
+    expect((await list.execute({ id: 'acc1', role: 'ACCOUNTANT' }, { notGiven: true })).map((g) => g.productName).sort()).toEqual(['Clock', 'Lamp']);
+    expect((await list.execute({ id: 'admin', role: 'ADMIN' }, { status: 'REQUESTED' })).map((g) => g.id)).toEqual([asked.id]);
   });
 });

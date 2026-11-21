@@ -30,8 +30,13 @@ export const totalsOf = (services: TeamDoctorService[]): ServiceTotals => {
 
 export interface GiftTotals {
   count: number;
+  /** Accepted and still to hand over. */
   pending: number;
   done: number;
+  /** Asked for by an employee and waiting for Admin or Accounts. */
+  requested: number;
+  /** Not handed over yet: requested + pending. */
+  notGiven: number;
   /** What the gifts cost, given or not. */
   totalPaise: number;
 }
@@ -40,7 +45,10 @@ export const giftTotalsOf = (gifts: TeamDoctorGift[]): GiftTotals => ({
   count: gifts.length,
   pending: gifts.filter((g) => g.status === 'PENDING').length,
   done: gifts.filter((g) => g.status === 'DONE').length,
-  totalPaise: gifts.reduce((n, g) => n + g.amountPaise, 0),
+  requested: gifts.filter((g) => g.status === 'REQUESTED').length,
+  notGiven: gifts.filter((g) => g.status === 'REQUESTED' || g.status === 'PENDING').length,
+  // A rejected request never costs anything; a requested one has no amount yet.
+  totalPaise: gifts.filter((g) => g.status !== 'REJECTED').reduce((n, g) => n + g.amountPaise, 0),
 });
 
 const addDays = (iso: string, days: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);

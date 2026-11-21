@@ -9,7 +9,7 @@ import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import { MAX_EXPENSE_ATTACHMENT_BYTES } from '../domain/expense.entity.js';
 import type { FieldActivityHandlers } from './field-activity.controller.js';
-import { createSampleRequestBodySchema, listSampleRequestsQuerySchema, sampleRequestDoneBodySchema, sampleAccountQuerySchema, finalizeExpensesBodySchema, adjustExpenseRowBodySchema, addExpenseRowBodySchema, expenseReviewQuerySchema, expenseOverviewQuerySchema, grantExpenseMonthBodySchema, listExpenseGrantsQuerySchema, expenseAttachmentParamsSchema, expenseHistoryQuerySchema, expenseMonthParamsSchema, expenseMonthQuerySchema, otherExpenseBodySchema, listExpensesQuerySchema, listExpensePayoutsQuerySchema, payExpensesBodySchema, allocateGiftBodySchema, callParamsSchema, doctorServiceFieldsSchema, idParamsSchema, listGiftsQuerySchema, listServicesQuerySchema, serviceSummaryQuerySchema, overrideBodySchema, listDcrsQuerySchema, listTeamDcrsQuerySchema } from './field-activity.schemas.js';
+import { requestGiftBodySchema, acceptGiftBodySchema, rejectGiftBodySchema, createSampleRequestBodySchema, listSampleRequestsQuerySchema, sampleRequestDoneBodySchema, sampleAccountQuerySchema, finalizeExpensesBodySchema, adjustExpenseRowBodySchema, addExpenseRowBodySchema, expenseReviewQuerySchema, expenseOverviewQuerySchema, grantExpenseMonthBodySchema, listExpenseGrantsQuerySchema, expenseAttachmentParamsSchema, expenseHistoryQuerySchema, expenseMonthParamsSchema, expenseMonthQuerySchema, otherExpenseBodySchema, listExpensesQuerySchema, listExpensePayoutsQuerySchema, payExpensesBodySchema, allocateGiftBodySchema, callParamsSchema, doctorServiceFieldsSchema, idParamsSchema, listGiftsQuerySchema, listServicesQuerySchema, serviceSummaryQuerySchema, overrideBodySchema, listDcrsQuerySchema, listTeamDcrsQuerySchema } from './field-activity.schemas.js';
 
 const TAG = 'Field Activity';
 
@@ -195,10 +195,14 @@ export function buildFieldActivityRouter(c: FieldActivityHandlers): Router {
   router.get('/doctor-services/summary', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), validate({ query: serviceSummaryQuerySchema }), c.serviceSummary);
   router.get('/doctor-services/report', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), validate({ query: serviceSummaryQuerySchema }), c.serviceReport);
   router.get('/doctor-services/:id', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), validate({ params: idParamsSchema }), c.getService);
-  router.get('/doctor-gifts', requireRole('FIELD', 'ADMIN'), validate({ query: listGiftsQuerySchema }), c.listGifts);
+  router.get('/doctor-gifts', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), validate({ query: listGiftsQuerySchema }), c.listGifts);
   router.post('/doctor-services/:id/done', requireRole('ADMIN'), validate({ params: idParamsSchema }), c.markServiceDone);
   router.post('/admin/doctor-services', requireRole('ADMIN'), validate({ body: doctorServiceFieldsSchema }), c.createAdminService);
   router.post('/admin/doctor-gifts', requireRole('ADMIN'), validate({ body: allocateGiftBodySchema }), c.allocateGift);
+  // Gift requests (2026-11): the employee asks for a gift for their doctor; Admin or Accounts accept it with an amount or reject it.
+  router.post('/doctor-gifts/requests', requireRole('FIELD'), validate({ body: requestGiftBodySchema }), c.requestGift);
+  router.post('/doctor-gifts/:id/accept', requireRole('ADMIN', 'ACCOUNTANT'), validate({ params: idParamsSchema, body: acceptGiftBodySchema }), c.acceptGift);
+  router.post('/doctor-gifts/:id/reject', requireRole('ADMIN', 'ACCOUNTANT'), validate({ params: idParamsSchema, body: rejectGiftBodySchema }), c.rejectGift);
   // Sample and LBL requests (2026-11): the employee asks, Admin/Accounts/HR mark done (which credits them), a manager reads a team member's account.
   doc('/sample-requests/mine', 'My sample and LBL requests, newest first');
   doc('/sample-requests', 'Admin, Accounts, HR: every sample and LBL request (filter by status, kind or employee)', { query: listSampleRequestsQuerySchema });

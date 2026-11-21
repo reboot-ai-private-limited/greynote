@@ -33,6 +33,8 @@ export interface AppEvents {
   'period.settled': { userId: string; month: string; source: 'PAYROLL' | 'EXPENSES' };
   /** Admin, Accounts or HR marked a sample or LBL request done: the employee is credited. */
   'sample.request.done': { userId: string; requestId: string; kind: 'SAMPLE' | 'LBL'; lines: Array<{ productName: string; credited: number }> };
+  /** Admin or Accounts accepted or rejected an employee's gift request. */
+  'gift.request.reviewed': { userId: string; giftId: string; giftName: string; accepted: boolean; reason: string | null };
   /** A compliance block was cleared. */
   'user.unblocked': { userId: string; by: string };
 }

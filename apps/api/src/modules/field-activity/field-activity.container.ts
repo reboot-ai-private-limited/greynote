@@ -38,7 +38,7 @@ import type { LeavePort } from './domain/leave.port.js';
 import { CountDoctorCallsByDayUseCase, CountDoctorCallsUseCase, ListCalledDoctorsUseCase, SummarizeDcrsUseCase } from './application/usecases/dcrReports.usecase.js';
 import { GetDayActivityUseCase } from './application/usecases/getDayActivity.usecase.js';
 import { GetDcrSummaryUseCase } from './application/usecases/getDcrSummary.usecase.js';
-import { AllocateGiftUseCase, CreateAdminDoctorServiceUseCase, DOCTOR_SERVICE_KIND, GetDoctorServiceUseCase, MarkDoctorServiceDoneUseCase, ListDoctorServicesUseCase, SummariseDoctorServicesUseCase, ListGiftsUseCase, ListServicesForDoctorsUseCase, MarkGiftDoneUseCase, SubmitDoctorServiceUseCase } from './application/usecases/servicesAndGifts.usecase.js';
+import { RequestGiftUseCase, ReviewGiftRequestUseCase, AllocateGiftUseCase, CreateAdminDoctorServiceUseCase, DOCTOR_SERVICE_KIND, GetDoctorServiceUseCase, MarkDoctorServiceDoneUseCase, ListDoctorServicesUseCase, SummariseDoctorServicesUseCase, ListGiftsUseCase, ListServicesForDoctorsUseCase, MarkGiftDoneUseCase, SubmitDoctorServiceUseCase } from './application/usecases/servicesAndGifts.usecase.js';
 import { GeofenceEvaluator } from './application/geofenceEvaluator.js';
 import { LoggingGate } from './application/loggingGate.js';
 import { OverrideGeofenceUseCase } from './application/usecases/overrideGeofence.usecase.js';
@@ -266,7 +266,7 @@ export function buildFieldActivityContainer(
       listGiftsForDoctors: async (doctorIds) =>
         doctorIds.length === 0
           ? []
-          : (await gifts.list({ doctorIds }, 5000)).map((g) => ({ id: g.id, doctorId: g.doctorId, productName: g.productName, amountPaise: g.amountPaise, status: g.status, allocatedAt: g.allocatedAt, completedAt: g.completedAt })),
+          : (await gifts.list({ doctorIds }, 5000)).map((g) => ({ id: g.id, doctorId: g.doctorId, productName: g.productName, amountPaise: g.amountPaise, status: g.status, origin: g.origin, allocatedAt: g.allocatedAt, completedAt: g.completedAt })),
     },
     buildRouter: () =>
       buildFieldActivityRouter(
@@ -281,6 +281,8 @@ export function buildFieldActivityContainer(
           markServiceDone: new MarkDoctorServiceDoneUseCase(services, approvals, master),
           allocateGift: new AllocateGiftUseCase(master, gifts),
           listGifts: new ListGiftsUseCase(gifts, master, users),
+          requestGift: new RequestGiftUseCase(master, gifts),
+          reviewGift: new ReviewGiftRequestUseCase(gifts),
           createSampleRequest: new CreateSampleRequestUseCase(sampleRequests, master, users),
           cancelSampleRequest: new CancelSampleRequestUseCase(sampleRequests),
           listSampleRequests: new ListSampleRequestsUseCase(sampleRequests, master, users),

@@ -27,6 +27,10 @@ const toGift = (d: DoctorGiftDoc & { _id: unknown }): DoctorGift => ({
   productName: d.productName,
   amountPaise: d.amountPaise,
   status: d.status,
+  origin: d.origin ?? 'ADMIN',
+  requestedBy: d.requestedBy ? String(d.requestedBy) : null,
+  requestNote: d.requestNote ?? null,
+  rejectReason: d.rejectReason ?? null,
   completedBy: d.completedBy ? String(d.completedBy) : null,
   completedAt: d.completedAt,
   allocatedAt: d.allocatedAt,
@@ -57,18 +61,27 @@ export class MongoDoctorServiceAdapter implements DoctorServiceRepositoryPort {
 
 export class MongoDoctorGiftAdapter implements DoctorGiftRepositoryPort {
   async create(input: Omit<DoctorGift, 'id'>): Promise<DoctorGift> {
-    const doc = await DoctorGiftModel.create({ ...input, doctorId: oid(input.doctorId), allocatedBy: oid(input.allocatedBy), completedBy: null });
+    const doc = await DoctorGiftModel.create({ ...input, doctorId: oid(input.doctorId), allocatedBy: oid(input.allocatedBy), requestedBy: input.requestedBy ? oid(input.requestedBy) : null, completedBy: null });
     return toGift(doc.toObject());
   }
   async findById(id: string): Promise<DoctorGift | null> {
     const doc = await DoctorGiftModel.findById(id).lean();
     return doc ? toGift(doc) : null;
   }
-  async list(filter: { doctorIds?: string[]; status?: DoctorGift['status'] }, limit: number): Promise<DoctorGift[]> {
+  async list(filter: { doctorIds?: string[]; status?: DoctorGift['status']; statuses?: DoctorGift['status'][] }, limit: number): Promise<DoctorGift[]> {
     const q: FilterQuery<DoctorGiftDoc> = {};
     if (filter.doctorIds) q.doctorId = { $in: filter.doctorIds.map(oid) };
     if (filter.status) q.status = filter.status;
+    else if (filter.statuses) q.status = { $in: filter.statuses };
     return (await DoctorGiftModel.find(q).sort({ allocatedAt: -1, _id: -1 }).limit(limit).lean()).map(toGift);
+  }
+  async accept(id: string, by: string, amountPaise: number, at: Date): Promise<boolean> {
+    const res = await DoctorGiftModel.updateOne({ _id: oid(id), status: 'REQUESTED' }, { $set: { status: 'PENDING', amountPaise, allocatedBy: oid(by), allocatedAt: at } });
+    return res.modifiedCount === 1;
+  }
+  async reject(id: string, by: string, reason: string): Promise<boolean> {
+    const res = await DoctorGiftModel.updateOne({ _id: oid(id), status: 'REQUESTED' }, { $set: { status: 'REJECTED', allocatedBy: oid(by), rejectReason: reason } });
+    return res.modifiedCount === 1;
   }
   async markDone(id: string, by: string, at: Date, ctx: TransactionContext): Promise<boolean> {
     const res = await DoctorGiftModel.updateOne({ _id: oid(id), status: 'PENDING' }, { $set: { status: 'DONE', completedBy: oid(by), completedAt: at } }, { session: ctx as ClientSession });

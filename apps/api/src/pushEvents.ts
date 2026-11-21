@@ -82,6 +82,14 @@ export function registerPushEvents(inbox: InboxPublicContract, config: ConfigRea
     });
   });
 
+  appEvents.on('gift.request.reviewed', async (e) => {
+    await send(e.userId, e.accepted ? 'Your gift request was accepted' : 'Your gift request was rejected', e.accepted ? `${e.giftName}: give it at your next call to that doctor.` : `${e.giftName}${e.reason ? `: ${e.reason}` : '.'}`, {
+      type: e.accepted ? 'GIFT_REQUEST_ACCEPTED' : 'GIFT_REQUEST_REJECTED',
+      route: '/gifts',
+      recordId: e.giftId,
+    });
+  });
+
   appEvents.on('user.unblocked', async (e) => {
     await send(e.userId, 'You can submit again', 'Your account was unblocked. Send the reports you owe.', { type: 'UNBLOCKED', route: '/dcr' });
   });

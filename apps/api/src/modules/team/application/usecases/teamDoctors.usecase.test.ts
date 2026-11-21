@@ -23,8 +23,8 @@ describe('a manager reads a person’s doctors and a doctor', () => {
     expect(out.items.map((d) => d.name)).toEqual(['Dr Rao', 'Dr Sen']);
     expect(out.items[0]).toMatchObject({ visitsThisMonth: 1, lastVisit: '2026-11-16', routeName: 'Route r1' });
     expect(out.items[0]?.services).toEqual({ count: 4, totalPaise: 450_000 + 90_000 + 120_000, waiting: 1, toDo: 1, done: 1, rejected: 1 });
-    expect(out.items[0]?.gifts).toEqual({ count: 2, pending: 1, done: 1, totalPaise: 130_000 });
-    expect(out.items[1]?.gifts).toEqual({ count: 0, pending: 0, done: 0, totalPaise: 0 });
+    expect(out.items[0]?.gifts).toEqual({ count: 2, pending: 1, done: 1, requested: 0, notGiven: 1, totalPaise: 130_000 });
+    expect(out.items[1]?.gifts).toEqual({ count: 0, pending: 0, done: 0, requested: 0, notGiven: 0, totalPaise: 0 });
     expect(out.items[1]).toMatchObject({ visitsThisMonth: 0, lastVisit: '2026-10-20', services: { count: 0, totalPaise: 0 } });
   });
 

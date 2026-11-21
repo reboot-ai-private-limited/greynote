@@ -1,4 +1,5 @@
 import { AppError } from '@/shared/errors/AppError.js';
+import { appEvents } from '@/shared/events/appEvents.js';
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { Paise } from '@/shared/money/paise.js';
 import type { ApprovalsPort } from '../../domain/approvals.port.js';
@@ -208,7 +209,51 @@ export class AllocateGiftUseCase {
     if (!doctor) throw AppError.notFound('No such doctor.');
     // An inactive or deleted doctor (answered from the archive) keeps its history but takes no new gift.
     if (doctor.status !== 'active') throw AppError.conflict('This doctor is inactive, so it can’t be given a gift.');
-    return this.gifts.create({ ...input, allocatedBy: adminId, status: 'PENDING', completedBy: null, completedAt: null, allocatedAt: this.now() });
+    return this.gifts.create({ ...input, allocatedBy: adminId, status: 'PENDING', origin: 'ADMIN', requestedBy: null, requestNote: null, rejectReason: null, completedBy: null, completedAt: null, allocatedAt: this.now() });
+  }
+}
+
+/** An employee asks for a gift for one of their own doctors (2026-11). Admin or Accounts accept it with an amount, or reject it; until then it is `REQUESTED`. */
+export class RequestGiftUseCase {
+  constructor(
+    private readonly master: FieldMasterDataPort,
+    private readonly gifts: DoctorGiftRepositoryPort,
+    private readonly now: () => Date = () => new Date(),
+  ) {}
+
+  async execute(userId: string, input: { doctorId: string; productName: string; note: string | null }): Promise<DoctorGift> {
+    const doctor = await this.master.getDoctor(input.doctorId);
+    if (!doctor) throw AppError.notFound('No such doctor.');
+    if (doctor.status !== 'active') throw AppError.conflict('This doctor is inactive, so it can’t be given a gift.');
+    if (!(await this.master.isAssignedToDoctor(userId, input.doctorId))) throw AppError.forbidden('This doctor is not yours.');
+    return this.gifts.create({ doctorId: input.doctorId, allocatedBy: userId, productName: input.productName, amountPaise: 0, status: 'REQUESTED', origin: 'EMPLOYEE', requestedBy: userId, requestNote: input.note, rejectReason: null, completedBy: null, completedAt: null, allocatedAt: this.now() });
+  }
+}
+
+/** Admin or Accounts answer a gift request: accept it with the amount (it becomes a normal pending gift) or reject it with a reason. The employee is told. */
+export class ReviewGiftRequestUseCase {
+  constructor(
+    private readonly gifts: DoctorGiftRepositoryPort,
+    private readonly now: () => Date = () => new Date(),
+  ) {}
+
+  async accept(actor: { id: string; role: string }, id: string, amountPaise: Paise): Promise<void> {
+    const gift = await this.requireRequest(actor, id);
+    if (!(await this.gifts.accept(id, actor.id, amountPaise, this.now()))) throw AppError.conflict('This request was already answered.');
+    if (gift.requestedBy) appEvents.emit('gift.request.reviewed', { userId: gift.requestedBy, giftId: id, giftName: gift.productName, accepted: true, reason: null });
+  }
+
+  async reject(actor: { id: string; role: string }, id: string, reason: string): Promise<void> {
+    const gift = await this.requireRequest(actor, id);
+    if (!(await this.gifts.reject(id, actor.id, reason))) throw AppError.conflict('This request was already answered.');
+    if (gift.requestedBy) appEvents.emit('gift.request.reviewed', { userId: gift.requestedBy, giftId: id, giftName: gift.productName, accepted: false, reason });
+  }
+
+  private async requireRequest(actor: { id: string; role: string }, id: string): Promise<DoctorGift> {
+    if (!['ADMIN', 'ACCOUNTANT'].includes(actor.role)) throw AppError.forbidden();
+    const gift = await this.gifts.findById(id);
+    if (!gift || gift.origin !== 'EMPLOYEE') throw AppError.notFound('No such gift request.');
+    return gift;
   }
 }
 
@@ -247,11 +292,12 @@ export class ListGiftsUseCase {
 
   async execute(
     actor: Actor,
-    filter: { status?: DoctorGift['status'] | undefined; scope?: 'mine' | 'team' | undefined },
+    filter: { status?: DoctorGift['status'] | undefined; scope?: 'mine' | 'team' | undefined; notGiven?: boolean | undefined },
     limit = 200,
-  ): Promise<Array<DoctorGift & { doctorName: string; userId?: string; userName?: string }>> {
-    const status = filter.status ? { status: filter.status } : {};
-    if (actor.role === 'ADMIN') return this.named(await this.gifts.list(status, limit));
+  ): Promise<Array<DoctorGift & { doctorName: string; userId?: string; userName?: string; requestedByName?: string }>> {
+    // "Not given yet" = asked for and waiting for an answer, plus accepted and still to hand over.
+    const status = filter.notGiven ? { statuses: ['REQUESTED', 'PENDING'] as DoctorGift['status'][] } : filter.status ? { status: filter.status } : {};
+    if (actor.role === 'ADMIN' || actor.role === 'ACCOUNTANT') return this.named(await this.gifts.list(status, limit));
     const holders = new Map<string, string>(); // doctor id -> the MR who holds it
     let people = [actor.id];
     if (filter.scope === 'team' && this.users) people = [actor.id, ...(await this.users.getDownline(actor.id)).map((u) => u.id)];
@@ -262,8 +308,9 @@ export class ListGiftsUseCase {
     return (await this.named(rows)).map((g) => ({ ...g, userId: holders.get(g.doctorId) ?? '', userName: names.get(holders.get(g.doctorId) ?? '') ?? '' }));
   }
 
-  private named(rows: DoctorGift[]) {
-    return Promise.all(rows.map(async (g) => ({ ...g, doctorName: (await this.master.getDoctor(g.doctorId))?.name ?? '' })));
+  private async named(rows: DoctorGift[]) {
+    const askers = this.users ? new Map((await this.users.getUserSummaries([...new Set(rows.flatMap((r) => (r.requestedBy ? [r.requestedBy] : [])))])).map((u) => [u.id, u.name])) : new Map<string, string>();
+    return Promise.all(rows.map(async (g) => ({ ...g, doctorName: (await this.master.getDoctor(g.doctorId))?.name ?? '', ...(g.requestedBy && askers.get(g.requestedBy) ? { requestedByName: askers.get(g.requestedBy)! } : {}) })));
   }
 }
 
