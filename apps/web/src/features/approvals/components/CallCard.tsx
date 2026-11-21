@@ -57,6 +57,12 @@ export function CallCard({
           {samples.map((s) => `${s.productName || 'Product'} × ${s.quantity}`).join(', ')}
         </p>
       ) : null}
+      {'lbl' in call && call.lbl && call.lbl.length > 0 ? (
+        <p className="mt-1 text-sm text-text">
+          <span className="text-text-subtle">LBL: </span>
+          {call.lbl.map((l) => l.productName || 'Product').join(', ')}
+        </p>
+      ) : null}
       {'workWith' in call && call.workWith.length > 0 ? (
         <p className="mt-1 text-sm text-text">
           <span className="text-text-subtle">Worked with: </span>

@@ -24,7 +24,7 @@ export const FIELD_MASTER_DATA_SYNC_SOURCE = 'fieldMasterData';
  * - `chemists` — active, on the Routes the MR currently has.
  * - `distributors` — active ones handed to the MR (assigned). Route coverage alone no longer shows a distributor.
  * - `products` — the active catalog.
- * - `sampleAllocations` — what's left to give, for exactly those Doctors.
+ * - `sampleAllocations` — always empty since 2026-11 (samples are the employee's own credit); kept so older builds parse.
  *
  * Only what the app needs: nothing about who else was assigned, the phone's original capture point, or
  * approval internals. Every list is sorted by a stable key so an unchanged world gives the same version.
@@ -54,7 +54,6 @@ export function makeFieldMasterDataSource(deps: {
         deps.products.listActive(),
         deps.specialties.listActive(),
       ]);
-      const allocations = await deps.allocations.listForDoctors(mine.map((d) => d.id));
       return {
         doctors: byId(mine).map((d) => ({
           id: d.id,
@@ -87,7 +86,8 @@ export function makeFieldMasterDataSource(deps: {
         }))),
         specialties: specialties.map((s) => s.name),
         products: byId(products).map((p) => ({ id: p.id, name: p.name, sku: p.sku, category: p.category, composition: p.composition, type: p.type, packSize: p.packSize, ptsPaise: p.ptsPaise, ptrPaise: p.ptrPaise, mrpPaise: p.mrpPaise, gstPercent: p.gstPercent, division: p.division })),
-        sampleAllocations: byId(allocations).map((a) => ({ id: a.id, doctorId: a.doctorId, productId: a.productId, quantityAllocated: a.quantityAllocated, quantityRemaining: a.quantityRemaining })),
+        // Samples are the employee's own credit now (2026-11): no per-doctor allocation goes to the phone. The key stays (empty) so an older build still parses the snapshot.
+        sampleAllocations: [],
       };
     },
   };

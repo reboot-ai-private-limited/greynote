@@ -120,20 +120,15 @@ describe('the phone’s cache of Field Master Data', () => {
     expect(names((await snap('mr1')).distributors)).toEqual(['Assigned To Me']);
   });
 
-  it('Products are the active catalog; allocations only for the Doctors in the MR’s set', async () => {
+  it('Products are the active catalog; no per-doctor sample allocation goes to the phone any more (2026-11)', async () => {
     const p1 = await products.create({ name: 'Cough Syrup', sku: 'CS', category: 'Syrup', composition: null, type: null, packSize: null, ptsPaise: null, ptrPaise: null, mrpPaise: null, gstPercent: null, hsn: null, division: null, status: 'active' });
     await products.create({ name: 'Old', sku: 'OLD', category: 'Syrup', composition: null, type: null, packSize: null, ptsPaise: null, ptrPaise: null, mrpPaise: null, gstPercent: null, hsn: null, division: null, status: 'inactive' });
     const mine = await doctor('Dr Mine', 'route-1');
-    const theirs = await doctor('Dr Theirs', 'route-2');
     await assign(mine.id, 'mr1');
-    await assign(theirs.id, 'mr2');
     await allocations.issue({ doctorId: mine.id, productId: p1!.id, quantity: 10, by: 'admin' });
-    await allocations.issue({ doctorId: theirs.id, productId: p1!.id, quantity: 99, by: 'admin' });
     const s = await snap('mr1');
     expect(names(s.products)).toEqual(['Cough Syrup']);
-    expect(s.sampleAllocations).toEqual([expect.objectContaining({ doctorId: mine.id, quantityRemaining: 10 })]);
-    await allocations.decrementRemaining(s.sampleAllocations[0]!.id, 4);
-    expect((await snap('mr1')).sampleAllocations[0]!.quantityRemaining).toBe(6); // a balance that changes comes through
+    expect(s.sampleAllocations).toEqual([]); // the key stays so an older build still parses the snapshot
   });
 
   it('gives the phone only what it needs: no assignment history, capture point or approval internals', async () => {

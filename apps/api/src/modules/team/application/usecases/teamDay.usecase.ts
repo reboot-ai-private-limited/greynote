@@ -23,6 +23,9 @@ export interface TeamDoctorLine {
   visitedAt: string | null;
   remarks: string | null;
   geofence: string | null;
+  /** What the call gave: samples with quantities, and LBL by product. */
+  samples: Array<{ productName: string; quantity: number }>;
+  lbl: string[];
 }
 
 export interface TeamDayRow {
@@ -115,7 +118,7 @@ export class TeamDayUseCase {
       const calls = new Map((a?.doctorCalls ?? []).map((c) => [c.doctorId, c]));
       const line = (id: string): TeamDoctorLine => {
         const c = calls.get(id);
-        return { id, name: nameOf(id), visited: Boolean(c), visitedAt: c ? c.recordedAt.toISOString() : null, remarks: c?.remarks ?? null, geofence: c?.geofence ?? null };
+        return { id, name: nameOf(id), visited: Boolean(c), visitedAt: c ? c.recordedAt.toISOString() : null, remarks: c?.remarks ?? null, geofence: c?.geofence ?? null, samples: c?.samples ?? [], lbl: c?.lbl ?? [] };
       };
       const plannedIds = day?.doctorIds ?? [];
       const planned = plannedIds.map(line);

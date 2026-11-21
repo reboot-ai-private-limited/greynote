@@ -1,4 +1,6 @@
+import type { DoctorCall } from '../../domain/call.entity.js';
 import type { DcrRepositoryPort } from '../../domain/dcr.repository.port.js';
+import type { FieldMasterDataPort } from '../../domain/fieldMasterData.port.js';
 import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, FollowupRepositoryPort } from '../../domain/records.repository.port.js';
 import type { DcrStatus } from '../dcrStatus.js';
 import type { DcrViews } from '../dcrViews.js';
@@ -10,7 +12,7 @@ export interface DayActivity {
   date: string;
   /** `null` when nothing was logged and no report exists for the day. */
   reportStatus: DcrStatus | null;
-  doctorCalls: Array<{ doctorId: string; recordedAt: Date; remarks: string | null; geofence: string }>;
+  doctorCalls: Array<{ doctorId: string; recordedAt: Date; remarks: string | null; geofence: string; samples: Array<{ productName: string; quantity: number }>; lbl: string[] }>;
   chemistCalls: Array<{ chemistId: string; recordedAt: Date }>;
   followups: number;
 }
@@ -26,7 +28,21 @@ export class GetDayActivityUseCase {
     private readonly doctorCalls: DoctorCallRepositoryPort,
     private readonly chemistCalls: ChemistCallRepositoryPort,
     private readonly followups: FollowupRepositoryPort,
+    /** Names the products of the samples and LBL a call gave. */
+    private readonly master?: Pick<FieldMasterDataPort, 'getProduct'>,
   ) {}
+
+  private async callView(c: DoctorCall): Promise<DayActivity['doctorCalls'][number]> {
+    const name = async (id: string) => (await this.master?.getProduct(id))?.name ?? 'Product';
+    return {
+      doctorId: c.doctorId,
+      recordedAt: c.recordedAt,
+      remarks: c.remarks,
+      geofence: c.geofence.status,
+      samples: await Promise.all(c.samples.map(async (s) => ({ productName: await name(s.productId), quantity: s.quantity }))),
+      lbl: await Promise.all((c.lbl ?? []).map((l) => name(l.productId))),
+    };
+  }
 
   async execute(userIds: string[], date: string): Promise<DayActivity[]> {
     if (userIds.length === 0) return [];
@@ -41,7 +57,7 @@ export class GetDayActivityUseCase {
           userId,
           date,
           reportStatus: dcr.status,
-          doctorCalls: dc.map((c) => ({ doctorId: c.doctorId, recordedAt: c.recordedAt, remarks: c.remarks, geofence: c.geofence.status })),
+          doctorCalls: await Promise.all(dc.map((c) => this.callView(c))),
           chemistCalls: cc.map((c) => ({ chemistId: c.chemistId, recordedAt: c.recordedAt })),
           followups: fu.length,
         };
@@ -59,7 +75,7 @@ export class GetDayActivityUseCase {
           userId,
           date: dcr.reportDate,
           reportStatus: dcr.status,
-          doctorCalls: dc.map((c) => ({ doctorId: c.doctorId, recordedAt: c.recordedAt, remarks: c.remarks, geofence: c.geofence.status })),
+          doctorCalls: await Promise.all(dc.map((c) => this.callView(c))),
           chemistCalls: cc.map((c) => ({ chemistId: c.chemistId, recordedAt: c.recordedAt })),
           followups: fu.length,
         };

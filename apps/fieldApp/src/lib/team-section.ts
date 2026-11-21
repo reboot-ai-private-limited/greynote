@@ -115,7 +115,7 @@ export const getAllTeamToday = (p: { date?: string; scope?: TeamScopeFilter } = 
 
 /* ── the board for a day, and one person's month ── */
 
-export type DoctorLine = { id: string; name: string; visited: boolean; visitedAt: string | null; remarks: string | null; geofence: string | null };
+export type DoctorLine = { id: string; name: string; visited: boolean; visitedAt: string | null; remarks: string | null; geofence: string | null; /** What the call gave. Absent from older servers. */ samples?: { productName: string; quantity: number }[]; lbl?: string[] };
 export type PlanPerson = { id: string; name: string; designation: string | null; label: string };
 
 /** One person on a day: where they go, which doctors by name and which were called, what else they did, where the report stands. */

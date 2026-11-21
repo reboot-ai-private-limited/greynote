@@ -31,6 +31,8 @@ function Line({ d, mark, tone }: { d: DoctorLine; mark: string; tone: 'primary' 
         {d.visited && (d.visitedAt || d.remarks) ? (
           <ThemedText type="small" themeColor="textSecondary">{[d.visitedAt ? formatWhen(d.visitedAt) : null, d.remarks].filter(Boolean).join(' · ')}</ThemedText>
         ) : null}
+        {d.samples?.length ? <ThemedText type="small" themeColor="textSecondary">{`Sample: ${d.samples.map((s) => `${s.productName} × ${s.quantity}`).join(', ')}`}</ThemedText> : null}
+        {d.lbl?.length ? <ThemedText type="small" themeColor="textSecondary">{`LBL: ${d.lbl.join(', ')}`}</ThemedText> : null}
       </View>
     </View>
   );

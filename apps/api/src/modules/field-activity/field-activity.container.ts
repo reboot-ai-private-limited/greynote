@@ -155,7 +155,7 @@ export function buildFieldActivityContainer(
   const countDoctorCalls = new CountDoctorCallsUseCase(dcrs, approvals, doctorCalls);
   const countDoctorCallsByDay = new CountDoctorCallsByDayUseCase(dcrs, approvals, doctorCalls, config);
   const paidTaDa = new GetPaidTaDaTotalUseCase(expenses, clock);
-  const dayActivity = new GetDayActivityUseCase(dcrs, views, doctorCalls, chemistCalls, followups);
+  const dayActivity = new GetDayActivityUseCase(dcrs, views, doctorCalls, chemistCalls, followups, master);
   const dcrSummary = new GetDcrSummaryUseCase(dcrs, views, doctorCalls, chemistCalls, followups, expenses);
 
   // The day's calls and follow-ups, each checked against Field Master Data and Territory as they are at sync.

@@ -73,6 +73,15 @@ export function registerPushEvents(inbox: InboxPublicContract, config: ConfigRea
     });
   });
 
+  appEvents.on('sample.request.done', async (e) => {
+    const what = e.kind === 'SAMPLE' ? 'samples' : 'LBL';
+    await send(e.userId, `Your ${what} request is done`, `You were credited ${e.lines.map((l) => `${l.productName} × ${l.credited}`).join(', ')}.`, {
+      type: 'SAMPLE_REQUEST_DONE',
+      route: '/sample-requests',
+      recordId: e.requestId,
+    });
+  });
+
   appEvents.on('user.unblocked', async (e) => {
     await send(e.userId, 'You can submit again', 'Your account was unblocked. Send the reports you owe.', { type: 'UNBLOCKED', route: '/dcr' });
   });

@@ -93,7 +93,7 @@ export class TeamMemberDaysUseCase {
       const calls = new Map((a?.doctorCalls ?? []).map((c) => [c.doctorId, c]));
       const line = (id: string): TeamDoctorLine => {
         const c = calls.get(id);
-        return { id, name: names.get(id) ?? 'Doctor', visited: Boolean(c), visitedAt: c ? c.recordedAt.toISOString() : null, remarks: c?.remarks ?? null, geofence: c?.geofence ?? null };
+        return { id, name: names.get(id) ?? 'Doctor', visited: Boolean(c), visitedAt: c ? c.recordedAt.toISOString() : null, remarks: c?.remarks ?? null, geofence: c?.geofence ?? null, samples: c?.samples ?? [], lbl: c?.lbl ?? [] };
       };
       const planned = (p?.doctorIds ?? []).map(line);
       const alsoVisited = [...calls.keys()].filter((id) => !(p?.doctorIds ?? []).includes(id)).map(line);
@@ -153,7 +153,7 @@ export class TeamMemberDaysUseCase {
     const calls = new Map((a?.doctorCalls ?? []).map((c) => [c.doctorId, c]));
     const line = (id: string): TeamDoctorLine => {
       const c = calls.get(id);
-      return { id, name: nameOf(id), visited: Boolean(c), visitedAt: c ? c.recordedAt.toISOString() : null, remarks: c?.remarks ?? null, geofence: c?.geofence ?? null };
+      return { id, name: nameOf(id), visited: Boolean(c), visitedAt: c ? c.recordedAt.toISOString() : null, remarks: c?.remarks ?? null, geofence: c?.geofence ?? null, samples: c?.samples ?? [], lbl: c?.lbl ?? [] };
     };
     const planIds = planOf.get(date)?.doctorIds ?? [];
     let doctorCalls = 0;

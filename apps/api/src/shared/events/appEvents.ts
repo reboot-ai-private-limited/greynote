@@ -31,6 +31,8 @@ export interface AppEvents {
   'monthly.plan.amended': { userId: string; planId: string; planMonth: string; by: string; byName: string; reason: string };
   /** An employee's month was settled downstream — a salary run finalized, or expenses finalized for payout — so late entries for it must stop. */
   'period.settled': { userId: string; month: string; source: 'PAYROLL' | 'EXPENSES' };
+  /** Admin, Accounts or HR marked a sample or LBL request done: the employee is credited. */
+  'sample.request.done': { userId: string; requestId: string; kind: 'SAMPLE' | 'LBL'; lines: Array<{ productName: string; credited: number }> };
   /** A compliance block was cleared. */
   'user.unblocked': { userId: string; by: string };
 }

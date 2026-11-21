@@ -1,4 +1,5 @@
 import { AppError } from '@/shared/errors/AppError.js';
+import { appEvents } from '@/shared/events/appEvents.js';
 import type { FieldMasterDataPort } from '../../domain/fieldMasterData.port.js';
 import { buildBalance, type SampleBalanceRow, type SampleRequest, type SampleRequestKind, type SampleRequestStatus } from '../../domain/sampleRequest.entity.js';
 import type { GivenTotalsPort, SampleRequestRepositoryPort } from '../../domain/sampleRequest.repository.port.js';
@@ -97,7 +98,9 @@ export class MarkSampleRequestDoneUseCase {
     if (credits.some((c) => !lineIds.has(c.productId))) throw AppError.badRequest('That product is not on this request.', { field: 'credits' });
     const done = await this.requests.markDone(id, actor.id, this.now(), credits.map((c) => ({ productId: c.productId, creditedQuantity: c.quantity })));
     if (!done) throw AppError.conflict('This request is already done or cancelled.');
-    return (await toViews(this.master, this.users, [done]))[0]!;
+    const view = (await toViews(this.master, this.users, [done]))[0]!;
+    appEvents.emit('sample.request.done', { userId: done.userId, requestId: done.id, kind: done.kind, lines: view.lines.map((l) => ({ productName: l.productName, credited: l.creditedQuantity ?? l.quantity })) });
+    return view;
   }
 }
 
