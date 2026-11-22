@@ -43,7 +43,7 @@ function figures(row: Pick<SheetRow, 'tgt' | 'sec'>): Pair[] {
 }
 
 const rupees = (paise: number | null) => (paise === null ? 0 : paise / 100);
-/** A product's target and secondary in rupees: units × N.S.R. worked in whole paise, so no stray decimals. A product with no N.S.R. is 0. */
+/** A product's target and secondary in rupees: units × N.S.R. worked in whole paise, so no stray decimals. A product with no N.S.R. is 0. Only the grand total is in rupees. */
 const pricedRow = (row: Pick<SheetRow, 'tgt' | 'sec' | 'nsrPaise'>): Pick<SheetRow, 'tgt' | 'sec'> => ({
   tgt: row.tgt.map((v) => (v * (row.nsrPaise ?? 0)) / 100),
   sec: row.sec.map((v) => (v * (row.nsrPaise ?? 0)) / 100),
@@ -81,7 +81,7 @@ const THIN: Partial<ExcelJS.Borders> = { top: { style: 'thin' }, left: { style: 
 const BLOCK_START: Partial<ExcelJS.Borders> = { ...THIN, left: { style: 'medium' } };
 
 function writePerson(ws: ExcelJS.Worksheet, p: SheetPerson, model: SecondarySheetModel): void {
-  // Targets set in rupees (for all products) have no product: they get a row of their own, priced at ₹1 a unit so it adds up with the others.
+  // Targets set in rupees (for all products) have no product: they get a row of their own, priced at ₹1 a unit (N.S.R. 1) so the grand total counts it with the others.
   const rupeeRow: SheetRow | null = p.rupeeTargetPaise.some((v) => v !== 0)
     ? { productId: RUPEE_ROW, name: 'TARGET SET IN ₹ (not by product)', sku: '', nsrPaise: 100, tgt: p.rupeeTargetPaise.map((v) => v / 100), sec: p.rupeeTargetPaise.map(() => 0), prevSec: null }
     : null;
@@ -110,8 +110,8 @@ function writePerson(ws: ExcelJS.Worksheet, p: SheetPerson, model: SecondaryShee
   head(1, 'SL.NO.');
   head(2, 'PRODUCT');
   head(3, 'N.S.R.');
-  head(4, `TGT (₹) ${range(model)}`);
-  head(5, `ACH (₹) ${range(model)}`);
+  head(4, `TGT (units) ${range(model)}`);
+  head(5, `ACH (units) ${range(model)}`);
   head(6, '% ACH');
   head(8, '% GR.');
   BLOCKS.forEach((b, n) => {
@@ -121,8 +121,8 @@ function writePerson(ws: ExcelJS.Worksheet, p: SheetPerson, model: SecondaryShee
     title.font = { bold: true, size: 11, ...(colourOf(b) ? { color: { argb: colourOf(b)! } } : {}) };
     title.alignment = { horizontal: 'center' };
     ws.mergeCells(4, col, 4, col + 2);
-    head(col, 'TGT (₹)');
-    head(col + 1, 'SEC (₹)');
+    head(col, 'TGT (units)');
+    head(col + 1, 'SEC (units)');
     head(col + 2, '% ACH');
     for (const c of [col, col + 1, col + 2]) if (colourOf(b)) ws.getCell(HEAD_ROW, c).font = { bold: true, color: { argb: colourOf(b)! } };
   });
@@ -130,13 +130,11 @@ function writePerson(ws: ExcelJS.Worksheet, p: SheetPerson, model: SecondaryShee
   // Products.
   rows.forEach((row, k) => {
     const r = FIRST_ROW + k;
-    // Every figure is in rupees: units × the product's N.S.R. (PTS); a product with no N.S.R. has no amount, so it shows 0 (decision-log 2026-11-19).
-    const nsr = rupees(row.nsrPaise);
-    const priced = pricedRow(row);
-    const fig = figures(priced);
+    // The product's figures are units, as the MR entered them; only the grand total is in rupees (units × N.S.R., decision-log 2026-11-22).
+    const fig = figures(row);
     ws.getCell(r, 1).value = k + 1;
     ws.getCell(r, 2).value = row.name;
-    ws.getCell(r, 3).value = row.nsrPaise === null || row.productId === RUPEE_ROW ? null : rupees(row.nsrPaise);
+    ws.getCell(r, 3).value = row.nsrPaise === null ? null : rupees(row.nsrPaise);
     ws.getCell(r, 3).numFmt = '#,##0.00';
     BLOCKS.forEach((b, n) => {
       const col = blockCol(n);
@@ -167,9 +165,9 @@ function writePerson(ws: ExcelJS.Worksheet, p: SheetPerson, model: SecondaryShee
     ws.getCell(r, 6).value = { formula: `IF(D${r}=0,0,E${r}/D${r}*100)`, result: pct(year.sec, year.tgt) };
     ws.getCell(r, 6).numFmt = '0.0';
     // Growth on the same year before: blank when there was nothing then.
-    const prevAmount = row.prevSec === null ? 0 : row.prevSec * nsr;
-    if (prevAmount > 0) {
-      ws.getCell(r, 8).value = { formula: `(E${r}/${prevAmount}-1)*100`, result: (year.sec / prevAmount - 1) * 100 };
+    const prevUnits = row.prevSec ?? 0;
+    if (prevUnits > 0) {
+      ws.getCell(r, 8).value = { formula: `(E${r}/${prevUnits}-1)*100`, result: (year.sec / prevUnits - 1) * 100 };
       ws.getCell(r, 8).numFmt = '0.0';
     }
 
@@ -191,9 +189,13 @@ function writePerson(ws: ExcelJS.Worksheet, p: SheetPerson, model: SecondaryShee
     ws.getCell(r, 5).fill = YELLOW;
     ws.getCell(r, 6).font = font(BLUE, false);
     for (const c of [1, 2, 3, 4, 5, 6]) ws.getCell(r, c).border = THIN;
+    // The row of targets set in rupees is the one row in rupees: say so with the format.
+    if (row.productId === RUPEE_ROW) {
+      for (const c of [4, 5, ...BLOCKS.flatMap((_, n) => [blockCol(n), blockCol(n) + 1])]) ws.getCell(r, c).numFmt = '"₹"#,##0';
+    }
   });
 
-  // Grand total, in rupees lakh: the product rows are already in rupees, so it is their sum / 1,00,000.
+  // Grand total, in rupees lakh: the rows above are units, so each total is the sum of units × N.S.R. / 1,00,000 (a product with no N.S.R. adds nothing).
   ws.getCell(totalRow, 2).value = 'GRAND TOTAL (₹ lakh)';
   const lakh = (pick: (f: Pair) => number): number[] =>
     BLOCKS.map((_, n) => rows.reduce((acc, row) => acc + pick(figures(pricedRow(row))[n]!), 0) / 100_000);
@@ -201,7 +203,8 @@ function writePerson(ws: ExcelJS.Worksheet, p: SheetPerson, model: SecondaryShee
   const secLakh = lakh((f) => f.sec);
   const sumLakh = (col: number, v: number) => {
     const c = ws.getCell(totalRow, col);
-    c.value = rows.length ? { formula: `SUM(${colName(col)}${FIRST_ROW}:${colName(col)}${last})/100000`, result: v } : 0;
+    const units = `${colName(col)}${FIRST_ROW}:${colName(col)}${last}`;
+    c.value = rows.length ? { formula: `SUMPRODUCT(${units},$C$${FIRST_ROW}:$C$${last})/100000`, result: v } : 0;
     c.numFmt = '0.00';
   };
   BLOCKS.forEach((_, n) => {
@@ -223,7 +226,7 @@ function writePerson(ws: ExcelJS.Worksheet, p: SheetPerson, model: SecondaryShee
     cell.fill = TOTAL_FILL;
   }
 
-  ws.getCell(totalRow + 2, 1).value = 'All figures are in rupees: units × N.S.R. (the product\'s PTS). TGT = the target, spread evenly over the months it covers. SEC = secondary the MR sent and the manager approved; a month not approved shows 0. % GR. = this year\'s secondary against the year before, both at the same N.S.R. A product with no N.S.R. shows 0 (it cannot be priced). A target set in rupees for all products is in its own row.';
+  ws.getCell(totalRow + 2, 1).value = 'TGT and SEC are in units. TGT = the target, spread evenly over the months it covers. SEC = secondary the MR sent and the manager approved; a month not approved shows 0. % GR. = this year\'s secondary units against the year before. The GRAND TOTAL row is in rupees lakh: units × N.S.R. (the product\'s PTS) added up; a product with no N.S.R. cannot be priced and adds nothing to it. A target set in rupees for all products is in its own row, in rupees (N.S.R. 1).';
   ws.getCell(totalRow + 2, 1).font = { italic: true, color: { argb: 'FF666666' } };
 
   ws.getColumn(1).width = 7;

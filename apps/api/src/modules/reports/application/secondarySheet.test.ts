@@ -116,7 +116,8 @@ describe('targets set in rupees', () => {
     await wb.xlsx.load((await buildSecondarySheetWorkbook(model)) as never);
     const ws = wb.getWorksheet('Ravi')!;
     expect(ws.getCell('B7').value).toBe('TARGET SET IN ₹ (not by product)');
-    expect(ws.getCell('C7').value).toBeNull();
+    expect(ws.getCell('C7').value).toBe(1); // N.S.R. 1: the grand total counts it as rupees
+    expect(ws.getCell('J7').numFmt).toBe('"₹"#,##0'); // the one row in rupees
     // 1,20,000 a year of this target in rupees: 10,000 a month. J = April's TGT.
     expect(ws.getCell('J7').value).toBe(10_000);
     expect(ws.getCell('K7').value).toBe(0);
@@ -148,19 +149,21 @@ describe('the workbook', () => {
     expect(ws.getCell('CD4').value).toBe('ANNUAL 2026 - 27');
     expect(ws.getCell('B6').value).toBe('NEEDPRO BN');
     expect(ws.getCell('C6').value).toBe(500);
-    // Every figure is in rupees (units x N.S.R. 500). April: target 30 units = 15,000, secondary 50 units = 25,000; the first quarter adds April to June.
-    expect(ws.getCell('J6').value).toBe(15_000);
-    expect(ws.getCell('K6').value).toBe(25_000);
+    // The product's figures are units, as entered: April target 30, secondary 50; the first quarter adds April to June.
+    expect(ws.getCell('J5').value).toBe('TGT (units)');
+    expect(ws.getCell('J6').value).toBe(30);
+    expect(ws.getCell('K6').value).toBe(50);
     // The % ACH sits right beside its own SEC; the spare column after it separates it from the next month.
     expect(ws.getCell('L5').value).toBe('% ACH');
     expect((ws.getCell('L6').value as { result: number }).result).toBeCloseTo(166.67, 1);
     expect(ws.getCell('M6').value).toBeNull();
-    expect(ws.getCell('V6').value).toMatchObject({ result: 45_000 });
-    expect(ws.getCell('W6').value).toMatchObject({ result: 45_000 });
-    expect(ws.getCell('E6').value).toMatchObject({ result: 45_000 });
-    // The year before gave 60 units (30,000 at the same N.S.R.), so growth is (45,000 / 30,000 - 1) x 100 = 50 %.
+    expect(ws.getCell('V6').value).toMatchObject({ result: 90 });
+    expect(ws.getCell('W6').value).toMatchObject({ result: 90 });
+    expect(ws.getCell('E6').value).toMatchObject({ result: 90 });
+    // The year before gave 60 units, so growth is (90 / 60 - 1) x 100 = 50 %.
     expect((ws.getCell('H6').value as { result: number }).result).toBeCloseTo(50, 5);
-    // Grand total in rupees lakh: 90 units x Rs 500 / 1,00,000 = 0.45.
+    // The grand total alone is in rupees lakh: 90 units x Rs 500 / 1,00,000 = 0.45, added up with SUMPRODUCT over the units and the N.S.R. column.
+    expect((ws.getCell('E7').value as { formula: string }).formula).toBe('SUMPRODUCT(E6:E6,$C$6:$C$6)/100000');
     expect(ws.getCell('B7').value).toBe('GRAND TOTAL (₹ lakh)');
     expect((ws.getCell('E7').value as { result: number }).result).toBeCloseTo(0.45, 6);
     expect(colName(85)).toBe('CG');
@@ -173,8 +176,11 @@ describe('the workbook', () => {
     const ws = wb.getWorksheet('Anita')!;
     expect(ws.getCell('A2').value).toBe('NAME OF THE MANAGER:');
     expect(ws.getCell('C3').value).toBe(2);
-    // In rupees: NEEDPRO BN 100 units x 500 = 50,000. ALBU has no N.S.R., so it cannot be priced and shows 0.
+    // In units: NEEDPRO BN 100. ALBU has no N.S.R., so its units show but it cannot be priced into the grand total.
     const cell = (r: number) => ((ws.getCell(`E${r}`).value as { result?: number } | null)?.result ?? 0);
-    expect([6, 7].map((r) => [ws.getCell(`B${r}`).value, cell(r)])).toEqual([['ALBU', 0], ['NEEDPRO BN', 50_000]]);
+    expect([6, 7].map((r) => [ws.getCell(`B${r}`).value, cell(r)])).toEqual([['ALBU', 7], ['NEEDPRO BN', 100]]);
+    // The grand total (row 8) is 100 units x 500 = 0.5 lakh: ALBU's 7 units add nothing because it has no price.
+    expect((ws.getCell('E8').value as { result: number }).result).toBeCloseTo(0.5, 6);
+    expect((ws.getCell('E8').value as { formula: string }).formula).toBe('SUMPRODUCT(E6:E7,$C$6:$C$7)/100000');
   });
 });
