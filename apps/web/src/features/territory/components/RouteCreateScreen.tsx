@@ -17,6 +17,7 @@ import { useCreateRoute } from '../hooks/useRouteMutations';
 import { useStationThresholds } from '../hooks/useStationThresholds';
 import { AUTO_ROUTE_TYPE, ROUTE_TYPE_LABEL, autoTypeLabel } from '../lib/draft';
 import { buildRoute, suggestedType } from '../lib/routeDraft';
+import { RoutePayPreview } from './RoutePayPreview';
 
 /** HQ → destination → km → type (Automatic by default, changeable) → save. The route is named "<HQ> to <destination>". */
 export function RouteCreateScreen() {
@@ -33,11 +34,20 @@ export function RouteCreateScreen() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const create = useCreateRoute((route) => router.push(`/routes/${route.id}`));
 
-  const options = useMemo(() => (hqs.data?.items ?? []).map((h) => ({ value: h.id, label: h.name })), [hqs.data]);
+  const options = useMemo(
+    () => (hqs.data?.items ?? []).map((h) => ({ value: h.id, label: h.name })),
+    [hqs.data],
+  );
   const hq = hqs.data?.items.find((h) => h.id === hqId);
   const suggestion = suggestedType(distanceKm, thresholds);
-  const typeOptions = [{ value: AUTO_ROUTE_TYPE, label: autoTypeLabel(suggestion) }, ...ROUTE_TYPES.map((t) => ({ value: t, label: ROUTE_TYPE_LABEL[t] }))];
-  const routeName = hq && destinationName.trim() ? `${hq.name} to ${destinationName.trim().replace(/\s+/g, ' ')}` : null;
+  const typeOptions = [
+    { value: AUTO_ROUTE_TYPE, label: autoTypeLabel(suggestion) },
+    ...ROUTE_TYPES.map((t) => ({ value: t, label: ROUTE_TYPE_LABEL[t] })),
+  ];
+  const routeName =
+    hq && destinationName.trim()
+      ? `${hq.name} to ${destinationName.trim().replace(/\s+/g, ' ')}`
+      : null;
 
   function submit() {
     const built = buildRoute({ hqId, destinationName, distanceKm, type, rate });
@@ -53,8 +63,27 @@ export function RouteCreateScreen() {
           ← Routes
         </Link>
       </p>
-      <PageHeader title="New route" description="Choose the HQ, name the destination and enter the distance in km." />
+      <PageHeader
+        title="New route"
+        description="Choose the HQ, name the destination and enter the distance in km."
+        actions={
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => router.push('/routes')}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="route-form"
+              disabled={readOnly || create.isPending}
+              title={readOnly ? 'A past financial year is read-only' : undefined}
+            >
+              {create.isPending ? 'Saving…' : 'Save route'}
+            </Button>
+          </div>
+        }
+      />
       <form
+        id="route-form"
         noValidate
         onSubmit={(e) => {
           e.preventDefault();
@@ -62,7 +91,14 @@ export function RouteCreateScreen() {
         }}
         className="space-y-6"
       >
-        <Card title="Details" description={routeName ? `The route will be named “${routeName}”.` : 'The route is named “HQ to destination”.'}>
+        <Card
+          title="Details"
+          description={
+            routeName
+              ? `The route will be named “${routeName}”.`
+              : 'The route is named “HQ to destination”.'
+          }
+        >
           <div className="grid gap-5 p-5 sm:grid-cols-2">
             <FormField label="HQ" htmlFor="new-hq" error={errors['hqId']}>
               <SearchableSelect
@@ -75,7 +111,12 @@ export function RouteCreateScreen() {
                 aria-invalid={errors['hqId'] ? true : undefined}
               />
             </FormField>
-            <FormField label="Destination" htmlFor="new-destination" error={errors['destinationName']} hint="The place the MR travels to, e.g. Naxalbari.">
+            <FormField
+              label="Destination"
+              htmlFor="new-destination"
+              error={errors['destinationName']}
+              hint="The place the MR travels to, e.g. Naxalbari."
+            >
               <Input
                 id="new-destination"
                 value={destinationName}
@@ -83,26 +124,52 @@ export function RouteCreateScreen() {
                 aria-invalid={errors['destinationName'] ? true : undefined}
               />
             </FormField>
-            <FormField label="Distance (km)" htmlFor="new-km" error={errors['distanceKm']} hint="One way, by road. TA is paid on exactly this number.">
-              <Input id="new-km" inputMode="decimal" value={distanceKm} onChange={(e) => setDistanceKm(e.target.value)} aria-invalid={errors['distanceKm'] ? true : undefined} />
+            <FormField
+              label="Distance (km)"
+              htmlFor="new-km"
+              error={errors['distanceKm']}
+              hint="One way, by road, never doubled. TA is paid on exactly this number; see what it pays below."
+            >
+              <Input
+                id="new-km"
+                inputMode="decimal"
+                value={distanceKm}
+                onChange={(e) => setDistanceKm(e.target.value)}
+                aria-invalid={errors['distanceKm'] ? true : undefined}
+              />
             </FormField>
-            <FormField label="Type" htmlFor="new-type" error={errors['type']} hint="Sets which DA rate a day on this route earns. Automatic follows the km; you can choose another type and will only be warned.">
-              <Select id="new-type" value={type} onValueChange={setType} options={typeOptions} aria-invalid={errors['type'] ? true : undefined} />
+            <FormField
+              label="Type"
+              htmlFor="new-type"
+              error={errors['type']}
+              hint="Sets which DA rate a day on this route earns. Automatic follows the km; you can choose another type and will only be warned."
+            >
+              <Select
+                id="new-type"
+                value={type}
+                onValueChange={setType}
+                options={typeOptions}
+                aria-invalid={errors['type'] ? true : undefined}
+              />
             </FormField>
-            <FormField label="TA rate override (₹ per km)" htmlFor="new-rate" error={errors['rate']} hint="Optional. Empty uses the pay band rate.">
-              <Input id="new-rate" inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} aria-invalid={errors['rate'] ? true : undefined} />
+            <FormField
+              label="TA rate override (₹ per km)"
+              htmlFor="new-rate"
+              error={errors['rate']}
+              hint="Optional. Replaces the pay grade rate for every grade on this route. Empty uses each grade's own rate."
+            >
+              <Input
+                id="new-rate"
+                inputMode="decimal"
+                value={rate}
+                onChange={(e) => setRate(e.target.value)}
+                aria-invalid={errors['rate'] ? true : undefined}
+              />
             </FormField>
           </div>
         </Card>
 
-        <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={() => router.push('/routes')}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={readOnly || create.isPending} title={readOnly ? 'A past financial year is read-only' : undefined}>
-            {create.isPending ? 'Saving…' : 'Save route'}
-          </Button>
-        </div>
+        <RoutePayPreview distanceKm={distanceKm} type={type} rate={rate} />
       </form>
     </>
   );

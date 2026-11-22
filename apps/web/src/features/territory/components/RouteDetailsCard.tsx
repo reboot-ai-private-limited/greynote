@@ -15,6 +15,7 @@ import { changedRouteFields, suggestedType } from '../lib/routeDraft';
 import { StatusToggleDialog } from '@/components/ui/StatusToggleDialog';
 import { useRouter } from 'next/navigation';
 import { DeleteTerritoryDialog } from './DeleteTerritoryDialog';
+import { RoutePayPreview } from './RoutePayPreview';
 
 /** Destination, km, type, TA rate override and status. The HQ is read-only: a route cannot be re-parented. */
 export function RouteDetailsCard({
@@ -60,122 +61,130 @@ export function RouteDetailsCard({
   }
 
   return (
-    <Card
-      title="Details"
-      actions={
-        <div className="flex gap-2">
-          <Button
-            variant={route.status === 'active' ? 'secondary' : 'primary'}
-            size="sm"
-            disabled={readOnly}
-            onClick={() => setToggling(true)}
-          >
-            {route.status === 'active' ? 'Deactivate' : 'Reactivate'}
-          </Button>
-          <Button variant="danger" size="sm" disabled={readOnly} onClick={() => setDeleting(true)}>
-            Delete…
-          </Button>
-        </div>
-      }
-    >
-      <form
-        noValidate
-        className="grid gap-5 p-5 sm:grid-cols-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          save();
-        }}
+    <div className="space-y-6">
+      <Card
+        title="Details"
+        actions={
+          <div className="flex gap-2">
+            <Button
+              variant={route.status === 'active' ? 'secondary' : 'primary'}
+              size="sm"
+              disabled={readOnly}
+              onClick={() => setToggling(true)}
+            >
+              {route.status === 'active' ? 'Deactivate' : 'Reactivate'}
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              disabled={readOnly}
+              onClick={() => setDeleting(true)}
+            >
+              Delete…
+            </Button>
+          </div>
+        }
       >
-        <FormField
-          label="Destination"
-          htmlFor="route-destination"
-          error={errors['destinationName']}
-          hint="The route is named “HQ to destination”, so changing this renames it."
+        <form
+          noValidate
+          className="grid gap-5 p-5 sm:grid-cols-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            save();
+          }}
         >
-          <Input
-            id="route-destination"
-            value={destinationName}
-            onChange={(e) => setDestinationName(e.target.value)}
-            disabled={readOnly}
-            aria-invalid={errors['destinationName'] ? true : undefined}
-          />
-        </FormField>
-        <FormField
-          label="Distance (km)"
-          htmlFor="route-km"
-          error={errors['distanceKm']}
-          hint={
-            route.distanceKm === null
-              ? 'No distance yet — TA for a day on this route is flagged until you enter it.'
-              : 'One way, by road. TA is paid on exactly this number.'
-          }
-        >
-          <Input
-            id="route-km"
-            inputMode="decimal"
-            value={distanceKm}
-            onChange={(e) => setDistanceKm(e.target.value)}
-            disabled={readOnly}
-            aria-invalid={errors['distanceKm'] ? true : undefined}
-          />
-        </FormField>
-        <FormField
-          label="TA rate override (₹ per km)"
-          htmlFor="route-rate"
-          error={errors['rate']}
-          hint="Leave empty to use the employee's pay band rate."
-        >
-          <Input
-            id="route-rate"
-            inputMode="decimal"
-            value={rate}
-            onChange={(e) => setRate(e.target.value)}
-            disabled={readOnly}
-            aria-invalid={errors['rate'] ? true : undefined}
-          />
-        </FormField>
-        <FormField
-          label="Type"
-          htmlFor="route-type"
-          hint="Sets which DA rate a day on this route earns. Automatic follows the km. A change affects DA from now on, not days already approved."
-        >
-          <Select
-            id="route-type"
-            value={type}
-            onValueChange={setType}
-            options={typeOptions}
-            disabled={readOnly}
-          />
-          {route.typeWarning ? (
-            <p role="status" className="text-[13px] text-warning-fg">
-              {route.typeWarning}
-            </p>
-          ) : null}
-        </FormField>
-        <div className="space-y-1.5">
-          <p className="text-sm font-medium text-text">HQ</p>
-          <p className="text-sm text-text-muted">{hqLabel}</p>
-          <p className="text-[13px] text-text-subtle">A route cannot move to another HQ.</p>
-        </div>
-        <div className="flex items-end justify-end">
-          <Button type="submit" disabled={readOnly || unchanged || update.isPending}>
-            {update.isPending ? 'Saving…' : 'Save details'}
-          </Button>
-        </div>
-      </form>
-      <DeleteTerritoryDialog
-        segment="routes"
-        item={deleting ? { id: route.id, name: route.name } : null}
-        onClose={() => setDeleting(false)}
-        onDeleted={() => router.push('/routes')}
-      />
-      <StatusToggleDialog
-        item={toggling ? { id: route.id, name: route.name, status: route.status } : null}
-        noun="route"
-        pending={update.isPending}
-        onClose={() => setToggling(false)}
-        onConfirm={(status) => update.mutate({ status })}
-      />
-    </Card>
+          <FormField
+            label="Destination"
+            htmlFor="route-destination"
+            error={errors['destinationName']}
+            hint="The route is named “HQ to destination”, so changing this renames it."
+          >
+            <Input
+              id="route-destination"
+              value={destinationName}
+              onChange={(e) => setDestinationName(e.target.value)}
+              disabled={readOnly}
+              aria-invalid={errors['destinationName'] ? true : undefined}
+            />
+          </FormField>
+          <FormField
+            label="Distance (km)"
+            htmlFor="route-km"
+            error={errors['distanceKm']}
+            hint={
+              route.distanceKm === null
+                ? 'No distance yet — TA for a day on this route is flagged until you enter it.'
+                : 'One way, by road, never doubled. TA is paid on exactly this number; see what it pays below.'
+            }
+          >
+            <Input
+              id="route-km"
+              inputMode="decimal"
+              value={distanceKm}
+              onChange={(e) => setDistanceKm(e.target.value)}
+              disabled={readOnly}
+              aria-invalid={errors['distanceKm'] ? true : undefined}
+            />
+          </FormField>
+          <FormField
+            label="TA rate override (₹ per km)"
+            htmlFor="route-rate"
+            error={errors['rate']}
+            hint="Replaces the pay grade rate for every grade on this route. Leave empty to use each grade's own rate."
+          >
+            <Input
+              id="route-rate"
+              inputMode="decimal"
+              value={rate}
+              onChange={(e) => setRate(e.target.value)}
+              disabled={readOnly}
+              aria-invalid={errors['rate'] ? true : undefined}
+            />
+          </FormField>
+          <FormField
+            label="Type"
+            htmlFor="route-type"
+            hint="Sets which DA rate a day on this route earns. Automatic follows the km. A change affects DA from now on, not days already approved."
+          >
+            <Select
+              id="route-type"
+              value={type}
+              onValueChange={setType}
+              options={typeOptions}
+              disabled={readOnly}
+            />
+            {route.typeWarning ? (
+              <p role="status" className="text-[13px] text-warning-fg">
+                {route.typeWarning}
+              </p>
+            ) : null}
+          </FormField>
+          <div className="space-y-1.5">
+            <p className="text-sm font-medium text-text">HQ</p>
+            <p className="text-sm text-text-muted">{hqLabel}</p>
+            <p className="text-[13px] text-text-subtle">A route cannot move to another HQ.</p>
+          </div>
+          <div className="flex items-end justify-end">
+            <Button type="submit" disabled={readOnly || unchanged || update.isPending}>
+              {update.isPending ? 'Saving…' : 'Save details'}
+            </Button>
+          </div>
+        </form>
+        <DeleteTerritoryDialog
+          segment="routes"
+          item={deleting ? { id: route.id, name: route.name } : null}
+          onClose={() => setDeleting(false)}
+          onDeleted={() => router.push('/routes')}
+        />
+        <StatusToggleDialog
+          item={toggling ? { id: route.id, name: route.name, status: route.status } : null}
+          noun="route"
+          pending={update.isPending}
+          onClose={() => setToggling(false)}
+          onConfirm={(status) => update.mutate({ status })}
+        />
+      </Card>
+      <RoutePayPreview distanceKm={distanceKm} type={type} rate={rate} />
+    </div>
   );
 }
