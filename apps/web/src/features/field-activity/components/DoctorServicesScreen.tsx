@@ -13,8 +13,9 @@ import { Input } from '@/components/ui/Input';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Select } from '@/components/ui/Select';
 import { TopProgressBar } from '@/components/ui/TopProgressBar';
+import { useDesignations } from '@/features/people/hooks/useMasterData';
 import { DoctorPickerField } from '@/features/field-master-data/components/DoctorPickerField';
-import { serviceOriginLabel, serviceTypeLabel } from '@/features/approvals/lib/previews';
+import { serviceTypeLabel } from '@/features/approvals/lib/previews';
 import { toErrorState } from '@/lib/api/toErrorState';
 import { formatDate, formatMoney } from '@/lib/format';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
@@ -24,6 +25,7 @@ import { downloadBlob } from '@/lib/download';
 import { fieldActivityApi } from '@/lib/api/endpoints/fieldActivity';
 import { useCreateDoctorService, useDoctorServices, useMarkServiceDone } from '../hooks/useDoctorSpend';
 import { buildService, EMPTY_SERVICE, type ServiceDraft } from '../lib/doctorSpend';
+import { madeByLabel, ServiceDetailDialog, serviceStatusText } from './ServiceDetailDialog';
 import { totalServices, type DoctorTotalsRow } from '../lib/serviceTotals';
 
 const TYPE_OPTIONS = DOCTOR_SERVICE_TYPES.map((t) => ({ value: t, label: serviceTypeLabel(t) }));
@@ -103,6 +105,9 @@ export function DoctorServicesScreen() {
   const { user: me } = useSession();
   const isAdmin = me?.role === 'ADMIN';
   const markDone = useMarkServiceDone();
+  const [viewing, setViewing] = useState<DoctorServiceDto | null>(null);
+  const designations = useDesignations();
+  const designationName = (id: string | null) => (id ? ((designations.data ?? []).find((d) => d.id === id)?.name ?? '') : '');
   // Requests, or one row per doctor with totals (decision-log 2026-11-19).
   const [view, setView] = useState<'requests' | 'doctors'>('requests');
   const money = totalServices(rows);
@@ -135,7 +140,7 @@ export function DoctorServicesScreen() {
     },
     { key: 'type', header: 'Service', render: (s) => serviceTypeLabel(s.serviceType) },
     { key: 'amount', header: 'Amount', numeric: true, render: (s) => formatMoney(s.amountPaise) },
-    { key: 'origin', header: 'Made by', render: (s) => serviceOriginLabel(s.origin) },
+    { key: 'origin', header: 'Made by', render: (s) => madeByLabel(s, designationName) },
     {
       key: 'status',
       header: 'Status',
@@ -144,23 +149,29 @@ export function DoctorServicesScreen() {
           <Badge tone="success">Done</Badge>
         ) : (
           <Badge tone={s.status === 'APPROVED' ? 'accent' : s.status === 'REJECTED' ? 'danger' : 'warning'}>
-            {s.status === 'APPROVED' ? 'Approved, to do' : s.status.replace(/_/g, ' ').toLowerCase()}
+            {serviceStatusText(s)}
           </Badge>
         )
       ),
     },
-    { key: 'remarks', header: 'Remarks', render: (s) => s.remarks ?? '—' },
+    { key: 'remarks', header: 'Remarks', render: (s) => <span className="block max-w-xs truncate" title={s.remarks ?? undefined}>{s.remarks ?? '—'}</span> },
     { key: 'date', header: 'Date', render: (s) => formatDate(s.createdAt) },
     {
       key: 'actions',
       header: '',
       className: 'text-right',
-      render: (s) =>
-        isAdmin && s.awaitingDone ? (
-          <Button size="sm" disabled={readOnly || markDone.isPending} onClick={() => markDone.mutate(s.id)}>
-            Mark done
+      render: (s) => (
+        <div className="flex justify-end gap-2">
+          <Button size="sm" variant="secondary" onClick={() => setViewing(s)}>
+            View
           </Button>
-        ) : null,
+          {isAdmin && s.awaitingDone ? (
+            <Button size="sm" disabled={readOnly || markDone.isPending} onClick={() => markDone.mutate(s.id)}>
+              Mark done
+            </Button>
+          ) : null}
+        </div>
+      ),
     },
   ];
 
@@ -215,9 +226,19 @@ export function DoctorServicesScreen() {
             description: 'Services appear here when an MR asks for one, or when you record one.',
           }}
         >
-          {view === 'doctors' ? <DataTable columns={doctorColumns} rows={money.doctors} rowKey={(d) => d.doctorId} /> : <DataTable columns={columns} rows={rows} rowKey={(s) => s.id} />}
+          {view === 'doctors' ? <DataTable columns={doctorColumns} rows={money.doctors} rowKey={(d) => d.doctorId} /> : <DataTable columns={columns} rows={rows} rowKey={(s) => s.id} onRowClick={setViewing} />}
         </DataState>
       </Card>
+      {viewing ? (
+        <ServiceDetailDialog
+          service={viewing}
+          madeBy={madeByLabel(viewing, designationName)}
+          canMarkDone={isAdmin && viewing.awaitingDone && !readOnly}
+          marking={markDone.isPending}
+          onMarkDone={() => markDone.mutate(viewing.id, { onSuccess: () => setViewing(null) })}
+          onClose={() => setViewing(null)}
+        />
+      ) : null}
       {creating ? <ServiceDialog onClose={() => setCreating(false)} /> : null}
     </>
   );

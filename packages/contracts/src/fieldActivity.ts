@@ -155,6 +155,8 @@ export interface DoctorServiceDto {
   userId: string;
   createdBy: string;
   origin: 'MR' | 'ADMIN';
+  /** Who made it (the MR who asked, or the Admin who recorded it). Absent from older servers. */
+  madeBy?: { name: string; employeeCode: string; designationId: string | null };
   serviceType: DoctorServiceType;
   amountPaise: number;
   remarks: string | null;
@@ -245,6 +247,8 @@ export interface DoctorGiftDto {
   origin?: 'ADMIN' | 'EMPLOYEE';
   requestedBy?: string | null;
   requestedByName?: string;
+  /** Who made it: the employee who asked, or the Admin who allocated it. Absent from older servers. */
+  madeBy?: { name: string; employeeCode: string; designationId: string | null };
   requestNote?: string | null;
   rejectReason?: string | null;
   completedBy: string | null;

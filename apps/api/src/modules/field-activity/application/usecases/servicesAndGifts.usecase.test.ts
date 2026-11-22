@@ -77,6 +77,17 @@ describe('Doctor Services', () => {
   });
 });
 
+describe('Doctor Service made-by', () => {
+  it('names who made each service, the MR or the Admin, with their code', async () => {
+    const kit = faKit();
+    await kit.submitService.execute(REC, svc, new Tx());
+    await kit.adminService.execute('admin', svc);
+    const list = new ListDoctorServicesUseCase(kit.services, kit.approvals, kit.fmd, kit.users);
+    const rows = await list.execute({ id: 'admin', role: 'ADMIN' }, {});
+    expect(rows.map((s) => [s.origin, s.madeBy?.name, s.madeBy?.employeeCode])).toEqual([['MR', 'mr1', 'MR1'], ['ADMIN', 'admin', 'ADMIN']]);
+  });
+});
+
 describe('Doctor Service by id', () => {
   let kit: ReturnType<typeof faKit>;
   beforeEach(() => {

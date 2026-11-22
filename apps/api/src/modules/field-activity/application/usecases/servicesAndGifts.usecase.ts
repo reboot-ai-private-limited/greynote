@@ -9,7 +9,7 @@ import { LOG_CODES, LogRefusal } from '../../domain/logRefusal.js';
 import type { DoctorGiftRepositoryPort, DoctorServiceRepositoryPort } from '../../domain/records.repository.port.js';
 import type { DoctorGift, DoctorService, DoctorServiceType } from '../../domain/serviceGift.entity.js';
 import { summariseServices, type ServiceSummary } from '../../domain/serviceSummary.js';
-import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
+import type { DirectoryUser, UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { CallChecks } from '../callChecks.js';
 import type { RecordContext } from './logCalls.usecase.js';
 import type { Actor } from './readDcrs.usecase.js';
@@ -72,6 +72,8 @@ export interface DoctorServiceView extends DoctorService {
   doctorName: string;
   /** Who the service is tied to (the requester), named — for a manager reading the team's list. */
   userName?: string;
+  /** Who made it (the MR who asked, or the Admin who recorded it): name, employee code and designation id. */
+  madeBy?: { name: string; employeeCode: string; designationId: string | null };
   /** `APPROVED` for an Admin-made one; otherwise its request's status. */
   status: string;
   approval: { requestId: string; cycle: number } | null;
@@ -89,6 +91,16 @@ async function toServiceView(approvals: ApprovalsPort, master: FieldMasterDataPo
     approval: request && { requestId: request.id, cycle: request.cycle },
     awaitingDone: status === 'APPROVED' && !s.doneAt,
   };
+}
+
+/** Names who made each service (batched). Unknown people are left out; no directory means no change. */
+async function withMadeBy(views: DoctorServiceView[], users?: UserDirectoryPort): Promise<DoctorServiceView[]> {
+  if (!users || views.length === 0) return views;
+  const people = new Map((await users.getUserSummaries([...new Set(views.map((v) => v.createdBy))])).map((u) => [u.id, u]));
+  return views.map((v) => {
+    const u = people.get(v.createdBy);
+    return u ? { ...v, madeBy: { name: u.name, employeeCode: u.employeeCode, designationId: u.designationId ?? null } } : v;
+  });
 }
 
 /**
@@ -113,7 +125,7 @@ export class ListDoctorServicesUseCase {
     }
     const scope = admin ? { ...(filter.userId && { userId: filter.userId }), ...doctor } : team ? { userIds: team, ...doctor } : { userId: actor.id, ...doctor };
     const rows = await this.services.list(scope, limit);
-    const views = await Promise.all(rows.map((s) => toServiceView(this.approvals, this.master, s)));
+    const views = await withMadeBy(await Promise.all(rows.map((s) => toServiceView(this.approvals, this.master, s))), this.users);
     if (!team || !this.users) return views;
     const names = new Map((await this.users.getUserSummaries([...new Set(rows.map((r) => r.userId))])).map((u) => [u.id, u.name]));
     return views.map((v) => ({ ...v, userName: names.get(v.userId) ?? '' }));
@@ -167,7 +179,7 @@ export class GetDoctorServiceUseCase {
     // A manager above the MR the service is tied to reads it too (it is in their Approvals, and on their Services page).
     const above = !privileged && !!service && service.userId !== actor.id && !!this.users && (await this.users.getManagerChain(service.userId)).some((m) => m.id === actor.id);
     if (!service || (!privileged && service.userId !== actor.id && !above)) throw AppError.notFound('No such doctor service.');
-    const view = await toServiceView(this.approvals, this.master, service);
+    const [view] = await withMadeBy([await toServiceView(this.approvals, this.master, service)], this.users) as [DoctorServiceView];
     if (!this.users || service.userId === actor.id) return view;
     return { ...view, userName: (await this.users.findUserSummary(service.userId))?.name ?? '' };
   }
@@ -294,7 +306,7 @@ export class ListGiftsUseCase {
     actor: Actor,
     filter: { status?: DoctorGift['status'] | undefined; scope?: 'mine' | 'team' | undefined; notGiven?: boolean | undefined; userId?: string | undefined },
     limit = 200,
-  ): Promise<Array<DoctorGift & { doctorName: string; userId?: string; userName?: string; requestedByName?: string }>> {
+  ): Promise<Array<DoctorGift & { doctorName: string; userId?: string; userName?: string; requestedByName?: string; madeBy?: { name: string; employeeCode: string; designationId: string | null } }>> {
     // "Not given yet" = asked for and waiting for an answer, plus accepted and still to hand over.
     const status = filter.notGiven ? { statuses: ['REQUESTED', 'PENDING'] as DoctorGift['status'][] } : filter.status ? { status: filter.status } : {};
     if (actor.role === 'ADMIN' || actor.role === 'ACCOUNTANT') return this.named(await this.gifts.list(status, limit));
@@ -314,8 +326,21 @@ export class ListGiftsUseCase {
   }
 
   private async named(rows: DoctorGift[]) {
-    const askers = this.users ? new Map((await this.users.getUserSummaries([...new Set(rows.flatMap((r) => (r.requestedBy ? [r.requestedBy] : [])))])).map((u) => [u.id, u.name])) : new Map<string, string>();
-    return Promise.all(rows.map(async (g) => ({ ...g, doctorName: (await this.master.getDoctor(g.doctorId))?.name ?? '', ...(g.requestedBy && askers.get(g.requestedBy) ? { requestedByName: askers.get(g.requestedBy)! } : {}) })));
+    // Who made each gift: the employee who asked, or the Admin who allocated it.
+    const maker = (g: DoctorGift) => (g.origin === 'EMPLOYEE' && g.requestedBy ? g.requestedBy : g.allocatedBy);
+    const people = this.users ? new Map((await this.users.getUserSummaries([...new Set(rows.map(maker))])).map((u) => [u.id, u])) : new Map<string, DirectoryUser>();
+    return Promise.all(
+      rows.map(async (g) => {
+        const m = people.get(maker(g));
+        const asker = g.requestedBy ? people.get(g.requestedBy) : undefined;
+        return {
+          ...g,
+          doctorName: (await this.master.getDoctor(g.doctorId))?.name ?? '',
+          ...(asker ? { requestedByName: asker.name } : {}),
+          ...(m ? { madeBy: { name: m.name, employeeCode: m.employeeCode, designationId: m.designationId ?? null } } : {}),
+        };
+      }),
+    );
   }
 }
 

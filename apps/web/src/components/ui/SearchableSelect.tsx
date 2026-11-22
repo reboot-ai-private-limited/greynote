@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, ChevronDown, Search } from 'lucide-react';
+import { Check, ChevronDown, Loader2, Search } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { cn } from './cn';
 import { fieldClass } from './Input';
@@ -18,6 +18,10 @@ export function SearchableSelect({
   'aria-invalid': invalid,
   'aria-label': ariaLabel,
   disabled = false,
+  onSearchChange,
+  filterLocally = true,
+  emptyText = 'No match.',
+  loading = false,
 }: {
   id?: string;
   value: string;
@@ -28,18 +32,28 @@ export function SearchableSelect({
   'aria-invalid'?: boolean | undefined;
   'aria-label'?: string | undefined;
   disabled?: boolean;
+  /** Told whenever the typed text changes (and with '' on close), so a long list can be searched on the server. */
+  onSearchChange?: ((query: string) => void) | undefined;
+  /** `false` when the options already are the search's result: nothing is filtered here. */
+  filterLocally?: boolean;
+  emptyText?: string;
+  /** A search is running: shows a spinner in the search box and dims the results, which may be out of date. */
+  loading?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const root = useRef<HTMLDivElement>(null);
   const searchBox = useRef<HTMLInputElement>(null);
   const listId = useId();
-  const shown = useMemo(() => options.filter((o) => matchesSearch(o.label, query)), [options, query]);
+  const searchChanged = useRef(onSearchChange);
+  searchChanged.current = onSearchChange;
+  const shown = useMemo(() => (filterLocally ? options.filter((o) => matchesSearch(o.label, query)) : options), [options, query, filterLocally]);
   const selected = options.find((o) => o.value === value);
 
   function close() {
     setOpen(false);
     setQuery('');
+    searchChanged.current?.('');
   }
 
   // Click outside or Escape closes it.
@@ -88,7 +102,10 @@ export function SearchableSelect({
             <input
               ref={searchBox}
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                onSearchChange?.(e.target.value);
+              }}
               placeholder={searchPlaceholder}
               aria-label={searchPlaceholder}
               onKeyDown={(e) => {
@@ -98,11 +115,12 @@ export function SearchableSelect({
                   if (first) pick(first.value);
                 }
               }}
-              className="h-9 w-full rounded-sm bg-transparent pl-8 pr-2 text-sm text-text outline-none placeholder:text-text-subtle"
+              className="h-9 w-full rounded-sm bg-transparent pl-8 pr-8 text-sm text-text outline-none placeholder:text-text-subtle"
             />
+            {loading ? <Loader2 role="status" aria-label="Searching" className="absolute right-3.5 top-1/2 size-4 -translate-y-1/2 animate-spin text-text-subtle" /> : null}
           </div>
-          <ul id={listId} role="listbox" className="max-h-60 overflow-y-auto p-1">
-            {shown.length === 0 ? <li className="px-3 py-2 text-sm text-text-muted">No match.</li> : null}
+          <ul id={listId} role="listbox" aria-busy={loading} className={cn('max-h-60 overflow-y-auto p-1 transition-opacity', loading && shown.length > 0 && 'opacity-60')}>
+            {shown.length === 0 ? <li className="px-3 py-2 text-sm text-text-muted">{loading ? 'Searching…' : emptyText}</li> : null}
             {shown.map((o) => (
               <li key={o.value} role="option" aria-selected={o.value === value}>
                 <button

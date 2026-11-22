@@ -30,6 +30,7 @@
         "seed:team-demo": "tsx src/scripts/seed-team-demo.ts",
         "seed:secondary-demo": "tsx src/scripts/seed-secondary-demo.ts",
         "seed:work-demo": "tsx src/scripts/seed-work-demo.ts",
+        "seed:doctor-spend-demo": "tsx src/scripts/seed-doctor-spend-demo.ts",
         "export:pay-bands": "tsx src/scripts/export-pay-bands.ts",
         "seed:production": "tsx src/scripts/seed-production.ts",
         "migrate:employee-codes": "tsx src/scripts/migrate-employee-codes.ts",

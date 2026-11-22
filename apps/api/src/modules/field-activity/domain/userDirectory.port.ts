@@ -6,6 +6,8 @@ export interface DirectoryUser {
   employeeCode: string;
   role: RoleName;
   status: 'active' | 'pending' | 'inactive';
+  /** From the employee profile; absent for non-field users. */
+  designationId?: string | null;
 }
 
 /** Field Activity's narrow view of Identity; `identity.contract` satisfies it structurally. */

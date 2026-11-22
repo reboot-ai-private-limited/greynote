@@ -13,12 +13,14 @@ import { Input } from '@/components/ui/Input';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Select } from '@/components/ui/Select';
 import { TopProgressBar } from '@/components/ui/TopProgressBar';
+import { useDesignations } from '@/features/people/hooks/useMasterData';
 import { DoctorPickerField } from '@/features/field-master-data/components/DoctorPickerField';
 import { toErrorState } from '@/lib/api/toErrorState';
 import { formatDate, formatMoney } from '@/lib/format';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useAcceptGift, useAllocateGift, useDoctorGifts, useRejectGift } from '../hooks/useDoctorSpend';
+import { GiftDetailDialog, giftMadeByLabel } from './GiftDetailDialog';
 import { buildGift, EMPTY_GIFT, type GiftDraft } from '../lib/doctorSpend';
 
 const ANY = 'all';
@@ -135,6 +137,9 @@ export function DoctorGiftsScreen() {
     values.status === 'REQUESTED' || values.status === 'PENDING' || values.status === 'DONE' || values.status === 'REJECTED' ? values.status : undefined;
   const [creating, setCreating] = useState(false);
   const [reviewing, setReviewing] = useState<{ gift: DoctorGiftDto; mode: 'accept' | 'reject' } | null>(null);
+  const [viewing, setViewing] = useState<DoctorGiftDto | null>(null);
+  const designations = useDesignations();
+  const designationName = (id: string | null) => (id ? ((designations.data ?? []).find((d) => d.id === id)?.name ?? '') : '');
   const query = useDoctorGifts({ ...(status && { status }), ...(notGiven && { notGiven: true }) });
   const rows = query.data ?? [];
 
@@ -148,8 +153,13 @@ export function DoctorGiftsScreen() {
     { key: 'value', header: 'Value', numeric: true, render: (g) => (g.status === 'REQUESTED' ? '—' : formatMoney(g.amountPaise)) },
     {
       key: 'from',
-      header: 'From',
-      render: (g) => (g.origin === 'EMPLOYEE' ? `Asked by ${g.requestedByName ?? 'an employee'}${g.requestNote ? ` · ${g.requestNote}` : ''}` : 'Allocated by Admin'),
+      header: 'Made by',
+      render: (g) => (
+        <span className="block max-w-xs truncate" title={g.requestNote ?? undefined}>
+          {giftMadeByLabel(g, designationName)}
+          {g.origin === 'EMPLOYEE' && g.requestNote ? ` · ${g.requestNote}` : ''}
+        </span>
+      ),
     },
     {
       key: 'status',
@@ -177,6 +187,16 @@ export function DoctorGiftsScreen() {
       key: 'done',
       header: 'Delivered',
       render: (g) => (g.completedAt ? formatDate(g.completedAt) : '—'),
+    },
+    {
+      key: 'view',
+      header: '',
+      className: 'text-right',
+      render: (g) => (
+        <Button size="sm" variant="secondary" onClick={() => setViewing(g)}>
+          View
+        </Button>
+      ),
     },
   ];
 
@@ -216,9 +236,10 @@ export function DoctorGiftsScreen() {
               : 'Allocate a gift to a doctor to start.',
           }}
         >
-          <DataTable columns={columns} rows={rows} rowKey={(g) => g.id} />
+          <DataTable columns={columns} rows={rows} rowKey={(g) => g.id} onRowClick={setViewing} />
         </DataState>
       </Card>
+      {viewing ? <GiftDetailDialog gift={viewing} madeBy={giftMadeByLabel(viewing, designationName)} onClose={() => setViewing(null)} /> : null}
       {creating ? <GiftDialog onClose={() => setCreating(false)} /> : null}
       {reviewing ? <ReviewDialog gift={reviewing.gift} mode={reviewing.mode} onClose={() => setReviewing(null)} /> : null}
     </>
