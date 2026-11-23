@@ -37,7 +37,7 @@ Payload: `{ routeId, name, address, location, phone? }`. The sync `clientId` is 
 ## 3a. Chemists are held by assignment (2026-11-16)
 
 The snapshot's `chemists` is now **the chemists assigned to me** (many MRs can hold one), not "on my routes". A chemist I add is assigned to me when it is
-approved. `CHEMIST_ROUTE_NOT_ASSIGNED` keeps its name and now means "no longer assigned to you". Managers read the team's chemists from
+approved. `CHEMIST_ROUTE_NOT_ASSIGNED` keeps its name and now means "no longer assigned to you". A manager's snapshot `chemists` also includes the chemists held by anyone below them (2026-11-23, up to 2,000), and their calls are accepted on those; they can also read the team's chemists from
 `GET /field-master-data/chemists/team`. Details: [`team-visibility.md`](team-visibility.md).
 
 ## 4. What the snapshot carries (2026-11-03)

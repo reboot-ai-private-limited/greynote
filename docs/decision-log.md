@@ -17,6 +17,14 @@ old one.
 
 ---
 
+## 2026-11-23 — A manager can call on, and sees in the phone's list, the chemists their team holds
+
+- **Decision:** the sync snapshot's `chemists` is the caller's own plus, for a manager, those held by anyone below them (own first; capped at 2,000 so a ZSM/NSM cache stays small). `CallChecks.chemist` accepts a call (and follow-up) on a chemist when the caller is assigned to it or is above any holder, the rule doctors already use. An MR's list and checks are unchanged. Shape unchanged, so no phone change.
+- **Why:** a manager has no chemists assigned to them (since 2026-11-16 a chemist is held by assignment), so the Chemist Call dropdown was empty for every manager.
+- **Replaced:** "the snapshot's chemists is only the ones assigned to me" (`team-visibility.md` §2, `chemists.md` §3a).
+- **Rejected:** sending only the chemists on the manager's plan routes (needs a planning dependency and goes stale when the plan changes); changing the phone to read `/chemists/team` (the phone is not being changed for this).
+- **Cost:** a manager's snapshot grows with the team's chemists, up to the cap.
+
 ## 2026-11-04 — A distributor shows to an employee only when assigned
 
 - **Decision:** the phone's distributor list, orders and stock now use `assignedUserIds` alone. Before, a distributor whose Zone, HQ or Route met the employee's also showed, so an employee could order from one that never counted toward their target (achievement already used assignment only). Coverage stays on the distributor as admin information. The employee page (Profile tab, Admin) gains a read-only **Assigned** card: distributors, doctors, and chemists via routes.

@@ -29,6 +29,8 @@ export interface FieldMasterDataPublicContract {
   releaseLeaverChemists(userId: string, actorId: string): Promise<number>;
   /** Whether this MR holds the Chemist now (assignment, never the Route) and the Chemist is active. Gates calls and orders for it. */
   isAssignedToChemist(userId: string, chemistId: string): Promise<boolean>;
+  /** Every employee holding the Chemist now. A manager may call on it when they are above any of them (decision-log 2026-11-23). */
+  getChemistHolderIds(chemistId: string): Promise<string[]>;
   /** How many Doctors, Chemists and Distributors sit on these Routes (any status): what a permanent route delete would leave without one. */
   countOnRoutes(routeIds: string[]): Promise<{ doctors: number; chemists: number; distributors: number }>;
   /**

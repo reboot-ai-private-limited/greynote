@@ -163,7 +163,7 @@ export function buildFieldMasterDataContainer(
   const addedChemists = new AddedChemists(chemists, territory, approvals, transactions, users, config);
   sync.registerHandler(makeNewChemistSyncHandler(addedChemists, (payload) => editAddedChemistBodySchema.parse(payload)));
   // …and what the phone caches of this module, as one snapshot of what the caller may see.
-  sync.registerSource(makeFieldMasterDataSource({ doctors, chemists, chemistAssignments, products, specialties, distributors, allocations: sampleAllocations, visibility, territory }));
+  sync.registerSource(makeFieldMasterDataSource({ doctors, chemists, chemistAssignments, products, specialties, distributors, allocations: sampleAllocations, visibility, territory, users }));
 
   const retirement = new DoctorRetirement(doctors, assignments, sampleAllocations, new MongoDoctorArchiveAdapter(), users, transactions, photoStorage);
   const updateDoctor = new UpdateDoctorUseCase(doctors, assignments, territory, views, specialtyCatalog, transactions, retirement);
@@ -208,6 +208,7 @@ export function buildFieldMasterDataContainer(
       releaseLeaverDistributors: (userId) => leaverWork.releaseDistributors(userId),
       releaseLeaverChemists: (userId, actorId) => leaverWork.releaseChemists(userId, actorId),
       isAssignedToChemist: async (userId, chemistId) => (await chemists.findById(chemistId))?.status === 'active' && (await chemistAssignments.isAssigned(userId, chemistId)),
+      getChemistHolderIds: async (chemistId) => (await chemistAssignments.listActiveForChemist(chemistId)).map((a) => a.userId),
       countOnRoutes: async (routeIds) => {
         if (routeIds.length === 0) return { doctors: 0, chemists: 0, distributors: 0 };
         const ids = routeIds.map((id) => new Types.ObjectId(id));

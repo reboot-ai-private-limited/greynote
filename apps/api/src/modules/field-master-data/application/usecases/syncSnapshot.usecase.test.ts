@@ -47,7 +47,7 @@ describe('the phone’s cache of Field Master Data', () => {
     territory.userRoutes.set('mr1', ['route-1']);
     territory.userRoutes.set('mr2', ['route-2']);
     const users = new FakeUsers();
-    source = makeFieldMasterDataSource({ doctors, chemists, chemistAssignments, products, specialties: new FakeSpecialties(['ENT', 'Cardiologist']), distributors, allocations, visibility: new DoctorVisibility(assignments, territory, users, config), territory });
+    source = makeFieldMasterDataSource({ doctors, chemists, chemistAssignments, products, specialties: new FakeSpecialties(['ENT', 'Cardiologist']), distributors, allocations, visibility: new DoctorVisibility(assignments, territory, users, config), territory, users });
   });
 
   it('is named fieldMasterData', () => {
@@ -107,6 +107,12 @@ describe('the phone’s cache of Field Master Data', () => {
     expect(names((await snap('mr2')).chemists)).toEqual(['Sai Pharmacy']); // many MRs, one chemist
     await chemistAssignments.assign({ chemistId: far.id, userId: 'mr1', assignedBy: 'admin' }); // an MR need not hold the Route
     expect(names((await snap('mr1')).chemists)).toEqual(['Far Pharmacy', 'Sai Pharmacy']);
+    // A manager's list is their own plus everyone below them (2026-11-23); a stranger gets nothing.
+    expect(names((await snap('asm')).chemists)).toEqual(['Far Pharmacy', 'Sai Pharmacy']);
+    expect(names((await snap('stranger')).chemists)).toEqual([]);
+    await chemistAssignments.assign({ chemistId: sai.id, userId: 'asm', assignedBy: 'admin' }); // held by the manager too: listed once
+    expect((await snap('asm')).chemists.filter((c) => c.name === 'Sai Pharmacy')).toHaveLength(1);
+    expect(names((await snap('mr1')).chemists)).toEqual(['Far Pharmacy', 'Sai Pharmacy']); // an MR is unchanged
   });
 
   it('Distributors: only those assigned to the MR, active only (Route coverage alone shows nothing)', async () => {

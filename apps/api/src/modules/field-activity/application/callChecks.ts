@@ -62,15 +62,18 @@ export class CallChecks {
     throw new LogRefusal(LOG_CODES.doctorNotAssigned, 'This doctor is not yours or your team’s, so a service can’t be requested for them.');
   }
 
-  /** An active Chemist the MR is assigned to now (assignment, not the Route, decides — decision-log 2026-11-16). */
+  /**
+   * An active Chemist the caller is assigned to now (assignment, not the Route, decides — decision-log 2026-11-16) or, for a manager, one
+   * held by anyone below them in the team (2026-11-23, the same rule as a doctor).
+   */
   async chemist(userId: string, chemistId: string): Promise<Chemist> {
     const chemist = await this.master.getChemist(chemistId);
     if (!chemist || chemist.status !== 'active') throw new LogRefusal(LOG_CODES.chemistNotFound, 'This chemist isn’t on the list any more.');
+    if (await this.master.isAssignedToChemist(userId, chemistId)) return chemist;
+    const holders = await this.master.getChemistHolderIds(chemistId);
+    for (const holder of holders) if (await this.isAbove(userId, holder)) return chemist;
     // The refusal code keeps its old name so phones already in the field still recognise it; it now means "no longer assigned".
-    if (!(await this.master.isAssignedToChemist(userId, chemistId))) {
-      throw new LogRefusal(LOG_CODES.chemistRouteNotAssigned, 'You are no longer assigned to this chemist, so the call can’t be recorded.');
-    }
-    return chemist;
+    throw new LogRefusal(LOG_CODES.chemistRouteNotAssigned, 'You are no longer assigned to this chemist, so the call can’t be recorded.');
   }
 
   /**

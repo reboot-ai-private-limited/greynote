@@ -232,6 +232,14 @@ describe('logging the day’s calls and follow-ups', () => {
       expect(kit.chemistCalls.rows).toHaveLength(0);
     });
 
+    it('a manager above the MR who holds the Chemist may call on it; one outside the team may not (2026-11-23)', async () => {
+      kit.users.add('asm2');
+      for (const u of ['asm', 'stranger', 'asm2']) kit.planning.approve(u, DAY);
+      expect((await kit.logChemistCall.execute({ ...REC, userId: 'asm' }, chemistCall(), tx)) as unknown).toBeDefined();
+      expect((await refusal(kit.logChemistCall.execute({ ...REC, clientId: 'c9', userId: 'stranger' }, chemistCall(), tx))).code).toBe('CHEMIST_ROUTE_NOT_ASSIGNED');
+      expect((await refusal(kit.logChemistCall.execute({ ...REC, clientId: 'c8', userId: 'asm2' }, chemistCall(), tx))).code).toBe('CHEMIST_ROUTE_NOT_ASSIGNED');
+    });
+
     it('goes through the same gate', async () => {
       kit.planning.approved.clear();
       expect((await refusal(kit.logChemistCall.execute(REC, chemistCall(), tx))).code).toBe('DAILY_PLAN_NOT_APPROVED');

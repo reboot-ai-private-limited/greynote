@@ -9,6 +9,7 @@ import type { SpecialtyRepositoryPort } from '../domain/specialty.repository.por
 import type { ProductRepositoryPort } from '../domain/product.repository.port.js';
 import type { SampleAllocationRepositoryPort } from '../domain/sampleAllocation.repository.port.js';
 import type { TerritoryPort } from '../domain/territory.port.js';
+import type { UserDirectoryPort } from '../domain/userDirectory.port.js';
 import type { DoctorVisibility } from './doctorVisibility.js';
 
 export const FIELD_MASTER_DATA_SYNC_SOURCE = 'fieldMasterData';
@@ -29,6 +30,9 @@ export const FIELD_MASTER_DATA_SYNC_SOURCE = 'fieldMasterData';
  * Only what the app needs: nothing about who else was assigned, the phone's original capture point, or
  * approval internals. Every list is sorted by a stable key so an unchanged world gives the same version.
  */
+/** A manager's chemist list is capped so a ZSM or NSM's phone cache stays small; their own chemists are never cut. */
+export const MAX_SNAPSHOT_CHEMISTS = 2000;
+
 export function makeFieldMasterDataSource(deps: {
   doctors: DoctorRepositoryPort;
   chemists: ChemistRepositoryPort;
@@ -39,8 +43,22 @@ export function makeFieldMasterDataSource(deps: {
   allocations: SampleAllocationRepositoryPort;
   visibility: DoctorVisibility;
   territory: TerritoryPort;
+  users: UserDirectoryPort;
 }): SyncSourceDefinition {
   const byId = <T extends { id: string }>(rows: T[]) => [...rows].sort((a, b) => a.id.localeCompare(b.id));
+  /**
+   * The chemists a call can be made on (2026-11-23): the ones assigned to the person and, for a manager, those held by anyone below them
+   * (an MR has nobody below, so only their own). The phone's chemist picker reads only this list, and the server accepts a manager's call on a
+   * team chemist (`CallChecks.chemist`). The person's own come first so the cap never drops them.
+   */
+  const chemistsFor = async (userId: string) => {
+    const downline = (await deps.users.getDownline(userId)).map((u) => u.id);
+    const rows = await deps.chemistAssignments.listActiveForUsers([userId, ...downline]);
+    const own = rows.filter((r) => r.userId === userId).map((r) => r.chemistId);
+    const team = rows.filter((r) => r.userId !== userId).map((r) => r.chemistId).sort();
+    const ids = [...new Set([...own, ...team])].slice(0, MAX_SNAPSHOT_CHEMISTS);
+    return (await deps.chemists.listActiveAmong(ids, {}, { page: 1, pageSize: 100_000 })).items;
+  };
   return {
     name: FIELD_MASTER_DATA_SYNC_SOURCE,
     async snapshot(userId): Promise<FieldMasterDataSnapshot> {
@@ -49,7 +67,7 @@ export function makeFieldMasterDataSource(deps: {
       const [{ items: mine }, pending, chemists, distributors, products, specialties] = await Promise.all([
         deps.doctors.listAssigned(scopes, {}, null),
         deps.doctors.listPendingAdded(userId),
-        deps.chemistAssignments.listActiveForUsers([userId]).then((rows) => deps.chemists.listActiveAmong(rows.map((r) => r.chemistId), {}, { page: 1, pageSize: 100_000 }).then((r) => r.items)),
+        chemistsFor(userId),
         deps.distributors.listActiveForUser(userId),
         deps.products.listActive(),
         deps.specialties.listActive(),

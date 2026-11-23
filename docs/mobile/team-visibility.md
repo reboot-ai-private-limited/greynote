@@ -41,6 +41,7 @@ All paged: `page` (1…), `pageSize` (≤ 100, use 20). Reply is `{ items, page,
 ### Chemists
 
 - Both **My chemists** (snapshot `chemists`, offline) and **Team chemists** (`/chemists/team`, online) as above.
+- **A manager's snapshot `chemists` also holds the team's (2026-11-23).** Their own plus every chemist held by anyone below them, own first, at most 2,000; an MR's is only their own. The Chemist Call dropdown reads this list, so a manager sees team chemists offline too, and the server accepts a manager’s call or follow-up on a chemist held by anyone below them (§3). Same shape; no phone change.
 - **The snapshot's `chemists` is now "the ones assigned to me", not "on my routes".** Same shape. Code that filtered chemists by route itself should stop: the list is already the right one. A chemist on a route you hold but not assigned to is **not** sent.
 - A chemist an MR adds from the phone is assigned to that MR when the manager or Admin approves it (nothing for the phone to do).
 - Calls, follow-ups and orders for a chemist are checked against the assignment. The refusal `CHEMIST_ROUTE_NOT_ASSIGNED` keeps its **old name** (phones in the field already handle it) but now means "you are no longer assigned to this chemist". Treat it like `DOCTOR_NOT_ASSIGNED`: drop the record, show the message.
@@ -64,9 +65,9 @@ Routes belong to MRs, so a manager plans **the routes held by anyone below them*
 - **Tour Plan:** working type, routes, remarks. **No Work With.** The server refuses a manager's route that nobody below them holds (`400`).
 - **Daily Plan (manager):** choose the route(s) among the approved ones, then Works with and Doctors list only what is on those routes. Nobody or nothing on the route: tell the manager to ask their manager or Admin to change the plan. See [`dailyplan.md`](dailyplan.md) §1b.
 
-## 3. Logging a call on a team doctor
+## 3. Logging a call on a team doctor or chemist
 
-A manager may call on any doctor assigned to anyone in their team, on any route (unchanged, 2026-11-03). The server checks this **when the call syncs**, per record, so a call logged offline against a doctor reassigned in the meantime is refused alone (`DOCTOR_NOT_ASSIGNED`) while the rest of the day syncs.
+A manager may call on any chemist held by anyone in their team (2026-11-23), and on any doctor assigned to anyone in their team, on any route (unchanged, 2026-11-03). The server checks this **when the call syncs**, per record, so a call logged offline against a doctor reassigned in the meantime is refused alone (`DOCTOR_NOT_ASSIGNED`) while the rest of the day syncs.
 
 - Daily-report **submit does not re-check** doctors: a visit that happened stays valid even if the doctor is reassigned afterwards.
 - The reviewing manager still approves or rejects the day; that is the backstop for anything odd.

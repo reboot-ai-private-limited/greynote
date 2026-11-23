@@ -255,6 +255,9 @@ export class FakeFmd implements FieldMasterDataPort {
   async isAssignedToChemist(userId: string, chemistId: string) {
     return this.chemistHolders.has(`${userId}:${chemistId}`);
   }
+  async getChemistHolderIds(chemistId: string) {
+    return [...this.chemistHolders].filter((h) => h.endsWith(`:${chemistId}`)).map((h) => h.split(':')[0]!);
+  }
   async isAssignedToDoctor(userId: string, doctorId: string) {
     return this.assigned.has(`${userId}:${doctorId}`);
   }
