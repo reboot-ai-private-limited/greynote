@@ -17,6 +17,8 @@ import { ThemedView } from './themed-view';
 type Props = {
   /** The plan's routes: only the MR's doctors on these can be picked. A manager's picks are limited to them too when `limitToRoutes` is set (2026-11-17). */
   routeIds: string[];
+  /** The day's To place (2026-11-26): when set, the doctors offered are the ones at it, not on `routeIds`. */
+  toPlaceId?: string | null | undefined;
   /** A manager's plan is route first: offer only doctors on `routeIds`, and, when the server's list is known, only those on it. */
   limitToRoutes?: boolean;
   onlyIds?: Set<string> | undefined;
@@ -43,13 +45,15 @@ type Props = {
  * A manager picks their own doctors or anyone's in their downline, but (2026-11-17, dailyplan.md §1b) only those on the day's chosen routes.
  * That list can be long, so it opens as a search (by doctor or MR), and what is picked shows below as rows that can be unticked.
  */
-export function PlanDoctorsPicker({ routeIds, limitToRoutes, onlyIds, picked, owed, onChange, disabled, readOnly, tooSoon }: Props) {
+export function PlanDoctorsPicker({ routeIds, toPlaceId, limitToRoutes, onlyIds, picked, owed, onChange, disabled, readOnly, tooSoon }: Props) {
   const theme = useTheme();
   const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
   const territory = useCachedSource<TerritorySnapshot>('territory');
   const { isManager, doctors: callDoctors, byId: callDoctorById } = useCallDoctors();
 
   const { owedRows, pickRows, options } = useMemo(() => {
+    // Where the day goes decides its doctors: its To place, or for an older day its routes.
+    const onDay = (d: { routeId: string; placeId?: string | undefined }) => (toPlaceId ? d.placeId === toPlaceId : routeIds.includes(d.routeId));
     const routeName = new Map((territory.data?.routes ?? []).map((r) => [r.id, r.name]));
     const doctors = master.data?.doctors ?? [];
     const owedIds = new Set(owed.map((o) => o.doctorId));
@@ -66,9 +70,9 @@ export function PlanDoctorsPicker({ routeIds, limitToRoutes, onlyIds, picked, ow
     const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name);
     const owedRows = owed.map((o) => ({ ...row(o.doctorId), since: o.carriedFrom }));
     if (isManager) {
-      const onDayRoute = (d: { routeId: string }) => (routeIds.includes(d.routeId) ? 0 : 1);
+      const onDayRoute = (d: { routeId: string; placeId?: string | undefined }) => (onDay(d) ? 0 : 1);
       const options: OutletOption[] = callDoctors
-        .filter((d) => !owedIds.has(d.id) && (!limitToRoutes || (routeIds.includes(d.routeId) && (!onlyIds || onlyIds.has(d.id)))))
+        .filter((d) => !owedIds.has(d.id) && (!limitToRoutes || (onDay(d) && (!onlyIds || onlyIds.has(d.id)))))
         .sort((a, b) => onDayRoute(a) - onDayRoute(b) || byName(a, b))
         .map((d) => {
           const soon = tooSoon?.(d.id) ?? null;
@@ -83,7 +87,7 @@ export function PlanDoctorsPicker({ routeIds, limitToRoutes, onlyIds, picked, ow
       return { owedRows, options, pickRows: picked.filter((id) => !owedIds.has(id)).map(row).sort(byName) };
     }
     const onRoutes = doctors
-      .filter((d) => routeIds.includes(d.routeId) && !owedIds.has(d.id))
+      .filter((d) => onDay(d) && !owedIds.has(d.id))
       .map((d) => row(d.id))
       .sort(byName);
     const known = new Set(doctors.map((d) => d.id));
@@ -92,7 +96,7 @@ export function PlanDoctorsPicker({ routeIds, limitToRoutes, onlyIds, picked, ow
       .map((id) => ({ id, name: 'Team member’s doctor', photoUrl: null, sub: 'From the people you work with' }));
     const mine = readOnly ? onRoutes.filter((r) => picked.includes(r.id)) : onRoutes;
     return { owedRows, options: [], pickRows: [...mine, ...others] };
-  }, [master.data, territory.data, routeIds, limitToRoutes, onlyIds, owed, picked, readOnly, isManager, callDoctors, callDoctorById, tooSoon]);
+  }, [master.data, territory.data, routeIds, toPlaceId, limitToRoutes, onlyIds, owed, picked, readOnly, isManager, callDoctors, callDoctorById, tooSoon]);
 
   if (readOnly && owedRows.length === 0 && pickRows.length === 0) return null;
 
@@ -135,12 +139,12 @@ export function PlanDoctorsPicker({ routeIds, limitToRoutes, onlyIds, picked, ow
         </ThemedView>
       ))}
 
-      {!isManager && routeIds.length === 0 && !readOnly ? (
+      {!isManager && routeIds.length === 0 && !toPlaceId && !readOnly ? (
         <ThemedText type="small" themeColor="textSecondary">Pick a route to choose its doctors.</ThemedText>
       ) : null}
-      {!isManager && routeIds.length > 0 && pickRows.length === 0 && owedRows.length === 0 && !readOnly ? (
+      {!isManager && (routeIds.length > 0 || toPlaceId) && pickRows.length === 0 && owedRows.length === 0 && !readOnly ? (
         <ThemedText type="small" themeColor="textSecondary">
-          {master.loaded ? 'No doctors are assigned to you on these routes.' : 'Loading your doctors…'}
+          {master.loaded ? (toPlaceId ? 'No doctors are assigned to you at this place.' : 'No doctors are assigned to you on these routes.') : 'Loading your doctors…'}
         </ThemedText>
       ) : null}
 

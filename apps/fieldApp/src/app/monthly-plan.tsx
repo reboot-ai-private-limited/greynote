@@ -26,6 +26,7 @@ import { downloadTourPlan } from '@/lib/work-reports';
 import {
   EDITABLE,
   EMPTY_DAY,
+  hasPlaces,
   LATE_TEXT,
   clearPlanDay,
   placePlanDay,
@@ -116,7 +117,7 @@ export default function MonthlyPlanScreen() {
   const [entries, setEntries] = useState<Entries>({});
   const [editing, setEditing] = useState<Editing>(null);
   const [sheet, setSheet] = useState<PlanDay>(EMPTY_DAY);
-  const [sheetErrors, setSheetErrors] = useState<{ routes?: string; returnDate?: string }>({});
+  const [sheetErrors, setSheetErrors] = useState<{ routes?: string; returnDate?: string; places?: string }>({});
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Msg | null>(null);
   // What the server said, kept with the plan it belongs to: another month or plan reads as "not loaded yet".
@@ -259,15 +260,35 @@ export default function MonthlyPlanScreen() {
         }
       : null;
 
+  /**
+   * Where a new day starts (2026-11-26): where the last planned day before it ended; at the start of the month, your HQ town. A day
+   * trip ends at home, so the day after one starts at the HQ town again.
+   */
+  function startOf(date: string): string | null {
+    const before = Object.keys(entries).filter((d) => d < date && entries[d]?.toPlaceId).sort().at(-1);
+    const town = territory.data?.places?.find((p) => p.isHqTown)?.id ?? null;
+    if (!before) return town;
+    const last = entries[before]!;
+    const to = (territory.data?.places ?? []).find((p) => p.id === last.toPlaceId);
+    const away = !to || to.type === 'OUT_STATION' || (territory.data?.hq && to.hqId !== territory.data.hq.hqId);
+    return away ? (last.toPlaceId ?? null) : town ?? (last.toPlaceId ?? null);
+  }
+
   function openDay(date: string) {
-    setSheet(entries[date] ?? EMPTY_DAY);
+    setSheet(entries[date] ?? { ...EMPTY_DAY, fromPlaceId: startOf(date) });
     setSheetErrors({});
     setEditing({ date });
   }
 
   /** What is wrong with the day being edited, and which field it belongs to (null when it is fine). */
-  function validDay(day: PlanDay, date?: string, from?: string): { field: 'routes' | 'returnDate' | 'start'; text: string } | null {
-    if (isFieldDay(day.workingType) && day.routeIds.length === 0) return { field: 'routes', text: `Pick at least one route for a ${workingTypeLabel(day.workingType)} day.` };
+  function validDay(day: PlanDay, date?: string, from?: string): { field: 'routes' | 'returnDate' | 'start' | 'places'; text: string } | null {
+    // A field day goes From → To (2026-11-26); an older day may still list its routes.
+    if (isFieldDay(day.workingType) && hasPlaces(day)) {
+      if (!day.fromPlaceId) return { field: 'places', text: 'Choose where the day starts.' };
+      if (!day.toPlaceId) return { field: 'places', text: 'Choose where the day goes.' };
+      return null;
+    }
+    if (isFieldDay(day.workingType) && day.routeIds.length === 0) return { field: 'places', text: `Choose where the ${workingTypeLabel(day.workingType)} day starts and where it goes.` };
     if (day.returnDate && date) {
       const hasOut =
         (territory.data?.routes ?? []).some((r) => r.routeType === 'OUT_STATION' && day.routeIds.includes(r.id)) ||
@@ -293,7 +314,13 @@ export default function MonthlyPlanScreen() {
     // A worked day that still opens (the day a running trip began, whose own Daily Plan is approved) lets only the return date move.
     if (editing && editing !== 'ALL' && dayLocked(editing.date)) {
       const was = entries[editing.date];
-      if (was && (was.workingType !== sheet.workingType || [...was.routeIds].sort().join() !== [...sheet.routeIds].sort().join())) {
+      if (
+        was &&
+        (was.workingType !== sheet.workingType ||
+          [...was.routeIds].sort().join() !== [...sheet.routeIds].sort().join() ||
+          (was.fromPlaceId ?? null) !== (sheet.fromPlaceId ?? null) ||
+          (was.toPlaceId ?? null) !== (sheet.toPlaceId ?? null))
+      ) {
         setSheetErrors({ routes: editing.date < today ? `${prettyDay(editing.date)} is over, so its routes can’t change. Only the return date can.` : `${prettyDay(editing.date)}’s daily plan is already approved, so its routes can’t change. Only the return date can; change the routes from tomorrow.` });
         return;
       }

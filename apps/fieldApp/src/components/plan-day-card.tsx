@@ -9,6 +9,9 @@ import type { Colleague } from '@/offline/colleagues';
 import { prettyDay, weekdayName } from '@/offline/day';
 
 import { ThemedText } from './themed-text';
+import { dayWhere } from '@/lib/places';
+import { useCachedSource } from '@/offline/cache';
+import type { TerritorySnapshot } from '@/types/sync';
 
 const LOCK: SymbolViewProps['name'] = { ios: 'lock.fill', android: 'lock', web: 'lock' } as SymbolViewProps['name'];
 const PENCIL: SymbolViewProps['name'] = { ios: 'pencil', android: 'edit', web: 'edit' } as SymbolViewProps['name'];
@@ -32,7 +35,10 @@ export function PlanDayCard({ date, entry, off, offLabel, editable, locked, name
   const theme = useTheme();
   const colors = off ? OFF_COLORS : entry ? typeColors(entry.workingType) : null;
 
-  const routes = entry ? entry.routeIds.map((id) => names.routes.get(id) ?? 'Route') : [];
+  const territory = useCachedSource<TerritorySnapshot>('territory');
+  // A day planned From → To (2026-11-26) is titled by where it goes; an older one by its routes.
+  const where = entry ? dayWhere(entry, territory.data) : null;
+  const routes = entry ? (where ? [where] : entry.routeIds.map((id) => names.routes.get(id) ?? 'Route')) : [];
   const people = entry ? entry.workWith.map((id) => names.colleagues.get(id)?.name ?? 'Colleague') : [];
   const title = off
     ? (offLabel ?? 'Weekly off')

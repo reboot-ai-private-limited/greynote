@@ -111,3 +111,9 @@ Two one-off scripts, run by hand (dry run by default; `--apply --confirm-db=<nam
 
 - `backfill:chemist-assignments` — **before** deploying: assigns every active chemist to the field employees who hold its route today, so no MR loses a chemist when the rule changes.
 - `cleanup:manager-routes` — **after**: ends the route rows that were copied onto managers.
+
+## One HQ, places (2026-11-26)
+
+- Every employee is based in **one HQ**; nobody is assigned routes. An MR's routes and places are those of their HQ; a manager may also plan the HQs of everyone below them (they stay out-station there).
+- Doctors, chemists and distributors sit on a **place** (`placeId`; distributors `placeIds`). An MR sees their assigned doctors on places of their HQ. A doctor can only be assigned to someone based in its place's HQ.
+- Adding a doctor or chemist from the phone still sends `routeId`: the server uses the route's To place, which must be in your HQ (the refusal still names `routeId`).

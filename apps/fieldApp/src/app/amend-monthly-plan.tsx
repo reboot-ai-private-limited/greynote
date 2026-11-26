@@ -19,6 +19,7 @@ import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
 import {
   EMPTY_DAY,
+  hasPlaces,
   amendErrorText,
   clearPlanDay,
   placePlanDay,
@@ -82,7 +83,7 @@ export default function AmendMonthlyPlanScreen() {
   // Set once the trip's start is moved ("Leaves on"): the day the sheet was opened on.
   const [movedFrom, setMovedFrom] = useState<string | null>(null);
   const [sheet, setSheet] = useState<PlanDay>(EMPTY_DAY);
-  const [sheetErrors, setSheetErrors] = useState<{ routes?: string; returnDate?: string; start?: string }>({});
+  const [sheetErrors, setSheetErrors] = useState<{ routes?: string; returnDate?: string; start?: string; places?: string }>({});
   const [reason, setReason] = useState('');
   const [reasonError, setReasonError] = useState<string>();
   const [msg, setMsg] = useState<{ tone: 'danger' | 'warning' | 'info'; text: string } | null>(null);
@@ -163,14 +164,22 @@ export default function AmendMonthlyPlanScreen() {
   function openDay(date: string) {
     if (!canEdit) return;
     setMovedFrom(null);
-    setSheet(entries[date] ?? EMPTY_DAY);
+    // A new day starts where the last planned day before it ended (2026-11-26).
+    const before = Object.keys(entries).filter((d) => d < date && entries[d]?.toPlaceId).sort().at(-1);
+    setSheet(entries[date] ?? { ...EMPTY_DAY, fromPlaceId: before ? (entries[before]!.toPlaceId ?? null) : null });
     setSheetErrors({});
     setEditing(date);
   }
 
   /** The same checks the employee's own Tour Plan makes before a day is accepted; the server checks again. */
-  function validDay(day: PlanDay, date: string): { field: 'routes' | 'returnDate' | 'start'; text: string } | null {
-    if (isFieldDay(day.workingType) && day.routeIds.length === 0) return { field: 'routes', text: `Pick at least one route for a ${workingTypeLabel(day.workingType)} day.` };
+  function validDay(day: PlanDay, date: string): { field: 'routes' | 'returnDate' | 'start' | 'places'; text: string } | null {
+    // A field day goes From → To (2026-11-26); an older day may still list its routes.
+    if (isFieldDay(day.workingType) && hasPlaces(day)) {
+      if (!day.fromPlaceId) return { field: 'places', text: 'Choose where the day starts.' };
+      if (!day.toPlaceId) return { field: 'places', text: 'Choose where the day goes.' };
+      return null;
+    }
+    if (isFieldDay(day.workingType) && day.routeIds.length === 0) return { field: 'places', text: `Choose where the ${workingTypeLabel(day.workingType)} day starts and where it goes.` };
     if (day.returnDate) {
       if (!routes.some((r) => r.routeType === 'OUT_STATION' && day.routeIds.includes(r.id))) return { field: 'routes', text: 'A trip needs at least one out-station route. Add one, or clear the return date.' };
       if (day.returnDate <= date) return { field: 'returnDate', text: 'The return date must be after the day they leave.' };
@@ -361,6 +370,7 @@ export default function AmendMonthlyPlanScreen() {
                     forOther={{
                       routes,
                       routesLoaded: data !== null,
+                      ...(plan?.userId ? { userId: plan.userId } : {}),
                     }}
                   />
                   <PrimaryButton label="Done" onPress={applySheet} />

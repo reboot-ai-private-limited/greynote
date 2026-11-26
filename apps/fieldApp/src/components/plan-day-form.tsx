@@ -5,13 +5,14 @@ import { Spacing } from '@/constants/theme';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useTheme } from '@/hooks/use-theme';
 import { useCachedSource } from '@/offline/cache';
-import { isFieldDay, routeTypeLabel, WORKING_TYPES, type NamedRoute, type PlanDay, type TeamRoute, type WorkingType, knownTeamRoute, rememberTeamRoutes } from '@/lib/planning';
+import { hasPlaces, isFieldDay, routeTypeLabel, WORKING_TYPES, type NamedRoute, type PlanDay, type TeamRoute, type WorkingType, knownTeamRoute, rememberTeamRoutes } from '@/lib/planning';
 import type { TerritorySnapshot } from '@/types/sync';
 
 import { addDays, addMonths, datesInMonth, prettyMonth } from '@/offline/day';
 
 import { ChoiceChips } from './choice-chips';
 import { DayPicker } from './day-picker';
+import { FromToField } from './from-to-field';
 import { OutletPicker } from './outlet-picker';
 import { PrimaryButton } from './primary-button';
 import { TeamRoutesField } from './team-routes-field';
@@ -29,14 +30,14 @@ type Props = {
   /** The day being planned (`YYYY-MM-DD`). Given for a single day, it lets an out-station trip name its return day. */
   date?: string;
   /** What is wrong with the day, by field: marks the Routes list or the return date in red with the message. */
-  errors?: { routes?: string; returnDate?: string; start?: string };
+  errors?: { routes?: string; returnDate?: string; start?: string; places?: string };
   /** Locked days (weekly off, holidays). A trip may run over them and come back on one; they stay what they are (decision-log 2026-11-19). */
   lockedDates?: string[];
   /**
    * Someone else's plan (a manager editing an employee's month): pick from these routes instead of your own cached ones.
    * `routesLoaded` is false while they are being fetched.
    */
-  forOther?: { routes: NamedRoute[]; routesLoaded: boolean };
+  forOther?: { routes: NamedRoute[]; routesLoaded: boolean; userId?: string };
   /** Moves the trip's first day ("Leaves on") to another day of the month; the screen puts the trip there. */
   onMoveStart?: ((date: string) => void) | undefined;
 };
@@ -67,7 +68,9 @@ export function PlanDayForm({ value, onChange, disabled, date, errors, lockedDat
   const needsRoute = isFieldDay(value.workingType);
   // A trip needs at least one out-station route; the return day is then asked for.
   const outStation = routes.some((r) => r.routeType === 'OUT_STATION' && value.routeIds.includes(r.id));
-  const canTrip = needsRoute && outStation && date !== undefined;
+  // A day planned From → To (2026-11-26) has no trip: the days themselves say where you are. Older days keep theirs.
+  const placed = hasPlaces(value);
+  const canTrip = needsRoute && !placed && value.routeIds.length > 0 && outStation && date !== undefined;
   // The return day: after this day, this month or the next.
   const earliest = date ? addDays(date, 1) : undefined;
   const nextMonthEnd = date ? datesInMonth(addMonths(date.slice(0, 7), 1)).at(-1) : undefined;
@@ -102,7 +105,15 @@ export function PlanDayForm({ value, onChange, disabled, date, errors, lockedDat
   function setType(workingType: WorkingType) {
     // Only Field Work and Doctor Campaign take routes (the server refuses them on the other three).
     const field = isFieldDay(workingType);
-    onChange({ ...value, workingType, routeIds: field ? value.routeIds : [], workWith: [], returnDate: field ? value.returnDate : null });
+    onChange({
+      ...value,
+      workingType,
+      routeIds: field ? value.routeIds : [],
+      fromPlaceId: field ? (value.fromPlaceId ?? null) : null,
+      toPlaceId: field ? (value.toPlaceId ?? null) : null,
+      workWith: [],
+      returnDate: field ? value.returnDate : null,
+    });
   }
 
   function setRoutes(routeIds: string[]) {
@@ -125,7 +136,25 @@ export function PlanDayForm({ value, onChange, disabled, date, errors, lockedDat
       {needsRoute ? (
         <>
           <ThemedText type="small" themeColor="textSecondary">
-            {`Choose carefully: only ${forOther ? 'their' : teamPick ? 'your team’s' : 'your'} doctors on these routes can be planned that day.${
+            {`Where the day starts and where it goes. Only ${forOther ? 'their' : teamPick ? 'your team’s' : 'your'} doctors at the To place can be planned that day.${
+              value.workingType === 'DOCTOR_CAMPAIGN' ? ' A campaign day pays DA and no TA.' : ''
+            }`}
+          </ThemedText>
+          <FromToField
+            fromPlaceId={value.fromPlaceId}
+            toPlaceId={value.toPlaceId}
+            disabled={disabled}
+            source={forOther ? { kind: 'server', ...(forOther.userId ? { userId: forOther.userId } : {}) } : teamPick ? { kind: 'server' } : { kind: 'own' }}
+            error={errors?.places}
+            onChange={(next) => onChange({ ...value, ...next, returnDate: null })}
+          />
+        </>
+      ) : null}
+
+      {needsRoute && !placed && value.routeIds.length > 0 ? (
+        <>
+          <ThemedText type="small" themeColor="textSecondary">
+            {`Planned before From → To: these routes stay until you choose From and To above. Only ${forOther ? 'their' : teamPick ? 'your team’s' : 'your'} doctors on these routes can be planned that day.${
               value.workingType === 'DOCTOR_CAMPAIGN' ? ' A campaign day pays DA at the highest route type and no TA.' : ''
             }`}
           </ThemedText>

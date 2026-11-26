@@ -43,7 +43,7 @@ export function registerCompositionSyncSources(deps: {
   deps.sync.registerSource({
     name: 'territory',
     async snapshot(userId): Promise<TerritorySnapshot> {
-      const [routes, place] = await Promise.all([deps.territory.listRoutesForUser(userId), deps.territory.getUserHq(userId)]);
+      const [routes, place, places] = await Promise.all([deps.territory.listRoutesForUser(userId), deps.territory.getUserHq(userId), deps.territory.listPlacesForUser(userId)]);
       const [hq, zone] = place ? await Promise.all([deps.territory.getHq(place.hqId), deps.territory.getZone(place.zoneId)]) : [null, null];
       return {
         routes: [...routes]
@@ -57,7 +57,14 @@ export function registerCompositionSyncSources(deps: {
             distanceKm: r.distanceKm,
             distanceStatus: r.distanceStatus,
             taPerKmRateOverridePaise: r.taPerKmRateOverridePaise,
+            taFixedPaise: r.taFixedPaise,
+            fromPlaceId: r.fromPlaceId,
+            toPlaceId: r.toPlaceId,
           })),
+        // The places of their HQ (2026-11-26): what an MR's From and To are picked from, offline.
+        places: [...places]
+          .sort((a, b) => Number(b.isHqTown) - Number(a.isHqTown) || a.name.localeCompare(b.name))
+          .map((p) => ({ id: p.id, hqId: p.hqId, name: p.name, type: p.type, isHqTown: p.isHqTown })),
         hq: place && hq && zone ? { hqId: hq.id, hqName: hq.name, zoneId: zone.id, zoneName: zone.name } : null,
       };
     },

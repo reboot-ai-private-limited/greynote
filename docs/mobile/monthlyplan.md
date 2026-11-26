@@ -157,3 +157,15 @@ The web plan and call previews show each person with their designation, like `Ra
 
 - A trip (rule 16) may **run over weekly offs and holidays** and may **come back on one**. The server writes no stay or return day on them: they stay "Weekly off" / "Holiday", with no Daily Plan, report or DA, and a return on one earns no TA (rules 17 and 18 apply only to the days that are written). The day a trip **leaves** still cannot be an off day. The trip may come back this month or next, so 27th to the 8th of next month works; next month's days are written into that month's plan as before.
 - On the phone the return date is picked on the **month calendar** (this month or next), and **Leaves on** moves the trip's first day to another free day of the month: the stay and return days move with it. A manager or Admin editing an approved month uses the same form for days after today (rule 23 still locks past and sent days).
+
+## 10. A day is one From → To (2026-11-26)
+
+Replaces the route ticks on a Field Work or Doctor Campaign day. Decision-log 2026-11-26 (phases 4–6).
+
+- **From** and **To** are places (towns or stations under an HQ). An MR picks from the places of their own HQ, offline: `territory.places` in the sync pull, with each route's `fromPlaceId` / `toPlaceId`. A manager (their team's HQs too), or anyone editing someone else's month, asks the server: `GET /planning/places?userId=` and `GET /planning/destinations?fromPlaceId=&userId=`.
+- **To** lists only places a typed route reaches from From (with its km), plus **Stay at From** (a day at one place, no route). No route, not offered: "Ask Admin to add one".
+- Send `fromPlaceId` and `toPlaceId` with `routeIds: []`; the server finds the route between them and returns it in `routeIds`. A day with no route between the places is refused (`400`, `entries.N.toPlaceId`). A place outside the plannable HQs is refused (`entries.N.fromPlaceId` / `toPlaceId`).
+- **No trips** on such a day (no `returnDate`): the days themselves say where you are. Older days keep their routes and trips until changed.
+- A new day's **From** starts where the last planned day ended (at the HQ town after a day trip, or at the start of the month).
+- **Older phones** still sending `routeIds` keep working: a single route becomes its two places on the server.
+- What a day pays is in `hld/06` §2b: a day trip (home the same night) pays the km there and back; going away, moving on and the return pay it one way; DA is measured against your own HQ.

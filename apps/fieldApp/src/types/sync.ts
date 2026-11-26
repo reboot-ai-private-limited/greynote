@@ -33,6 +33,9 @@ export type PlanningSnapshot = {
     workingType: WorkingTypeName;
     workWith: string[];
     routeIds: string[];
+    /** Where the day starts and ends (2026-11-26); absent on older days. */
+    fromPlaceId?: string | null;
+    toPlaceId?: string | null;
     /** The doctors to call: the MR's picks plus missed calls carried over (`carriedFrom` = the day first planned). Absent from older servers. */
     doctors?: { doctorId: string; carriedFrom: string | null }[];
     /** A trip day the server wrote from the Tour Plan's `returnDate`. Absent from older servers. */
@@ -54,6 +57,9 @@ export type PlanningSnapshot = {
       workingType: WorkingTypeName;
       workWith: string[];
       routeIds: string[];
+      /** Where the day starts and ends (2026-11-26); absent on older days. */
+      fromPlaceId?: string | null;
+      toPlaceId?: string | null;
       remarks: string | null;
       /** On a trip's first day: the day the employee comes back. Absent from older servers. */
       returnDate?: string | null;
@@ -100,9 +106,17 @@ export type TerritorySnapshot = {
     hqName: string;
     routeType: 'HQ' | 'EX_STATION' | 'OUT_STATION';
     distanceKm: string | null;
+    /** Both ends of the route (2026-11-26; a route serves both ways). Absent from older servers. */
+    fromPlaceId?: string | null;
+    toPlaceId?: string | null;
   }[];
+  /** The places of the HQ you are based in, HQ town first (2026-11-26): what your From and To are picked from. Absent from older servers. */
+  places?: PlaceRow[];
   hq: { hqId: string; hqName: string; zoneId: string; zoneName: string } | null;
 };
+
+/** A town or station under an HQ. `type` is the DA a day there pays that HQ's own people. */
+export type PlaceRow = { id: string; hqId: string; hqName?: string; name: string; type: 'HQ' | 'EX_STATION' | 'OUT_STATION'; isHqTown: boolean };
 
 export type GeoPoint = { latitude: number; longitude: number };
 
@@ -111,6 +125,8 @@ export type FieldMasterDataSnapshot = {
   doctors: {
     id: string;
     routeId: string;
+    /** Where it sits (2026-11-26): a day whose To place is this one offers it. Absent from older servers. */
+    placeId?: string;
     name: string;
     address: string;
     email: string | null;
@@ -132,6 +148,8 @@ export type FieldMasterDataSnapshot = {
   pendingDoctors?: {
     id: string;
     routeId: string;
+    /** Where it sits (2026-11-26): a day whose To place is this one offers it. Absent from older servers. */
+    placeId?: string;
     name: string;
     address: string;
     specialty: string;

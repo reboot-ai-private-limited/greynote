@@ -10,6 +10,8 @@ import type { FieldMasterDataSnapshot, GeoPoint } from '@/types/sync';
 export type CallDoctor = {
   id: string;
   routeId: string;
+  /** Where the doctor sits (2026-11-26). Absent from older servers. */
+  placeId?: string;
   name: string;
   address: string;
   specialty: string;

@@ -583,7 +583,7 @@ export default function DailyPlanScreen() {
         editable ? (
           <CardSection icon={sym('stethoscope', 'medical_services')} accent="blue" title="Doctors to call">
             <FormField form={fe} name="doctorIds">
-              <PlanDoctorsPicker routeIds={managerDay ? chosenRoutes : existing.routeIds} limitToRoutes={managerDay} onlyIds={managerDay && routeOptions.data ? optionDoctors : undefined} picked={doctorIds} owed={owed} onChange={(ids) => { fe.clear('doctorIds'); setDoctorIds(ids); }} disabled={busy || blocked} tooSoon={visitGap} />
+              <PlanDoctorsPicker routeIds={managerDay ? chosenRoutes : existing.routeIds} toPlaceId={existing.toPlaceId ?? null} limitToRoutes={managerDay} onlyIds={managerDay && routeOptions.data && !existing.toPlaceId ? optionDoctors : undefined} picked={doctorIds} owed={owed} onChange={(ids) => { fe.clear('doctorIds'); setDoctorIds(ids); }} disabled={busy || blocked} tooSoon={visitGap} />
             </FormField>
             {tooSoonPicked.length > 0 ? (
               <Notice tone="warning" title="Visited too recently">

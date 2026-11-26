@@ -3099,3 +3099,14 @@ The Secondary Sales performance sheet (Excel, shown on the web's Secondary sales
 - Web: the route form's "What this route pays" shows TA one way and for a day trip, and the new notes.
 
 **Needs a migration:** no. Ships with phase 4.
+
+## 2026-11-26: The phone plans From → To (phase 6)
+
+**Decision.**
+- The Tour Plan day form (own month, and a manager editing someone's) picks **From** and **To** instead of ticking routes (`FromToField`). An MR's lists come offline from the `territory` pull, which now carries `places` (the HQ's places, HQ town first) and each route's `fromPlaceId` / `toPlaceId`; a manager's (team HQs too) and someone else's come from `GET /planning/places` and `/planning/destinations`. To offers only places a typed route reaches, with its km, and "Stay at From". Trips are not offered on such a day; older days show their routes until From and To are chosen.
+- A new day's From starts at the HQ town at the start of the month and after a day trip, otherwise where the last day ended.
+- The Daily Plan offers the doctors at the day's To place; the day is shown as "From → To" / "At <place>" on the month, the day card and Today.
+- No app-version gate exists, and none is needed: older phones keep working (a single route they send becomes its two places; doctors keep their `routeId`).
+- Contract: `docs/mobile/monthlyplan.md` §10, `dailyplan.md` ("From → To days"), `team-visibility.md` ("One HQ, places").
+
+**Needs a migration:** no. Ships after phases 1–5 (server first).

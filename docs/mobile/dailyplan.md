@@ -128,3 +128,10 @@ Errors the screens must handle: `PLAN_SUBMIT_LATE` (409, `publicDetails.deadline
 ## Routes are the Tour Plan's (2026-11-19)
 
 A day's routes are its Tour Plan day's routes, for an MR and a manager alike. A manager no longer narrows them; the route picker on a manager's day is read-only. A Daily Plan whose routes differ from the Tour Plan can't be submitted or approved ("Ask your manager or Admin to change the Tour Plan for that day first"), and an amendment can't change routes. To change a day's routes, change the Tour Plan day (a manager's change goes to the manager above for approval; see monthlyplan.md section 8). TA/DA is made only after the daily report is approved, from the Daily Plan's routes.
+
+## From → To days (2026-11-26)
+
+- A Daily Plan carries the Tour Plan day's `fromPlaceId` and `toPlaceId` (sync pull and `GET /planning/daily/:id`). They can't be changed on the day: change the Tour Plan.
+- **Doctors of the day are the ones at its To place** (`placeId` on each doctor in the `fieldMasterData` pull). A day at one place offers that place's doctors. Older days (routes, no places) still go by `routeIds`.
+- A manager's "Works with" on a day at one place counts whoever holds the route that reaches the place.
+- Show the day as "From → To" (or "At <place>"); the place names are in `territory.places` (or the planning places reads).

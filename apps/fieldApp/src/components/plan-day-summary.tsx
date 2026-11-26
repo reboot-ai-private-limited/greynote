@@ -1,5 +1,6 @@
 import { ThemedText } from '@/components/themed-text';
 import { workingTypeLabel, type PlanDay } from '@/lib/planning';
+import { dayWhere } from '@/lib/places';
 import type { Colleague } from '@/offline/colleagues';
 
 /** One planned day in a line of text: type, routes, who you work with, remarks. */
@@ -11,8 +12,11 @@ export function describeDay(
   // A day of an out-station trip is still a working day; say which part of the trip it is.
   if (day.dayKind === 'STAY') parts.push('Trip stay day');
   else if (day.dayKind === 'TRANSIT') parts.push('Trip return day');
+  // A day planned From → To (2026-11-26) says where it goes; an older one names its routes.
+  const where = dayWhere(day);
   const routes = day.routeIds.map((id) => names.routes.get(id) ?? 'Route');
-  if (routes.length > 0) parts.push(routes.join(', '));
+  if (where) parts.push(where);
+  else if (routes.length > 0) parts.push(routes.join(', '));
   const people = day.workWith.map((id) => names.colleagues.get(id)?.name ?? 'Colleague');
   if (people.length > 0) parts.push(`with ${people.join(', ')}`);
   const base = parts.join(' · ');

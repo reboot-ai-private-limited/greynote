@@ -75,7 +75,14 @@ export type PlanDay = {
   workingType: WorkingType;
   /** Colleagues worked with (ids from `GET /identity/work-with`), at most 20. */
   workWith: string[];
+  /**
+   * The route travelled. On a day planned From → To (2026-11-26) the server fills it in from the two places (none when they are the same);
+   * older days list their routes here.
+   */
   routeIds: string[];
+  /** Where a field day starts and ends (2026-11-26). Null or absent on other days and older ones. */
+  fromPlaceId?: string | null;
+  toPlaceId?: string | null;
   remarks: string | null;
   /** On a trip's first day: the day the employee comes back (after this day, this month or the next). Empty for a same-day return. */
   returnDate?: string | null;
@@ -83,7 +90,10 @@ export type PlanDay = {
   dayKind?: DayKind;
 };
 
-export const EMPTY_DAY: PlanDay = { workingType: 'FIELD_WORK', workWith: [], routeIds: [], remarks: null };
+export const EMPTY_DAY: PlanDay = { workingType: 'FIELD_WORK', workWith: [], routeIds: [], fromPlaceId: null, toPlaceId: null, remarks: null };
+
+/** A day planned From → To (2026-11-26), rather than by a list of routes (older days). */
+export const hasPlaces = (day: Pick<PlanDay, 'fromPlaceId' | 'toPlaceId'>) => Boolean(day.fromPlaceId || day.toPlaceId);
 
 /*
  * A trip's other days, as the server writes them when the month is saved (planning tripExpansion.ts): every day after the first
@@ -288,7 +298,12 @@ export const saveMonthlyPlan = (planMonth: string, entries: MonthlyPlanEntry[]) 
 const entriesToSend = (entries: MonthlyPlanEntry[]) =>
   entries
     .filter((e) => !isTripDay(e.dayKind))
-    .map(({ dayKind: _kind, returnDate, ...rest }) => ({ ...rest, ...(returnDate ? { returnDate } : {}) }));
+    .map(({ dayKind: _kind, returnDate, ...rest }) =>
+      // A From → To day sends its places; the server finds the route between them, and such a day has no trip.
+      hasPlaces(rest)
+        ? { ...rest, routeIds: [] as string[], fromPlaceId: rest.fromPlaceId ?? null, toPlaceId: rest.toPlaceId ?? null }
+        : { ...rest, ...(returnDate ? { returnDate } : {}) },
+    );
 
 export const submitMonthlyPlan = (id: string) =>
   apiPost<MonthlyPlanView>(`/planning/monthly/${id}/submit`, {}, { auth: true });

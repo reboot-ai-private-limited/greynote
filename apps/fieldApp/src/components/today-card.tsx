@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Accents, Spacing } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useTheme } from '@/hooks/use-theme';
+import { dayWhere } from '@/lib/places';
 import { doctorCountText, isFieldDay, routeNamesText, workingTypeLabel } from '@/lib/planning';
 import { useCachedSource } from '@/offline/cache';
 import { useColleagues } from '@/offline/colleagues';
@@ -102,7 +103,9 @@ function TodayPlanDetails({ today }: { today: string }) {
         {approved ? 'Today’s approved Daily Plan' : 'From your Tour Plan'}
       </ThemedText>
       <Detail label="Work type" value={`${workingTypeLabel(plan.workingType)}${trip}`} />
-      {fieldDay && plan.routeIds.length > 0 ? (
+      {fieldDay && dayWhere(plan, territory.data) ? (
+        <Detail label="Where" value={dayWhere(plan, territory.data)!} />
+      ) : fieldDay && plan.routeIds.length > 0 ? (
         <Detail label="Route" value={routeNamesText(plan.routeIds, territory.data?.routes)} />
       ) : null}
       <Detail label="Work with" value={people.length > 0 ? people.join(', ') : 'Alone'} />
