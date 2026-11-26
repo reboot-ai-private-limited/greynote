@@ -3077,3 +3077,25 @@ The Secondary Sales performance sheet (Excel, shown on the web's Secondary sales
 - Web: Admin/HR/manager editing a Tour Plan (approvals) pick **From** and **To**; the next day's From starts at the previous day's To; route-only days still show their routes until changed.
 
 **Needs a migration:** no. **Deploy with phase 5:** a From = To day has no route, and only the phase 5 TA/DA reads places, so ship them together. Managers' route-based team pickers (`/team-routes`, `/daily/route-options`) stay for the phone until phase 6.
+
+## 2026-11-26: TA/DA of a From → To day, against the employee's own HQ (phase 5)
+
+**Decision.** A day planned From → To is paid by `calculatePlaceTaDa` (Field Activity), measured against the HQ the employee is based in. A place is **away** when it is outside that HQ, or an out-station place of it:
+
+| Day | TA | DA |
+|---|---|---|
+| **Day trip**: neither place away (home the same night) | the route's km **× 2**; none when To is an HQ place | To's type (HQ / Ex) |
+| **Going or moving away**: To away | the route's km, one way | Out-station |
+| **Staying**: From = To, away | none | Out-station |
+| **Return**: From away, To not | the route's km, one way | Ex-station |
+
+- km: `min(km, TA_MAX_KM)` first, then × 2 on a day trip, rounded half up to whole paise **once** (so 10.67 km at ₹7.50 is ₹80.03 one way and ₹160.05 there and back). Rate: the route's own per-km rate, else the grade's.
+- A route with a **fixed TA** pays it as typed: never doubled or capped.
+- A day at one home-side place (From = To, not away) is a day trip on the route that reaches it (its anchor route).
+- A route with no km is a ₹0 TA row flagged `distanceFlag`. A doctor campaign earns DA only; a strike nothing; meetings and conferences have no places and keep HQ DA.
+- A manager working in a team member's HQ is always out-station there; the day back to their own HQ is the return day.
+- **Older days** (route lists, trips) keep the route rule (`calculateTaDa`), as does any day whose places or the employee's HQ can't be found.
+- Generated, as before, once when the daily report passes the manager; only from then on (days already approved keep their rows).
+- Web: the route form's "What this route pays" shows TA one way and for a day trip, and the new notes.
+
+**Needs a migration:** no. Ships with phase 4.

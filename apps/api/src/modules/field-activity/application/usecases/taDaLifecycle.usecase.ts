@@ -7,7 +7,7 @@ import type { ExpenseRepositoryPort } from '../../domain/records.repository.port
 import type { TerritoryPort } from '../../domain/territory.port.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import { readConfig, parsePositiveInt, type ConfigReader } from '@/shared/config/readConfig.js';
-import { calculateTaDa } from '../taDaCalculator.js';
+import { calculatePlaceTaDa, calculateTaDa, type AutoExpense, type PayRates } from '../taDaCalculator.js';
 
 /** Past the manager: the claim is accepted, so TA/DA exists. */
 const APPROVED_STATUSES: ReadonlySet<ApprovalStatus> = new Set(['MANAGER_APPROVED', 'APPROVED']);
@@ -57,13 +57,38 @@ export class TaDaLifecycle {
     // No Plan for the day, nothing to compute from: a gap for the Accountant's audit, not a number to invent.
     const day = await this.planning.getDailyPlanDay(dcr.userId, dcr.reportDate);
     if (!day) return;
-    const routes = isFieldDay(day.workingType as WorkingType) ? await Promise.all(day.routeIds.map((id) => this.territory.getRoute(id))) : [];
-    const rows = calculateTaDa(day.workingType as WorkingType, routes, day.routeIds, await this.users.getPayBandRates(dcr.userId), await readConfig(this.config, 'TA_MAX_KM', parsePositiveInt(5000)), day.dayKind ?? 'NORMAL');
+    const rates = await this.users.getPayBandRates(dcr.userId);
+    const maxKm = await readConfig(this.config, 'TA_MAX_KM', parsePositiveInt(5000));
+    const rows =
+      (await this.fromTo(dcr.userId, day, rates, maxKm)) ??
+      calculateTaDa(
+        day.workingType as WorkingType,
+        isFieldDay(day.workingType as WorkingType) ? await Promise.all(day.routeIds.map((id) => this.territory.getRoute(id))) : [],
+        day.routeIds,
+        rates,
+        maxKm,
+        day.dayKind ?? 'NORMAL',
+      );
     for (const row of rows) {
       await this.expenses.create(
         { dcrId, userId: dcr.userId, reportDate: dcr.reportDate, routeId: row.routeId, type: row.type, source: 'AUTO', amountPaise: row.amountPaise, remarks: null, paymentStatus: 'UNPAID', accepted: true, monthApproved: false, distanceFlag: row.distanceFlag, paidBy: null, paidAt: null, clientId: null, recordedAt: now },
         ctx,
       );
     }
+  }
+
+  /**
+   * A day planned From → To (decision-log 2026-11-26): TA/DA measured against the HQ the employee is based in. `null` — the route rules
+   * apply instead — for a day from before places, or when a place or the employee's HQ can't be found.
+   */
+  private async fromTo(userId: string, day: { workingType: string; routeIds: string[]; fromPlaceId?: string | null; toPlaceId?: string | null }, rates: PayRates, maxKm: number): Promise<AutoExpense[] | null> {
+    if (!day.fromPlaceId || !day.toPlaceId || !isFieldDay(day.workingType as WorkingType)) return null;
+    const [from, to, home] = await Promise.all([this.territory.getPlace(day.fromPlaceId), this.territory.getPlace(day.toPlaceId), this.territory.getUserHq(userId)]);
+    if (!from || !to || !home) return null;
+    // The route the plan kept, else the one between the places now; a day at one place is paid, if at all, on the route that reaches it.
+    const route = day.fromPlaceId === day.toPlaceId ? null : day.routeIds[0] ? await this.territory.getRoute(day.routeIds[0]) : await this.territory.findRouteBetween(day.fromPlaceId, day.toPlaceId);
+    const anchor = day.fromPlaceId === day.toPlaceId ? await this.territory.anchorRouteForPlace(day.toPlaceId) : null;
+    const homeRoute = anchor ? await this.territory.getRoute(anchor) : null;
+    return calculatePlaceTaDa({ workingType: day.workingType as WorkingType, from, to, ownHqId: home.hqId, route, homeRoute, rates, maxKm });
   }
 }

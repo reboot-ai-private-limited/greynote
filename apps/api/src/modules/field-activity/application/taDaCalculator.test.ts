@@ -100,6 +100,11 @@ describe('TA/DA calculation (hld/06)', () => {
       expect(ta(calc('FIELD_WORK', routes, ['a', 'b'], r))).toEqual([['a', 12000]]);
     });
 
+    it('the longest Route with a fixed TA pays that amount as typed, past the cap (2026-11-26)', () => {
+      const routes = [route('a', { distanceKm: '150.00', taFixedPaise: 35000 }), route('b', { distanceKm: '20.00' })];
+      expect(ta(calc('FIELD_WORK', routes, ['a', 'b'], r))).toEqual([['a', 35000]]);
+    });
+
     it('a Route with no distance keeps its flagged zero row and is not a candidate; the cap comes from the caller', () => {
       const routes = [route('a', { distanceStatus: 'FAILED', distanceKm: null }), route('b', { distanceKm: '30.00' })];
       expect(calc('FIELD_WORK', routes, ['a', 'b'], r, 10).filter((x) => x.type === 'TA')).toEqual([

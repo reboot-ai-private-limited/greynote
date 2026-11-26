@@ -62,6 +62,10 @@ sequenceDiagram
   resolution happens **inside** the sum, applied per route, rather than once after summing every
   route's distance.
 
+## 2b. From → To days (decision-log 2026-11-26)
+
+A day planned From → To is paid against the HQ the employee is based in, not the route's type: a **day trip** (neither place away) pays the route's km × 2 (none to an HQ place) with the To place's DA; **going or moving away** pays one way with out-station DA; **staying** pays out-station DA only; the **return** pays one way with ex-station DA. A place is away when it is outside the employee's HQ or an out-station place of it. The cap applies to the one-way km before doubling; a fixed TA on the route is paid as typed. `calculatePlaceTaDa` in `field-activity/application/taDaCalculator.ts`; older days keep the rules above.
+
 ## 3. No manual override for the generated amount
 
 Unlike `Route.distance_km` or `Route.ta_per_km_rate_override` (both Admin-editable, ERD 02), the `AUTO` `Expense` amount itself is not manually editable once generated. Since generation now happens exactly once, after Manager approval, from already-verified inputs — a correction belongs at the source: if the underlying route distance or rate override was wrong, Admin fixes it on the `Route` itself, which then applies to _future_ approvals. It doesn't retroactively touch `Expense` rows already generated for past approvals — same "locked snapshot" principle as `PayrollRun` (HLD 7) and the Financial Year Toggle (HLD 9).

@@ -91,3 +91,33 @@ describe('TA/DA over a DCR’s life', () => {
     expect(auto().every((r) => r.amountPaise !== 999999)).toBe(true);
   });
 });
+
+describe('TA/DA of a day planned From → To (2026-11-26)', () => {
+  /** One report for `DAY` on Jalpaiguri town → Mainaguri (route-1, 10.67 km, Ex), for an employee based in `hq` (none: `null`). */
+  const day = async (hq: string | null) => {
+    const kit = faKit();
+    kit.users.rates.exStationDaPaise = 20000;
+    kit.users.rates.outStationDaPaise = 50000;
+    kit.territory.places.set('town', { id: 'town', hqId: 'J', type: 'HQ', isHqTown: true });
+    kit.territory.places.set('main', { id: 'main', hqId: 'J', type: 'EX_STATION', isHqTown: false });
+    kit.territory.ends.set('route-1', ['town', 'main']);
+    if (hq) kit.territory.userHq.set('mr1', hq);
+    kit.planning.approve('mr1', DAY);
+    kit.planning.days.set(`mr1:${DAY}`, { workingType: 'FIELD_WORK', routeIds: ['route-1'], fromPlaceId: 'town', toPlaceId: 'main' });
+    const id = (await kit.submit.execute('mr1', DAY, REC.recordedAt, new Tx())).dcrId;
+    await kit.taDa.onStatusChange(id, 'MANAGER_APPROVED', new Tx());
+    return kit.expenses.rows.filter((r) => r.source === 'AUTO').map((r) => [r.type, r.amountPaise]);
+  };
+
+  it('based in that HQ: a day trip, there and back (21.34 km at ₹7.50, rounded once), with Ex-station DA', async () => {
+    expect(await day('J')).toEqual([['TA', 16005], ['DA', 20000]]);
+  });
+
+  it('based in another HQ (a manager with the team): out-station, paid one way', async () => {
+    expect(await day('S')).toEqual([['TA', 8003], ['DA', 50000]]);
+  });
+
+  it("no HQ found: the older route rule (the route's own type)", async () => {
+    expect(await day(null)).toEqual([['TA', 8003], ['DA', 20000]]);
+  });
+});

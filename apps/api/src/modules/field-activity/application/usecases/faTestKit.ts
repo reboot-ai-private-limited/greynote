@@ -111,7 +111,7 @@ export class FakePlanning implements PlanningPort {
   async isDailyPlanApproved(userId: string, date: string) {
     return this.approved.has(`${userId}:${date}`);
   }
-  days = new Map<string, { workingType: WorkingType; routeIds: string[]; doctorIds?: string[] }>();
+  days = new Map<string, { workingType: WorkingType; routeIds: string[]; doctorIds?: string[]; fromPlaceId?: string | null; toPlaceId?: string | null }>();
   async getDailyPlanDay(userId: string, date: string) {
     return this.days.get(`${userId}:${date}`) ?? null;
   }
@@ -211,6 +211,30 @@ export class FakeTerritory implements TerritoryPort {
   ]);
   async getRoute(id: string) {
     return this.routes.get(id) ?? null;
+  }
+  /** Places (2026-11-26): `places` by id, each user's HQ, and which route joins two places (`ends`). */
+  places = new Map<string, { id: string; hqId: string; type: 'HQ' | 'EX_STATION' | 'OUT_STATION'; isHqTown: boolean }>();
+  userHq = new Map<string, string>();
+  ends = new Map<string, [string, string]>();
+  async getPlace(id: string) {
+    return this.places.get(id) ?? null;
+  }
+  async getUserHq(userId: string) {
+    const hqId = this.userHq.get(userId);
+    return hqId ? { hqId, zoneId: 'z1' } : null;
+  }
+  async findRouteBetween(a: string, b: string) {
+    for (const [id, [x, y]] of this.ends) {
+      if ((x === a && y === b) || (x === b && y === a)) {
+        const r = this.routes.get(id);
+        return r ? { ...r, status: 'active' as const } : null;
+      }
+    }
+    return null;
+  }
+  async anchorRouteForPlace(placeId: string) {
+    for (const [id, [x, y]] of this.ends) if (x === placeId || y === placeId) return id;
+    return null;
   }
 }
 

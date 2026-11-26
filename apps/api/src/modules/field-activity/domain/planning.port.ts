@@ -7,5 +7,13 @@ export interface PlanningPort {
   /** The Monthly Plan for `YYYY-MM` is past the manager. No approved month, no work (decision-log 2026-10-12). */
   isMonthlyPlanApproved(userId: string, planMonth: string): Promise<boolean>;
   /** The day's working type, kind (a stay or transit day of an out-station trip; `NORMAL` when absent) and routes, for TA/DA; `null` with no Plan. */
-  getDailyPlanDay(userId: string, planDate: string): Promise<{ workingType: WorkingType; dayKind?: DayKind; routeIds: string[]; doctorIds?: string[] } | null>;
+  getDailyPlanDay(userId: string, planDate: string): Promise<{
+    workingType: WorkingType;
+    dayKind?: DayKind;
+    routeIds: string[];
+    /** Where the day starts and ends (2026-11-26); absent or null on older days, which use the route rules. */
+    fromPlaceId?: string | null;
+    toPlaceId?: string | null;
+    doctorIds?: string[];
+  } | null>;
 }
