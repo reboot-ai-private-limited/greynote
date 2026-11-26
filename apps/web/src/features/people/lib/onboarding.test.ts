@@ -51,12 +51,12 @@ const complete: WizardForm = {
 };
 
 describe('step rules', () => {
-  it('work: an MR must choose an HQ and a route; a ZSM must choose a zone, and no HQ or route', () => {
-    expect(stepErrors('work', { ...complete, routeIds: [] }, ctx)['routeIds']).toBeTruthy();
+  it('work: every designation chooses exactly one HQ and no routes (2026-11-26)', () => {
+    expect(stepErrors('work', { ...complete, routeIds: [] }, ctx)['routeIds']).toBeUndefined();
     expect(stepErrors('work', { ...complete, hqIds: [] }, ctx)['hqIds']).toBeTruthy();
     const zsm = { ...complete, designationId: 'zsm', hqIds: [], routeIds: [] };
-    expect(stepErrors('work', zsm, ctx)).toEqual({ zoneIds: 'Choose at least one zone.' });
-    expect(stepErrors('work', { ...zsm, zoneIds: ['z1'] }, ctx)).toEqual({});
+    expect(stepErrors('work', { ...zsm, zoneIds: ['z1'] }, ctx)['hqIds']).toBeTruthy();
+    expect(stepErrors('work', { ...zsm, hqIds: [complete.hqIds[0]!] }, ctx)).toEqual({});
   });
 
   it('an old draft with one HQ reads as covering that HQ', () => {

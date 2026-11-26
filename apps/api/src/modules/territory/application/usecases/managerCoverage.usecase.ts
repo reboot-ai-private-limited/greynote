@@ -15,12 +15,10 @@ export class GetManagerCoverageUseCase {
   ) {}
 
   /**
-   * What the employee covers. Nobody recorded a coverage for an employee set up before coverage was for everyone, so their single HQ is
-   * read as the HQ they cover (the same answer a one-off copy would give, without running one).
+   * Where the employee is based: since 2026-11-26 every designation has exactly one HQ, so this is their main HQ and its Zone. An older
+   * multi-HQ / Zone coverage is no longer read (it stays stored as history).
    */
   async execute(userId: string): Promise<Pick<ManagerCoverage, 'userId' | 'hqIds' | 'zoneIds'>> {
-    const found = await this.coverage.find(userId);
-    if (found && (found.hqIds.length > 0 || found.zoneIds.length > 0)) return { userId, hqIds: found.hqIds, zoneIds: found.zoneIds };
     const active = await this.userHqs.findActive(userId);
     const hq = active ? await this.hqs.findById(active.hqId) : null;
     return { userId, hqIds: active ? [active.hqId] : [], zoneIds: hq ? [hq.zoneId] : [] };
@@ -28,9 +26,8 @@ export class GetManagerCoverageUseCase {
 }
 
 /**
- * Admin/HR set the Zones and HQs an employee covers (any field employee: an MR's HQs, an ASM's or RSM's HQs, a ZSM's or NSM's Zones); it
- * replaces the previous list whole. The first HQ becomes the employee's main HQ when the current one is not among them, so everything that
- * still reads one HQ (the employee list, the manager picker) keeps working.
+ * Admin/HR set where an employee is based: exactly one HQ, for every designation (decision-log 2026-11-26). It becomes their main HQ, and
+ * the stored coverage is replaced by that HQ and its Zone, so nothing old lingers. Zones alone are refused.
  */
 export class SetManagerCoverageUseCase {
   constructor(
@@ -49,17 +46,18 @@ export class SetManagerCoverageUseCase {
     if (user.status === 'inactive') throw AppError.conflict('That employee is inactive.', { field: 'userId' });
 
     const hqIds = [...new Set(input.hqIds)];
+    if (hqIds.length !== 1) throw AppError.badRequest('Choose one HQ: every employee is based in exactly one.', { field: 'hqIds' });
     const foundHqs = await this.hqs.findByIds(hqIds);
     if (foundHqs.length !== hqIds.length || foundHqs.some((h) => h.status !== 'active')) throw AppError.badRequest('Every HQ must exist and be active.', { field: 'hqIds' });
     // The Zone of every HQ covered is stored too, so the list and filters need not work it out from the HQs.
-    const zoneIds = [...new Set([...input.zoneIds, ...foundHqs.map((h) => h.zoneId)])];
+    const zoneIds = [...new Set(foundHqs.map((h) => h.zoneId))];
     for (const zoneId of zoneIds) {
       const zone = await this.zones.findById(zoneId);
       if (!zone || zone.status !== 'active') throw AppError.badRequest('Every Zone must exist and be active.', { field: 'zoneIds' });
     }
     const saved = await this.coverage.save({ userId, hqIds, zoneIds, updatedBy: actorId });
     const current = await this.userHqs.findActive(userId);
-    if (hqIds.length > 0 && (!current || !hqIds.includes(current.hqId))) await this.setMainHq.execute(userId, hqIds[0] as string, actorId);
+    if (!current || current.hqId !== hqIds[0]) await this.setMainHq.execute(userId, hqIds[0] as string, actorId);
     return saved;
   }
 }

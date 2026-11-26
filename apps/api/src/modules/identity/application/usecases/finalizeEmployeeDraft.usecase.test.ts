@@ -72,13 +72,13 @@ describe('FinalizeEmployeeDraftUseCase', () => {
     const result = await useCase.execute(actor, 'd1');
     expect(result).toMatchObject({ userId: 'u1', employeeCode: 'GHC101' });
     expect(result.password).toHaveLength(12);
-    expect(calls).toEqual(['create GHC101', 'update u1 boss', 'hq u1 hq-1', 'coverage u1 hq-1|', 'routes u1 r1,r2', 'ctc', 'draft deleted']);
+    expect(calls).toEqual(['create GHC101', 'update u1 boss', 'hq u1 hq-1', 'coverage u1 hq-1|', 'ctc', 'draft deleted']);
   });
 
-  it('refuses an MR with no route and creates nothing', async () => {
+  it('assigns no routes, even from an older draft that names some: routes come from the HQ (2026-11-26)', async () => {
     const { useCase, calls } = build(complete({ work: { designationId: 'des-1', hqId: 'hq-1', managerId: 'boss' } }));
-    await expect(useCase.execute(actor, 'd1')).rejects.toMatchObject({ statusCode: 400 });
-    expect(calls).toEqual([]);
+    await useCase.execute(actor, 'd1');
+    expect(calls.some((c) => c.startsWith('routes'))).toBe(false);
   });
 
   it('needs no route for a manager designation', async () => {
@@ -87,22 +87,20 @@ describe('FinalizeEmployeeDraftUseCase', () => {
     expect(calls.some((c) => c.startsWith('routes'))).toBe(false);
   });
 
-  it('an MR needs an HQ, a ZSM needs a Zone but no HQ, and the NSM needs neither', async () => {
+  it('every designation needs one HQ — an MR, a ZSM and the NSM alike; Zones alone are not enough', async () => {
     await expect(build(complete({ work: { designationId: 'des-1', routeIds: ['r1'] } })).useCase.execute(actor, 'd1')).rejects.toMatchObject({ statusCode: 400 });
-    await expect(build(complete({ work: { designationId: 'des-zsm' } })).useCase.execute(actor, 'd1')).rejects.toMatchObject({ statusCode: 400 });
-    const zsm = build(complete({ work: { designationId: 'des-zsm', zoneIds: ['z1', 'z2'] } }));
+    await expect(build(complete({ work: { designationId: 'des-zsm', zoneIds: ['z1'] } })).useCase.execute(actor, 'd1')).rejects.toMatchObject({ statusCode: 400 });
+    await expect(build(complete({ work: { designationId: 'des-top' } })).useCase.execute(actor, 'd1')).rejects.toMatchObject({ statusCode: 400 });
+    const zsm = build(complete({ work: { designationId: 'des-zsm', hqIds: ['hq-3'], zoneIds: ['z1', 'z2'] } }));
     await zsm.useCase.execute(actor, 'd1');
-    expect(zsm.calls).toContain('coverage u1 |z1,z2');
-    expect(zsm.calls.some((c) => c.startsWith('hq '))).toBe(false);
-    const nsm = build(complete({ work: { designationId: 'des-top' } }));
-    await nsm.useCase.execute(actor, 'd1');
-    expect(nsm.calls.some((c) => c.startsWith('coverage'))).toBe(false);
+    expect(zsm.calls).toEqual(expect.arrayContaining(['hq u1 hq-3', 'coverage u1 hq-3|']));
   });
 
-  it('covers several HQs, the first being the main one, and assigns the routes it was given', async () => {
+  it('keeps only the first HQ when an older draft names several', async () => {
     const { useCase, calls } = build(complete({ work: { designationId: 'des-1', hqIds: ['hq-2', 'hq-1'], routeIds: ['r9'] } }));
     await useCase.execute(actor, 'd1');
-    expect(calls).toEqual(expect.arrayContaining(['hq u1 hq-2', 'coverage u1 hq-2,hq-1|', 'routes u1 r9']));
+    expect(calls).toEqual(expect.arrayContaining(['hq u1 hq-2', 'coverage u1 hq-2|']));
+    expect(calls.some((c) => c.startsWith('routes'))).toBe(false);
   });
 
   it('carries the draft photo onto the new employee', async () => {

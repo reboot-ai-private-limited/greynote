@@ -14,6 +14,12 @@ class FakeAssignments implements UserHqAssignmentRepositoryPort {
   async findActive(userId: string) {
     return this.rows.find((r) => r.userId === userId && r.status === 'active') ?? null;
   }
+  async findActiveForUsers(userIds: string[]) {
+    return this.rows.filter((r) => userIds.includes(r.userId) && r.status === 'active');
+  }
+  async listActiveInHqs(hqIds: string[]) {
+    return this.rows.filter((r) => hqIds.includes(r.hqId) && r.status === 'active');
+  }
   async listForUser(userId: string) {
     return this.rows.filter((r) => r.userId === userId).reverse();
   }

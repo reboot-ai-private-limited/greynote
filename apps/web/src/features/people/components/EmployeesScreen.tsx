@@ -153,9 +153,6 @@ export function EmployeesScreen() {
         title="Employees"
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={() => router.push('/employees/territory-gaps')}>
-              Territory gaps
-            </Button>
             {me?.role === 'ADMIN' ? (
               <Button
                 variant="secondary"

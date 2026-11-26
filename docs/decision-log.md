@@ -3039,3 +3039,15 @@ The Secondary Sales performance sheet (Excel, shown on the web's Secondary sales
 **Needs a migration: yes.** `pnpm --filter @greynote/api migrate:places` (dry run), then `-- --apply` (mongodump first in production). It makes the HQ towns and one place per (HQ, destination), and links every route as HQ town ↔ place, keeping ids, names, km and rates. A route "X to X" (work inside the HQ town) becomes town ↔ town and is kept for old plans and doctors. Safe to repeat. Run before using the new screens.
 
 **Not yet (later phases):** one HQ per employee and routes by HQ instead of assignments (2), doctors / chemists / distributors on places (3), Tour Plan From → To (4), the new TA/DA rule (5), the phone (6).
+
+## 2026-11-26: One HQ for every designation; routes come from the HQ (phase 2)
+
+**Decision.**
+- **Every field employee, MR to NSM, is based in exactly one HQ** (their main HQ, `UserHqAssignment`). It is what TA/DA is measured against: a manager working in a team member's HQ is out-station there, whatever they can plan.
+- **Routes are no longer handed to people.** The routes someone can plan are the active routes whose both ends are places of their HQ (`listRoutesForUser`). For a manager's plan, Planning already asks for the manager plus everyone below them (`listRoutesForUsers`), which now means the routes within their own HQ and their team's HQs, including a route from their HQ into a team HQ. "Who holds a route" (`listHoldersOfRoutes`, used for Works with) is everyone based in the HQ of either end. A route not yet migrated to places counts for its HQ.
+- **Coverage is reduced to the one HQ.** `GET /users/:id/coverage` answers the main HQ and its Zone; `PUT` takes exactly one HQ (zones alone or several HQs are refused), makes it the main HQ and replaces the stored coverage with it. Holidays follow the main HQ only (`getUserTerritory`). Extending a manager's territory and team gaps answer "nothing to add" (kept for older clients).
+- **Manager candidates** hide nobody for where they are based; within a level, those based in the employee's HQ or its Zone come first (`covers`), the rest `none`.
+- **New employee:** the Work step asks for one HQ for every designation and no routes; finalizing assigns that HQ only.
+- Web: the employee page's Territory card is an **HQ** card (one picker, "Not set" warned); the Routes card lists the routes of their HQ, read-only; a route's page says who can plan it instead of listing assigned MRs; the manager picker no longer offers to extend territory; "Territory gaps" is gone from Employees.
+
+**Needs a migration:** no. Route assignments and old coverage stay stored as history and are not read. **Check before deploying:** field employees with no HQ get no routes until Admin sets one (locally: 5 of 46, two NSMs, an RSM and two MRs). Old phones keep working: they receive the same route lists, just larger.

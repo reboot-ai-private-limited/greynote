@@ -1,9 +1,7 @@
 import type { HqRepositoryPort } from '../../domain/hq.repository.port.js';
-import type { ManagerCoverageRepositoryPort } from '../../domain/managerCoverage.repository.port.js';
 import type { ManagerDirectoryPort } from '../../domain/managerDirectory.port.js';
+import type { UserHqAssignmentRepositoryPort } from '../../domain/userHqAssignment.repository.port.js';
 
-/** The NSM covers every HQ; nobody records a coverage for the top. */
-const COVERS_EVERYWHERE = 'NSM';
 const LIMIT = 50;
 const RANK = { covers: 0, none: 1, missing: 2 } as const;
 
@@ -12,22 +10,18 @@ export interface ManagerCandidate {
   employeeCode: string;
   name: string;
   designation: { id: string | null; name: string; level: number };
-  /**
-   * `covers`: their coverage includes the employee's HQ (or they are the NSM); `none`: no coverage recorded yet, so listed unfiltered;
-   * `missing`: they have a coverage that leaves the employee's HQ out, listed last so choosing them can offer to add it.
-   */
+  /** `covers`: based in the employee's HQ, or in its Zone; `none`: elsewhere. Since 2026-11-26 never `missing` (a manager is based in one HQ and manages people anywhere). */
   coverage: 'covers' | 'none' | 'missing';
 }
 
 /**
- * Who can be chosen as an employee's reporting manager: active field employees at a higher designation (levels may be skipped), who cover
- * the employee's HQ — by HQ or by its Zone — first. A manager with no coverage recorded is still listed, marked `none`, and one whose coverage leaves
- * the HQ out is listed last, marked `missing`, so the picker can offer to add the HQ to their territory instead of hiding them. Without an HQ nothing is filtered by territory. Nearest level first, those who surely cover the HQ before those without a coverage.
+ * Who can be chosen as an employee's reporting manager: active field employees at a higher designation (levels may be skipped). Nearest
+ * level first; within a level, those based in the employee's HQ or its Zone first. Nobody is hidden for where they are based.
  */
 export class ListManagerCandidatesUseCase {
   constructor(
     private readonly users: ManagerDirectoryPort,
-    private readonly coverage: ManagerCoverageRepositoryPort,
+    private readonly userHqs: UserHqAssignmentRepositoryPort,
     private readonly hqs: HqRepositoryPort,
   ) {}
 
@@ -39,16 +33,13 @@ export class ListManagerCandidatesUseCase {
     );
     const named = term ? all.filter((u) => u.name.toLowerCase().includes(term) || u.employeeCode.toLowerCase().includes(term)) : all;
     const hq = input.hqId ? await this.hqs.findById(input.hqId) : null;
-    const coverages = new Map((await this.coverage.findMany(named.map((u) => u.id))).map((c) => [c.userId, c]));
+    const baseOf = new Map((await this.userHqs.findActiveForUsers(named.map((u) => u.id))).map((a) => [a.userId, a.hqId]));
+    const zoneOf = new Map((await this.hqs.findByIds([...new Set(baseOf.values())])).map((h) => [h.id, h.zoneId]));
 
     const out: ManagerCandidate[] = [];
     for (const u of named) {
-      const c = coverages.get(u.id);
-      let state: ManagerCandidate['coverage'] = 'none';
-      if (u.designation === COVERS_EVERYWHERE) state = 'covers';
-      else if (c && (c.hqIds.length > 0 || c.zoneIds.length > 0)) {
-        state = hq && !c.hqIds.includes(hq.id) && !c.zoneIds.includes(hq.zoneId) ? 'missing' : 'covers';
-      }
+      const base = baseOf.get(u.id);
+      const state: ManagerCandidate['coverage'] = hq && base && (base === hq.id || zoneOf.get(base) === hq.zoneId) ? 'covers' : 'none';
       out.push({ id: u.id, employeeCode: u.employeeCode, name: u.name, designation: { id: u.designationId, name: u.designation, level: u.designationLevel }, coverage: state });
     }
     return out.sort((a, b) => a.designation.level - b.designation.level || RANK[a.coverage] - RANK[b.coverage] || a.name.localeCompare(b.name)).slice(0, LIMIT);

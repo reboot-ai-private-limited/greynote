@@ -81,16 +81,11 @@ export class FinalizeEmployeeDraftUseCase {
     const designations = await this.designations.list();
     const top = isTopDesignation(data.work?.designationId ?? null, designations);
     const designation = designations.find((d) => d.id === data.work?.designationId)?.name;
-    const hqIds = data.work?.hqIds?.length ? data.work.hqIds : data.work?.hqId ? [data.work.hqId] : [];
-    // An MR, ASM or RSM keeps the Zones of their HQs (Territory fills them in); a Zone ticked only to list HQs is not kept.
-    const namesHqs = designation === 'MR' || designation === 'ASM' || designation === 'RSM';
-    const zoneIds = namesHqs ? [] : (data.work?.zoneIds ?? []);
-    const routeIds = data.work?.routeIds ?? [];
+    // Every designation is based in exactly one HQ (decision-log 2026-11-26): the first one named. Routes come from that HQ, so none are
+    // assigned here, and Zones are not kept (the HQ brings its Zone). Older drafts may still carry zoneIds / routeIds: they are ignored.
+    const hqId = data.work?.hqIds?.[0] ?? data.work?.hqId;
     const gaps = draftGaps(data);
-    // What a designation must have: an MR, ASM or RSM an HQ, a ZSM a Zone (the NSM nothing), and an MR at least one route to plan a day.
-    if ((designation === 'MR' || designation === 'ASM' || designation === 'RSM') && hqIds.length === 0) gaps.push({ step: 'work', field: 'hqIds' });
-    if (designation === 'ZSM' && zoneIds.length === 0) gaps.push({ step: 'work', field: 'zoneIds' });
-    if (designation === 'MR' && routeIds.length === 0) gaps.push({ step: 'work', field: 'routeIds' });
+    if (designation && !hqId) gaps.push({ step: 'work', field: 'hqIds' });
     if (gaps.length > 0) {
       throw AppError.badRequest('Some required details are missing.', { gaps });
     }
@@ -141,9 +136,10 @@ export class FinalizeEmployeeDraftUseCase {
     // The photo file stays where it is; only the reference moves to the new employee.
     if (data.photo) await this.profiles.upsert(userId, { photo: data.photo });
 
-    if (hqIds[0]) await this.assignHq()(userId, hqIds[0], actor.id);
-    if (hqIds.length > 0 || zoneIds.length > 0) await this.assignCoverage()(userId, { hqIds, zoneIds }, actor.id);
-    if (routeIds.length > 0) await this.assignRoutes()(userId, routeIds, actor.id);
+    if (hqId) {
+      await this.assignHq()(userId, hqId, actor.id);
+      await this.assignCoverage()(userId, { hqIds: [hqId], zoneIds: [] }, actor.id);
+    }
 
     const ctc = data.compensation?.ctcAnnualPaise;
     if (ctc && !(await this.ctcAssignments.findEffective(userId, FAR_FUTURE))) {

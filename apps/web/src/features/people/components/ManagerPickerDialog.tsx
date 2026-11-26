@@ -150,15 +150,11 @@ export function ManagerPickerDialog({
       : (listed.data?.items ?? []);
   const rows = found.filter((u) => u.id !== selfId);
 
-  /** The confirm step is worth showing only when there is a coverage gap to fill; routes are no longer copied onto managers. */
-  const choose = (u: Row) => {
-    const gap =
-      Boolean(offer?.hqId) &&
-      u.coverage !== undefined &&
-      (u.coverage !== 'covers' || u.level === NSM);
-    if (offer && gap) setConfirming(u);
-    else onPick({ id: u.id, name: u.name });
-  };
+  /**
+   * Since 2026-11-26 a manager is based in one HQ and plans their team's HQs through the team, so nothing is added to their territory:
+   * choosing is immediate. (The confirm step below is no longer reached; `offer` is kept for callers.)
+   */
+  const choose = (u: Row) => onPick({ id: u.id, name: u.name });
 
   if (confirming && offer) {
     return (
@@ -207,7 +203,7 @@ export function ManagerPickerDialog({
         ) : rows.length === 0 ? (
           <p className="text-[13px] text-text-subtle">
             {above
-              ? 'No manager above this designation covers this HQ. You can leave the manager empty: approvals then go straight to Admin or HR.'
+              ? 'No one above this designation matches. You can leave the manager empty: approvals then go straight to Admin or HR.'
               : 'No active employees match.'}
           </p>
         ) : (
@@ -223,8 +219,7 @@ export function ManagerPickerDialog({
                   </p>
                   <p className="text-xs text-text-subtle">
                     {u.employeeCode}
-                    {u.noCoverage ? ' · no coverage set' : ''}
-                    {u.coverage === 'missing' ? ' · doesn’t cover this HQ' : ''}
+                    {u.coverage === 'covers' ? ' · based in this HQ or its zone' : ''}
                   </p>
                 </div>
                 <Button size="sm" onClick={() => choose(u)}>

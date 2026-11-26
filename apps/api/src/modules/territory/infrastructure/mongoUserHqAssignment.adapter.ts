@@ -25,6 +25,18 @@ export class MongoUserHqAssignmentAdapter implements UserHqAssignmentRepositoryP
     return doc ? toAssignment(doc) : null;
   }
 
+  async findActiveForUsers(userIds: string[]): Promise<UserHqAssignment[]> {
+    if (userIds.length === 0) return [];
+    const docs = await UserHqAssignmentModel.find({ userId: { $in: userIds.map((id) => new Types.ObjectId(id)) }, status: 'active' }).lean();
+    return docs.map(toAssignment);
+  }
+
+  async listActiveInHqs(hqIds: string[]): Promise<UserHqAssignment[]> {
+    if (hqIds.length === 0) return [];
+    const docs = await UserHqAssignmentModel.find({ hqId: { $in: hqIds.map((id) => new Types.ObjectId(id)) }, status: 'active' }).lean();
+    return docs.map(toAssignment);
+  }
+
   async listForUser(userId: string): Promise<UserHqAssignment[]> {
     const docs = await UserHqAssignmentModel.find({ userId: new Types.ObjectId(userId) }).sort({ assignedAt: -1 }).lean();
     return docs.map(toAssignment);

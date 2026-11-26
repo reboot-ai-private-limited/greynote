@@ -53,70 +53,61 @@ const directory = {
 /** The main HQ each person has; a real set-HQ use case would end and start rows, here it only records the change. */
 function setup(mainHq: Record<string, string> = {}) {
   const coverage = new FakeCoverage();
-  const userHqs = { findActive: async (id: string) => (mainHq[id] ? { hqId: mainHq[id] } : null) } as never;
+  const userHqs = {
+    findActive: async (id: string) => (mainHq[id] ? { userId: id, hqId: mainHq[id] } : null),
+    findActiveForUsers: async (ids: string[]) => ids.filter((id) => mainHq[id]).map((id) => ({ userId: id, hqId: mainHq[id] })),
+  } as never;
   const setMainHq = { execute: async (id: string, hqId: string) => void (mainHq[id] = hqId) } as never;
+  const get = new GetManagerCoverageUseCase(coverage, userHqs, hqRepo);
   return {
     coverage,
     mainHq,
+    get,
     set: new SetManagerCoverageUseCase(coverage, hqRepo, zoneRepo, directory, userHqs, setMainHq),
-    get: new GetManagerCoverageUseCase(coverage, userHqs, hqRepo),
-    territory: new GetUserTerritoryUseCase(coverage, userHqs, hqRepo),
-    list: new ListManagerCandidatesUseCase(directory, coverage, hqRepo),
+    territory: new GetUserTerritoryUseCase(userHqs, hqRepo),
+    list: new ListManagerCandidatesUseCase(directory, userHqs, hqRepo),
+    extend: new ExtendManagerTerritoryUseCase(get),
   };
 }
 
-describe('manager coverage', () => {
-  it('saves HQs for an ASM and zones for a ZSM, replacing the list whole; reads back empty when none', async () => {
-    const { set, get } = setup();
-    expect(await get.execute('asm1')).toEqual({ userId: 'asm1', hqIds: [], zoneIds: [] });
-    await set.execute('asm1', { hqIds: ['hqA', 'hqB', 'hqA'], zoneIds: [] }, 'admin');
-    expect((await get.execute('asm1')).hqIds).toEqual(['hqA', 'hqB']);
-    await set.execute('asm1', { hqIds: ['hqC'], zoneIds: [] }, 'admin');
-    expect((await get.execute('asm1')).hqIds).toEqual(['hqC']);
-    await set.execute('zsm', { hqIds: [], zoneIds: ['z2'] }, 'admin');
-    expect((await get.execute('zsm')).zoneIds).toEqual(['z2']);
+describe('one HQ for every designation (2026-11-26)', () => {
+  it('sets exactly one HQ, which becomes the main HQ, and the coverage is replaced by it and its Zone', async () => {
+    const { set, get, mainHq, coverage } = setup({ zsm: 'hqC' });
+    await set.execute('zsm', { hqIds: ['hqA'], zoneIds: ['z2'] }, 'admin');
+    expect(mainHq['zsm']).toBe('hqA');
+    expect(coverage.rows.get('zsm')).toMatchObject({ hqIds: ['hqA'], zoneIds: ['z1'] });
+    expect(await get.execute('zsm')).toEqual({ userId: 'zsm', hqIds: ['hqA'], zoneIds: ['z1'] });
   });
 
-  it('lets an MR cover HQs too, and makes the first one the main HQ when the current one is not among them', async () => {
-    const { set, get, mainHq } = setup({ mr: 'hqC' });
-    await set.execute('mr', { hqIds: ['hqA', 'hqB'], zoneIds: [] }, 'admin');
-    expect((await get.execute('mr')).hqIds).toEqual(['hqA', 'hqB']);
-    expect(mainHq['mr']).toBe('hqA');
-    expect((await get.execute('mr')).zoneIds).toEqual(['z1']);
-    await set.execute('mr', { hqIds: ['hqB', 'hqA'], zoneIds: [] }, 'admin');
-    expect(mainHq['mr']).toBe('hqA');
-  });
-
-  it('reads an employee with no coverage as covering their single HQ', async () => {
-    const { get } = setup({ mr: 'hqA' });
-    expect(await get.execute('mr')).toEqual({ userId: 'mr', hqIds: ['hqA'], zoneIds: ['z1'] });
-  });
-
-  it('refuses an unknown person, an unknown or inactive HQ, and an unknown zone', async () => {
+  it('refuses no HQ, several HQs, zones alone, an unknown person and an unknown or inactive HQ', async () => {
     const { set } = setup();
-    await expect(set.execute('ghost', { hqIds: [], zoneIds: [] }, 'admin')).rejects.toMatchObject({ statusCode: 404 });
+    await expect(set.execute('zsm', { hqIds: [], zoneIds: ['z1'] }, 'admin')).rejects.toMatchObject({ statusCode: 400 });
+    await expect(set.execute('asm1', { hqIds: ['hqA', 'hqB'], zoneIds: [] }, 'admin')).rejects.toMatchObject({ statusCode: 400 });
+    await expect(set.execute('ghost', { hqIds: ['hqA'], zoneIds: [] }, 'admin')).rejects.toMatchObject({ statusCode: 404 });
     await expect(set.execute('asm1', { hqIds: ['hqOff'], zoneIds: [] }, 'admin')).rejects.toMatchObject({ statusCode: 400 });
     await expect(set.execute('asm1', { hqIds: ['nope'], zoneIds: [] }, 'admin')).rejects.toMatchObject({ statusCode: 400 });
-    await expect(set.execute('zsm', { hqIds: [], zoneIds: ['zz'] }, 'admin')).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it('reads only the main HQ: an old multi-HQ or Zone coverage is ignored', async () => {
+    const { get, coverage } = setup({ rsm: 'hqB' });
+    await coverage.save({ userId: 'rsm', hqIds: ['hqA', 'hqC'], zoneIds: ['z2'], updatedBy: 'x' });
+    expect(await get.execute('rsm')).toEqual({ userId: 'rsm', hqIds: ['hqB'], zoneIds: ['z1'] });
+    expect(await get.execute('nsm')).toEqual({ userId: 'nsm', hqIds: [], zoneIds: [] });
+  });
+
+  it('extending a manager changes nothing and answers where they are based', async () => {
+    const { extend, mainHq } = setup({ rsm: 'hqB' });
+    expect(await extend.execute('rsm', { hqIds: ['hqC'], zoneIds: ['z2'], routeIds: ['r1'] }, 'admin')).toEqual({ hqIds: ['hqB'], zoneIds: ['z1'] });
+    expect(mainHq['rsm']).toBe('hqB');
   });
 });
 
 describe('territory for holidays', () => {
-  it('a covered Zone brings all its active HQs, a covered HQ brings its Zone, and nothing covered is null', async () => {
-    const { set, territory } = setup();
+  it('is the main HQ and its Zone only, whatever coverage is stored; nothing set is null', async () => {
+    const { territory, coverage } = setup({ zsm: 'hqA' });
+    await coverage.save({ userId: 'zsm', hqIds: [], zoneIds: ['z2'], updatedBy: 'x' });
+    expect(await territory.execute('zsm')).toEqual({ hqIds: ['hqA'], zoneIds: ['z1'] });
     expect(await territory.execute('nsm')).toBeNull();
-    await set.execute('zsm', { hqIds: [], zoneIds: ['z1'] }, 'admin');
-    const z = (await territory.execute('zsm'))!;
-    expect(z.zoneIds).toEqual(['z1']);
-    expect(z.hqIds.sort()).toEqual(['hqA', 'hqB']);
-    await set.execute('asm1', { hqIds: ['hqC'], zoneIds: [] }, 'admin');
-    expect(await territory.execute('asm1')).toEqual({ hqIds: ['hqC'], zoneIds: ['z2'] });
-  });
-
-  it('naming some HQs of a covered Zone narrows it to those', async () => {
-    const { set, territory } = setup();
-    await set.execute('zsm', { hqIds: ['hqA'], zoneIds: ['z1'] }, 'admin');
-    expect((await territory.execute('zsm'))!.hqIds).toEqual(['hqA']);
   });
 });
 
@@ -129,57 +120,15 @@ describe('manager candidates', () => {
     expect((await list.execute({ belowLevel: 1 })).map((c) => c.id)).not.toContain('mr');
   });
 
-  it('lists managers who cover the employee’s HQ first, those without coverage next, and those whose coverage leaves it out last', async () => {
-    const { list, set } = setup();
-    await set.execute('asm1', { hqIds: ['hqA', 'hqB'], zoneIds: [] }, 'admin');
-    await set.execute('asm2', { hqIds: ['hqC'], zoneIds: [] }, 'admin');
-    await set.execute('zsm', { hqIds: [], zoneIds: ['z2'] }, 'admin');
-    await set.execute('rsm', { hqIds: ['hqA'], zoneIds: [] }, 'admin');
-
+  it('hides nobody for where they are based; within a level, those based in the HQ or its Zone come first', async () => {
+    const { list } = setup({ asm1: 'hqB', asm2: 'hqC', rsm: 'hqC', zsm: 'hqA' });
     const forA = await list.execute({ belowLevel: 1, hqId: 'hqA' });
-    // asm1 covers A; asm2 covers only C (missing); asm3 has no coverage yet (flagged); rsm covers A; zsm covers z2 only (missing); nsm covers everywhere.
-    expect(forA.map((c) => [c.id, c.coverage])).toEqual([['asm1', 'covers'], ['asm3', 'none'], ['asm2', 'missing'], ['rsm', 'covers'], ['zsm', 'missing'], ['nsm', 'covers']]);
-    const forC = await list.execute({ belowLevel: 1, hqId: 'hqC' });
-    expect(forC.map((c) => [c.id, c.coverage])).toEqual([['asm2', 'covers'], ['asm3', 'none'], ['asm1', 'missing'], ['rsm', 'missing'], ['zsm', 'covers'], ['nsm', 'covers']]);
+    expect(forA.map((c) => [c.id, c.coverage])).toEqual([['asm1', 'covers'], ['asm2', 'none'], ['asm3', 'none'], ['rsm', 'none'], ['zsm', 'covers'], ['nsm', 'none']]);
   });
 
   it('searches by name or code', async () => {
     const { list } = setup();
     expect((await list.execute({ belowLevel: 1, search: 'zara' })).map((c) => c.id)).toEqual(['zsm']);
     expect((await list.execute({ belowLevel: 1, search: 'e7' })).map((c) => c.id)).toEqual(['nsm']);
-  });
-});
-
-describe('extending a manager’s territory', () => {
-  const extender = (mainHq: Record<string, string> = {}) => {
-    const base = setup(mainHq);
-    return { ...base, extend: new ExtendManagerTerritoryUseCase(base.get, base.set, hqRepo, directory) };
-  };
-
-  it('adds the HQ and its Zone for an ASM, and never removes what they had', async () => {
-    const { extend, set, get } = extender();
-    await set.execute('asm1', { hqIds: ['hqC'], zoneIds: [] }, 'admin');
-    const out = await extend.execute('asm1', { hqIds: ['hqA'], zoneIds: [] }, 'admin');
-    expect(out).toEqual({ hqIds: ['hqC', 'hqA'], zoneIds: ['z2', 'z1'] });
-    expect((await get.execute('asm1')).hqIds).toEqual(['hqC', 'hqA']);
-  });
-
-  it('never copies routes onto a manager, even when an older client still sends them', async () => {
-    const { extend } = extender();
-    // The use case no longer has anything to assign a route with: routes are computed from the team, not copied.
-    expect(await extend.execute('rsm', { hqIds: ['hqA'], zoneIds: [], routeIds: ['r1', 'r2'] }, 'admin')).not.toHaveProperty('routesAdded');
-  });
-
-  it('is idempotent: a second call changes nothing', async () => {
-    const { extend } = extender();
-    const first = await extend.execute('rsm', { hqIds: ['hqA'], zoneIds: [] }, 'admin');
-    expect(await extend.execute('rsm', { hqIds: ['hqA'], zoneIds: [] }, 'admin')).toEqual(first);
-  });
-
-  it('gives a ZSM or the NSM the Zone only', async () => {
-    const { extend, get } = extender();
-    expect(await extend.execute('zsm', { hqIds: ['hqA'], zoneIds: [] }, 'admin')).toEqual({ hqIds: [], zoneIds: ['z1'] });
-    expect(await extend.execute('nsm', { hqIds: ['hqC'], zoneIds: [] }, 'admin')).toEqual({ hqIds: [], zoneIds: ['z2'] });
-    expect((await get.execute('nsm')).zoneIds).toEqual(['z2']);
   });
 });
