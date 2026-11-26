@@ -33,7 +33,7 @@ export class ListAssignedDoctorsUseCase {
     // `userId` = that person and everyone below them (an MR: just them).
     const people = filter.userId ? [filter.userId, ...(await this.users.getDownline(filter.userId)).map((u) => u.id)] : downline;
     const page = await this.run(people, filter, this.visibility.teamScopes(people));
-    const notHeld = await this.visibility.routeNotHeld(page.items.flatMap((d) => (d.assignedTo ? [{ id: d.id, routeId: d.routeId, assignedUserId: d.assignedTo.userId }] : [])));
+    const notHeld = await this.visibility.routeNotHeld(page.items.flatMap((d) => (d.assignedTo ? [{ id: d.id, placeId: d.placeId, assignedUserId: d.assignedTo.userId }] : [])));
     return { ...page, items: page.items.map((d) => ({ ...d, routeNotHeld: notHeld.has(d.id) })) };
   }
 

@@ -17,10 +17,10 @@ export class UpdateDistributorUseCase {
     const current = await this.distributors.findById(id);
     if (!current) throw AppError.notFound('No such distributor.');
     // A Zone, HQ or Route already on the Distributor that has since gone inactive can stay; only newly added ones must be active.
-    if (change.zoneIds !== undefined || change.hqIds !== undefined || change.routeIds !== undefined) {
+    if (change.zoneIds !== undefined || change.hqIds !== undefined || change.routeIds !== undefined || change.placeIds !== undefined) {
       await requireCoverage(
         this.territory,
-        { zoneIds: change.zoneIds ?? current.zoneIds, hqIds: change.hqIds ?? current.hqIds, routeIds: change.routeIds ?? current.routeIds },
+        { zoneIds: change.zoneIds ?? current.zoneIds, hqIds: change.hqIds ?? current.hqIds, routeIds: change.routeIds ?? current.routeIds, placeIds: change.placeIds ?? current.placeIds },
         current,
       );
     }

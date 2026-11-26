@@ -3,6 +3,7 @@
 import type { ApprovalDetailDto } from '@greynote/contracts';
 import { resolveWorkWithLabels } from '@/features/planning/lib/workWithLabels';
 import { doctorsCsv } from '@/features/field-master-data/lib/doctorsCsv';
+import { usePlaceDirectory } from '@/features/territory/hooks/usePlaces';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
 import { fieldActivityApi } from '@/lib/api/endpoints/fieldActivity';
 import { doctorsApi } from '@/lib/api/endpoints/fieldMasterData';
@@ -31,6 +32,7 @@ export function csvDisabledReason(_request: Pick<Request, 'kind' | 'status'>): s
  */
 export function useApprovalCsv(request: Request) {
   const directory = useTerritoryDirectory();
+  const places = usePlaceDirectory();
   const submitterId = request.submitter?.id;
   const mutation = useCsvExport(async (token) => {
     const owner = submitterId ? await resolveExportOwner(token, submitterId) : {};
@@ -62,7 +64,7 @@ export function useApprovalCsv(request: Request) {
       }
       case 'NEW_DOCTOR': {
         const doctor = await doctorsApi.get(token, request.recordId);
-        return { filename: exportFilename(owner, 'doctor', slug(doctor.name)), csv: doctorsCsv([doctor], directory.routeLabel) };
+        return { filename: exportFilename(owner, 'doctor', slug(doctor.name)), csv: doctorsCsv([doctor], (d) => (d.placeId ? places.labelOf(d.placeId) : directory.routeLabel(d.routeId))) };
       }
       default:
         throw new Error('This request has no table to download.');

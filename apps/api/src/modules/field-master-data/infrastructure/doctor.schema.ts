@@ -3,6 +3,8 @@ import { DOCTOR_STATUSES, type DoctorStatus } from '../domain/doctor.entity.js';
 
 export interface DoctorDoc {
   routeId: Types.ObjectId;
+  /** Absent on a record the places migration has not reached. */
+  placeId?: Types.ObjectId | null;
   /** Legacy: doctors saved before the category was dropped (2026-10-06) still carry it; nothing reads it. */
   category?: string;
   name: string;
@@ -28,6 +30,7 @@ export interface DoctorDoc {
 
 const doctorSchema = new Schema<DoctorDoc>({
   routeId: { type: Schema.Types.ObjectId, required: true, ref: 'Route' },
+  placeId: { type: Schema.Types.ObjectId, ref: 'Place', default: null },
   category: { type: String },
   name: { type: String, required: true },
   address: { type: String, required: true },
@@ -50,6 +53,7 @@ const doctorSchema = new Schema<DoctorDoc>({
   approvedAt: { type: Date, default: null },
 });
 doctorSchema.index({ routeId: 1, status: 1 });
+doctorSchema.index({ placeId: 1, status: 1 });
 // An offline retry of the same create returns the first Doctor instead of adding a second.
 doctorSchema.index({ addedBy: 1, clientRequestId: 1 }, { unique: true, partialFilterExpression: { clientRequestId: { $type: 'string' } } });
 // "Doctors I added".

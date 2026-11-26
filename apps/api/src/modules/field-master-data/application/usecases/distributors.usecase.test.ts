@@ -24,6 +24,7 @@ const input: CreateDistributorInput = {
   zoneIds: [],
   hqIds: [],
   routeIds: ['route-1'],
+  placeIds: [],
   name: 'Shree Distributors',
   gstNumber: '19ABCDE1234F1Z5',
   contactPerson: 'R. Shah',
@@ -102,7 +103,7 @@ describe('Distributors', () => {
     expect([await meets(zoneWide, 'u-z1'), await meets(hqWide, 'u-z1'), await meets(one, 'u-z1')]).toEqual([true, true, false]);
     expect([await meets(zoneWide, 'u-z2'), await meets(hqWide, 'u-z2'), await meets(one, 'u-z2')]).toEqual([false, false, false]);
     expect((await expandRouteIds(territory, zoneWide)).sort()).toEqual(['route-1', 'route-2']);
-    expect((await expandRouteIds(territory, { zoneIds: [], hqIds: ['h2'], routeIds: ['route-1'] })).sort()).toEqual(['route-1', 'route-3']);
+    expect((await expandRouteIds(territory, { zoneIds: [], hqIds: ['h2'], routeIds: ['route-1'], placeIds: [] })).sort()).toEqual(['route-1', 'route-3']);
     // Coverage alone shows the employee nothing: only a distributor handed to them.
     expect(await distributors.listActiveForUser('mr1')).toEqual([]);
     await new UpdateDistributorUseCase(distributors, territory, users).execute(hqWide.id, { assignedUserIds: ['mr1'] });

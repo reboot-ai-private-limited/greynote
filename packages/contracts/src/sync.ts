@@ -295,7 +295,10 @@ export interface ConfigSnapshot {
 export interface FieldMasterDataSnapshot {
   doctors: Array<{
     id: string;
+    /** Kept for older apps: the route the doctor is reached by. Since 2026-11-26 the doctor sits on `placeId`. */
     routeId: string;
+    /** Where the doctor sits; a day whose To place is this one offers the doctor. Absent from older servers. */
+    placeId?: string | undefined;
     name: string;
     address: string;
     email: string | null;
@@ -314,6 +317,7 @@ export interface FieldMasterDataSnapshot {
   pendingDoctors: Array<{
     id: string;
     routeId: string;
+    placeId?: string | undefined;
     name: string;
     address: string;
     specialty: string;
@@ -323,10 +327,12 @@ export interface FieldMasterDataSnapshot {
   }>;
   /** The active specialities, A–Z: the dropdown the app offers when adding a Doctor. A Doctor's speciality must be one of them. */
   specialties: string[];
-  chemists: Array<{ id: string; routeId: string; name: string; address: string; phone: string | null; location: GeoPoint | null }>;
+  chemists: Array<{ id: string; routeId: string; placeId?: string | undefined; name: string; address: string; phone: string | null; location: GeoPoint | null }>;
   distributors: Array<{
     id: string;
     routeIds: string[];
+    /** The places it serves (2026-11-26); absent from older servers. */
+    placeIds?: string[] | undefined;
     name: string;
     gstNumber: string;
     contactPerson: string;
@@ -363,7 +369,14 @@ export interface TerritorySnapshot {
     distanceStatus: 'CALCULATED' | 'FAILED';
     /** Paise per km. */
     taPerKmRateOverridePaise: number | null;
+    /** A fixed TA for a day on the route (2026-11-26). Absent from older servers. */
+    taFixedPaise?: number | null | undefined;
+    /** The route's two places (both ways); null on one not migrated. Absent from older servers. */
+    fromPlaceId?: string | null | undefined;
+    toPlaceId?: string | null | undefined;
   }>;
+  /** The places of the HQ the employee is based in, HQ town first (2026-11-26). Absent from older servers. */
+  places?: Array<{ id: string; hqId: string; name: string; type: 'HQ' | 'EX_STATION' | 'OUT_STATION'; isHqTown: boolean }> | undefined;
   hq: { hqId: string; hqName: string; zoneId: string; zoneName: string } | null;
 }
 
@@ -458,6 +471,9 @@ export interface PlanningSnapshot {
     /** The same colleagues as `workWith`, named (current designation). */
     workWithPeople: PlanPersonDto[];
     routeIds: string[];
+    /** Where the day starts and ends (2026-11-26); absent from older servers. */
+    fromPlaceId?: string | null | undefined;
+    toPlaceId?: string | null | undefined;
     /** The doctors to call: the MR's picks plus missed calls carried over. */
     doctors: Array<{ doctorId: string; carriedFrom: string | null }>;
     remarks: string | null;
@@ -482,6 +498,8 @@ export interface PlanningSnapshot {
       /** The same colleagues as `workWith`, named (current designation). */
       workWithPeople: PlanPersonDto[];
       routeIds: string[];
+      fromPlaceId?: string | null | undefined;
+      toPlaceId?: string | null | undefined;
       remarks: string | null;
     }>;
     revision: number;

@@ -10,6 +10,9 @@ export type ChemistStatus = (typeof CHEMIST_STATUSES)[number];
 /** A pharmacy on a Route. Its registered location is what a Chemist Call's geofence check compares against. */
 export interface Chemist {
   id: string;
+  /** Where the chemist sits (decision-log 2026-11-26). Empty only before the places migration. */
+  placeId: string;
+  /** Kept for readers that still go by routes (calls, the phone); the place's anchor route. */
   routeId: string;
   name: string;
   address: string;

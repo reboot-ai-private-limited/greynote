@@ -16,7 +16,7 @@ async function expectStatus(promise: Promise<unknown>, statusCode: number) {
 const page = { page: 1, pageSize: 20 };
 const field = (id: string) => ({ id, role: 'FIELD' as const });
 const chemist = (id: string, name: string, over: Partial<Chemist> = {}): Chemist => ({
-  id, routeId: 'route-1', name, address: 'x', phone: null, location: null, capturedLocation: null, status: 'active', addedBy: null, clientRequestId: null, approvedAt: null, ...over,
+  id, placeId: 'p-route-1', routeId: 'route-1', name, address: 'x', phone: null, location: null, capturedLocation: null, status: 'active', addedBy: null, clientRequestId: null, approvedAt: null, ...over,
 });
 
 describe('chemist assignments (many MRs per chemist)', () => {

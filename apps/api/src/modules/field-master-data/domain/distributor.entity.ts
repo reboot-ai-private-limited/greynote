@@ -16,6 +16,8 @@ export interface CoverageScope {
   zoneIds: string[];
   hqIds: string[];
   routeIds: string[];
+  /** Places (decision-log 2026-11-26): a distributor on a place serves it. */
+  placeIds: string[];
 }
 
 /**
@@ -28,7 +30,10 @@ export interface Distributor {
   id: string;
   zoneIds: string[];
   hqIds: string[];
+  /** From before Places; the places migration moves them to `placeIds` (each route's To place). */
   routeIds: string[];
+  /** The places it serves (decision-log 2026-11-26). */
+  placeIds: string[];
   name: string;
   gstNumber: string;
   contactPerson: string;

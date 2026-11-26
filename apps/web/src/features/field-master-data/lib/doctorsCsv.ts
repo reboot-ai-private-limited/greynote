@@ -20,7 +20,8 @@ export const DOCTORS_CSV_HEADER = [
 ] as const;
 
 /** One doctor per row. `routeLabel` turns a route id into the name the screens show. */
-export function doctorsCsv(doctors: readonly DoctorDto[], routeLabel: (routeId: string) => string): string {
+/** `placeLabel` names where each doctor sits (2026-11-26: a place, not a route). */
+export function doctorsCsv(doctors: readonly DoctorDto[], placeLabel: (doctor: DoctorDto) => string): string {
   return toCsv(
     DOCTORS_CSV_HEADER,
     doctors.map((d) => [
@@ -31,7 +32,7 @@ export function doctorsCsv(doctors: readonly DoctorDto[], routeLabel: (routeId: 
       d.phone,
       d.email,
       d.address,
-      routeLabel(d.routeId),
+      placeLabel(d),
       DOCTOR_STATUS_LABEL[d.status],
       d.visitFrequency,
       d.assignedTo?.name,

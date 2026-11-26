@@ -7,11 +7,11 @@ import type { TerritoryPort } from '../../domain/territory.port.js';
 import type { DoctorRetirement } from '../doctorRetirement.js';
 import type { DoctorView, DoctorViews } from '../doctorViews.js';
 import type { SpecialtyCatalog } from '../specialtyCatalog.js';
-import { requireActiveRoute } from '../requireActiveRoute.js';
+import { resolvePlace } from '../requireActiveRoute.js';
 import { requireUniquePhone } from '../phoneUniqueness.js';
 
 export type UpdateDoctorInput = Partial<
-  Pick<Doctor, 'routeId' | 'name' | 'address' | 'email' | 'specialty' | 'qualification' | 'clinicName' | 'phone' | 'location' | 'status' | 'dateOfBirth' | 'anniversary' | 'visitFrequency'>
+  Pick<Doctor, 'placeId' | 'routeId' | 'name' | 'address' | 'email' | 'specialty' | 'qualification' | 'clinicName' | 'phone' | 'location' | 'status' | 'dateOfBirth' | 'anniversary' | 'visitFrequency'>
 >;
 
 /**
@@ -38,9 +38,10 @@ export class UpdateDoctorUseCase {
       throw AppError.conflict('This doctor is waiting for approval. Approve or reject it in the approvals inbox.', { field: 'status' });
     }
     if (change.phone !== undefined) await requireUniquePhone((phone, exclude) => this.doctors.findByPhone(phone, exclude), change.phone, 'doctor', id);
-    if (change.routeId !== undefined && change.routeId !== current.routeId) {
-      await requireActiveRoute(this.territory, change.routeId);
-    }
+    // Moving it needs an active place (or, from an older client, a route: its To place). The record keeps both.
+    const moving = (change.placeId !== undefined && change.placeId !== current.placeId) || (change.placeId === undefined && change.routeId !== undefined && change.routeId !== current.routeId);
+    if (moving) change = { ...change, ...(await resolvePlace(this.territory, change.placeId !== undefined ? { placeId: change.placeId } : { routeId: change.routeId })) };
+    else change = Object.fromEntries(Object.entries(change).filter(([k]) => k !== 'placeId' && k !== 'routeId')) as UpdateDoctorInput;
     // A changed speciality must be on the list. One left as it was (an older doctor whose free text is not on the list) is not re-checked.
     if (change.specialty !== undefined) {
       const same = change.specialty.trim().toLowerCase() === current.specialty.trim().toLowerCase();

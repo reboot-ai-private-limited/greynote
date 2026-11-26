@@ -62,7 +62,10 @@ export interface DistributorDraft {
   /** What it covers, as stored: each Zone, HQ and Route stands for everything under it (see `coverage.ts`). */
   zoneIds: string[];
   hqIds: string[];
+  /** From before Places, kept as stored (the form no longer picks routes). */
   routeIds: string[];
+  /** The places it serves, narrower than an HQ (2026-11-26). */
+  placeIds: string[];
   assignedUserIds: string[];
   /** Files chosen while adding, uploaded once the distributor exists. The edit page uploads at once and never uses this. */
   pendingDocuments: PendingDocument[];
@@ -80,6 +83,7 @@ export const EMPTY_DISTRIBUTOR: DistributorDraft = {
   zoneIds: [],
   hqIds: [],
   routeIds: [],
+  placeIds: [],
   assignedUserIds: [],
   pendingDocuments: [],
   openingDues: '',
@@ -96,6 +100,7 @@ export function distributorToDraft(d: DistributorDto): DistributorDraft {
     zoneIds: d.zoneIds,
     hqIds: d.hqIds,
     routeIds: d.routeIds,
+    placeIds: d.placeIds ?? [],
     assignedUserIds: d.assignedUserIds,
     pendingDocuments: [],
     openingDues: d.openingDuesPaise > 0 ? paiseToRupees(d.openingDuesPaise) : '',
@@ -112,12 +117,12 @@ function errorsFor(draft: DistributorDraft): Record<string, string | undefined> 
   const contact = squash(draft.contactPerson);
   // The shared place rules check the name, the address and the point; the coverage rule is this form's own.
   const place = placeErrors(
-    { routeId: 'x', name: draft.name, address: draft.address, coordinates: draft.coordinates },
+    { placeId: 'x', name: draft.name, address: draft.address, coordinates: draft.coordinates },
     'distributor name',
   );
   return {
     ...place,
-    routeId: undefined,
+    placeId: undefined,
     gstNumber:
       gst === ''
         ? 'Enter the GST number.'
@@ -137,7 +142,7 @@ function errorsFor(draft: DistributorDraft): Record<string, string | undefined> 
           ? undefined
           : 'Use 10 to 15 digits, with an optional leading +.',
     openingDues: draft.openingDues.trim() !== '' && rupeesToPaise(draft.openingDues) === null ? 'Enter the amount in rupees, e.g. 25000 or 25000.50.' : undefined,
-    coverage: hasCoverage(draft) ? undefined : 'Choose at least one zone, HQ or route.',
+    coverage: hasCoverage(draft) || draft.placeIds.length > 0 ? undefined : 'Choose at least one zone, HQ or place.',
   };
 }
 
@@ -183,6 +188,7 @@ export function buildDistributor(draft: DistributorDraft): BuildResult<CreateDis
       zoneIds: draft.zoneIds,
       hqIds: draft.hqIds,
       routeIds: draft.routeIds,
+      placeIds: draft.placeIds,
       name: squash(draft.name),
       gstNumber: normalizeGst(draft.gstNumber),
       contactPerson: squash(draft.contactPerson),
@@ -217,6 +223,7 @@ export function buildDistributorUpdate(
       ...(!sameIds(draft.zoneIds, original.zoneIds) && { zoneIds: draft.zoneIds }),
       ...(!sameIds(draft.hqIds, original.hqIds) && { hqIds: draft.hqIds }),
       ...(!sameIds(draft.routeIds, original.routeIds) && { routeIds: draft.routeIds }),
+      ...(!sameIds(draft.placeIds, original.placeIds ?? []) && { placeIds: draft.placeIds }),
       ...(name !== original.name && { name }),
       ...(address !== original.address && { address }),
       ...(gstNumber !== original.gstNumber && { gstNumber }),

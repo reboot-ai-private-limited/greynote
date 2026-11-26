@@ -20,7 +20,6 @@ import { Grid } from '@/components/ui/WizardParts';
 import { WizardShell } from '@/components/ui/WizardShell';
 import { EmployeeName } from '@/features/people/components/EmployeePickerField';
 import { useAllHqs } from '@/features/territory/hooks/useHqs';
-import { useActiveRoutes } from '@/features/territory/hooks/useRoutes';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
 import { toErrorState } from '@/lib/api/toErrorState';
 import { useSession } from '@/lib/auth/SessionProvider';
@@ -50,6 +49,7 @@ import { DistributorStockTab } from './DistributorStockTab';
 import { LocationPicker } from './LocationPicker';
 import { PeopleMultiField } from './PeopleMultiField';
 import { CoveragePicker } from './CoveragePicker';
+import { useAllPlaces, usePlaceDirectory } from '@/features/territory/hooks/usePlaces';
 import { DeleteDistributorDialog } from './DeleteDistributorDialog';
 import { DistributorDocumentsCard, PendingDocumentsField } from './DistributorDocuments';
 
@@ -186,14 +186,16 @@ function CoverageFields({
   locked: boolean;
 }) {
   const hqs = useAllHqs();
-  const routes = useActiveRoutes();
-  const reached = hqsReached(draft, { hqs: hqs.data ?? [], routes: routes.data ?? [] });
+  // Places sit one level under an HQ, as routes used to (2026-11-26): the picker's leaf ids are the draft's `placeIds`.
+  const places = useAllPlaces();
+  const coverage = { zoneIds: draft.zoneIds, hqIds: draft.hqIds, routeIds: draft.placeIds };
+  const reached = hqsReached(coverage, { hqs: hqs.data ?? [], routes: places.data ?? [] });
   return (
     <div className="space-y-5">
       <CoveragePicker
         id="dist-coverage"
-        value={draft}
-        onChange={(coverage) => setDraft((d) => ({ ...d, ...coverage }))}
+        value={coverage}
+        onChange={(c) => setDraft((d) => ({ ...d, zoneIds: c.zoneIds, hqIds: c.hqIds, placeIds: c.routeIds }))}
         error={errors['coverage']}
         disabled={locked}
       />
@@ -211,12 +213,14 @@ function CoverageFields({
 
 /** Zones, HQs and routes as one line: "West Bengal (all), Siliguri HQ (all routes), SLG-1 · Naxalbari". */
 function coverageSummary(
-  c: { zoneIds: string[]; hqIds: string[]; routeIds: string[] },
+  c: { zoneIds: string[]; hqIds: string[]; routeIds: string[]; placeIds?: string[] },
   directory: ReturnType<typeof useTerritoryDirectory>,
+  placeLabel: (id: string) => string = (id) => id,
 ): string {
   const parts = [
     ...c.zoneIds.map((z) => `${directory.zoneName(z)} (all HQs)`),
-    ...c.hqIds.map((q) => `${directory.hqName(q)} (all routes)`),
+    ...c.hqIds.map((q) => `${directory.hqName(q)} (all places)`),
+    ...(c.placeIds ?? []).map(placeLabel),
     ...c.routeIds.map((r) => directory.routeLabel(r)),
   ];
   return parts.join(', ');
@@ -226,6 +230,7 @@ function NewDistributor() {
   const router = useRouter();
   const readOnly = useIsReadOnly();
   const directory = useTerritoryDirectory();
+  const places = usePlaceDirectory();
   const { draft, setDraft, set } = useDistributorDraft(EMPTY_DISTRIBUTOR);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [step, setStep] = useState<DistributorStep>('details');
@@ -314,7 +319,7 @@ function NewDistributor() {
           <Field label="Mobile">{draft.mobile}</Field>
           <Field label="Address">{draft.address}</Field>
           <Field label="Opening dues">{draft.openingDues ? `₹${draft.openingDues}` : null}</Field>
-          <Field label="Coverage">{coverageSummary(draft, directory) || null}</Field>
+          <Field label="Coverage">{coverageSummary(draft, directory, places.labelOf) || null}</Field>
           <Field label="Assigned people">
             {draft.assignedUserIds.length > 0
               ? draft.assignedUserIds.map((u, i) => (
@@ -342,13 +347,14 @@ function NewDistributor() {
 function DistributorPage({ distributor }: { distributor: DistributorDetailDto }) {
   const readOnly = useIsReadOnly();
   const directory = useTerritoryDirectory();
+  const places = usePlaceDirectory();
   const update = useUpdateDistributor(() => setToggling(false));
   const [toggling, setToggling] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const router = useRouter();
   // Only Admin may delete: it erases the distributor's payments, orders and stock with it.
   const isAdmin = useSession().user?.role === 'ADMIN';
-  const coverage = coverageSummary(distributor, directory);
+  const coverage = coverageSummary(distributor, directory, places.labelOf);
   return (
     <>
       <p className="mb-2 text-sm">

@@ -11,6 +11,7 @@ const toDistributor = (doc: DistributorDoc & { _id: unknown }): Distributor => (
   zoneIds: (doc.zoneIds ?? []).map(String),
   hqIds: (doc.hqIds ?? []).map(String),
   routeIds: (doc.routeIds ?? []).map(String),
+  placeIds: (doc.placeIds ?? []).map(String),
   name: doc.name,
   gstNumber: doc.gstNumber,
   contactPerson: doc.contactPerson,
@@ -31,15 +32,17 @@ const coverageClauses = (scope: CoverageScope): Record<string, unknown>[] => [
   ...(scope.zoneIds.length > 0 ? [{ zoneIds: { $in: oids(scope.zoneIds) } }] : []),
   ...(scope.hqIds.length > 0 ? [{ hqIds: { $in: oids(scope.hqIds) } }] : []),
   ...(scope.routeIds.length > 0 ? [{ routeIds: { $in: oids(scope.routeIds) } }] : []),
+  ...(scope.placeIds.length > 0 ? [{ placeIds: { $in: oids(scope.placeIds) } }] : []),
 ];
 
 const toColumns = (change: Partial<Omit<Distributor, 'id'>>): Record<string, unknown> => {
-  const { location, zoneIds, hqIds, routeIds, assignedUserIds, documents: _documents, ...rest } = change;
+  const { location, zoneIds, hqIds, routeIds, placeIds, assignedUserIds, documents: _documents, ...rest } = change;
   return {
     ...rest,
     ...(zoneIds !== undefined && { zoneIds: oids(zoneIds) }),
     ...(hqIds !== undefined && { hqIds: oids(hqIds) }),
     ...(routeIds !== undefined && { routeIds: routeIds.map((id) => new Types.ObjectId(id)) }),
+    ...(placeIds !== undefined && { placeIds: oids(placeIds) }),
     ...(assignedUserIds !== undefined && { assignedUserIds: assignedUserIds.map((id) => new Types.ObjectId(id)) }),
     ...(location !== undefined && { latitude: location?.latitude ?? null, longitude: location?.longitude ?? null }),
   };

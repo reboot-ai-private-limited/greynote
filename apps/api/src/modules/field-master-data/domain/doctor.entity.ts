@@ -19,6 +19,12 @@ export interface DoctorPhoto {
 
 export interface Doctor {
   id: string;
+  /**
+   * Where the doctor sits (decision-log 2026-11-26): a day whose To place is this one offers the doctor. Empty only on a doctor the places
+   * migration has not reached (no one sees it until it runs).
+   */
+  placeId: string;
+  /** Kept for the readers that still go by routes until the Tour Plan reads places: the route the doctor was on, or the place's anchor route. */
   routeId: string;
   name: string;
   address: string;

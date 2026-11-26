@@ -141,7 +141,7 @@ describe('Doctors', () => {
       const bulk = new BulkAssignDoctorsUseCase(doctors, assignments, users, assignUse, unassignUse);
       const first = await bulk.execute('asm2', [a.id, b.id, c.id, 'nope'], 'admin');
       expect(first.map((r) => [r.name, r.outcome])).toEqual([['Dr Rao', 'ASSIGNED'], ['Dr Sen', 'SKIPPED'], ['Dr Das', 'MOVED'], ['Unknown doctor', 'SKIPPED']]);
-      expect(first[1]?.reason).toContain('route');
+      expect(first[1]?.reason).toContain('HQ');
       expect(first[2]?.from).toBe('Asha MR');
       expect((await bulk.execute('asm2', [a.id], 'admin'))[0]?.outcome).toBe('ALREADY');
       // What asm2 holds stays in the picker, with its holder, so it can be unticked.

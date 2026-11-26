@@ -58,7 +58,7 @@ export function makeDoctorApprovalHandler(
     if (await assignments.findActiveForDoctor(doctor.id)) return;
     const mr = await users.findUserSummary(doctor.addedBy);
     if (mr?.role !== 'FIELD' || mr.status === 'inactive') return;
-    if (!(await territory.listRoutesForUser(mr.id)).some((r) => r.id === doctor.routeId)) return;
+    if (!(await territory.listPlacesForUser(mr.id)).some((p) => p.id === doctor.placeId)) return;
     const approver = change.request.history.at(-1)?.actorId ?? doctor.addedBy;
     await assignments.create({ doctorId: doctor.id, userId: mr.id, assignedBy: approver }, ctx);
   };

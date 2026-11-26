@@ -27,6 +27,9 @@ describe('NEW_CHEMIST through the sync push', () => {
     chemists = new FakeChemists();
     approvals = new FakeApprovals();
     const territory = new FakeTerritory();
+    // The phone's routes exist (2026-11-26: the To place of the route is where the record goes).
+    territory.routes.set(ROUTE, 'active');
+    territory.routes.set(OTHER_ROUTE, 'active');
     territory.userRoutes.set('mr1', [ROUTE]);
     territory.userRoutes.set('asm', [ROUTE]);
     config = new FakeConfig();

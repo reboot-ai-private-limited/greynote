@@ -59,24 +59,28 @@ export function RouteListDialog({
   options,
   onPick,
   onClose,
+  title = 'Choose a route',
+  noun = 'route',
 }: {
   options: { value: string; label: string }[];
   onPick: (routeId: string) => void;
   onClose: () => void;
+  title?: string;
+  noun?: string;
 }) {
   const [term, setTerm] = useState('');
   const needle = term.trim().toLowerCase();
   const matches = options.filter((o) => o.label.toLowerCase().includes(needle));
 
   return (
-    <Dialog open onOpenChange={(next) => !next && onClose()} title="Choose a route" description="Only active routes are offered.">
+    <Dialog open onOpenChange={(next) => !next && onClose()} title={title} description={`Only active ${noun}s are offered.`}>
       <label htmlFor="route-search" className="mb-1.5 block text-sm font-medium text-text">
         Search
       </label>
-      <Input id="route-search" value={term} onChange={(e) => setTerm(e.target.value)} placeholder="HQ or route name" autoComplete="off" />
+      <Input id="route-search" value={term} onChange={(e) => setTerm(e.target.value)} placeholder={`HQ or ${noun} name`} autoComplete="off" />
       <div aria-live="polite" className="mt-3 max-h-64 overflow-y-auto">
         {matches.length === 0 ? (
-          <p className="text-[13px] text-text-subtle">No active route matches.</p>
+          <p className="text-[13px] text-text-subtle">No active {noun} matches.</p>
         ) : (
           <>
             <ul className="divide-y divide-border rounded-md border border-border">

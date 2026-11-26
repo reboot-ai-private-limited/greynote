@@ -10,7 +10,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { StatusToggleDialog } from '@/components/ui/StatusToggleDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
-import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
+import { usePlaceDirectory } from '@/features/territory/hooks/usePlaces';
 import { toErrorState } from '@/lib/api/toErrorState';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useDoctor, useUpdateDoctor } from '../hooks/useDoctors';
@@ -60,7 +60,7 @@ export function DoctorScreen({ id }: { id?: string }) {
 
 function DoctorDetail({ doctor }: { doctor: NonNullable<ReturnType<typeof useDoctor>['data']> }) {
   const readOnly = useIsReadOnly();
-  const directory = useTerritoryDirectory();
+  const places = usePlaceDirectory();
   const router = useRouter();
   const [reactivating, setReactivating] = useState(false);
   const [retiring, setRetiring] = useState<'deactivate' | 'delete' | null>(null);
@@ -70,7 +70,7 @@ function DoctorDetail({ doctor }: { doctor: NonNullable<ReturnType<typeof useDoc
     <>
       <PageHeader
         title={doctor.name}
-        description={`${doctor.specialty} · ${directory.routeLabel(doctor.routeId)}`}
+        description={`${doctor.specialty} · ${places.labelOf(doctor.placeId)}`}
         actions={
           <div className="flex items-center gap-2">
             <Badge tone={DOCTOR_STATUS_TONE[doctor.status]}>{DOCTOR_STATUS_LABEL[doctor.status]}</Badge>

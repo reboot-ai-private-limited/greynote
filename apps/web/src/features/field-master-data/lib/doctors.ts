@@ -29,7 +29,7 @@ export const FREQUENCY_OPTIONS = Array.from({ length: MAX_VISIT_FREQUENCY }, (_,
 }));
 
 export const EMPTY_DOCTOR: DoctorDraft = {
-  routeId: '',
+  placeId: '',
   name: '',
   address: '',
   coordinates: { ...EMPTY_COORDINATES },
@@ -45,7 +45,7 @@ export const EMPTY_DOCTOR: DoctorDraft = {
 
 export function doctorToDraft(d: DoctorDto): DoctorDraft {
   return {
-    routeId: d.routeId,
+    placeId: d.placeId ?? '',
     name: d.name,
     address: d.address,
     coordinates: pointToInputs(d.location),
@@ -109,7 +109,7 @@ export const DOCTOR_STEP_LABEL: Record<DoctorStep, string> = {
 };
 
 const DETAIL_FIELDS = [
-  'routeId',
+  'placeId',
   'name',
   'address',
   'specialty',
@@ -141,7 +141,7 @@ export function buildDoctor(draft: DoctorDraft): BuildResult<CreateDoctorDto> {
   return {
     ok: true,
     body: {
-      routeId: draft.routeId,
+      placeId: draft.placeId,
       name: squash(draft.name),
       address: squash(draft.address),
       specialty: squash(draft.specialty),
@@ -178,7 +178,7 @@ export function buildDoctorUpdate(
   return {
     ok: true,
     body: {
-      ...(draft.routeId !== original.routeId && { routeId: draft.routeId }),
+      ...(draft.placeId !== (original.placeId ?? '') && { placeId: draft.placeId }),
       ...(name !== original.name && { name }),
       ...(address !== original.address && { address }),
       ...(specialty !== original.specialty && { specialty }),

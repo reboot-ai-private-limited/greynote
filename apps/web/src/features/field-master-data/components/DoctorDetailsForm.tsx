@@ -13,7 +13,7 @@ import type { StepperItem } from '@/components/ui/Stepper';
 import { WizardShell } from '@/components/ui/WizardShell';
 import { Grid } from '@/components/ui/WizardParts';
 import { PhotoPicker } from '@/features/people/components/PhotoPicker';
-import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
+import { usePlaceDirectory } from '@/features/territory/hooks/usePlaces';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useCreateDoctor, useRemoveDoctorPhoto, useReviewDoctor, useSetDoctorPhoto, useUpdateDoctor } from '../hooks/useDoctors';
 import { useActiveSpecialtyNames } from '../hooks/useSpecialties';
@@ -31,7 +31,7 @@ import {
 } from '../lib/doctors';
 import { formatPoint, pointFromInputs } from '../lib/location';
 import { LocationPicker } from './LocationPicker';
-import { RoutePickerField } from './RoutePickerField';
+import { PlacePickerField } from './PlacePickerField';
 
 const STEP_TITLE: Record<DoctorStep, string> = {
   details: 'Doctor details',
@@ -67,7 +67,7 @@ export function DoctorDetailsForm({ doctor, review = false }: { doctor?: DoctorD
   const set = (field: keyof DoctorDraft) => (value: string) =>
     setDraft((d) => ({ ...d, [field]: value }));
   const pending = create.isPending || update.isPending || (create.isSuccess && setPhoto.isPending);
-  const directory = useTerritoryDirectory();
+  const places = usePlaceDirectory();
   const [step, setStep] = useState<DoctorStep>('details');
   // Errors show for a step only once Next has been pressed on it, as in the employee wizard.
   const [tried, setTried] = useState<ReadonlySet<DoctorStep>>(new Set());
@@ -136,14 +136,14 @@ export function DoctorDetailsForm({ doctor, review = false }: { doctor?: DoctorD
     <Grid>
       {photoField}
       <div className="sm:col-span-2">
-        <RoutePickerField
-          id="doctor-route"
-          value={draft.routeId}
-          onChange={(routeId) => setDraft((d) => ({ ...d, routeId }))}
-          error={shown['routeId']}
+        <PlacePickerField
+          id="doctor-place"
+          value={draft.placeId}
+          onChange={(placeId) => setDraft((d) => ({ ...d, placeId }))}
+          error={shown['placeId']}
           disabled={locked}
-          {...(doctor && draft.routeId !== doctor.routeId
-            ? { hint: 'This doctor will be hidden from an MR who does not have the new route.' }
+          {...(doctor && draft.placeId !== (doctor.placeId ?? '')
+            ? { hint: 'This doctor will be hidden from an MR who is not based in the new place’s HQ.' }
             : {})}
         />
       </div>
@@ -294,7 +294,7 @@ export function DoctorDetailsForm({ doctor, review = false }: { doctor?: DoctorD
       {step === 'review' ? (
         <FieldList>
           <Field label="Photo">{pendingPhoto?.name ?? null}</Field>
-          <Field label="Route">{draft.routeId ? directory.routeLabel(draft.routeId) : null}</Field>
+          <Field label="Place">{draft.placeId ? places.labelOf(draft.placeId) : null}</Field>
           <Field label="Name">{draft.name}</Field>
           <Field label="Speciality">{draft.specialty}</Field>
           <Field label="Qualification">{draft.qualification}</Field>

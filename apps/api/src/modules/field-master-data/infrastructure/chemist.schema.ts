@@ -3,6 +3,8 @@ import { CHEMIST_STATUSES, type ChemistStatus } from '../domain/chemist.entity.j
 
 export interface ChemistDoc {
   routeId: Types.ObjectId;
+  /** Absent on a record the places migration has not reached. */
+  placeId?: Types.ObjectId | null;
   name: string;
   address: string;
   phone?: string | null;
@@ -18,6 +20,7 @@ export interface ChemistDoc {
 
 const chemistSchema = new Schema<ChemistDoc>({
   routeId: { type: Schema.Types.ObjectId, required: true, ref: 'Route' },
+  placeId: { type: Schema.Types.ObjectId, ref: 'Place', default: null },
   name: { type: String, required: true },
   address: { type: String, required: true },
   phone: { type: String, default: null },
@@ -31,6 +34,7 @@ const chemistSchema = new Schema<ChemistDoc>({
   approvedAt: { type: Date, default: null },
 });
 chemistSchema.index({ routeId: 1, status: 1 });
+chemistSchema.index({ placeId: 1, status: 1 });
 // An offline retry of the same create returns the first Chemist instead of adding a second.
 chemistSchema.index({ addedBy: 1, clientRequestId: 1 }, { unique: true, partialFilterExpression: { clientRequestId: { $type: 'string' } } });
 // "Chemists I added".

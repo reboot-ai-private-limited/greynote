@@ -1,6 +1,7 @@
 import { isEditableBySubmitter } from '@/modules/approval/approval.public.js';
 import type { TransactionContext, TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import { parseBoolean, readConfigOr, type ConfigReader } from '@/shared/config/readConfig.js';
+import { resolveOwnPlace } from '../requireActiveRoute.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import { requireUniquePhone } from '../phoneUniqueness.js';
 import { buildPaginatedResult, type PaginatedResult } from '@/shared/http/pagination.js';
@@ -15,7 +16,9 @@ import { NEW_CHEMIST_KIND } from '../chemistApproval.js';
 
 /** What an employee fills when adding a Chemist: no status — that comes from the approval. */
 export interface AddedChemistInput {
-  routeId: string;
+  /** The place (2026-11-26). The phone still sends a route: its To place is used. One of the two is needed. */
+  placeId?: string | undefined;
+  routeId?: string | undefined;
   name: string;
   address: string;
   /** Required by the API's request schema (`addChemistBodySchema`). */
@@ -47,9 +50,9 @@ export class AddedChemists {
     if (earlier) return { chemist: await this.view(earlier), created: false };
 
     await this.requireMayAdd(userId);
-    await this.requireOwnRoute(userId, input.routeId);
+    const placed = { ...input, ...(await resolveOwnPlace(this.territory, userId, input)) };
     try {
-      const created = await this.transactions.run((ctx) => this.insertAndSubmit(userId, input, ctx));
+      const created = await this.transactions.run((ctx) => this.insertAndSubmit(userId, placed, ctx));
       return { chemist: await this.view(created), created: true };
     } catch (err) {
       if (!(err instanceof DuplicateRecordError)) throw err;
@@ -65,11 +68,10 @@ export class AddedChemists {
     const earlier = await this.chemists.findByClientRequest(userId, input.clientRequestId);
     if (earlier) return earlier;
     await this.requireMayAdd(userId);
-    await this.requireOwnRoute(userId, input.routeId);
-    return this.insertAndSubmit(userId, input, ctx);
+    return this.insertAndSubmit(userId, { ...input, ...(await resolveOwnPlace(this.territory, userId, input)) }, ctx);
   }
 
-  private async insertAndSubmit(userId: string, input: AddedChemistInput & { clientRequestId: string }, ctx: TransactionContext): Promise<Chemist> {
+  private async insertAndSubmit(userId: string, input: AddedChemistInput & { clientRequestId: string; placeId: string; routeId: string }, ctx: TransactionContext): Promise<Chemist> {
     await requireUniquePhone((phone, exclude) => this.chemists.findByPhone(phone, exclude), input.phone, 'chemist');
     const { clientRequestId, location, ...fields } = input;
     const chemist = await this.chemists.createProposed(
@@ -93,11 +95,12 @@ export class AddedChemists {
       );
     }
     await this.requireMayAdd(userId);
-    if (input.routeId !== existing.routeId) await this.requireOwnRoute(userId, input.routeId);
+    const moved = input.placeId !== undefined ? input.placeId !== existing.placeId : input.routeId !== undefined && input.routeId !== existing.routeId;
+    const where = moved ? await resolveOwnPlace(this.territory, userId, input) : { placeId: existing.placeId, routeId: existing.routeId };
     await requireUniquePhone((phone, exclude) => this.chemists.findByPhone(phone, exclude), input.phone, 'chemist', existing.id);
 
     const updated = await this.transactions.run(async (ctx) => {
-      const { location, ...fields } = input;
+      const { location, ...fields } = { ...input, ...where };
       const chemist = await this.chemists.update(existing.id, { ...fields, location, capturedLocation: location }, ctx);
       if (!chemist) throw AppError.notFound('No such chemist.');
       await this.approvals.submit({ kind: NEW_CHEMIST_KIND, recordId: chemist.id, submitterId: userId }, ctx);
@@ -122,12 +125,5 @@ export class AddedChemists {
   private async requireMayAdd(userId: string): Promise<void> {
     if (await readConfigOr(this.config, 'MANAGER_CAN_ADD_CHEMISTS', parseBoolean, false)) return;
     if ((await this.users.getDownline(userId)).length > 0) throw AppError.forbidden('Managers can’t add chemists. Ask Admin.');
-  }
-
-  /** An employee can only add a Chemist to a Route they currently have. */
-  private async requireOwnRoute(userId: string, routeId: string): Promise<void> {
-    if (!(await this.territory.listRoutesForUser(userId)).some((r) => r.id === routeId)) {
-      throw AppError.badRequest('That route isn’t one of yours.', { field: 'routeId' });
-    }
   }
 }

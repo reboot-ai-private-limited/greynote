@@ -1,8 +1,16 @@
-import type { RoutePath } from '@/modules/territory/territory.public.js';
+import type { PlaceSummary, RoutePath } from '@/modules/territory/territory.public.js';
 
 /** Field Master Data's narrow view of Territory; `territory.contract` satisfies it structurally. */
 export interface TerritoryPort {
-  getRoute(routeId: string): Promise<{ id: string; name: string; hqName: string; status: 'active' | 'inactive' } | null>;
+  getRoute(routeId: string): Promise<{ id: string; name: string; hqName: string; status: 'active' | 'inactive'; toPlaceId?: string | null } | null>;
+  /** Places (decision-log 2026-11-26): where a doctor, chemist or distributor sits. */
+  getPlace(placeId: string): Promise<PlaceSummary | null>;
+  getPlaces(placeIds: string[]): Promise<PlaceSummary[]>;
+  /** The active places of the HQ an employee is based in. */
+  listPlacesForUser(userId: string): Promise<PlaceSummary[]>;
+  listPlaceIdsInScope(scope: { hqId?: string | undefined; zoneId?: string | undefined }): Promise<string[]>;
+  /** The route kept as a record's `routeId` for readers that still go by routes, or `null` when the place has no active route. */
+  anchorRouteForPlace(placeId: string): Promise<string | null>;
   /** The Route's HQ and Zone ids and its type, or `null` for an unknown id. */
   getRoutePath(routeId: string): Promise<RoutePath | null>;
   /** Every Route id under an HQ or a Zone (the most specific one given). */

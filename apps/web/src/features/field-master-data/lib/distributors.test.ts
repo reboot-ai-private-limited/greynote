@@ -53,6 +53,7 @@ describe('buildDistributor', () => {
         zoneIds: [],
         hqIds: [],
         routeIds: ['r1', 'r2'],
+        placeIds: [],
         name: 'Eastern Pharma',
         gstNumber: '19ABCDE1234F1Z5',
         contactPerson: 'S. Das',

@@ -12,14 +12,14 @@ import { PagedListFrame } from '@/components/ui/PagedListFrame';
 import { RowActions, RowMenu } from '@/components/ui/RowActions';
 import { Select } from '@/components/ui/Select';
 import { StatusToggleDialog } from '@/components/ui/StatusToggleDialog';
-import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useSearchFilter } from '@/lib/hooks/useSearchFilter';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useChemists, useUpdateChemist } from '../hooks/useChemists';
 import { CHEMIST_STATUS_LABEL, CHEMIST_STATUS_TONE, PENDING_CHEMIST_APPROVALS_HREF } from '../lib/chemists';
 import { OnlyDirectToggle } from './OnlyDirectToggle';
-import { RouteFilter } from './RoutePickerField';
+import { PlaceFilter } from './PlacePickerField';
+import { usePlaceDirectory } from '@/features/territory/hooks/usePlaces';
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All statuses' },
@@ -30,10 +30,10 @@ const STATUS_OPTIONS = [
 
 export function ChemistsScreen() {
   const router = useRouter();
-  const { values, page, pageSize, update } = useFilterParams(['search', 'status', 'routeId', 'assignedUserId', 'directOnly']);
+  const { values, page, pageSize, update } = useFilterParams(['search', 'status', 'placeId', 'assignedUserId', 'directOnly']);
   const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
   const readOnly = useIsReadOnly();
-  const directory = useTerritoryDirectory();
+  const places = usePlaceDirectory();
   const [toggling, setToggling] = useState<(ChemistDto & { status: 'active' | 'inactive' }) | null>(null);
   const updateChemist = useUpdateChemist(() => setToggling(null));
 
@@ -42,7 +42,7 @@ export function ChemistsScreen() {
     pageSize,
     ...(values.search && { search: values.search }),
     ...(values.status && { status: values.status as ChemistStatus }),
-    ...(values.routeId && { routeId: values.routeId }),
+    ...(values.placeId && { placeId: values.placeId }),
     ...(values.assignedUserId && { assignedUserId: values.assignedUserId }),
     ...(values.assignedUserId && values.directOnly === '1' && { directOnly: true }),
   });
@@ -57,7 +57,7 @@ export function ChemistsScreen() {
         </Link>
       ),
     },
-    { key: 'route', header: 'Route', render: (c) => directory.routeLabel(c.routeId) },
+    { key: 'place', header: 'Place', render: (c) => places.labelOf(c.placeId) },
     {
       key: 'heldBy',
       header: 'Held by',
@@ -111,7 +111,7 @@ export function ChemistsScreen() {
       filters={
         <>
           <Input placeholder="Search chemist or MR" aria-label="Search chemists or MRs" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
-          <RouteFilter value={values.routeId} onChange={(v) => update({ routeId: v })} />
+          <PlaceFilter value={values.placeId} onChange={(v) => update({ placeId: v })} />
           <EmployeeFilter allLabel="Anyone assigned" value={values.assignedUserId} onChange={(v) => update({ assignedUserId: v, directOnly: '' })} />
           <OnlyDirectToggle employeeId={values.assignedUserId} on={values.directOnly === '1'} onChange={(on) => update({ directOnly: on ? '1' : '' })} />
           <div className="w-44">

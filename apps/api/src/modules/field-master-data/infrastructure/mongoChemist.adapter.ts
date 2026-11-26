@@ -11,6 +11,7 @@ import { escapeRegex, isDuplicateKey } from './mongoHelpers.js';
 
 const toChemist = (doc: ChemistDoc & { _id: unknown }): Chemist => ({
   id: String(doc._id),
+  placeId: doc.placeId ? String(doc.placeId) : '',
   routeId: String(doc.routeId),
   name: doc.name,
   address: doc.address,
@@ -26,10 +27,11 @@ const toChemist = (doc: ChemistDoc & { _id: unknown }): Chemist => ({
 
 /** Domain `location` ↔ the two stored columns. */
 const toColumns = (change: Partial<Omit<Chemist, 'id'>>): Record<string, unknown> => {
-  const { location, capturedLocation, routeId, addedBy, ...rest } = change;
+  const { location, capturedLocation, routeId, placeId, addedBy, ...rest } = change;
   return {
     ...rest,
     ...(routeId !== undefined && { routeId: new Types.ObjectId(routeId) }),
+    ...(placeId !== undefined && { placeId: placeId ? new Types.ObjectId(placeId) : null }),
     ...(addedBy !== undefined && { addedBy: addedBy === null ? null : new Types.ObjectId(addedBy) }),
     ...(location !== undefined && { latitude: location?.latitude ?? null, longitude: location?.longitude ?? null }),
     ...(capturedLocation !== undefined && {
@@ -44,6 +46,8 @@ export class MongoChemistAdapter implements ChemistRepositoryPort {
     const query: Record<string, unknown> = {};
     if (filter.routeId) query['routeId'] = new Types.ObjectId(filter.routeId);
     if (filter.routeIds) query['routeId'] = { $in: filter.routeIds.map((id) => new Types.ObjectId(id)) };
+    if (filter.placeId) query['placeId'] = new Types.ObjectId(filter.placeId);
+    if (filter.placeIds) query['placeId'] = { $in: filter.placeIds.map((id) => new Types.ObjectId(id)) };
     if (filter.excludeIds?.length) query['_id'] = { $nin: filter.excludeIds.filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id)) };
     if (filter.status) query['status'] = filter.status;
     if (filter.search) {

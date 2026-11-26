@@ -24,11 +24,11 @@ export class ListChemistsUseCase {
   async execute(filter: ChemistFilter & { assignedUserId?: string | undefined; directOnly?: boolean | undefined; eligibleFor?: string | undefined }): Promise<PaginatedResult<ChemistRow>> {
     const { assignedUserId, directOnly, eligibleFor, ...base } = filter;
     let rest: ChemistFilter = base;
-    // The assign picker: active chemists on the routes this employee holds.
+    // The assign picker: active chemists on the places of the HQ this employee is based in (2026-11-26).
     if (eligibleFor && this.territory) {
-      const routeIds = (await this.territory.listRoutesForUser(eligibleFor)).map((r) => r.id);
-      if (routeIds.length === 0) return { ...(await this.chemists.listActiveAmong([], {}, base)), items: [] };
-      rest = { ...base, routeIds, status: 'active' };
+      const placeIds = (await this.territory.listPlacesForUser(eligibleFor)).map((p) => p.id);
+      if (placeIds.length === 0) return { ...(await this.chemists.listActiveAmong([], {}, base)), items: [] };
+      rest = { ...base, placeIds, status: 'active' };
     }
     const term = rest.search?.trim();
     let result: PaginatedResult<Chemist>;

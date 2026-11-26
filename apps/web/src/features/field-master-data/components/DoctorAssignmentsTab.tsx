@@ -1,20 +1,17 @@
 'use client';
 
 import type { DoctorDto } from '@greynote/contracts';
-import Link from 'next/link';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataState } from '@/components/ui/DataState';
-import { Dialog } from '@/components/ui/Dialog';
-import { useRouteAssignments } from '@/features/territory/hooks/useRouteAssignments';
 import { toErrorState } from '@/lib/api/toErrorState';
 import { formatDate } from '@/lib/format';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useAssignDoctor, useDoctorAssignments, useUnassignDoctor } from '../hooks/useDoctors';
-import { assignableMrs } from '../lib/samples';
+import { ManagerPickerDialog } from '@/features/people/components/ManagerPickerDialog';
 import { EmployeeName } from '@/features/people/components/EmployeePickerField';
 
 /** Who is responsible for this doctor now, who has been, and the way to change it. */
@@ -100,43 +97,19 @@ export function DoctorAssignmentsTab({ doctor }: { doctor: DoctorDto }) {
   );
 }
 
-/** Offers only the MRs who have this doctor's route, since the API refuses anyone else. */
+/**
+ * Pick the employee responsible for the doctor (2026-11-26: anyone based in the HQ of the doctor's place; the server refuses anyone else
+ * with a message). Nobody is assigned routes any more, so the list is a search over field employees.
+ */
 function AssignDialog({ doctor, onClose }: { doctor: DoctorDto; onClose: () => void }) {
-  const routeAssignments = useRouteAssignments(doctor.routeId, false);
   const assign = useAssignDoctor(doctor.id, onClose);
-  const candidates = assignableMrs(routeAssignments.data ?? [], doctor.assignedTo?.userId);
-
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()} title="Choose the responsible MR" description="MRs who cover this doctor's route.">
-      <div aria-live="polite" className="max-h-72 overflow-y-auto">
-        {routeAssignments.isLoading ? (
-          <p className="text-[13px] text-text-subtle">Loading…</p>
-        ) : routeAssignments.error ? (
-          <p role="alert" className="text-[13px] text-danger-fg">{toErrorState(routeAssignments.error).message}</p>
-        ) : candidates.length === 0 ? (
-          <p className="text-[13px] text-text-muted">
-            No other MR has this route yet. Assign the route to an MR first, on the{' '}
-            <Link href={`/routes/${doctor.routeId}`} className="text-accent hover:underline">
-              route page
-            </Link>
-            .
-          </p>
-        ) : (
-          <ul className="divide-y divide-border rounded-md border border-border">
-            {candidates.map((m) => (
-              <li key={m.userId} className="flex items-center justify-between gap-3 px-3 py-2">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-text">{m.name}</p>
-                  <p className="text-xs text-text-subtle">{m.employeeCode}</p>
-                </div>
-                <Button size="sm" disabled={assign.isPending} onClick={() => assign.mutate(m.userId)}>
-                  Assign
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </Dialog>
+    <ManagerPickerDialog
+      title="Choose the responsible employee"
+      label="Employee"
+      {...(doctor.assignedTo ? { selfId: doctor.assignedTo.userId } : {})}
+      onClose={onClose}
+      onPick={(u) => assign.mutate(u.id)}
+    />
   );
 }

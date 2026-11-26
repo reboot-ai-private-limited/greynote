@@ -76,6 +76,7 @@ export function makeFieldMasterDataSource(deps: {
         doctors: byId(mine).map((d) => ({
           id: d.id,
           routeId: d.routeId,
+          placeId: d.placeId,
           name: d.name,
           address: d.address,
           email: d.email,
@@ -89,12 +90,13 @@ export function makeFieldMasterDataSource(deps: {
           visitFrequency: d.visitFrequency,
           location: d.location,
         })),
-        pendingDoctors: byId(pending).map((d) => ({ id: d.id, routeId: d.routeId, name: d.name, address: d.address, specialty: d.specialty, qualification: d.qualification, location: d.location, photoUrl: d.photo?.url ?? null })),
-        chemists: byId(chemists).map((c) => ({ id: c.id, routeId: c.routeId, name: c.name, address: c.address, phone: c.phone, location: c.location })),
+        pendingDoctors: byId(pending).map((d) => ({ id: d.id, routeId: d.routeId, placeId: d.placeId, name: d.name, address: d.address, specialty: d.specialty, qualification: d.qualification, location: d.location, photoUrl: d.photo?.url ?? null })),
+        chemists: byId(chemists).map((c) => ({ id: c.id, routeId: c.routeId, placeId: c.placeId, name: c.name, address: c.address, phone: c.phone, location: c.location })),
         distributors: await Promise.all(byId(distributors).map(async (d) => ({
           id: d.id,
           // The phone's cache wants concrete Routes, so a Zone- or HQ-wide distributor is expanded here.
           routeIds: await expandRouteIds(deps.territory, d),
+          placeIds: d.placeIds,
           name: d.name,
           gstNumber: d.gstNumber,
           contactPerson: d.contactPerson,

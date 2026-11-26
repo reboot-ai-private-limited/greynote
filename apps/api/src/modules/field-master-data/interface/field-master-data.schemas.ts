@@ -72,19 +72,26 @@ export const updateSpecialtyBodySchema = z
   .refine((b) => Object.keys(b).length > 0, { message: 'Nothing to change.' });
 export const listSpecialtiesQuerySchema = z.object({ ...pageFields });
 
+/** A doctor or chemist sits on a place (decision-log 2026-11-26). An older client (the phone) may send a route instead: its To place is used. */
+const placeOrRoute = { placeId: objectIdSchema.optional(), routeId: objectIdSchema.optional() };
+const hasPlace = (b: { placeId?: string | undefined; routeId?: string | undefined }) => Boolean(b.placeId || b.routeId);
+const NEEDS_PLACE = { message: 'Choose a place.', path: ['placeId'] };
+
 // ---- Chemists
 const mobileSchema = z.string({ required_error: 'Enter the phone number.' }).trim().regex(/^\+?\d{10,15}$/, 'Must be a phone number of 10 to 15 digits.');
-export const createChemistBodySchema = z.object({
-  routeId: objectIdSchema,
-  name: nameSchema,
-  address: textSchema,
-  phone: mobileSchema,
-  /** Picked on a Google map. Omit to add the Chemist now and set the point later. */
-  location: locationSchema.nullish().transform((v) => v ?? null),
-});
+export const createChemistBodySchema = z
+  .object({
+    ...placeOrRoute,
+    name: nameSchema,
+    address: textSchema,
+    phone: mobileSchema,
+    /** Picked on a Google map. Omit to add the Chemist now and set the point later. */
+    location: locationSchema.nullish().transform((v) => v ?? null),
+  })
+  .refine(hasPlace, NEEDS_PLACE);
 export const updateChemistBodySchema = z
   .object({
-    routeId: objectIdSchema.optional(),
+    ...placeOrRoute,
     name: nameSchema.optional(),
     address: textSchema.optional(),
     /** Required, so it can be changed but not cleared. */
@@ -95,23 +102,25 @@ export const updateChemistBodySchema = z
   })
   .refine((b) => Object.keys(b).length > 0, { message: 'Nothing to change.' });
 /** Includes `pending` — the employee-added Chemists waiting for approval. */
-export const listChemistsQuerySchema = z.object({ ...pageFields, status: z.enum(CHEMIST_STATUSES).optional(), routeId: objectIdSchema.optional(), assignedUserId: objectIdSchema.optional(), directOnly: z.enum(['true', 'false']).transform((v) => v === 'true').optional(), eligibleFor: objectIdSchema.optional() });
+export const listChemistsQuerySchema = z.object({ ...pageFields, status: z.enum(CHEMIST_STATUSES).optional(), routeId: objectIdSchema.optional(), placeId: objectIdSchema.optional(), assignedUserId: objectIdSchema.optional(), directOnly: z.enum(['true', 'false']).transform((v) => v === 'true').optional(), eligibleFor: objectIdSchema.optional() });
 
 // ---- Chemists an employee adds (offline-first, then approved)
 const addedChemistFields = {
-  routeId: objectIdSchema,
+  ...placeOrRoute,
   name: nameSchema,
   address: textSchema,
   phone: mobileSchema,
   /** The phone's GPS when adding. Required — Admin reviews it on a map at approval. */
   location: locationSchema,
 };
-export const addChemistBodySchema = z.object({
-  ...addedChemistFields,
-  /** Made by the app once per add, so a retry after a dropped connection can't create a second Chemist. */
-  clientRequestId: z.string().trim().min(8).max(100),
-});
-export const editAddedChemistBodySchema = z.object(addedChemistFields);
+export const addChemistBodySchema = z
+  .object({
+    ...addedChemistFields,
+    /** Made by the app once per add, so a retry after a dropped connection can't create a second Chemist. */
+    clientRequestId: z.string().trim().min(8).max(100),
+  })
+  .refine(hasPlace, NEEDS_PLACE);
+export const editAddedChemistBodySchema = z.object(addedChemistFields).refine(hasPlace, NEEDS_PLACE);
 export const listAddedChemistsQuerySchema = z.object({ page: pageFields.page, pageSize: pageFields.pageSize });
 
 // ---- Doctors
@@ -133,16 +142,18 @@ const doctorFields = {
   specialty: z.string().trim().min(1).max(150),
   qualification: z.string().trim().min(1).max(150),
 };
-export const createDoctorBodySchema = z.object({
-  routeId: objectIdSchema,
-  ...doctorFields,
-  ...doctorExtras,
-  email: emailSchema.nullish().transform((v) => v ?? null),
-  /** Picked on a Google map. Omit to add the Doctor now and set the point later. */
-  location: locationSchema.nullish().transform((v) => v ?? null),
-});
+export const createDoctorBodySchema = z
+  .object({
+    ...placeOrRoute,
+    ...doctorFields,
+    ...doctorExtras,
+    email: emailSchema.nullish().transform((v) => v ?? null),
+    /** Picked on a Google map. Omit to add the Doctor now and set the point later. */
+    location: locationSchema.nullish().transform((v) => v ?? null),
+  })
+  .refine(hasPlace, NEEDS_PLACE);
 const doctorChangeObject = z.object({
-    routeId: objectIdSchema.optional(),
+    ...placeOrRoute,
     name: nameSchema.optional(),
     address: textSchema.optional(),
     specialty: doctorFields.specialty.optional(),
@@ -176,6 +187,7 @@ export const listDoctorsQuerySchema = z.object({
   /** Includes `pending` — the MR-added Doctors waiting for approval. */
   status: z.enum(DOCTOR_STATUSES).optional(),
   routeId: objectIdSchema.optional(),
+  placeId: objectIdSchema.optional(),
   /** Only the Doctors assigned to this employee now, and to anyone below them (a manager's team) unless `directOnly`. */
   assignedUserId: objectIdSchema.optional(),
   /** Only what this employee holds personally; left out (the default), a manager's team counts too, as on the phone. */
@@ -191,6 +203,7 @@ export const listAssignedDoctorsQuerySchema = z.object({
   pageSize: pageFields.pageSize,
   search: pageFields.search,
   routeId: objectIdSchema.optional(),
+  placeId: objectIdSchema.optional(),
 });
 export const teamDoctorsQuerySchema = listAssignedDoctorsQuerySchema.extend({ userId: objectIdSchema.optional() });
 /** Admin: one employee's Doctors. */
@@ -206,19 +219,21 @@ export const doctorAssignmentParamsSchema = z.object({ id: objectIdSchema, userI
 
 // ---- Doctors an MR adds (offline-first, then approved)
 const addedDoctorFields = {
-  routeId: objectIdSchema,
+  ...placeOrRoute,
   ...doctorFields,
   ...doctorExtras,
   email: emailSchema.nullish().transform((v) => v ?? null),
   /** The phone's GPS when adding. Required — Admin reviews it on a map at approval. */
   location: locationSchema,
 };
-export const addDoctorBodySchema = z.object({
-  ...addedDoctorFields,
-  /** Made by the app once per add, so a retry after a dropped connection can't create a second Doctor. */
-  clientRequestId: z.string().trim().min(8).max(100),
-});
-export const editAddedDoctorBodySchema = z.object(addedDoctorFields);
+export const addDoctorBodySchema = z
+  .object({
+    ...addedDoctorFields,
+    /** Made by the app once per add, so a retry after a dropped connection can't create a second Doctor. */
+    clientRequestId: z.string().trim().min(8).max(100),
+  })
+  .refine(hasPlace, NEEDS_PLACE);
+export const editAddedDoctorBodySchema = z.object(addedDoctorFields).refine(hasPlace, NEEDS_PLACE);
 export const listAddedDoctorsQuerySchema = z.object({ page: pageFields.page, pageSize: pageFields.pageSize });
 
 // ---- Distributors
@@ -238,11 +253,14 @@ const distributorFields = {
 const zoneIdsSchema = z.array(objectIdSchema).max(100);
 const hqIdsSchema = z.array(objectIdSchema).max(500);
 const routeIdsSchema = z.array(objectIdSchema).max(1000);
+const placeIdsSchema = z.array(objectIdSchema).max(1000);
 export const createDistributorBodySchema = z
   .object({
     zoneIds: zoneIdsSchema.default([]),
     hqIds: hqIdsSchema.default([]),
     routeIds: routeIdsSchema.default([]),
+    /** The places it serves (2026-11-26). */
+    placeIds: placeIdsSchema.default([]),
     ...distributorFields,
     /** Picked on a Google map. Omit to add the Distributor now and set the point later. */
     location: locationSchema.nullish().transform((v) => v ?? null),
@@ -251,12 +269,13 @@ export const createDistributorBodySchema = z
     /** What the distributor owed before this system, in paise; `0` if nothing. */
     openingDuesPaise: paiseSchema.default(0),
   })
-  .refine((b) => b.zoneIds.length + b.hqIds.length + b.routeIds.length > 0, { message: 'Choose at least one zone, HQ or route.', path: ['zoneIds'] });
+  .refine((b) => b.zoneIds.length + b.hqIds.length + b.routeIds.length + b.placeIds.length > 0, { message: 'Choose at least one zone, HQ or place.', path: ['zoneIds'] });
 export const updateDistributorBodySchema = z
   .object({
     zoneIds: zoneIdsSchema.optional(),
     hqIds: hqIdsSchema.optional(),
     routeIds: routeIdsSchema.optional(),
+    placeIds: placeIdsSchema.optional(),
     name: nameSchema.optional(),
     gstNumber: gstSchema.optional(),
     contactPerson: distributorFields.contactPerson.optional(),
@@ -273,6 +292,7 @@ export const updateDistributorBodySchema = z
 export const listDistributorsQuerySchema = z.object({
   ...pageFields,
   routeId: objectIdSchema.optional(),
+  placeId: objectIdSchema.optional(),
   /** Zone and HQ narrow by territory; the most specific one given is used. */
   hqId: objectIdSchema.optional(),
   zoneId: objectIdSchema.optional(),

@@ -46,6 +46,9 @@ describe('NEW_DOCTOR through the sync push', () => {
     doctors = new FakeDoctors(assignments);
     approvals = new FakeApprovals();
     territory = new FakeTerritory();
+    // The phone's routes exist (2026-11-26: the To place of the route is where the record goes).
+    territory.routes.set(ROUTE, 'active');
+    territory.routes.set(OTHER_ROUTE, 'active');
     territory.userRoutes.set('mr1', [ROUTE]);
     territory.userRoutes.set('asm', [ROUTE]);
     users = new FakeUsers();

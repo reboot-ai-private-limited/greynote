@@ -16,7 +16,7 @@ import type { StepperItem } from '@/components/ui/Stepper';
 import { WizardShell } from '@/components/ui/WizardShell';
 import { Field, FieldList } from '@/components/ui/FieldList';
 import { Grid } from '@/components/ui/WizardParts';
-import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
+import { usePlaceDirectory } from '@/features/territory/hooks/usePlaces';
 import { StatusToggleDialog } from '@/components/ui/StatusToggleDialog';
 import { toErrorState } from '@/lib/api/toErrorState';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
@@ -40,7 +40,7 @@ import { formatPoint, pointFromInputs } from '../lib/location';
 import { useSession } from '@/lib/auth/SessionProvider';
 import { ChemistAssignmentsCard } from './ChemistAssignmentsCard';
 import { LocationPicker } from './LocationPicker';
-import { RoutePickerField } from './RoutePickerField';
+import { PlacePickerField } from './PlacePickerField';
 
 /** `/chemists/new` (no id) and `/chemists/[id]` (edit). */
 export function ChemistFormScreen({ id }: { id?: string }) {
@@ -76,7 +76,7 @@ function ChemistForm({ chemist }: { chemist?: ChemistDto }) {
   const router = useRouter();
   const readOnly = useIsReadOnly();
   const { user: me } = useSession();
-  const directory = useTerritoryDirectory();
+  const places = usePlaceDirectory();
   const [draft, setDraft] = useState<ChemistDraft>(chemist ? chemistToDraft(chemist) : EMPTY_CHEMIST);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [toggling, setToggling] = useState(false);
@@ -129,11 +129,11 @@ function ChemistForm({ chemist }: { chemist?: ChemistDto }) {
   const detailsFields = (
     <Grid>
       <div className="sm:col-span-2">
-        <RoutePickerField
-          id="chemist-route"
-          value={draft.routeId}
-          onChange={(routeId) => setDraft((d) => ({ ...d, routeId }))}
-          error={shown['routeId']}
+        <PlacePickerField
+          id="chemist-place"
+          value={draft.placeId}
+          onChange={(placeId) => setDraft((d) => ({ ...d, placeId }))}
+          error={shown['placeId']}
           disabled={locked}
         />
       </div>
@@ -203,9 +203,7 @@ function ChemistForm({ chemist }: { chemist?: ChemistDto }) {
         {step === 'location' ? locationPicker : null}
         {step === 'review' ? (
           <FieldList>
-            <Field label="Route">
-              {draft.routeId ? directory.routeLabel(draft.routeId) : null}
-            </Field>
+            <Field label="Place">{draft.placeId ? places.labelOf(draft.placeId) : null}</Field>
             <Field label="Name">{draft.name}</Field>
             <Field label="Address">{draft.address}</Field>
             <Field label="Phone">{draft.phone || '—'}</Field>

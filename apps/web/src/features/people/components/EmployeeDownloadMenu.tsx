@@ -7,6 +7,7 @@ import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { employeeDcrsCsv } from '@/features/field-activity/lib/employeeDcrsCsv';
 import { doctorsCsv } from '@/features/field-master-data/lib/doctorsCsv';
 import { DownloadMonthlyPlanDialog } from '@/features/planning/components/DownloadMonthlyPlanDialog';
+import { usePlaceDirectory } from '@/features/territory/hooks/usePlaces';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
 import { fetchAllPages, MAX_PAGE_SIZE } from '@/lib/api/allPages';
 import { fieldActivityApi } from '@/lib/api/endpoints/fieldActivity';
@@ -18,10 +19,11 @@ import { financialYearLabel, financialYearOf, financialYearRange, getFinancialYe
 /** Admin: one employee's assigned doctors, and their daily reports for the selected financial year, and a month of their Tour Plan, as CSV. */
 export function EmployeeDownloadMenu({ user }: { user: Pick<UserDetailDto, 'id' | 'employeeCode'> }) {
   const directory = useTerritoryDirectory();
+  const places = usePlaceDirectory();
   const [planOpen, setPlanOpen] = useState(false);
   const doctors = useCsvExport(async (token) => {
     const { items, complete } = await fetchAllPages((page) => doctorsApi.assignedTo(token, user.id, { page, pageSize: MAX_PAGE_SIZE }), 100);
-    return { filename: exportFilename(await resolveExportOwner(token, user.id), 'doctors'), csv: doctorsCsv(items, directory.routeLabel), complete };
+    return { filename: exportFilename(await resolveExportOwner(token, user.id), 'doctors'), csv: doctorsCsv(items, (d) => (d.placeId ? places.labelOf(d.placeId) : directory.routeLabel(d.routeId))), complete };
   });
   const dcrs = useCsvExport(async (token) => {
     const year = getFinancialYear() ?? financialYearOf(new Date().toISOString().slice(0, 10));

@@ -34,9 +34,9 @@ export class AssignDoctorUseCase {
     if (user.role !== 'FIELD') throw AppError.badRequest('Only field employees can be assigned doctors.', { field: 'userId' });
     if (user.status === 'inactive') throw AppError.conflict('That employee is inactive.', { field: 'userId' });
 
-    const routes = await this.territory.listRoutesForUser(userId);
-    if (!routes.some((r) => r.id === doctor.routeId)) {
-      throw AppError.conflict('That employee does not have this doctor’s route. Assign the route to them first.', { field: 'userId' });
+    // A doctor goes to someone based in the HQ of its place (decision-log 2026-11-26).
+    if (!(await this.territory.listPlacesForUser(userId)).some((p) => p.id === doctor.placeId)) {
+      throw AppError.conflict('That employee is not based in the HQ of this doctor’s place.', { field: 'userId' });
     }
 
     const current = await this.assignments.findActiveForDoctor(doctorId);

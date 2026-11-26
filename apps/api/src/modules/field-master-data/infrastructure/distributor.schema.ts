@@ -14,6 +14,7 @@ export interface DistributorDoc {
   zoneIds?: Types.ObjectId[];
   hqIds?: Types.ObjectId[];
   routeIds: Types.ObjectId[];
+  placeIds?: Types.ObjectId[];
   name: string;
   gstNumber: string;
   contactPerson: string;
@@ -42,6 +43,7 @@ const distributorSchema = new Schema<DistributorDoc>({
   zoneIds: { type: [{ type: Schema.Types.ObjectId, ref: 'Zone' }], default: [] },
   hqIds: { type: [{ type: Schema.Types.ObjectId, ref: 'Hq' }], default: [] },
   routeIds: { type: [{ type: Schema.Types.ObjectId, ref: 'Route' }], default: [] },
+  placeIds: { type: [{ type: Schema.Types.ObjectId, ref: 'Place' }], default: [] },
   name: { type: String, required: true },
   gstNumber: { type: String, required: true },
   contactPerson: { type: String, required: true },
@@ -55,6 +57,7 @@ const distributorSchema = new Schema<DistributorDoc>({
   status: { type: String, required: true, enum: MASTER_STATUSES },
 });
 distributorSchema.index({ routeIds: 1, status: 1 });
+distributorSchema.index({ placeIds: 1, status: 1 });
 distributorSchema.index({ hqIds: 1, status: 1 });
 distributorSchema.index({ zoneIds: 1, status: 1 });
 distributorSchema.index({ assignedUserIds: 1 });

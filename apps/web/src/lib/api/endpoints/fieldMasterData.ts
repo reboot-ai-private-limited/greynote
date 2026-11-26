@@ -46,6 +46,8 @@ export interface ListChemistsQuery extends PaginationQueryDto {
   /** Includes `pending`: the Chemists employees added that await approval. */
   status?: ChemistStatus | undefined;
   routeId?: string | undefined;
+  /** Since 2026-11-26 records sit on places. */
+  placeId?: string | undefined;
   /** Only the active chemists this employee is assigned to now, and anyone below them (a manager's team) unless `directOnly`. */
   assignedUserId?: string | undefined;
   /** Only what the employee holds personally, not their team. */
@@ -57,6 +59,8 @@ export interface ListDoctorsQuery extends PaginationQueryDto {
   /** Includes `pending`: the Doctors MRs added that await approval. */
   status?: DoctorStatus | undefined;
   routeId?: string | undefined;
+  /** Since 2026-11-26 records sit on places. */
+  placeId?: string | undefined;
   /** Matches the doctor's name, or the name or code of the MR they are assigned to. */
   search?: string | undefined;
   /** Only the doctors assigned to this employee now, and anyone below them (a manager's team) unless `directOnly`. */
@@ -71,10 +75,14 @@ export interface ListDoctorsQuery extends PaginationQueryDto {
 export interface ListEmployeeDoctorsQuery extends PaginationQueryDto {
   search?: string | undefined;
   routeId?: string | undefined;
+  /** Since 2026-11-26 records sit on places. */
+  placeId?: string | undefined;
 }
 export interface ListDistributorsQuery extends PaginationQueryDto {
   status?: MasterStatus | undefined;
   routeId?: string | undefined;
+  /** Since 2026-11-26 records sit on places. */
+  placeId?: string | undefined;
   hqId?: string | undefined;
   zoneId?: string | undefined;
   assignedUserId?: string | undefined;

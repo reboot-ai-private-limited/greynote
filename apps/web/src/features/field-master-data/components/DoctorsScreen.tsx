@@ -14,7 +14,6 @@ import { PagedListFrame } from '@/components/ui/PagedListFrame';
 import { RowActions, RowMenu } from '@/components/ui/RowActions';
 import { Select } from '@/components/ui/Select';
 import { StatusToggleDialog } from '@/components/ui/StatusToggleDialog';
-import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
 import { fetchAllPages, MAX_PAGE_SIZE } from '@/lib/api/allPages';
 import { doctorsApi, type ListDoctorsQuery } from '@/lib/api/endpoints/fieldMasterData';
 import { useCsvExport } from '@/lib/hooks/useCsvExport';
@@ -26,7 +25,8 @@ import { DOCTOR_STATUS_LABEL, DOCTOR_STATUS_TONE, canToggleStatus, pendingApprov
 import { doctorsCsv, doctorsFilename } from '../lib/doctorsCsv';
 import { RetireDoctorDialog } from './RetireDoctorDialog';
 import { OnlyDirectToggle } from './OnlyDirectToggle';
-import { RouteFilter } from './RoutePickerField';
+import { PlaceFilter } from './PlacePickerField';
+import { usePlaceDirectory } from '@/features/territory/hooks/usePlaces';
 
 const ANY = 'all';
 const STATUS_OPTIONS = [
@@ -38,20 +38,20 @@ const STATUS_OPTIONS = [
 
 export function DoctorsScreen() {
   const router = useRouter();
-  const { values, page, pageSize, update } = useFilterParams(['search', 'status', 'routeId', 'assignedUserId', 'unassigned', 'directOnly']);
+  const { values, page, pageSize, update } = useFilterParams(['search', 'status', 'placeId', 'assignedUserId', 'unassigned', 'directOnly']);
   const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
   const readOnly = useIsReadOnly();
-  const directory = useTerritoryDirectory();
+  const places = usePlaceDirectory();
   // Reactivating is a plain confirm; deactivating and deleting first show what they touch.
   const [toggling, setToggling] = useState<DoctorDto | null>(null);
   const [retiring, setRetiring] = useState<{ action: 'deactivate' | 'delete'; doctor: DoctorDto } | null>(null);
   const updateDoctor = useUpdateDoctor(() => setToggling(null));
 
   const unassigned = values.unassigned === '1';
-  const filters: Pick<ListDoctorsQuery, 'search' | 'status' | 'routeId' | 'assignedUserId' | 'unassigned' | 'directOnly'> = {
+  const filters: Pick<ListDoctorsQuery, 'search' | 'status' | 'placeId' | 'assignedUserId' | 'unassigned' | 'directOnly'> = {
     ...(values.search && { search: values.search }),
     ...(values.status && { status: values.status as DoctorStatus }),
-    ...(values.routeId && { routeId: values.routeId }),
+    ...(values.placeId && { placeId: values.placeId }),
     ...(values.assignedUserId && !unassigned && { assignedUserId: values.assignedUserId }),
     ...(values.assignedUserId && !unassigned && values.directOnly === '1' && { directOnly: true }),
     ...(unassigned && { unassigned: true }),
@@ -60,7 +60,7 @@ export function DoctorsScreen() {
   // Every doctor matching the filters, not just this page. 100 pages of 100 is the ceiling.
   const download = useCsvExport(async (token) => {
     const { items, complete } = await fetchAllPages((p) => doctorsApi.list(token, { page: p, pageSize: MAX_PAGE_SIZE, ...filters }), 100);
-    return { filename: doctorsFilename(), csv: doctorsCsv(items, directory.routeLabel), complete };
+    return { filename: doctorsFilename(), csv: doctorsCsv(items, (d) => places.labelOf(d.placeId)), complete };
   });
 
   const columns: readonly Column<DoctorDto>[] = [
@@ -81,7 +81,7 @@ export function DoctorsScreen() {
     },
     { key: 'specialty', header: 'Speciality', render: (d) => d.specialty },
     { key: 'phone', header: 'Phone', render: (d) => d.phone ?? <span className="text-text-subtle">—</span> },
-    { key: 'route', header: 'Route', render: (d) => directory.routeLabel(d.routeId) },
+    { key: 'place', header: 'Place', render: (d) => places.labelOf(d.placeId) },
     {
       key: 'mr',
       header: 'Responsible MR',
@@ -147,7 +147,7 @@ export function DoctorsScreen() {
       filters={
         <>
           <Input placeholder="Search doctor or MR" aria-label="Search doctors or MRs" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
-          <RouteFilter value={values.routeId} onChange={(v) => update({ routeId: v })} />
+          <PlaceFilter value={values.placeId} onChange={(v) => update({ placeId: v })} />
           <EmployeeFilter allLabel="Anyone assigned" value={unassigned ? '' : values.assignedUserId} onChange={(v) => update({ assignedUserId: v, unassigned: '', directOnly: '' })} />
           <OnlyDirectToggle employeeId={unassigned ? undefined : values.assignedUserId} on={values.directOnly === '1'} onChange={(on) => update({ directOnly: on ? '1' : '' })} />
           <Button variant={unassigned ? 'primary' : 'secondary'} aria-pressed={unassigned} onClick={() => update({ unassigned: unassigned ? '' : '1', assignedUserId: '' })}>

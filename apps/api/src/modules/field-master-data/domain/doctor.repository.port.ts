@@ -14,20 +14,23 @@ export interface DoctorFilter extends PageQuery {
   /** With `search`, for an assigned-Doctors read: also every Doctor assigned to these employees. */
   alsoUserIds?: string[] | undefined;
   routeId?: string | undefined;
-  /** Only Doctors on any of these Routes (the Routes an employee holds); an empty list matches nothing. */
+  /** Only Doctors on any of these Routes; an empty list matches nothing. */
   routeIds?: string[] | undefined;
+  placeId?: string | undefined;
+  /** Only Doctors on any of these places (the places of an employee's HQ, or of an HQ / Zone filter); an empty list matches nothing. */
+  placeIds?: string[] | undefined;
   /** Not these Doctors (the ones an employee already holds, for the assign picker). */
   excludeDoctorIds?: string[] | undefined;
   status?: DoctorStatus | undefined;
 }
 
 /**
- * Whose Doctors to read. `routeIds` is the set of Routes that user currently has when visibility
- * follows the Route (`DOCTOR_VISIBILITY_FOLLOWS_ROUTE`); `null` means every assigned Doctor counts.
+ * Whose Doctors to read. `placeIds` is the places of the HQ that user is based in when visibility follows it
+ * (`DOCTOR_VISIBILITY_FOLLOWS_ROUTE`, decision-log 2026-11-26); `null` means every assigned Doctor counts.
  */
 export interface AssignedScope {
   userId: string;
-  routeIds: string[] | null;
+  placeIds: string[] | null;
 }
 
 export type AssignedDoctor = Doctor & { assignedUserId: string };

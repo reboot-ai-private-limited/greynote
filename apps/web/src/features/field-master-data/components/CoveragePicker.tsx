@@ -1,6 +1,7 @@
 'use client';
 
 import { ChevronRight, X } from 'lucide-react';
+import type { RouteDto } from '@greynote/contracts';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/components/ui/cn';
@@ -8,7 +9,7 @@ import { FormField } from '@/components/ui/FormField';
 import { Select } from '@/components/ui/Select';
 import { RouteChecklist } from '@/features/territory/components/RouteChecklist';
 import { useAllHqs } from '@/features/territory/hooks/useHqs';
-import { useActiveRoutes } from '@/features/territory/hooks/useRoutes';
+import { useAllPlaces } from '@/features/territory/hooks/usePlaces';
 import { useAllZones } from '@/features/territory/hooks/useZones';
 import { toStored, toTicks, zoneSummary, type Coverage } from '../lib/coverage';
 
@@ -60,8 +61,16 @@ export function CoveragePicker({
 }) {
   const zones = useAllZones();
   const hqs = useAllHqs();
-  const routes = useActiveRoutes();
-  const hierarchy = useMemo(() => ({ hqs: hqs.data ?? [], routes: routes.data ?? [] }), [hqs.data, routes.data]);
+  // The level under an HQ is its places (2026-11-26). The picker's code calls them "routes"; the form maps them to `placeIds`.
+  const places = useAllPlaces();
+  const routes = useMemo(
+    () => ({
+      isLoading: places.isLoading,
+      data: (places.data ?? []).filter((p) => p.status === 'active').map((p) => ({ id: p.id, hqId: p.hqId, name: p.name, type: p.type, distanceKm: null, status: p.status }) as unknown as RouteDto),
+    }),
+    [places.data, places.isLoading],
+  );
+  const hierarchy = useMemo(() => ({ hqs: hqs.data ?? [], routes: routes.data }), [hqs.data, routes.data]);
   const ticks = useMemo(() => toTicks(value, hierarchy), [value, hierarchy]);
   const commit = (next: Coverage) => onChange(toStored(next, hierarchy));
 
@@ -122,10 +131,10 @@ export function CoveragePicker({
 
   return (
     <FormField
-      label="Zones, HQs and routes"
+      label="Zones, HQs and places"
       htmlFor={id}
       error={error}
-      hint="Most distributors need one zone. Pick it and it covers all its HQs and routes; narrow it only if they serve part of it."
+      hint="Most distributors need one zone. Pick it and it covers all its HQs and places; narrow it only if they serve part of it."
     >
       <div id={id} className="space-y-3">
         {loading ? <p className="text-[13px] text-text-subtle">Loading zones…</p> : null}
@@ -183,7 +192,7 @@ export function CoveragePicker({
                                 <input type="checkbox" className={checkbox} checked={hqOn} disabled={disabled} onChange={() => toggleHq(q.id)} />
                                 {q.name}
                                 {hqOn ? (
-                                  <span className="text-xs text-text-subtle">{routesNarrowed ? `${pickedRoutes.length} of ${inHq.length} routes` : `all ${inHq.length} routes`}</span>
+                                  <span className="text-xs text-text-subtle">{routesNarrowed ? `${pickedRoutes.length} of ${inHq.length} places` : `all ${inHq.length} places`}</span>
                                 ) : null}
                               </label>
                             );
@@ -199,10 +208,10 @@ export function CoveragePicker({
                                       disabled={disabled}
                                       onChange={() => (routesNarrowed ? allRoutes(q.id) : setNarrowingRoutes((n) => withId(n, q.id)))}
                                     />
-                                    All routes
+                                    All places
                                   </label>
                                   {routesNarrowed ? (
-                                    <RouteChecklist routes={inHq} selected={pickedRoutes} onChange={(ids) => setHqRoutes(q.id, ids)} emptyText="No active routes in this HQ." />
+                                    <RouteChecklist routes={inHq} selected={pickedRoutes} onChange={(ids) => setHqRoutes(q.id, ids)} emptyText="No active places in this HQ." />
                                   ) : null}
                                 </div>
                               </Fold>

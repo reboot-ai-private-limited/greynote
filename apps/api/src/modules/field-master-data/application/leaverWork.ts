@@ -30,7 +30,7 @@ export class LeaverWork {
 
   async releaseDoctors(userId: string, handoverTo: string | null, actorId: string): Promise<{ handedOver: number; unassigned: number }> {
     const doctors = await this.assignments.listActiveForUser(userId);
-    const takerRoutes = handoverTo ? new Set((await this.territory.listRoutesForUser(handoverTo)).map((r) => r.id)) : new Set<string>();
+    const takerRoutes = handoverTo ? new Set((await this.territory.listPlacesForUser(handoverTo)).map((p) => p.id)) : new Set<string>();
     let handedOver = 0;
     let unassigned = 0;
     for (const a of doctors) {
@@ -59,6 +59,6 @@ export class LeaverWork {
   /** The receiver must have the doctor's route, as any assignment requires; a doctor whose route they lack is left unassigned. */
   private async canTake(doctorId: string, takerRoutes: Set<string>): Promise<boolean> {
     const doctor = await this.doctors.findById(doctorId);
-    return doctor !== null && doctor.status === 'active' && takerRoutes.has(doctor.routeId);
+    return doctor !== null && doctor.status === 'active' && takerRoutes.has(doctor.placeId);
   }
 }

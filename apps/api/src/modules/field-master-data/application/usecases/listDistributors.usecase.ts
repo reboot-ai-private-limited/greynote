@@ -10,6 +10,8 @@ import { scopeOfPlace, scopeOfUser } from '../distributorCoverage.js';
 export interface ListDistributorsInput extends PageQuery {
   search?: string | undefined;
   routeId?: string | undefined;
+  /** Distributors serving this place (or its HQ or Zone). */
+  placeId?: string | undefined;
   hqId?: string | undefined;
   zoneId?: string | undefined;
   assignedUserId?: string | undefined;
@@ -34,11 +36,11 @@ export class ListDistributorsUseCase {
   ) {}
 
   async execute(input: ListDistributorsInput): Promise<PaginatedResult<DistributorRow>> {
-    const { routeId, hqId, zoneId, directOnly, assignedUserId, eligibleFor, ...rest } = input;
+    const { placeId, routeId, hqId, zoneId, directOnly, assignedUserId, eligibleFor, ...rest } = input;
     // The assign picker: active distributors that cover where this employee works (their routes, HQs and zones).
-    const scope = eligibleFor ? await scopeOfUser(this.territory, eligibleFor) : routeId || hqId || zoneId ? await scopeOfPlace(this.territory, { routeId, hqId, zoneId }) : undefined;
+    const scope = eligibleFor ? await scopeOfUser(this.territory, eligibleFor) : placeId || routeId || hqId || zoneId ? await scopeOfPlace(this.territory, { placeId, routeId, hqId, zoneId }) : undefined;
     if (eligibleFor) rest.status = 'active';
-    if (scope && scope.zoneIds.length + scope.hqIds.length + scope.routeIds.length === 0) return buildPaginatedResult([], 0, input);
+    if (scope && scope.zoneIds.length + scope.hqIds.length + scope.routeIds.length + scope.placeIds.length === 0) return buildPaginatedResult([], 0, input);
     const term = rest.search?.trim();
     const result = await this.distributors.list({
       ...rest,

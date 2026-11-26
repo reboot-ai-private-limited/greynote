@@ -4,6 +4,7 @@ import { EMPTY_DOCTOR, buildDoctor, buildDoctorUpdate, canToggleStatus, doctorIm
 
 const doctor: DoctorDto = {
   id: 'd1',
+  placeId: 'p1',
   routeId: 'r1',
   name: 'Dr. S. Roy',
   address: 'Burdwan Road, Siliguri',
@@ -29,7 +30,7 @@ describe('buildDoctor', () => {
     expect(buildDoctor({ ...filled, name: '  Dr.  S. Roy ', email: ' ' })).toEqual({
       ok: true,
       body: {
-        routeId: 'r1',
+        placeId: 'p1',
         name: 'Dr. S. Roy',
         address: 'Burdwan Road, Siliguri',
         specialty: 'Cardiology',
@@ -50,7 +51,7 @@ describe('buildDoctor', () => {
   it('reports every missing field at once, and not the optional email', () => {
     const result = buildDoctor(EMPTY_DOCTOR);
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(Object.keys(result.errors).sort()).toEqual(['address', 'name', 'phone', 'qualification', 'routeId', 'specialty', 'visitFrequency']);
+    if (!result.ok) expect(Object.keys(result.errors).sort()).toEqual(['address', 'name', 'phone', 'placeId', 'qualification', 'specialty', 'visitFrequency']);
   });
   it('refuses a malformed email', () => {
     expect(buildDoctor({ ...filled, email: 'roy@' })).toMatchObject({ ok: false, errors: { email: 'Enter a valid email address.' } });
@@ -106,10 +107,10 @@ describe('locationWasCorrected', () => {
 
 describe('doctorStepErrors', () => {
   it('the details step checks only the details, the location step only the point, the review step everything', () => {
-    const empty = { ...filled, routeId: '', name: '', specialty: '', coordinates: { latitude: '95', longitude: '' } };
-    expect(Object.keys(doctorStepErrors(empty, 'details')).sort()).toEqual(['name', 'routeId', 'specialty']);
+    const empty = { ...filled, placeId: '', name: '', specialty: '', coordinates: { latitude: '95', longitude: '' } };
+    expect(Object.keys(doctorStepErrors(empty, 'details')).sort()).toEqual(['name', 'placeId', 'specialty']);
     expect(Object.keys(doctorStepErrors(empty, 'location')).sort()).toEqual(['latitude', 'longitude']);
-    expect(Object.keys(doctorStepErrors(empty, 'review')).sort()).toEqual(['latitude', 'longitude', 'name', 'routeId', 'specialty']);
+    expect(Object.keys(doctorStepErrors(empty, 'review')).sort()).toEqual(['latitude', 'longitude', 'name', 'placeId', 'specialty']);
   });
   it('a complete draft has no errors on any step; a doctor with no point yet is fine', () => {
     for (const step of ['details', 'location', 'review'] as const) expect(doctorStepErrors(filled, step)).toEqual({});

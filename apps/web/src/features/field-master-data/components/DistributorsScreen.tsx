@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { StatusFilter } from '@/components/ui/StatusFilter';
 import { StatusToggleDialog } from '@/components/ui/StatusToggleDialog';
+import { usePlaceDirectory } from '@/features/territory/hooks/usePlaces';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
 import { useSession } from '@/lib/auth/SessionProvider';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
@@ -52,6 +53,7 @@ export function DistributorsScreen() {
   const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
   const readOnly = useIsReadOnly();
   const directory = useTerritoryDirectory();
+  const places = usePlaceDirectory();
   const [toggling, setToggling] = useState<DistributorDto | null>(null);
   const [paying, setPaying] = useState<DistributorDto | null>(null);
   const [deleting, setDeleting] = useState<DistributorDto | null>(null);
@@ -102,6 +104,7 @@ export function DistributorsScreen() {
         routesText([
           ...d.zoneIds.map((z) => `${directory.zoneName(z)} (all)`),
           ...d.hqIds.map((q) => `${directory.hqName(q)} (all)`),
+          ...(d.placeIds ?? []).map((p) => places.labelOf(p)),
           ...d.routeIds.map((r) => directory.routeLabel(r)),
         ]),
     },

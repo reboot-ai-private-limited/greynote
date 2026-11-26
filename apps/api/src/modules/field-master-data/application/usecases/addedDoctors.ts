@@ -1,6 +1,7 @@
 import { isEditableBySubmitter } from '@/modules/approval/approval.public.js';
 import type { TransactionContext, TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import { parseBoolean, readConfigOr, type ConfigReader } from '@/shared/config/readConfig.js';
+import { resolveOwnPlace } from '../requireActiveRoute.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import { buildPaginatedResult, type PaginatedResult } from '@/shared/http/pagination.js';
 import type { ApprovalsPort } from '../../domain/approvals.port.js';
@@ -17,7 +18,9 @@ import { requireUniquePhone } from '../phoneUniqueness.js';
 
 /** What an MR fills when adding a Doctor (sign-off C4): no status, no assignment — those come from the approval. */
 export interface AddedDoctorInput {
-  routeId: string;
+  /** The place (2026-11-26). The phone still sends a route: its To place is used. One of the two is needed. */
+  placeId?: string | undefined;
+  routeId?: string | undefined;
   name: string;
   address: string;
   email: string | null;
@@ -59,11 +62,10 @@ export class AddedDoctors {
     if (earlier) return { doctor: await this.view(earlier), created: false };
 
     await this.requireMayAdd(mrId);
-    await this.requireOwnRoute(mrId, input.routeId);
-    input = { ...input, specialty: await this.specialties.resolve(input.specialty) };
-    const { clientRequestId } = input;
+    const placed = { ...input, ...(await this.ownPlace(mrId, input)), specialty: await this.specialties.resolve(input.specialty) };
+    const { clientRequestId } = placed;
     try {
-      const created = await this.transactions.run((ctx) => this.insertAndSubmit(mrId, input, ctx));
+      const created = await this.transactions.run((ctx) => this.insertAndSubmit(mrId, placed, ctx));
       return { doctor: await this.view(created), created: true };
     } catch (err) {
       if (!(err instanceof DuplicateRecordError)) throw err;
@@ -85,11 +87,10 @@ export class AddedDoctors {
     const earlier = await this.doctors.findByClientRequest(mrId, input.clientRequestId);
     if (earlier) return earlier;
     await this.requireMayAdd(mrId);
-    await this.requireOwnRoute(mrId, input.routeId);
-    return this.insertAndSubmit(mrId, { ...input, specialty: await this.specialties.resolve(input.specialty) }, ctx);
+    return this.insertAndSubmit(mrId, { ...input, ...(await this.ownPlace(mrId, input)), specialty: await this.specialties.resolve(input.specialty) }, ctx);
   }
 
-  private async insertAndSubmit(mrId: string, input: AddedDoctorInput & { clientRequestId: string }, ctx: TransactionContext): Promise<Doctor> {
+  private async insertAndSubmit(mrId: string, input: AddedDoctorInput & { clientRequestId: string; placeId: string; routeId: string }, ctx: TransactionContext): Promise<Doctor> {
     await requireUniquePhone((phone, exclude) => this.doctors.findByPhone(phone, exclude), input.phone, 'doctor');
     const { clientRequestId, location, ...fields } = input;
     const doctor = await this.doctors.createProposed(
@@ -113,12 +114,13 @@ export class AddedDoctors {
       );
     }
     await this.requireMayAdd(mrId);
-    if (input.routeId !== existing.routeId) await this.requireOwnRoute(mrId, input.routeId);
+    const moved = input.placeId !== undefined ? input.placeId !== existing.placeId : input.routeId !== undefined && input.routeId !== existing.routeId;
+    const where = moved ? await this.ownPlace(mrId, input) : { placeId: existing.placeId, routeId: existing.routeId };
     await requireUniquePhone((phone, exclude) => this.doctors.findByPhone(phone, exclude), input.phone, 'doctor', existing.id);
-    input = { ...input, specialty: await this.specialties.resolve(input.specialty) };
+    const placed = { ...input, ...where, specialty: await this.specialties.resolve(input.specialty) };
 
     const updated = await this.transactions.run(async (ctx) => {
-      const { location, ...fields } = input;
+      const { location, ...fields } = placed;
       const doctor = await this.doctors.update(existing.id, { ...fields, location, capturedLocation: location }, ctx);
       if (!doctor) throw AppError.notFound('No such doctor.');
       await this.approvals.submit({ kind: NEW_DOCTOR_KIND, recordId: doctor.id, submitterId: mrId }, ctx);
@@ -145,10 +147,7 @@ export class AddedDoctors {
     if ((await this.users.getDownline(userId)).length > 0) throw AppError.forbidden('Managers can’t add doctors. Ask Admin.');
   }
 
-  /** An MR can only add a Doctor to a Route they currently have. */
-  private async requireOwnRoute(mrId: string, routeId: string): Promise<void> {
-    if (!(await this.territory.listRoutesForUser(mrId)).some((r) => r.id === routeId)) {
-      throw AppError.badRequest('That route isn’t one of yours.', { field: 'routeId' });
-    }
+  private ownPlace(mrId: string, input: { placeId?: string | undefined; routeId?: string | undefined }) {
+    return resolveOwnPlace(this.territory, mrId, input);
   }
 }

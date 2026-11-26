@@ -30,9 +30,10 @@ export class ListDoctorsUseCase {
     }
     // The assign picker: active doctors on the routes this employee holds (a doctor can only be given to someone who has its route).
     if (eligibleFor && this.territory) {
-      const routeIds = (await this.territory.listRoutesForUser(eligibleFor)).map((r) => r.id);
-      if (routeIds.length === 0) return buildPaginatedResult([], 0, filter);
-      filter = { ...filter, routeIds, status: 'active' };
+      // A doctor can only go to someone based in the HQ of its place (2026-11-26).
+      const placeIds = (await this.territory.listPlacesForUser(eligibleFor)).map((p) => p.id);
+      if (placeIds.length === 0) return buildPaginatedResult([], 0, filter);
+      filter = { ...filter, placeIds, status: 'active' };
     }
     const term = filter.search?.trim();
     let alsoDoctorIds: string[] | undefined;

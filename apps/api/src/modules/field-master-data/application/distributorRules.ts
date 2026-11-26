@@ -16,6 +16,7 @@ export interface CoverageIds {
   zoneIds: string[];
   hqIds: string[];
   routeIds: string[];
+  placeIds: string[];
 }
 
 /**
@@ -24,8 +25,13 @@ export interface CoverageIds {
  * fine: Zone, HQ and Route each stand for everything under them, so naming an HQ alone is a complete choice.
  */
 export async function requireCoverage(territory: TerritoryPort, coverage: CoverageIds, already: Partial<CoverageIds> = {}): Promise<void> {
-  if (coverage.zoneIds.length + coverage.hqIds.length + coverage.routeIds.length === 0) {
-    throw AppError.badRequest('Choose at least one zone, HQ or route.', { field: 'zoneIds' });
+  if (coverage.zoneIds.length + coverage.hqIds.length + coverage.routeIds.length + coverage.placeIds.length === 0) {
+    throw AppError.badRequest('Choose at least one zone, HQ or place.', { field: 'zoneIds' });
+  }
+  for (const id of new Set(coverage.placeIds)) {
+    const place = await territory.getPlace(id);
+    if (!place) throw AppError.notFound('No such place.');
+    if (place.status !== 'active' && !already.placeIds?.includes(id)) throw AppError.conflict('This place is inactive.', { field: 'placeIds' });
   }
   for (const id of new Set(coverage.zoneIds)) {
     const zone = await territory.getZone(id);

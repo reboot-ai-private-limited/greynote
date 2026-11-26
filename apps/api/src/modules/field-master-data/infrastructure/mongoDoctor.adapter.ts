@@ -17,6 +17,7 @@ import { escapeRegex, isDuplicateKey } from './mongoHelpers.js';
 
 export const toDoctor = (doc: DoctorDoc & { _id: unknown }): Doctor => ({
   id: String(doc._id),
+  placeId: doc.placeId ? String(doc.placeId) : '',
   routeId: String(doc.routeId),
   name: doc.name,
   address: doc.address,
@@ -40,10 +41,11 @@ export const toDoctor = (doc: DoctorDoc & { _id: unknown }): Doctor => ({
 
 /** Domain fields ↔ the stored columns. */
 const toColumns = (change: Partial<Omit<Doctor, 'id'>>): Record<string, unknown> => {
-  const { location, capturedLocation, routeId, addedBy, ...rest } = change;
+  const { location, capturedLocation, routeId, placeId, addedBy, ...rest } = change;
   return {
     ...rest,
     ...(routeId !== undefined && { routeId: new Types.ObjectId(routeId) }),
+    ...(placeId !== undefined && { placeId: placeId ? new Types.ObjectId(placeId) : null }),
     ...(addedBy !== undefined && { addedBy: new Types.ObjectId(addedBy) }),
     ...(location !== undefined && { latitude: location?.latitude ?? null, longitude: location?.longitude ?? null }),
     ...(capturedLocation !== undefined && {
@@ -58,6 +60,8 @@ export class MongoDoctorAdapter implements DoctorRepositoryPort {
     const query: Record<string, unknown> = {};
     if (filter.routeId) query['routeId'] = new Types.ObjectId(filter.routeId);
     if (filter.routeIds) query['routeId'] = { $in: filter.routeIds.map((id) => new Types.ObjectId(id)) };
+    if (filter.placeId) query['placeId'] = new Types.ObjectId(filter.placeId);
+    if (filter.placeIds) query['placeId'] = { $in: filter.placeIds.map((id) => new Types.ObjectId(id)) };
     if (filter.excludeDoctorIds?.length) query['_id'] = { $nin: filter.excludeDoctorIds.map((id) => new Types.ObjectId(id)) };
     if (filter.status) query['status'] = filter.status;
     if (filter.search) {
@@ -171,6 +175,7 @@ export class MongoDoctorAdapter implements DoctorRepositoryPort {
 
     const doctorMatch: Record<string, unknown> = { 'doctor.status': 'active' };
     if (filter.routeId) doctorMatch['doctor.routeId'] = oid(filter.routeId);
+    if (filter.placeId) doctorMatch['doctor.placeId'] = oid(filter.placeId);
     // The search matches a Doctor's name, or (2026-11-02) an assigned employee whose name matched. Kept as its own clause so it never
     // collides with the visibility `$or` below.
     const and: Record<string, unknown>[] = [];
@@ -178,11 +183,11 @@ export class MongoDoctorAdapter implements DoctorRepositoryPort {
       const byName = { 'doctor.name': new RegExp(escapeRegex(filter.search), 'i') };
       and.push({ $or: filter.alsoUserIds?.length ? [byName, { userId: { $in: filter.alsoUserIds.map(oid) } }] : [byName] });
     }
-    // When visibility follows the Route, a user's Doctors are only the ones on Routes they still have.
-    if (scopes.some((s) => s.routeIds !== null)) {
+    // When visibility follows the HQ, a user's Doctors are only the ones on places of the HQ they are based in (2026-11-26).
+    if (scopes.some((s) => s.placeIds !== null)) {
       doctorMatch['$or'] = scopes.map((s) => ({
         userId: oid(s.userId),
-        ...(s.routeIds !== null && { 'doctor.routeId': { $in: s.routeIds.map(oid) } }),
+        ...(s.placeIds !== null && { 'doctor.placeId': { $in: s.placeIds.map(oid) } }),
       }));
     }
     if (and.length > 0) doctorMatch['$and'] = and;

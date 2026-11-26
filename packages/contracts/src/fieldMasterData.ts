@@ -100,6 +100,9 @@ export type ChemistStatus = (typeof CHEMIST_STATUSES)[number];
 
 export interface ChemistDto {
   id: string;
+  /** Where it sits (2026-11-26). Empty only before the places migration; absent from older servers. */
+  placeId?: string;
+  /** The route it is reached by, kept for older apps. */
   routeId: string;
   name: string;
   address: string;
@@ -120,13 +123,16 @@ export interface ChemistDto {
   assignedTo?: { userId: string; name: string; employeeCode: string }[];
 }
 export interface CreateChemistDto {
-  routeId: string;
+  /** The place (2026-11-26). An older client may send `routeId` instead: its To place is used. One of the two. */
+  placeId?: string;
+  routeId?: string;
   name: string;
   address: string;
   phone?: string | null;
   location?: GeoPoint | null;
 }
 export interface UpdateChemistDto {
+  placeId?: string;
   routeId?: string;
   name?: string;
   address?: string;
@@ -161,6 +167,9 @@ export const MAX_VISIT_FREQUENCY = 4;
 
 export interface DoctorDto {
   id: string;
+  /** Where the doctor sits (2026-11-26): a day whose To place is this one offers the doctor. Absent from older servers. */
+  placeId?: string;
+  /** The route the doctor is reached by, kept for older apps. */
   routeId: string;
   name: string;
   address: string;
@@ -191,7 +200,9 @@ export interface DoctorDto {
   approvalRequestId: string | null;
 }
 export interface CreateDoctorDto {
-  routeId: string;
+  /** The place (2026-11-26). An older client may send `routeId` instead: its To place is used. One of the two. */
+  placeId?: string;
+  routeId?: string;
   name: string;
   address: string;
   specialty: string;
@@ -205,6 +216,7 @@ export interface CreateDoctorDto {
   location?: GeoPoint | null;
 }
 export interface UpdateDoctorDto {
+  placeId?: string;
   routeId?: string;
   name?: string;
   address?: string;
@@ -287,7 +299,10 @@ export interface DistributorDto {
    */
   zoneIds: string[];
   hqIds: string[];
+  /** From before Places; kept for older apps. */
   routeIds: string[];
+  /** The places it serves (2026-11-26); absent from older servers. */
+  placeIds?: string[];
   name: string;
   gstNumber: string;
   contactPerson: string;
@@ -311,6 +326,7 @@ export interface CreateDistributorDto {
   zoneIds: string[];
   hqIds: string[];
   routeIds: string[];
+  placeIds?: string[];
   name: string;
   gstNumber: string;
   contactPerson: string;
@@ -325,6 +341,7 @@ export interface UpdateDistributorDto {
   zoneIds?: string[];
   hqIds?: string[];
   routeIds?: string[];
+  placeIds?: string[];
   name?: string;
   gstNumber?: string;
   contactPerson?: string;

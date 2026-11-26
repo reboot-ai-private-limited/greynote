@@ -89,6 +89,8 @@ export class FakeChemists implements ChemistRepositoryPort {
         (c) =>
           (!f.routeId || c.routeId === f.routeId) &&
           (!f.routeIds || f.routeIds.includes(c.routeId)) &&
+          (!f.placeId || c.placeId === f.placeId) &&
+          (!f.placeIds || f.placeIds.includes(c.placeId)) &&
           (!f.excludeIds || !f.excludeIds.includes(c.id)) &&
           (!f.status || c.status === f.status) &&
           (!search || c.name.toLowerCase().includes(search) || (f.alsoIds ?? []).includes(c.id)),
@@ -115,12 +117,13 @@ export class FakeChemists implements ChemistRepositoryPort {
   async listAllActive() {
     return this.rows.filter((r) => r.status === 'active');
   }
-  async create(input: Omit<Chemist, 'id'>) {
-    const row = { ...input, id: `chemist-${this.rows.length + 1}` };
+  /** A fixture may leave the place out: it is the place of its route in `FakeTerritory` (`p-<routeId>`). */
+  async create(input: Omit<Chemist, 'id' | 'placeId'> & { placeId?: string }) {
+    const row = { ...input, placeId: input.placeId ?? placeOf(input.routeId), id: `chemist-${this.rows.length + 1}` };
     this.rows.push(row);
     return row;
   }
-  async createProposed(input: Omit<Chemist, 'id'>, _ctx: unknown) {
+  async createProposed(input: Omit<Chemist, 'id' | 'placeId'> & { placeId?: string }, _ctx: unknown) {
     if (this.rows.some((c) => c.addedBy === input.addedBy && c.clientRequestId !== null && c.clientRequestId === input.clientRequestId)) throw new DuplicateRecordError('client request');
     return this.create(input);
   }
@@ -140,6 +143,9 @@ export class FakeChemists implements ChemistRepositoryPort {
     return this.rows[i]!;
   }
 }
+
+/** In these fakes, the place a route ends at. */
+export const placeOf = (routeId: string) => `p-${routeId}`;
 
 export class FakeTerritory implements TerritoryPort {
   routes = new Map<string, 'active' | 'inactive'>([
@@ -166,10 +172,33 @@ export class FakeTerritory implements TerritoryPort {
   userRoutes = new Map<string, string[]>();
   async getRoute(routeId: string) {
     const status = this.routes.get(routeId);
-    return status ? { id: routeId, name: `Route ${routeId}`, hqName: 'Naxalbari', status } : null;
+    return status ? { id: routeId, name: `Route ${routeId}`, hqName: 'Naxalbari', status, toPlaceId: placeOf(routeId) } : null;
   }
   async listRoutesForUser(userId: string) {
     return (this.userRoutes.get(userId) ?? []).map((id) => ({ id, hqId: this.paths.get(id)?.hqId ?? '' }));
+  }
+  /**
+   * Places (2026-11-26): each route `r` ends at place `p-r`, in the route's HQ and with its status; a user's HQ has the places of the routes
+   * in `userRoutes`, so the older "holds the route" tests read as "the place is in their HQ".
+   */
+  async getPlace(placeId: string) {
+    const routeId = placeId.startsWith('p-') ? placeId.slice(2) : null;
+    const status = routeId ? this.routes.get(routeId) : undefined;
+    if (!routeId || !status) return null;
+    return { id: placeId, hqId: this.paths.get(routeId)?.hqId ?? 'h1', name: `Place ${routeId}`, type: 'HQ' as const, isHqTown: false, status };
+  }
+  async getPlaces(placeIds: string[]) {
+    return (await Promise.all(placeIds.map((id) => this.getPlace(id)))).filter((p) => p !== null);
+  }
+  async listPlacesForUser(userId: string) {
+    return this.getPlaces((this.userRoutes.get(userId) ?? []).map(placeOf));
+  }
+  async listPlaceIdsInScope(scope: { hqId?: string | undefined; zoneId?: string | undefined }) {
+    return (await this.listRouteIdsInScope(scope)).map(placeOf);
+  }
+  async anchorRouteForPlace(placeId: string) {
+    const routeId = placeId.startsWith('p-') ? placeId.slice(2) : null;
+    return routeId && this.routes.get(routeId) === 'active' ? routeId : null;
   }
   /** HQ h1 is in z1, h2 in z2; `h-off` is an inactive HQ of z1 and `z-off` an inactive zone. */
   hqs = new Map<string, { zoneId: string; status: 'active' | 'inactive' }>([
@@ -356,6 +385,8 @@ export class FakeDoctors implements DoctorRepositoryPort {
         (d) =>
           (!f.routeId || d.routeId === f.routeId) &&
           (!f.routeIds || f.routeIds.includes(d.routeId)) &&
+          (!f.placeId || d.placeId === f.placeId) &&
+          (!f.placeIds || f.placeIds.includes(d.placeId)) &&
           (!f.excludeDoctorIds || !f.excludeDoctorIds.includes(d.id)) &&
           (!f.status || d.status === f.status) &&
           (!f.onlyDoctorIds || f.onlyDoctorIds.includes(d.id)) &&
@@ -371,15 +402,16 @@ export class FakeDoctors implements DoctorRepositoryPort {
   async findById(id: string) {
     return this.rows.find((d) => d.id === id) ?? null;
   }
-  async create(input: Omit<Doctor, 'id'>) {
-    const row = { ...input, id: `doctor-${this.rows.length + 1}` };
+  /** A fixture may leave the place out: it is the place of its route in `FakeTerritory` (`p-<routeId>`). */
+  async create(input: Omit<Doctor, 'id' | 'placeId'> & { placeId?: string }) {
+    const row = { ...input, placeId: input.placeId ?? placeOf(input.routeId), id: `doctor-${this.rows.length + 1}` };
     this.rows.push(row);
     return row;
   }
   /** Check and insert in one synchronous step, like the unique index does in Mongo. */
-  async createProposed(input: Omit<Doctor, 'id'>) {
+  async createProposed(input: Omit<Doctor, 'id' | 'placeId'> & { placeId?: string }) {
     if (this.rows.some((d) => d.addedBy === input.addedBy && d.clientRequestId !== null && d.clientRequestId === input.clientRequestId)) throw new DuplicateRecordError('client request');
-    const row = { ...input, id: `doctor-${this.rows.length + 1}` };
+    const row = { ...input, placeId: input.placeId ?? placeOf(input.routeId), id: `doctor-${this.rows.length + 1}` };
     this.rows.push(row);
     return row;
   }
@@ -408,8 +440,9 @@ export class FakeDoctors implements DoctorRepositoryPort {
       const a = await this.assignments.findActiveForDoctor(d.id);
       const scope = scopes.find((s) => s.userId === a?.userId);
       if (!a || !scope || d.status !== 'active') continue;
-      if (scope.routeIds !== null && !scope.routeIds.includes(d.routeId)) continue;
+      if (scope.placeIds !== null && !scope.placeIds.includes(d.placeId)) continue;
       if (f.routeId && d.routeId !== f.routeId) continue;
+      if (f.placeId && d.placeId !== f.placeId) continue;
       if (search && !d.name.toLowerCase().includes(search) && !(f.alsoUserIds ?? []).includes(a.userId)) continue;
       items.push({ ...d, assignedUserId: a.userId });
     }
@@ -540,8 +573,8 @@ export class FakeDistributors implements DistributorRepositoryPort {
   async listAllActive() {
     return this.rows.filter((r) => r.status === 'active');
   }
-  async create(input: Omit<Distributor, 'id'>) {
-    const row = { ...input, id: `distributor-${this.rows.length + 1}` };
+  async create(input: Omit<Distributor, 'id' | 'placeIds'> & { placeIds?: string[] }) {
+    const row = { ...input, placeIds: input.placeIds ?? [], id: `distributor-${this.rows.length + 1}` };
     this.rows.push(row);
     return row;
   }

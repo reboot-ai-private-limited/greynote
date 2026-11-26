@@ -11,6 +11,7 @@ import {
 
 const chemist: ChemistDto = {
   id: 'c1',
+  placeId: 'p1',
   routeId: 'r1',
   name: 'Apollo Pharmacy',
   address: 'Hill Cart Road, Siliguri',
@@ -25,7 +26,7 @@ const chemist: ChemistDto = {
 
 describe('buildChemist', () => {
   const filled = {
-    routeId: 'r1',
+    placeId: 'p1',
     name: '  Apollo   Pharmacy ',
     address: ' Hill Cart Road ',
     phone: '9876543210',
@@ -36,7 +37,7 @@ describe('buildChemist', () => {
     expect(buildChemist(filled)).toEqual({
       ok: true,
       body: {
-        routeId: 'r1',
+        placeId: 'p1',
         name: 'Apollo Pharmacy',
         address: 'Hill Cart Road',
         phone: '9876543210',
@@ -57,7 +58,7 @@ describe('buildChemist', () => {
     const result = buildChemist(EMPTY_CHEMIST);
     expect(result.ok).toBe(false);
     if (!result.ok)
-      expect(Object.keys(result.errors).sort()).toEqual(['address', 'name', 'phone', 'routeId']);
+      expect(Object.keys(result.errors).sort()).toEqual(['address', 'name', 'phone', 'placeId']);
   });
   it('refuses half a location, with the error on the missing coordinate', () => {
     expect(
@@ -82,9 +83,9 @@ describe('buildChemistUpdate', () => {
     });
   });
   it('sends only what changed', () => {
-    expect(buildChemistUpdate(chemist, { ...draft, routeId: 'r2', address: 'New Road' })).toEqual({
+    expect(buildChemistUpdate(chemist, { ...draft, placeId: 'p2', address: 'New Road' })).toEqual({
       ok: true,
-      body: { routeId: 'r2', address: 'New Road' },
+      body: { placeId: 'p2', address: 'New Road' },
     });
   });
   it('sends a phone when changed, and refuses clearing it', () => {
@@ -125,7 +126,7 @@ describe('placeErrors', () => {
 
 describe('chemistStepErrors', () => {
   const filled = {
-    routeId: 'r1',
+    placeId: 'p1',
     name: 'Apollo',
     address: 'Hill Cart Road',
     phone: '9876543210',
@@ -134,11 +135,11 @@ describe('chemistStepErrors', () => {
   it('the details step checks only the details, the location step only the point, the review step everything', () => {
     const empty = {
       ...filled,
-      routeId: '',
+      placeId: '',
       name: '',
       coordinates: { latitude: '95', longitude: '' },
     };
-    expect(Object.keys(chemistStepErrors(empty, 'details')).sort()).toEqual(['name', 'routeId']);
+    expect(Object.keys(chemistStepErrors(empty, 'details')).sort()).toEqual(['name', 'placeId']);
     expect(Object.keys(chemistStepErrors(empty, 'location')).sort()).toEqual([
       'latitude',
       'longitude',
@@ -147,7 +148,7 @@ describe('chemistStepErrors', () => {
       'latitude',
       'longitude',
       'name',
-      'routeId',
+      'placeId',
     ]);
   });
   it('a complete draft is fine on every step, and so is a chemist with no point yet', () => {
