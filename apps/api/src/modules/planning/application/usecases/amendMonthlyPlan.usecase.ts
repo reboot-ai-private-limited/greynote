@@ -7,6 +7,7 @@ import type { MonthlyPlanEntry } from '../../domain/monthlyPlan.entity.js';
 import type { MonthlyPlanRepositoryPort } from '../../domain/monthlyPlan.repository.port.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import { applyDailySync, assertOnlyFutureChanged, changedDays, planDailySync, type DailySync } from '../approvedMonthEdit.js';
+import type { PlanPlaces } from '../planPlaces.js';
 import type { PlanDayLocks } from '../dayLocks.js';
 import { MonthlyPlanWriter } from '../monthlyPlanWriter.js';
 import type { OffDays } from '../offDays.js';
@@ -45,8 +46,10 @@ export class AmendMonthlyPlanUseCase {
     private readonly approvedEdit?: { deadlines: PlanDeadlines; daily: DailyPlanRepositoryPort; transactions: TransactionRunnerPort },
     /** Locked days (decision-log 2026-11-18): worked or sent days of a month that was approved can't be changed, even while it waits. */
     private readonly locks?: PlanDayLocks,
+    /** From → To days (2026-11-26). */
+    places?: PlanPlaces,
   ) {
-    this.writer = new MonthlyPlanWriter(plans, approvals, offDays);
+    this.writer = new MonthlyPlanWriter(plans, approvals, offDays, places);
   }
 
   async execute(actor: Actor, planId: string, entries: MonthlyPlanEntry[], reason: string): Promise<MonthlyPlanView> {

@@ -44,6 +44,8 @@ import { dayTitle, describeEach, monthTitle } from '@/modules/approval/approval.
 import type { ConfigProviderPort } from './domain/configProvider.port.js';
 import type { PlanKind } from './domain/plan.js';
 import type { RouteDirectoryPort } from './domain/routeDirectory.port.js';
+import { PlanPlaces } from './application/planPlaces.js';
+import { PlanPlacesUseCase } from './application/usecases/planPlaces.usecase.js';
 import type { UserDirectoryPort } from './domain/userDirectory.port.js';
 import { MongoDailyPlanAdapter } from './infrastructure/mongoDailyPlan.adapter.js';
 import { LateGrantsPlanAdapter } from './infrastructure/lateGrantsPlanAdapter.js';
@@ -101,11 +103,13 @@ export function buildPlanningContainer(
   const setDoctors = new SetDailyPlanDoctorsUseCase(dailyPlans, approvals, carryOver, views, scope);
   const teamRoutes = new ListTeamRoutesUseCase(users, routes, scope, carryOver);
   const routeOptions = new RouteOptionsUseCase(users, routes, scope, carryOver);
+  const planPlacesUseCase = new PlanPlacesUseCase(routes, users, scope);
   const teamSuggest = new SuggestFromTeamUseCase(dailyPlans, monthlyPlans, approvals, users, carryOver, scope);
-  const setDay = new SetDailyPlanUseCase(dailyPlans, approvals, users, submitter, carryOver, scope, views);
+  const setDay = new SetDailyPlanUseCase(dailyPlans, approvals, users, submitter, carryOver, scope, views, routes);
   const getDaily = new GetDailyPlanUseCase(dailyPlans, users, views, routes, () => carryOver.directory());
   const listDaily = new ListDailyPlansUseCase(dailyPlans, views);
-  const saveMonthly = new SaveMonthlyPlanUseCase(monthlyPlans, approvals, views, offDays, dayLocks);
+  const planPlaces = new PlanPlaces(routes);
+  const saveMonthly = new SaveMonthlyPlanUseCase(monthlyPlans, approvals, views, offDays, dayLocks, planPlaces);
   const submitMonthly = new SubmitMonthlyPlanUseCase(monthlyPlans, deadlines, submitter, offDays);
   const getMonthly = new GetMonthlyPlanUseCase(monthlyPlans, users, views, routes);
   const listMonthly = new ListMonthlyPlansUseCase(monthlyPlans, views);
@@ -136,10 +140,10 @@ export function buildPlanningContainer(
   };
   const amendDaily = new AmendDailyPlanUseCase(dailyPlans, users, submitter, deadlines, views, () => dayReported, scope, approvals, async (plan, by) => {
     await mirrorDayIntoMonth(plan, by, monthlyPlans, deadlines.now());
-  }, monthlyPlans);
+  }, monthlyPlans, planPlaces);
 
   const planOwnerRoutes = new ListPlanOwnerRoutesUseCase(monthlyPlans, users, routes, scope);
-  const amendMonthly = new AmendMonthlyPlanUseCase(monthlyPlans, users, approvals, submitter, views, offDays, deadlines.now, { deadlines, daily: dailyPlans, transactions }, dayLocks);
+  const amendMonthly = new AmendMonthlyPlanUseCase(monthlyPlans, users, approvals, submitter, views, offDays, deadlines.now, { deadlines, daily: dailyPlans, transactions }, dayLocks, planPlaces);
 
   const deleteMonthly = new DeleteMonthlyPlanUseCase(monthlyPlans, dailyPlans, approvals, deadlines, transactions);
 
@@ -168,7 +172,7 @@ export function buildPlanningContainer(
         if (!plan) return null;
         return {
           status: (await status.monthly(userId, planMonth)) ?? 'DRAFT',
-          entries: plan.entries.map((e) => ({ date: e.planDate, workingType: e.workingType, dayKind: e.dayKind, routeIds: e.routeIds, workWith: e.workWith, remarks: e.remarks, returnDate: e.returnDate })),
+          entries: plan.entries.map((e) => ({ date: e.planDate, workingType: e.workingType, dayKind: e.dayKind, routeIds: e.routeIds, fromPlaceId: e.fromPlaceId ?? null, toPlaceId: e.toPlaceId ?? null, workWith: e.workWith, remarks: e.remarks, returnDate: e.returnDate })),
           offDays: await offDays.forMonth(userId, planMonth),
         };
       },
@@ -189,6 +193,7 @@ export function buildPlanningContainer(
           teamSuggest,
           teamRoutes,
           routeOptions,
+          planPlaces: planPlacesUseCase,
           carryOver,
           listDaily,
           getDaily,

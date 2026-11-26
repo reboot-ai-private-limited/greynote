@@ -66,21 +66,33 @@ export function monthRows<T extends Pick<MonthlyPlanEntryDto, 'planDate'>>(
 }
 
 /** A day while it is being edited: a plan entry whose `returnDate` may be unset. */
-export type DraftDay = Pick<MonthlyPlanEntryDto, 'workingType' | 'workWith' | 'routeIds' | 'remarks' | 'dayKind'> & { returnDate: string | null };
+export type DraftDay = Pick<MonthlyPlanEntryDto, 'workingType' | 'workWith' | 'routeIds' | 'remarks' | 'dayKind' | 'fromPlaceId' | 'toPlaceId'> & { returnDate: string | null };
+
+/** A day planned From → To (2026-11-26), rather than by a list of routes (older days). */
+export const hasPlaces = (day: Pick<DraftDay, 'fromPlaceId' | 'toPlaceId'>) => Boolean(day.fromPlaceId || day.toPlaceId);
 
 export const isTripDay = (kind: DraftDay['dayKind'] | undefined) => kind === 'STAY' || kind === 'TRANSIT';
 /** Only these use routes, colleagues and trips (the server refuses routes on any other type). */
 export const isFieldDay = (t: DraftDay['workingType']) => t === 'FIELD_WORK' || t === 'DOCTOR_CAMPAIGN';
 
 /** A day after its working type changed: a type that isn't a field day drops its routes, colleagues and trip, as the phone does. */
-export const clearedForType = (day: DraftDay): DraftDay => (isFieldDay(day.workingType) ? day : { ...day, routeIds: [], workWith: [], returnDate: null });
+export const clearedForType = (day: DraftDay): DraftDay =>
+  isFieldDay(day.workingType) ? day : { ...day, routeIds: [], workWith: [], returnDate: null, fromPlaceId: null, toPlaceId: null };
 
 export const draftsOf = (entries: readonly MonthlyPlanEntryDto[]): Record<string, DraftDay> =>
   Object.fromEntries(entries.map(({ planDate, ...day }) => [planDate, { ...day, returnDate: day.returnDate ?? null }]));
 
 const sameSet = (a: readonly string[], b: readonly string[]) => [...a].sort().join() === [...b].sort().join();
 const sameDay = (a: DraftDay | undefined, b: DraftDay | undefined) =>
-  !!a && !!b && a.workingType === b.workingType && (a.remarks ?? '') === (b.remarks ?? '') && a.returnDate === b.returnDate && sameSet(a.routeIds, b.routeIds) && sameSet(a.workWith, b.workWith);
+  !!a &&
+  !!b &&
+  a.workingType === b.workingType &&
+  (a.remarks ?? '') === (b.remarks ?? '') &&
+  a.returnDate === b.returnDate &&
+  (a.fromPlaceId ?? null) === (b.fromPlaceId ?? null) &&
+  (a.toPlaceId ?? null) === (b.toPlaceId ?? null) &&
+  sameSet(a.routeIds, b.routeIds) &&
+  sameSet(a.workWith, b.workWith);
 
 /** The days the editor changed, added or removed against the plan as loaded. A trip's stay and return days follow their first day, so they are not counted. */
 export function changedDates(original: Record<string, DraftDay>, edited: Record<string, DraftDay>): string[] {
@@ -95,15 +107,20 @@ export function amendEntries(edited: Record<string, DraftDay>): AmendMonthlyPlan
     .sort()
     .filter((d) => !isTripDay(edited[d]!.dayKind))
     .map((planDate) => {
-      const { workingType, workWith, routeIds, remarks, returnDate } = edited[planDate]!;
+      const day = edited[planDate]!;
+      const { workingType, workWith, routeIds, remarks, returnDate } = day;
       const field = isFieldDay(workingType);
+      // A From → To day sends its places; the server finds the route between them. No trips on such a day.
+      const placed = field && hasPlaces(day);
       return {
         planDate,
         workingType,
         workWith: field ? workWith : [],
-        routeIds: field ? routeIds : [],
+        routeIds: field && !placed ? routeIds : [],
+        fromPlaceId: placed ? (day.fromPlaceId ?? null) : null,
+        toPlaceId: placed ? (day.toPlaceId ?? null) : null,
         remarks: remarks?.trim() ? remarks.trim() : null,
-        ...(field && returnDate ? { returnDate } : {}),
+        ...(field && !placed && returnDate ? { returnDate } : {}),
       };
     });
 }
@@ -114,8 +131,9 @@ export function dayProblem(
   date: string,
   ctx: { routes: readonly PlanRouteDto[]; edited: Record<string, DraftDay>; offDates: readonly string[] },
 ): string | null {
-  if (!isFieldDay(day.workingType)) return day.routeIds.length > 0 || day.returnDate ? 'Only a field work or doctor campaign day has routes or a trip.' : null;
-  if (day.routeIds.length === 0) return 'Pick at least one route for a field day.';
+  if (!isFieldDay(day.workingType)) return day.routeIds.length > 0 || day.returnDate || hasPlaces(day) ? 'Only a field work or doctor campaign day has places, routes or a trip.' : null;
+  if (hasPlaces(day)) return !day.fromPlaceId ? 'Choose where the day starts.' : !day.toPlaceId ? 'Choose where the day goes.' : null;
+  if (day.routeIds.length === 0) return 'Choose where the day starts and where it goes.';
   if (!day.returnDate) return null;
   if (!ctx.routes.some((r) => r.routeType === 'OUT_STATION' && day.routeIds.includes(r.id))) return 'A trip needs an out-station route. Add one, or clear the return date.';
   if (day.returnDate <= date) return 'The return date must be after the day they leave.';

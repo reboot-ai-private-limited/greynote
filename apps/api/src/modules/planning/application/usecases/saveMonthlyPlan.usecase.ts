@@ -3,6 +3,7 @@ import type { ApprovalsPort } from '../../domain/approvals.port.js';
 import type { MonthlyPlanEntry } from '../../domain/monthlyPlan.entity.js';
 import type { MonthlyPlanRepositoryPort } from '../../domain/monthlyPlan.repository.port.js';
 import { assertEditable } from '../assertEditable.js';
+import type { PlanPlaces } from '../planPlaces.js';
 import type { PlanDayLocks } from '../dayLocks.js';
 import { MonthlyPlanWriter } from '../monthlyPlanWriter.js';
 import { OffDays } from '../offDays.js';
@@ -22,8 +23,10 @@ export class SaveMonthlyPlanUseCase {
     offDays: OffDays = new OffDays(),
     /** Locked days (decision-log 2026-11-18): a month that was approved can't have a worked or sent day changed. */
     private readonly locks?: PlanDayLocks,
+    /** From → To days (2026-11-26). */
+    places?: PlanPlaces,
   ) {
-    this.writer = new MonthlyPlanWriter(plans, approvals, offDays);
+    this.writer = new MonthlyPlanWriter(plans, approvals, offDays, places);
   }
 
   async execute(userId: string, planMonth: string, entries: MonthlyPlanEntry[]): Promise<MonthlyPlanView> {

@@ -5,6 +5,7 @@ import type { MonthlyPlan, MonthlyPlanEntry } from '../domain/monthlyPlan.entity
 import type { MonthlyPlanRepositoryPort } from '../domain/monthlyPlan.repository.port.js';
 import { assertNoOffDays, lastDayOf } from '../domain/offDays.js';
 import { assertMonthlyEntries } from '../domain/planRules.js';
+import type { PlanPlaces } from './planPlaces.js';
 import { carriedInto, expandTrips, shiftMonth } from '../domain/tripExpansion.js';
 import { assertEditable } from './assertEditable.js';
 import type { OffDays } from './offDays.js';
@@ -30,6 +31,8 @@ export class MonthlyPlanWriter {
     private readonly plans: MonthlyPlanRepositoryPort,
     private readonly approvals: ApprovalsPort,
     private readonly offDays: OffDays,
+    /** From → To days (2026-11-26): fills in the route between the places, or an older phone's single route's places. */
+    private readonly places?: PlanPlaces,
   ) {}
 
   /** `beforeExpand` runs once the days are known to be well-formed — the caller's own check on the plan's state goes there. */
@@ -37,7 +40,8 @@ export class MonthlyPlanWriter {
     // Days the server wrote for a trip come back with the plan; they're rebuilt from the trip, not kept or checked as typed.
     // The Tour Plan has no "Works with" (decision-log 2026-11-17): who the day is worked with is chosen on the Daily Plan. An older client may still
     // send it; it is dropped, never stored.
-    const typed = entries.filter((e) => e.dayKind === 'NORMAL').map((e) => ({ ...e, workWith: [] as string[] }));
+    const own = entries.filter((e) => e.dayKind === 'NORMAL').map((e) => ({ ...e, workWith: [] as string[] }));
+    const typed = this.places ? await this.places.normalizeAll(own, (i) => `entries.${i}.`) : own;
     assertMonthlyEntries(planMonth, typed, userId);
     const lastDay = lastDayOf(typed, monthRange(planMonth).to);
     const off = await this.offDays.byDate(userId, monthRange(planMonth).from, lastDay);

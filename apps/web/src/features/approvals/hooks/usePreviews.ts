@@ -151,3 +151,26 @@ export function useSecondaryRollup(userId: string, month: string) {
   );
 }
 
+
+/** The places a plan owner's Tour Plan can go to (2026-11-26). */
+export function usePlanPlaces(userId: string) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: ['planPlaces', userId] as const,
+      fetch: (token, signal) => planningApi.places(token, userId, signal),
+      staleTime: staleTime.live,
+    }),
+  );
+}
+
+/** Where a day from `fromPlaceId` can go for this owner; off until a From is chosen. */
+export function usePlanDestinations(userId: string, fromPlaceId: string | null | undefined) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: ['planDestinations', userId, fromPlaceId ?? ''] as const,
+      fetch: (token, signal) => planningApi.destinations(token, fromPlaceId!, userId, signal),
+      staleTime: staleTime.live,
+      enabled: Boolean(fromPlaceId),
+    }),
+  );
+}

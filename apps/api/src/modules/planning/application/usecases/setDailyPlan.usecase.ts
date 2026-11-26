@@ -1,3 +1,4 @@
+import type { RouteDirectoryPort } from '../../domain/routeDirectory.port.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { ApprovalsPort } from '../../domain/approvals.port.js';
 import type { DailyPlan } from '../../domain/dailyPlan.entity.js';
@@ -18,7 +19,7 @@ export interface DayInput {
   routeIds?: string[] | undefined;
 }
 
-const bodyOf = (p: PlanDay): PlanDay => ({ workingType: p.workingType, dayKind: p.dayKind, workWith: p.workWith, routeIds: p.routeIds, remarks: p.remarks });
+const bodyOf = (p: PlanDay): PlanDay => ({ workingType: p.workingType, dayKind: p.dayKind, workWith: p.workWith, routeIds: p.routeIds, fromPlaceId: p.fromPlaceId, toPlaceId: p.toPlaceId, remarks: p.remarks });
 
 /**
  * The owner changes their own Daily Plan for a day — working type, work with and doctors (decision-log 2026-10-14). Any field
@@ -44,6 +45,7 @@ export class SetDailyPlanUseCase {
     private readonly carryOver: CarryOver,
     private readonly scope: ManagerScope,
     private readonly views: PlanViews,
+    private readonly routes?: Pick<RouteDirectoryPort, 'anchorRouteForPlace'>,
   ) {}
 
   async execute(userId: string, planDate: string, input: DayInput): Promise<DailyPlanView> {
@@ -60,12 +62,24 @@ export class SetDailyPlanUseCase {
     // The Monthly Plan's version of the day: kept from the first change, or read off the day while it is still the Monthly Plan's.
     const original = plan.plannedFrom ?? (plan.source === 'MONTHLY' ? bodyOf(plan) : null);
     const routeIds = await this.routesFor(plan, input, field, original);
-    if (manager && field) await this.assertWorkWithOnRoutes(userId, routeIds, input.workWith);
+    // A day spent at one place has no route: who works it with the manager is whoever holds the route that reaches the place.
+    const held = routeIds.length > 0 ? routeIds : await this.anchorOf((plan.dayKind !== 'NORMAL' ? plan : (original ?? plan)).toPlaceId ?? null);
+    if (manager && field) await this.assertWorkWithOnRoutes(userId, held, input.workWith);
 
-    const day: PlanDay = { workingType: input.workingType, dayKind: plan.dayKind, workWith: input.workWith, routeIds, remarks: plan.remarks };
+    // The places are the Tour Plan's too (2026-11-26); a meeting, conference or strike has none.
+    const source = plan.dayKind !== 'NORMAL' ? plan : (original ?? plan);
+    const day: PlanDay = {
+      workingType: input.workingType,
+      dayKind: plan.dayKind,
+      workWith: input.workWith,
+      routeIds,
+      fromPlaceId: field ? (source.fromPlaceId ?? null) : null,
+      toPlaceId: field ? (source.toPlaceId ?? null) : null,
+      remarks: plan.remarks,
+    };
     await this.submitter.validateDays(userId, [{ day, field: '' }]);
     const doctors = field
-      ? await this.carryOver.compose({ userId, planDate, routeIds }, input.doctorIds, await this.scope.doctorScope(userId, input.workWith))
+      ? await this.carryOver.compose({ userId, planDate, routeIds, toPlaceId: day.toPlaceId }, input.doctorIds, await this.scope.doctorScope(userId, input.workWith))
       : [];
 
     const origin: { source: PlanSource; plannedFrom: PlanDay | null } =
@@ -75,6 +89,11 @@ export class SetDailyPlanUseCase {
     const saved = await this.plans.saveOwnDay(plan.id, plan.revision, day, doctors, origin);
     if (!saved) throw AppError.conflict('This plan changed while you were saving it. Reload it and try again.');
     return this.views.daily(saved);
+  }
+
+  private async anchorOf(placeId: string | null): Promise<string[]> {
+    const anchor = placeId && this.routes?.anchorRouteForPlace ? await this.routes.anchorRouteForPlace(placeId) : null;
+    return anchor ? [anchor] : [];
   }
 
   /** A manager's "Works with" for a day: only people below them who hold the day's routes (or the managers above those holders). */

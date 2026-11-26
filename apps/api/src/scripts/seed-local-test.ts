@@ -173,7 +173,7 @@ async function seed(apply: boolean): Promise<void> {
   for (const p of PEOPLE) {
     const picks = tourPlanRoutes(p.code, days);
     if (picks.length === 0) continue;
-    const entries = picks.map((x) => ({ planDate: x.date, returnDate: null, workingType: 'FIELD_WORK' as const, dayKind: 'NORMAL' as const, workWith: [], routeIds: [String(route.get(x.routeId)!)], remarks: null }));
+    const entries = picks.map((x) => ({ planDate: x.date, returnDate: null, workingType: 'FIELD_WORK' as const, dayKind: 'NORMAL' as const, workWith: [], routeIds: [String(route.get(x.routeId)!)], fromPlaceId: null, toPlaceId: null, remarks: null }));
     const plan = await monthly.save(String(user.get(p.code)!), TEST_MONTH, entries, null);
     if (!plan) continue;
     const approver = p.manager ? user.get(p.manager)! : oid(admin._id);
@@ -184,7 +184,7 @@ async function seed(apply: boolean): Promise<void> {
     await ApprovalRequestModel.create({ kind: 'MONTHLY_PLAN', recordId: plan.id, submitterId: user.get(p.code)!, status: 'APPROVED', workflow: 'MANAGER_ONLY', cycle: 1, submittedAt: now, decidedAt: now, history });
     tourPlans++;
     for (const e of entries) {
-      const day = { workingType: e.workingType, dayKind: e.dayKind, workWith: [] as string[], routeIds: e.routeIds, remarks: null };
+      const day = { workingType: e.workingType, dayKind: e.dayKind, workWith: [] as string[], routeIds: e.routeIds, fromPlaceId: null, toPlaceId: null, remarks: null };
       await DailyPlanModel.updateOne(
         { userId: user.get(p.code)!, planDate: e.planDate },
         { $setOnInsert: { ...toDayDoc(day), source: 'MONTHLY', amendments: [], revision: 1, lateResubmits: 0, updatedAt: now } },

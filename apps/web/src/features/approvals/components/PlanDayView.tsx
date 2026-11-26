@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/Badge';
 import { formatDate } from '@/lib/format';
 import { useDoctor } from '@/features/field-master-data/hooks/useDoctors';
 import { WorkWithName } from '@/features/people/components/EmployeePickerField';
+import { usePlaceDirectory } from '@/features/territory/hooks/usePlaces';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
 import { planDayLabel } from '../lib/plans';
 import { DAY_KIND_LABEL, WORKING_TYPE_LABEL } from '../lib/review';
@@ -17,6 +18,7 @@ function DoctorName({ doctorId }: { doctorId: string }) {
 /** One planned day: what it is for, the routes, who they work with, the doctors to call, and any remarks. */
 export function PlanDayView({ day }: { day: PlanDayDto & { doctors?: PlannedDoctorDto[]; returnDate?: string | null } }) {
   const directory = useTerritoryDirectory();
+  const places = usePlaceDirectory();
   return (
     <div className="space-y-2 text-sm">
       <Badge tone={day.workingType === 'FIELD_WORK' ? 'accent' : 'neutral'}>
@@ -24,7 +26,13 @@ export function PlanDayView({ day }: { day: PlanDayDto & { doctors?: PlannedDoct
       </Badge>
       {day.dayKind !== 'NORMAL' ? <Badge tone="neutral">{DAY_KIND_LABEL[day.dayKind]}</Badge> : null}
       {day.dayKind === 'NORMAL' && day.returnDate ? <Badge tone="neutral">Trip starts · back {planDayLabel(day.returnDate)}</Badge> : null}
-      {day.routeIds.length > 0 ? (
+      {day.fromPlaceId && day.toPlaceId ? (
+        <p>
+          <span className="text-text-subtle">{day.fromPlaceId === day.toPlaceId ? 'At: ' : 'From → To: '}</span>
+          {day.fromPlaceId === day.toPlaceId ? places.labelOf(day.toPlaceId) : `${places.labelOf(day.fromPlaceId)} → ${places.labelOf(day.toPlaceId)}`}
+        </p>
+      ) : null}
+      {day.routeIds.length > 0 && !(day.fromPlaceId && day.toPlaceId) ? (
         <p>
           <span className="text-text-subtle">Routes: </span>
           {day.routeIds.map((id) => directory.routeName(id)).join('; ')}

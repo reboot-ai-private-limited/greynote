@@ -109,10 +109,10 @@ export class CarryOver {
     return firstPlanned;
   }
 
-  /** The active doctors assigned to any of `people`, each once, with their route. */
-  private async assignedTo(people: string[]): Promise<Array<{ id: string; routeId: string }>> {
+  /** The active doctors assigned to any of `people`, each once, with their route and place. */
+  private async assignedTo(people: string[]): Promise<Array<{ id: string; routeId: string; placeId?: string | undefined }>> {
     const lists = await Promise.all([...new Set(people)].map((p) => this.directory().listAssignedDoctors(p)));
-    const seen = new Map<string, { id: string; routeId: string }>();
+    const seen = new Map<string, { id: string; routeId: string; placeId?: string | undefined }>();
     for (const d of lists.flat()) if (!seen.has(d.id)) seen.set(d.id, d);
     return [...seen.values()];
   }
@@ -120,27 +120,32 @@ export class CarryOver {
   /**
    * The list a plan should carry: the doctors the MR picked (`pickedIds`) plus every doctor still owed, which can't be dropped.
    * Picked doctors must be assigned to the owner — or, for a manager, to anyone in their downline (`scope.people`) — and, unless
-   * `scope.anyRoute` (managers), be on one of the plan's routes. `scope.max` is the most doctors the day may list.
+   * `scope.anyRoute` (managers), be where the day goes: at its To place (2026-11-26), or for a day from before places, on one of its
+   * routes. `scope.max` is the most doctors the day may list.
    */
   async compose(
-    plan: Pick<DailyPlan, 'userId' | 'planDate' | 'routeIds'>,
+    plan: Pick<DailyPlan, 'userId' | 'planDate' | 'routeIds'> & { toPlaceId?: string | null | undefined },
     pickedIds: string[],
     scope: { people: string[]; max: number; anyRoute?: boolean } = { people: [plan.userId], max: MAX_PLAN_DOCTORS },
   ): Promise<PlannedDoctor[]> {
     const unique = [...new Set(pickedIds)];
     const owed = await this.pending(plan.userId, plan.planDate, scope.people);
     const owedIds = new Set(owed.map((d) => d.doctorId));
-    const mine = new Map<string, string>();
-    for (const d of await this.assignedTo(scope.people)) mine.set(d.id, d.routeId);
+    const mine = new Map<string, { routeId: string; placeId?: string | undefined }>();
+    for (const d of await this.assignedTo(scope.people)) mine.set(d.id, d);
     const routes = new Set(plan.routeIds);
+    const where = (id: string) => (plan.toPlaceId ? mine.get(id)!.placeId === plan.toPlaceId : routes.has(mine.get(id)!.routeId));
     const picked = unique.filter((id) => !owedIds.has(id));
     const notYours = picked.filter((id) => !mine.has(id));
     if (notYours.length > 0) {
       throw AppError.badRequest('A doctor in this plan isn’t one of your doctors.', { field: 'doctorIds', doctorIds: notYours });
     }
-    const offRoute = scope.anyRoute ? [] : picked.filter((id) => !routes.has(mine.get(id)!));
+    const offRoute = scope.anyRoute ? [] : picked.filter((id) => !where(id));
     if (offRoute.length > 0) {
-      throw AppError.badRequest('A doctor in this plan is not on the routes planned for the day.', { field: 'doctorIds', doctorIds: offRoute });
+      throw AppError.badRequest(plan.toPlaceId ? 'A doctor in this plan is not at the place the day goes to.' : 'A doctor in this plan is not on the routes planned for the day.', {
+        field: 'doctorIds',
+        doctorIds: offRoute,
+      });
     }
     const all = [...owed, ...picked.map((doctorId) => ({ doctorId, carriedFrom: null }))];
     if (all.length > scope.max) {

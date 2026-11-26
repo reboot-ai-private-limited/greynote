@@ -369,14 +369,43 @@ export class FakeRoutes {
   async listRoutesForUsers(userIds: string[]) {
     await this.onList?.();
     const ids = [...new Set(userIds.flatMap((u) => this.byUser.get(u) ?? []))];
-    return ids.map((id) => ({ id, name: `Route ${id}`, hqId: 'hq-1', hqName: 'HQ 1', routeType: this.types.get(id) ?? ('HQ' as const) }));
+    return ids.map((id) => ({
+      id,
+      name: `Route ${id}`,
+      hqId: 'hq-1',
+      hqName: 'HQ 1',
+      routeType: this.types.get(id) ?? ('HQ' as const),
+      fromPlaceId: this.ends.get(id)?.from ?? null,
+      toPlaceId: this.ends.get(id)?.to ?? null,
+      distanceKm: null,
+    }));
   }
   async listHoldersOfRoutes(routeIds: string[]) {
     return [...this.byUser.entries()].flatMap(([userId, held]) => held.filter((r) => routeIds.includes(r)).map((routeId) => ({ routeId, userId })));
   }
   /** Any id is a route named after it, except `gone` (unknown). */
   async getRoute(routeId: string) {
-    return routeId === 'gone' ? null : { id: routeId, name: `Route ${routeId}`, routeType: this.types.get(routeId) ?? ('HQ' as const) };
+    const ends = this.ends.get(routeId);
+    return routeId === 'gone'
+      ? null
+      : { id: routeId, name: `Route ${routeId}`, routeType: this.types.get(routeId) ?? ('HQ' as const), fromPlaceId: ends?.from ?? null, toPlaceId: ends?.to ?? null };
+  }
+  /** Places (2026-11-26): a route's two ends, and the places of the HQ each user is based in. */
+  ends = new Map<string, { from: string; to: string; status?: 'active' | 'inactive' }>();
+  placesByUser = new Map<string, string[]>();
+  async findRouteBetween(a: string, b: string) {
+    for (const [id, e] of this.ends) {
+      if ((e.from === a && e.to === b) || (e.from === b && e.to === a)) return { id, name: `Route ${id}`, routeType: this.types.get(id) ?? ('HQ' as const), status: e.status ?? ('active' as const) };
+    }
+    return null;
+  }
+  async listPlacesForUsers(userIds: string[]) {
+    const ids = [...new Set(userIds.flatMap((u) => this.placesByUser.get(u) ?? []))];
+    return ids.map((id) => ({ id, hqId: 'hq-1', hqName: 'HQ 1', name: `Place ${id}`, type: 'HQ' as const, isHqTown: false }));
+  }
+  async anchorRouteForPlace(placeId: string) {
+    for (const [id, e] of this.ends) if (e.to === placeId || e.from === placeId) return id;
+    return null;
   }
 }
 

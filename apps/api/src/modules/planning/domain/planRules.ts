@@ -8,11 +8,19 @@ const hasDuplicates = (ids: string[]) => new Set(ids).size !== ids.length;
  * error's field name (`entries.3.` for a Monthly entry).
  */
 export function assertPlanDay(day: PlanDay, ownerId: string, field = ''): void {
-  if (isFieldDay(day.workingType) && day.routeIds.length === 0) {
-    throw AppError.badRequest('A field work or doctor campaign day needs at least one route.', { field: `${field}routeIds` });
+  const places = Boolean(day.fromPlaceId || day.toPlaceId);
+  if (places && (!day.fromPlaceId || !day.toPlaceId)) {
+    throw AppError.badRequest('Choose where the day starts and where it ends.', { field: `${field}${day.fromPlaceId ? 'toPlaceId' : 'fromPlaceId'}` });
   }
-  if (!isFieldDay(day.workingType) && day.routeIds.length > 0) {
-    throw AppError.badRequest('Only a field work or doctor campaign day has routes.', { field: `${field}routeIds` });
+  // A field day goes From → To (2026-11-26); one from before then (or an older phone) names its routes instead.
+  if (isFieldDay(day.workingType) && !places && day.routeIds.length === 0) {
+    throw AppError.badRequest('A field work or doctor campaign day needs a From and a To.', { field: `${field}toPlaceId` });
+  }
+  if (!isFieldDay(day.workingType) && (day.routeIds.length > 0 || places)) {
+    throw AppError.badRequest('Only a field work or doctor campaign day has places and routes.', { field: `${field}${places ? 'toPlaceId' : 'routeIds'}` });
+  }
+  if (places && day.routeIds.length > 1) {
+    throw AppError.badRequest('A day goes along one route.', { field: `${field}routeIds` });
   }
   if (hasDuplicates(day.routeIds)) {
     throw AppError.badRequest('A route is listed twice.', { field: `${field}routeIds` });

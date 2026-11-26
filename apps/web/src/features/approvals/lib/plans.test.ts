@@ -60,7 +60,10 @@ describe('editing a month', () => {
   });
   it('flags a field day without routes and a trip that runs over a planned or locked day', () => {
     const ctx = { routes: [out], edited: { '2026-10-02': day() }, offDates: ['2026-10-04'] };
-    expect(dayProblem(day({ routeIds: [] }), '2026-10-01', ctx)).toMatch(/at least one route/);
+    expect(dayProblem(day({ routeIds: [] }), '2026-10-01', ctx)).toMatch(/where the day starts/);
+    // A From → To day (2026-11-26) needs both ends, and no trip.
+    expect(dayProblem(day({ routeIds: [], fromPlaceId: 'p1' }), '2026-10-01', ctx)).toMatch(/where the day goes/);
+    expect(dayProblem(day({ routeIds: [], fromPlaceId: 'p1', toPlaceId: 'p1' }), '2026-10-01', ctx)).toBeNull();
     expect(dayProblem(day({ routeIds: ['o1'], returnDate: '2026-10-03' }), '2026-10-01', ctx)).toMatch(/already planned/);
     // a trip may run over a weekly off or holiday
     expect(dayProblem(day({ routeIds: ['o1'], returnDate: '2026-10-05' }), '2026-10-03', { ...ctx, edited: {} })).toBeNull();
@@ -98,5 +101,15 @@ describe('tripLines', () => {
   });
   it('has no stay for a one-night trip', () => {
     expect(tripLines('2026-11-02', '2026-11-03', ['SILIGURI to GANGTOK'])).toHaveLength(2);
+  });
+});
+
+describe('a From → To day (2026-11-26)', () => {
+  const day = (over: Partial<DraftDay> = {}): DraftDay => ({ workingType: 'FIELD_WORK', dayKind: 'NORMAL', workWith: [], routeIds: [], remarks: null, returnDate: null, ...over });
+  it('is sent as its two places, with no routes and no trip; the server finds the route', () => {
+    const edited = { '2026-10-01': day({ routeIds: ['old'], fromPlaceId: 'p1', toPlaceId: 'p2', returnDate: '2026-10-03' }) };
+    expect(amendEntries(edited)).toEqual([
+      { planDate: '2026-10-01', workingType: 'FIELD_WORK', workWith: [], routeIds: [], fromPlaceId: 'p1', toPlaceId: 'p2', remarks: null },
+    ]);
   });
 });

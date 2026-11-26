@@ -79,7 +79,7 @@ async function main(): Promise<void> {
         const reportedDay = k % 7 !== 3;
         const planId = new Types.ObjectId();
         writes.push(async () => {
-          await DailyPlanModel.create({ _id: planId, userId, planDate: date, ...toDayDoc({ workingType: 'FIELD_WORK', dayKind: 'NORMAL', workWith: [], routeIds: [String(routeId)], remarks: null }), source: 'MANUAL', doctors: planned.map((d) => ({ doctorId: d._id, carriedFrom: null })), amendments: [], revision: 1, lateResubmits: 0, updatedAt: now });
+          await DailyPlanModel.create({ _id: planId, userId, planDate: date, ...toDayDoc({ workingType: 'FIELD_WORK', dayKind: 'NORMAL', workWith: [], routeIds: [String(routeId)], fromPlaceId: null, toPlaceId: null, remarks: null }), source: 'MANUAL', doctors: planned.map((d) => ({ doctorId: d._id, carriedFrom: null })), amendments: [], revision: 1, lateResubmits: 0, updatedAt: now });
           await ApprovalRequestModel.create({ kind: 'DAILY_PLAN', recordId: String(planId), submitterId: userId, status: 'APPROVED', workflow: 'MANAGER_ONLY', cycle: 1, submittedAt: now, decidedAt: now, history: [{ action: 'APPROVE', authority: 'MANAGER', actorId: userId, actorRole: 'FIELD', comment: null, at: now, resultingStatus: 'APPROVED', cycle: 1 }] });
         });
         if (!reportedDay) {

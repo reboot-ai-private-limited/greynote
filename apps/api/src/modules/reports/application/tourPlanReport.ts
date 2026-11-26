@@ -66,6 +66,8 @@ export class TourPlanReport {
 
     const routeIds = [...new Set(plan.entries.flatMap((e) => e.routeIds))];
     const routes = new Map(await Promise.all(routeIds.map(async (id) => [id, await this.territory.getRoute(id)] as const)));
+    const placeIds = [...new Set(plan.entries.flatMap((e) => [e.fromPlaceId, e.toPlaceId]).filter((id): id is string => !!id))];
+    const placeOf = new Map(await Promise.all(placeIds.map(async (id) => [id, (await this.territory.getPlace?.(id)) ?? null] as const)));
     const peopleIds = [...new Set(plan.entries.flatMap((e) => e.workWith))];
     const people = new Map((peopleIds.length ? await this.identity.getUserSummaries(peopleIds) : []).map((u) => [u.id, u.name]));
     const entryOf = new Map(plan.entries.map((e) => [e.date, e]));
@@ -85,6 +87,25 @@ export class TourPlanReport {
         continue;
       }
       const known = e.routeIds.map((id) => routes.get(id)).filter((r): r is NonNullable<typeof r> => r != null);
+      // A day planned From → To (2026-11-26): the two places, and the To place's type (a day at one place has no route).
+      const from = e.fromPlaceId ? placeOf.get(e.fromPlaceId) : null;
+      const to = e.toPlaceId ? placeOf.get(e.toPlaceId) : null;
+      if (from && to) {
+        const route = known[0];
+        rows.push({
+          date,
+          weekday,
+          workType: WORKING_TYPE[e.workingType] ?? e.workingType,
+          trip: e.fromPlaceId === e.toPlaceId ? 'At one place' : '',
+          routes: route ? route.name : '',
+          from: from.name,
+          to: to.name,
+          routeType: ROUTE_TYPE[to.type] ?? to.type,
+          workWith: e.workWith.map((id) => people.get(id) ?? 'Colleague').join('; '),
+          remarks: e.remarks ?? '',
+        });
+        continue;
+      }
       const ends = known.map((r) => routeFromTo(r.name));
       const anyFrom = ends.some((x) => x.from !== '');
       rows.push({

@@ -14,6 +14,8 @@ import {
   setDailyPlanBodySchema,
   teamSuggestQuerySchema,
   teamRoutesQuerySchema,
+  planPlacesQuerySchema,
+  planDestinationsQuerySchema,
   routeOptionsQuerySchema,
   dateRangeQuerySchema,
   grantLateSubmitBodySchema,
@@ -53,6 +55,8 @@ function doc(
 
 doc('post', '/daily/doctors', 'Set the doctors to call on my plan for a day — also on a day inherited from the monthly plan; missed calls still owed are added', { body: setDailyPlanDoctorsBodySchema });
 doc('post', '/daily/plan', 'Change my plan for a day: working type, who I work with and the doctors — while it is a draft, rejected, withdrawn or reopened; routes follow the type (a manager’s follow the people they work with) and remarks stay the monthly plan’s', { body: setDailyPlanBodySchema });
+doc('get', '/places', 'The places a Tour Plan can go to (2026-11-26): the owner’s HQ, a manager’s also their team’s HQs. `userId` for someone else’s plan (their managers, Admin, HR)', { query: planPlacesQuerySchema });
+doc('get', '/destinations', 'From a place, where a day can go: places a typed route reaches (with its km), and staying at the place itself', { query: planDestinationsQuerySchema });
 doc('get', '/team-routes', 'A manager: the routes held by anyone below them (and their own), paged, with HQs to start from, each with who holds it and how many doctors are on it', { query: teamRoutesQuerySchema });
 doc('get', '/daily/route-options', 'A manager: for the day’s chosen routes, the people below them who hold them (routes in brackets) and the doctors on them — what Works with and Doctors offer', { query: routeOptionsQuerySchema });
 doc('get', '/daily/team-suggest', 'A manager: the routes and doctors of the team members they would work with that day, from those people’s own plans', { query: teamSuggestQuerySchema });
@@ -79,6 +83,8 @@ export function buildPlanningRouter(c: PlanningHandlers): Router {
 
   router.post('/daily/doctors', requireRole('FIELD'), validate({ body: setDailyPlanDoctorsBodySchema }), c.setDoctors);
   router.post('/daily/plan', requireRole('FIELD'), validate({ body: setDailyPlanBodySchema }), c.setDay);
+  router.get('/places', requireRole('FIELD', 'ADMIN', 'HR'), validate({ query: planPlacesQuerySchema }), c.places);
+  router.get('/destinations', requireRole('FIELD', 'ADMIN', 'HR'), validate({ query: planDestinationsQuerySchema }), c.destinations);
   router.get('/team-routes', requireRole('FIELD'), validate({ query: teamRoutesQuerySchema }), c.teamRoutes);
   router.get('/daily/route-options', requireRole('FIELD'), validate({ query: routeOptionsQuerySchema }), c.routeOptions);
   router.get('/daily/team-suggest', requireRole('FIELD'), validate({ query: teamSuggestQuerySchema }), c.teamSuggest);

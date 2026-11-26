@@ -28,7 +28,7 @@ const date = (day: number) => `${MONTH}-${String(day).padStart(2, '0')}`;
 const isOff = (day: number) => new Date(Date.UTC(2026, 11, day)).getUTCDay() === 0 || day === 25;
 
 function entry(day: number, over: Partial<MonthlyPlanEntry> & { routeIds: string[] }): MonthlyPlanEntry {
-  return { planDate: date(day), returnDate: null, workingType: 'FIELD_WORK', dayKind: 'NORMAL', workWith: [], remarks: null, ...over };
+  return { planDate: date(day), returnDate: null, workingType: 'FIELD_WORK', dayKind: 'NORMAL', workWith: [], fromPlaceId: null, toPlaceId: null, remarks: null, ...over };
 }
 
 /** Every working day on `route`, except the days the trips cover, with the given days replaced. */

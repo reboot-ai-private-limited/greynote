@@ -16,7 +16,11 @@ export const userMonthParamsSchema = z.object({ userId: objectIdSchema, month: p
 export const planDaySchema = z.object({
   workingType: z.enum(WORKING_TYPES),
   workWith: z.array(objectIdSchema).max(20).default([]),
+  /** Sent by an older client (the phone) instead of From and To; a single route there means its two places. */
   routeIds: z.array(objectIdSchema).max(20).default([]),
+  /** Where a field day starts and ends (2026-11-26); the server finds the typed route between them. */
+  fromPlaceId: objectIdSchema.nullish().transform((v) => v ?? null),
+  toPlaceId: objectIdSchema.nullish().transform((v) => v ?? null),
   remarks: z.string().trim().max(1000).nullish().transform((v) => v || null),
 });
 
@@ -68,6 +72,10 @@ export const routeOptionsQuerySchema = z.object({
 });
 
 export const carryOverQuerySchema = z.object({ date: planDateSchema });
+
+/** Whose plan the pickers are for: left out, the caller's own (2026-11-26). */
+export const planPlacesQuerySchema = z.object({ userId: objectIdSchema.optional() });
+export const planDestinationsQuerySchema = planPlacesQuerySchema.extend({ fromPlaceId: objectIdSchema });
 
 /** Both ends inclusive. The unrefined object is what the OpenAPI doc shows. */
 export const dateRangeQuerySchema = z.object({ from: planDateSchema, to: planDateSchema });

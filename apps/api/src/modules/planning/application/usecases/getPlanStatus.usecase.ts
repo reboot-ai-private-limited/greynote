@@ -24,7 +24,7 @@ export class GetPlanStatusUseCase {
   async day(userId: string, planDate: string) {
     const plan = await this.dailyPlans.findByUserAndDate(userId, planDate);
     if (!plan) return null;
-    return { status: planStatus(await this.approvals.getForRecord('DAILY_PLAN', plan.id)), workingType: plan.workingType, dayKind: plan.dayKind, routeIds: [...plan.routeIds], workWith: [...plan.workWith], doctorIds: plan.doctors.map((d) => d.doctorId), changedFromMonthly: plan.plannedFrom !== null, remarks: plan.remarks };
+    return { status: planStatus(await this.approvals.getForRecord('DAILY_PLAN', plan.id)), workingType: plan.workingType, dayKind: plan.dayKind, routeIds: [...plan.routeIds], fromPlaceId: plan.fromPlaceId ?? null, toPlaceId: plan.toPlaceId ?? null, workWith: [...plan.workWith], doctorIds: plan.doctors.map((d) => d.doctorId), changedFromMonthly: plan.plannedFrom !== null, remarks: plan.remarks };
   }
 
   /** A user's daily plans in a range (both ends inclusive), oldest first, each with its status and working type — a calendar's read. */

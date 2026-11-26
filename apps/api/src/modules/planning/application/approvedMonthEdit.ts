@@ -8,7 +8,7 @@ import { sameDay, type PlanDay } from '../domain/plan.js';
 import { dayLabel } from '../domain/offDays.js';
 
 /** A Daily Plan's start from a Tour Plan day: no "Works with" is carried over (it is chosen on the day itself, decision-log 2026-11-17). */
-const dayOf = ({ workingType, dayKind, routeIds, remarks }: MonthlyPlanEntry): PlanDay => ({ workingType, dayKind, workWith: [], routeIds, remarks });
+const dayOf = ({ workingType, dayKind, routeIds, fromPlaceId, toPlaceId, remarks }: MonthlyPlanEntry): PlanDay => ({ workingType, dayKind, workWith: [], routeIds, fromPlaceId, toPlaceId, remarks });
 const byDate = (entries: MonthlyPlanEntry[]) => new Map(entries.map((e) => [e.planDate, e]));
 
 /** What changed between two versions of a month, by date: `from` is null for a day that is new, `to` null for one that is gone. */

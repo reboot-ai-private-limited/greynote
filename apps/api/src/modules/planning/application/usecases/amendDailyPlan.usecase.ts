@@ -1,3 +1,4 @@
+import type { PlanPlaces } from '../planPlaces.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { DailyPlan } from '../../domain/dailyPlan.entity.js';
 import type { ApprovalsPort } from '../../domain/approvals.port.js';
@@ -38,13 +39,16 @@ export class AmendDailyPlanUseCase {
     /** Writes an approved day's change back into the Tour Plan (decision-log 2026-11-18). */
     private readonly mirror?: (plan: DailyPlan, actorId: string) => Promise<void>,
     private readonly monthly?: MonthlyPlanRepositoryPort,
+    /** From → To days (2026-11-26). */
+    private readonly places?: PlanPlaces,
   ) {}
 
   async execute(actor: Actor, planId: string, body: Omit<PlanDay, 'dayKind'>, reason: string): Promise<DailyPlanView> {
     const plan = await this.plans.findById(planId);
     if (!plan) throw AppError.notFound('No such plan.');
     // An amendment edits the day's contents; whether it's a stay or transit day of a trip stays as the Monthly Plan set it.
-    const day: PlanDay = { ...body, dayKind: plan.dayKind };
+    const typed: PlanDay = { ...body, dayKind: plan.dayKind };
+    const day = this.places ? await this.places.normalize(typed) : typed;
     if (actor.id === plan.userId) throw AppError.forbidden('You can’t amend your own plan. Ask your manager.');
     if (actor.role !== 'ADMIN' && actor.role !== 'HR') {
       const chain = await this.users.getManagerChain(plan.userId);
@@ -67,12 +71,12 @@ export class AmendDailyPlanUseCase {
     // The routes are the Tour Plan's (decision-log 2026-11-19): a different route is a change to the Tour Plan, not to the day.
     if (this.monthly && day.dayKind === 'NORMAL') await assertRoutesMatchTourPlan(this.monthly, plan.userId, plan.planDate, day.routeIds, day.workingType);
     await this.submitter.validateDays(plan.userId, [{ day, field: '' }], await this.scope.routePeople(plan.userId));
-    const { workingType, dayKind, workWith, routeIds, remarks } = plan;
+    const { workingType, dayKind, workWith, routeIds, fromPlaceId, toPlaceId, remarks } = plan;
     const saved = await this.plans.amend(plan.id, plan.revision, day, {
       by: actor.id,
       at: this.deadlines.now(),
       reason,
-      previous: { workingType, dayKind, workWith, routeIds, remarks },
+      previous: { workingType, dayKind, workWith, routeIds, fromPlaceId, toPlaceId, remarks },
     });
     if (!saved) throw AppError.conflict('This plan changed while you were amending it. Reload it and try again.');
     const status = (await this.approvals.getForRecord('DAILY_PLAN', saved.id))?.status;

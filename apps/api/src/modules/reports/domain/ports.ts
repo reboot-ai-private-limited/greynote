@@ -177,6 +177,8 @@ export interface DoctorCallsPort {
 
 export interface TerritoryPort {
   getRoute(routeId: string): Promise<{ id: string; name: string; routeType?: string } | null>;
+  /** A place's name and type (2026-11-26), or `null`. Optional so fakes of older reports need not add it. */
+  getPlace?(placeId: string): Promise<{ id: string; name: string; type: string } | null>;
 }
 
 export interface ZoneNamePort {
@@ -224,7 +226,7 @@ export interface DailyWorkPlanningPort {
 export interface TourPlanExportPort {
   readTourPlanForExport(userId: string, planMonth: string): Promise<{
     status: string;
-    entries: Array<{ date: string; workingType: string; dayKind: string; routeIds: string[]; workWith: string[]; remarks: string | null; returnDate: string | null }>;
+    entries: Array<{ date: string; workingType: string; dayKind: string; routeIds: string[]; fromPlaceId?: string | null; toPlaceId?: string | null; workWith: string[]; remarks: string | null; returnDate: string | null }>;
     offDays: Array<{ date: string; reason: 'WEEKLY_OFF' | 'HOLIDAY'; name: string | null }>;
   } | null>;
 }

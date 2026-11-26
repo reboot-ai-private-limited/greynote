@@ -3063,3 +3063,17 @@ The Secondary Sales performance sheet (Excel, shown on the web's Secondary sales
 - Web: doctor and chemist forms pick a **Place**; the Doctors and Chemists lists show and filter by place; assigning a doctor searches field employees (the server refuses anyone not based in the place's HQ); the distributor coverage picker is Zone → HQ → **places**.
 
 **Needs a migration: yes.** After `migrate:places`: `pnpm --filter @greynote/api migrate:outlet-places` (dry run), then `-- --apply`. Each doctor and chemist takes its route's To place; each distributor's routes become places. Records whose route has no place (deleted, or not migrated) are listed to fix by hand. Safe to repeat. Locally: 1370 doctors, 71 chemists, nothing unplaced.
+
+## 2026-11-26: A Tour Plan day is one From → To (phase 4)
+
+**Decision.**
+- A field day (field work, doctor campaign) stores **`fromPlaceId` and `toPlaceId`** (Monthly Plan entry, Daily Plan, `PlanDay`). The server finds the **typed route between them** (`PlanPlaces.normalize`, whichever way it was typed) and keeps it as the day's `routeIds`, so TA/DA and reports keep reading routes until phase 5. **From = To** is a day spent at one place: no route. Two places with no typed route are refused ("Ask Admin to add one").
+- **Older phones** keep sending `routeIds`: a single route means its two places (as typed: an HQ-town route reads as HQ town → place); several routes stay a route-only day as before. Days from before keep their routes and trips.
+- **Who may plan where:** both places must be in the owner's HQ, or for a manager also in the HQ of anyone below them (`PlanSubmitter.validateDays`, against `listPlacesForUsers`). The route check is unchanged.
+- **Doctors of the day are the ones at its To place** (`CarryOver.compose`; route-only days still use their routes). A manager's "Works with" on a day at one place counts whoever holds the route that reaches it.
+- **Trips** (`returnDate`, stay and return days) are not offered on a From → To day: the days themselves say where the person is. Older days keep theirs.
+- New reads for the pickers: `GET /planning/places?userId=` (the places the plan can go to, with HQ names) and `GET /planning/destinations?fromPlaceId=&userId=` (staying at From, plus every place a typed route reaches, with its km). The owner, managers above them, Admin and HR.
+- The Tour Plan Excel shows From and To as place names and the To place's type; the phone's sync snapshot carries the places (optional fields).
+- Web: Admin/HR/manager editing a Tour Plan (approvals) pick **From** and **To**; the next day's From starts at the previous day's To; route-only days still show their routes until changed.
+
+**Needs a migration:** no. **Deploy with phase 5:** a From = To day has no route, and only the phase 5 TA/DA reads places, so ship them together. Managers' route-based team pickers (`/team-routes`, `/daily/route-options`) stay for the phone until phase 6.

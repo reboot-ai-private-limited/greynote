@@ -33,7 +33,14 @@ export interface PlanDay {
   dayKind: DayKind;
   /** Accompanying colleagues' user ids. */
   workWith: string[];
+  /**
+   * The route travelled. Since 2026-11-26 a field day is one From → To along a typed route, and the server keeps that route here (none when
+   * From = To: a day spent at one place). A day from before then (or from an older phone sending several) may list several routes and no places.
+   */
   routeIds: string[];
+  /** Where the day starts and ends (2026-11-26). Both set on a field day planned From → To; null or absent otherwise. */
+  fromPlaceId?: string | null | undefined;
+  toPlaceId?: string | null | undefined;
   remarks: string | null;
 }
 
@@ -43,6 +50,8 @@ export const sameDay = (a: PlanDay, b: PlanDay): boolean =>
   a.dayKind === b.dayKind &&
   a.remarks === b.remarks &&
   [...a.routeIds].sort().join() === [...b.routeIds].sort().join() &&
+  (a.fromPlaceId ?? null) === (b.fromPlaceId ?? null) &&
+  (a.toPlaceId ?? null) === (b.toPlaceId ?? null) &&
   [...a.workWith].sort().join() === [...b.workWith].sort().join();
 
 /**

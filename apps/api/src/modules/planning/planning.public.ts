@@ -36,7 +36,7 @@ export interface PlanningPublicContract {
    * What the day's Plan says — working type and routes — with its status, for TA/DA; `null` with no Plan.
    * Read at the DCR's approval, so a manager's amendment is already in it.
    */
-  getDailyPlanDay(userId: string, planDate: string): Promise<{ status: PlanApprovalStatus; workingType: WorkingType; dayKind: DayKind; routeIds: string[]; workWith: string[]; doctorIds: string[]; changedFromMonthly: boolean; remarks: string | null } | null>;
+  getDailyPlanDay(userId: string, planDate: string): Promise<{ status: PlanApprovalStatus; workingType: WorkingType; dayKind: DayKind; routeIds: string[]; fromPlaceId: string | null; toPlaceId: string | null; workWith: string[]; doctorIds: string[]; changedFromMonthly: boolean; remarks: string | null } | null>;
   /** The user's daily plans in a date range (both ends inclusive), oldest first, each with its status, working type and Route ids. */
   listDailyPlanDays(userId: string, from: string, to: string): Promise<Array<{ date: string; status: PlanApprovalStatus; workingType: WorkingType; routeIds: string[]; workWith: string[]; doctorIds: string[]; remarks: string | null; changedFromMonthly: boolean }>>;
   /**
@@ -52,7 +52,18 @@ export interface PlanningPublicContract {
    */
   readTourPlanForExport(userId: string, planMonth: string): Promise<{
     status: PlanApprovalStatus;
-    entries: Array<{ date: string; workingType: WorkingType; dayKind: DayKind; routeIds: string[]; workWith: string[]; remarks: string | null; returnDate: string | null }>;
+    entries: Array<{
+      date: string;
+      workingType: WorkingType;
+      dayKind: DayKind;
+      routeIds: string[];
+      /** A day planned From → To (2026-11-26); null on older days. */
+      fromPlaceId: string | null;
+      toPlaceId: string | null;
+      workWith: string[];
+      remarks: string | null;
+      returnDate: string | null;
+    }>;
     offDays: Array<{ date: string; reason: 'WEEKLY_OFF' | 'HOLIDAY'; name: string | null }>;
   } | null>;
   /** `null` when there's no Plan for that month at all. */

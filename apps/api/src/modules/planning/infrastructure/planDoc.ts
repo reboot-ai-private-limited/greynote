@@ -8,6 +8,8 @@ export interface PlanDayDoc {
   dayKind?: DayKind;
   workWith: Types.ObjectId[];
   routeIds: Types.ObjectId[];
+  fromPlaceId?: Types.ObjectId | null;
+  toPlaceId?: Types.ObjectId | null;
   remarks: string | null;
 }
 
@@ -17,6 +19,8 @@ export const planDaySchemaFields = {
   dayKind: { type: String, enum: [...DAY_KINDS], default: 'NORMAL' },
   workWith: { type: [Schema.Types.ObjectId], default: [], ref: 'User' },
   routeIds: { type: [Schema.Types.ObjectId], default: [], ref: 'Route' },
+  fromPlaceId: { type: Schema.Types.ObjectId, default: null, ref: 'Place' },
+  toPlaceId: { type: Schema.Types.ObjectId, default: null, ref: 'Place' },
   remarks: { type: String, default: null },
 };
 
@@ -25,6 +29,8 @@ export const toPlanDay = (doc: PlanDayDoc): PlanDay => ({
   dayKind: doc.dayKind ?? 'NORMAL',
   workWith: doc.workWith.map(String),
   routeIds: doc.routeIds.map(String),
+  fromPlaceId: doc.fromPlaceId ? String(doc.fromPlaceId) : null,
+  toPlaceId: doc.toPlaceId ? String(doc.toPlaceId) : null,
   remarks: doc.remarks,
 });
 
@@ -33,6 +39,8 @@ export const toDayDoc = (day: PlanDay): PlanDayDoc => ({
   dayKind: day.dayKind,
   workWith: day.workWith.map((id) => new Types.ObjectId(id)),
   routeIds: day.routeIds.map((id) => new Types.ObjectId(id)),
+  fromPlaceId: day.fromPlaceId ? new Types.ObjectId(day.fromPlaceId) : null,
+  toPlaceId: day.toPlaceId ? new Types.ObjectId(day.toPlaceId) : null,
   remarks: day.remarks,
 });
 

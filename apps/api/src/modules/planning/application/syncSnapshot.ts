@@ -50,6 +50,8 @@ export function makePlanningSource(deps: { deadlines: PlanDeadlines; daily: List
           workWith: p.workWith,
           workWithPeople: peopleOf(p.workWith),
           routeIds: p.routeIds,
+          fromPlaceId: p.fromPlaceId ?? null,
+          toPlaceId: p.toPlaceId ?? null,
           doctors: p.doctors,
           remarks: p.remarks,
           revision: p.revision,

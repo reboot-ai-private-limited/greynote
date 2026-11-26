@@ -1,7 +1,7 @@
 /** Planning's narrow view of Field Master Data; `fieldMasterData.contract` satisfies it structurally. */
 export interface DoctorDirectoryPort {
   /** The active Doctors an MR can currently see and call — what a Daily Plan may list. */
-  listAssignedDoctors(userId: string): Promise<Array<{ id: string; routeId: string; name?: string }>>;
+  listAssignedDoctors(userId: string): Promise<Array<{ id: string; routeId: string; placeId?: string | undefined; name?: string }>>;
   /** Names for a batch of Doctors in one query (a reviewer reads who a plan names); an id that is not there is left out. */
   getDoctorNames(doctorIds: string[]): Promise<Array<{ id: string; name: string }>>;
 }

@@ -10,14 +10,15 @@ import { Input, Textarea } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { ApiError } from '@/lib/api/ApiError';
 import { useAmendMonthlyPlan, usePlanOwnerRoutes } from '../hooks/usePreviews';
-import { amendEntries, changedDates, clearedForType, dayProblem, draftsOf, isFieldDay, isTripDay, localToday, nextDay, offDayLabel, planDayLabel, tripLines, withDay, type DraftDay } from '../lib/plans';
+import { amendEntries, changedDates, clearedForType, dayProblem, draftsOf, hasPlaces, isFieldDay, isTripDay, localToday, nextDay, offDayLabel, planDayLabel, tripLines, withDay, type DraftDay } from '../lib/plans';
 import { DAY_KIND_LABEL, WORKING_TYPE_LABEL } from '../lib/review';
+import { FromToFields } from './FromToFields';
 import { PlanDayView } from './PlanDayView';
 
 /** The server refuses a longer reason. */
 const REASON_MAX = 500;
 const ROUTE_TYPE_LABEL = { HQ: 'HQ', EX_STATION: 'Ex-station', OUT_STATION: 'Out-station' } as const;
-const EMPTY_DAY: DraftDay = { workingType: 'FIELD_WORK', dayKind: 'NORMAL', workWith: [], routeIds: [], remarks: null, returnDate: null };
+const EMPTY_DAY: DraftDay = { workingType: 'FIELD_WORK', dayKind: 'NORMAL', workWith: [], routeIds: [], fromPlaceId: null, toPlaceId: null, remarks: null, returnDate: null };
 const TYPE_OPTIONS = (Object.keys(WORKING_TYPE_LABEL) as WorkingType[]).map((value) => ({ value, label: WORKING_TYPE_LABEL[value] }));
 
 const datesOf = (month: string) => {
@@ -67,7 +68,9 @@ export function AmendMonthlyPlanDialog({ plan, approved = false, onClose }: { pl
   const returnOnly = editing !== null && isLocked(editing);
 
   function open(date: string) {
-    setForm(edited[date] ?? EMPTY_DAY);
+    // A new day starts where the last planned day before it ended (2026-11-26): the next day's From is the previous day's To.
+    const before = Object.keys(edited).filter((d) => d < date && edited[d]!.toPlaceId).sort().at(-1);
+    setForm(edited[date] ?? { ...EMPTY_DAY, fromPlaceId: before ? (edited[before]!.toPlaceId ?? null) : null });
     setFormError(undefined);
     setTripConfirm(null);
     setEditing(date);
@@ -210,8 +213,16 @@ export function AmendMonthlyPlanDialog({ plan, approved = false, onClose }: { pl
                   </FormField>
                   {isFieldDay(form.workingType) ? (
                     <>
+                  <FromToFields
+                    ownerId={plan.userId}
+                    fromPlaceId={form.fromPlaceId}
+                    toPlaceId={form.toPlaceId}
+                    onChange={(next) => setForm((f) => ({ ...f, ...next, returnDate: null }))}
+                  />
+                  {!hasPlaces(form) && form.routeIds.length > 0 ? (
                   <fieldset className="space-y-1.5">
-                    <legend className="text-sm font-medium text-text">Routes</legend>
+                    <legend className="text-sm font-medium text-text">Routes (planned before From → To)</legend>
+                    <p className="text-[13px] text-text-subtle">Choosing From and To above replaces these.</p>
                     {routes.length === 0 ? <p className="text-sm text-text-subtle">{ownerRoutes.isLoading ? 'Loading…' : 'This employee has no routes.'}</p> : null}
                     <div className="grid gap-1 sm:grid-cols-2">
                       {routes.map((r) => (
@@ -223,14 +234,15 @@ export function AmendMonthlyPlanDialog({ plan, approved = false, onClose }: { pl
                       ))}
                     </div>
                   </fieldset>
-                  {hasOutStation ? (
+                  ) : null}
+                  {hasOutStation && !hasPlaces(form) ? (
                     <FormField label="Return date (trip)" htmlFor="amend-return" hint="Leave empty for a same-day return. The days between become stay days, and the return day is the way back.">
                       <Input id="amend-return" type="date" className="w-44" min={nextDay(date)} value={form.returnDate ?? ''} onChange={(e) => setForm((f) => ({ ...f, returnDate: e.target.value || null }))} />
                     </FormField>
                   ) : null}
                     </>
                   ) : (
-                    <p className="text-sm text-text-subtle">Routes are only picked for Field work and Doctor campaign days. Who the day is worked with is chosen on the Daily Plan.</p>
+                    <p className="text-sm text-text-subtle">From and To are only picked for Field work and Doctor campaign days. Who the day is worked with is chosen on the Daily Plan.</p>
                   )}
                   <FormField label="Remarks" htmlFor="amend-remarks">
                     <Textarea id="amend-remarks" maxLength={500} value={form.remarks ?? ''} onChange={(e) => setForm((f) => ({ ...f, remarks: e.target.value }))} />

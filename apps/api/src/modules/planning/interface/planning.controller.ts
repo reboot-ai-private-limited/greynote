@@ -38,7 +38,10 @@ import type {
   listLateSubmitGrantsQuerySchema,
   listMonthlyPlansQuerySchema,
   saveMonthlyPlanBodySchema,
+  planDestinationsQuerySchema,
+  planPlacesQuerySchema,
 } from './planning.schemas.js';
+import type { PlanPlacesUseCase } from '../application/usecases/planPlaces.usecase.js';
 
 function actorOf(req: Request): Actor {
   if (!req.user) throw AppError.unauthenticated();
@@ -56,6 +59,8 @@ export type PlanningHandlers = Record<
   | 'setDay'
   | 'teamSuggest'
   | 'teamRoutes'
+  | 'places'
+  | 'destinations'
   | 'routeOptions'
   | 'carryOver'
   | 'listDaily'
@@ -85,6 +90,7 @@ export function makePlanningControllers(useCases: {
   teamSuggest: SuggestFromTeamUseCase;
   teamRoutes: ListTeamRoutesUseCase;
   routeOptions: RouteOptionsUseCase;
+  planPlaces: PlanPlacesUseCase;
   carryOver: CarryOver;
   listDaily: ListDailyPlansUseCase;
   getDaily: GetDailyPlanUseCase;
@@ -106,6 +112,14 @@ export function makePlanningControllers(useCases: {
     setDay: asyncHandler(async (req, res) => {
       const { planDate, ...input } = req.body as z.output<typeof setDailyPlanBodySchema>;
       sendSuccess(req, res, await useCases.setDay.execute(actorOf(req).id, planDate, input), 'Plan saved.', 200);
+    }),
+    places: asyncHandler(async (req, res) => {
+      const { userId } = req.query as z.output<typeof planPlacesQuerySchema>;
+      sendSuccess(req, res, await useCases.planPlaces.places(actorOf(req), userId), 'The places this plan can go to.', 200);
+    }),
+    destinations: asyncHandler(async (req, res) => {
+      const { userId, fromPlaceId } = req.query as z.output<typeof planDestinationsQuerySchema>;
+      sendSuccess(req, res, await useCases.planPlaces.destinations(actorOf(req), fromPlaceId, userId), 'Where a day from this place can go.', 200);
     }),
     teamRoutes: asyncHandler(async (req, res) => {
       const query = req.query as unknown as z.output<typeof teamRoutesQuerySchema>;

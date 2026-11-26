@@ -117,6 +117,21 @@ export class PlanSubmitter {
       }
     }
 
+    // From and To (2026-11-26): places of the owner's HQ, or for a manager also of the HQs of anyone below them.
+    const placed = s.days.filter(({ day }) => day.fromPlaceId || day.toPlaceId);
+    if (placed.length > 0) {
+      const plannable = new Set((await this.routes.listPlacesForUsers([s.ownerId, ...alsoRoutesOf])).map((p) => p.id));
+      for (const { day, field } of placed) {
+        for (const [key, id] of [['fromPlaceId', day.fromPlaceId], ['toPlaceId', day.toPlaceId]] as const) {
+          if (id && !plannable.has(id)) {
+            throw AppError.badRequest(alsoRoutesOf.length > 0 ? 'A place in this plan isn’t in your HQ or the HQ of anyone below you.' : 'A place in this plan isn’t in your HQ.', {
+              field: `${field}${key}`,
+            });
+          }
+        }
+      }
+    }
+
     const colleagueIds = [...new Set(s.days.flatMap(({ day }) => day.workWith))];
     if (colleagueIds.length === 0) return;
     // Work With is the owner's own reporting tree: the managers above them and everyone below, active only.

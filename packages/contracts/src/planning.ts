@@ -13,7 +13,11 @@ export interface PlanDayDto {
   workWith: string[];
   /** The same colleagues as `workWith`, named. Read-only: saving a plan sends `workWith` ids. Filled on the detail reads (`/daily/:id`, `/monthly/:id`) and the sync snapshot; absent or empty elsewhere. */
   workWithPeople?: PlanPersonDto[];
+  /** The route travelled; on a day planned From → To the server fills it in (none when From = To). Older days may list several. */
   routeIds: string[];
+  /** Where a field day starts and ends (2026-11-26). Null or absent on other days and on older ones. */
+  fromPlaceId?: string | null | undefined;
+  toPlaceId?: string | null | undefined;
   remarks: string | null;
 }
 
@@ -109,7 +113,7 @@ export interface MonthlyPlanDetailDto extends MonthlyPlanDto {
 
 /** `PATCH /planning/monthly/:id/amend`: the whole month as it should be (no stay/transit days), and why. */
 export interface AmendMonthlyPlanDto {
-  entries: Array<Pick<MonthlyPlanEntryDto, 'planDate' | 'workingType' | 'workWith' | 'routeIds' | 'remarks'> & { returnDate?: string }>;
+  entries: Array<Pick<MonthlyPlanEntryDto, 'planDate' | 'workingType' | 'workWith' | 'routeIds' | 'fromPlaceId' | 'toPlaceId' | 'remarks'> & { returnDate?: string }>;
   /** Why, if they said; may be empty. */
   reason?: string;
 }
@@ -141,4 +145,24 @@ export interface GrantLateSubmitDto {
   planKey: string;
   reason: string;
   expiresAt?: string;
+}
+
+/** `GET /planning/places`: a place a Tour Plan can go to (2026-11-26) — the owner's HQ, a manager's also their team's HQs. */
+export interface PlanPlaceDto {
+  id: string;
+  hqId: string;
+  hqName?: string;
+  name: string;
+  type: 'HQ' | 'EX_STATION' | 'OUT_STATION';
+  isHqTown: boolean;
+}
+
+/** `GET /planning/destinations?fromPlaceId=`: where a day from that place can go — along a typed route, or staying there. */
+export interface PlanDestinationDto {
+  place: PlanPlaceDto;
+  /** Null when staying at the From place. */
+  routeId: string | null;
+  /** One way, as typed on the route; null when staying. */
+  distanceKm: string | null;
+  stay: boolean;
 }
