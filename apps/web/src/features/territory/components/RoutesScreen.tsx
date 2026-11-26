@@ -2,6 +2,9 @@
 
 import { ROUTE_TYPES, type RouteDto } from '@greynote/contracts';
 import Link from 'next/link';
+import { Upload } from 'lucide-react';
+import { useState } from 'react';
+import { Button } from '@/components/ui/Button';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/Badge';
 import type { Column } from '@/components/ui/DataTable';
@@ -13,7 +16,9 @@ import { useSearchFilter } from '@/lib/hooks/useSearchFilter';
 import { paiseToRupees } from '@/lib/money';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useHqOptions, useZoneOptions } from '../hooks/useParentOptions';
+import { usePlaceDirectory } from '../hooks/usePlaces';
 import { useRoutes } from '../hooks/useRoutes';
+import { RoutesImportDialog } from './RoutesImportDialog';
 import { ROUTE_TYPE_LABEL } from '../lib/draft';
 import { kmLabel } from '../lib/routeDraft';
 import { StatusFilter } from '@/components/ui/StatusFilter';
@@ -21,7 +26,9 @@ import { PagedListFrame } from '@/components/ui/PagedListFrame';
 
 export function RoutesScreen() {
   const router = useRouter();
-  const { values, page, pageSize, update } = useFilterParams(['search', 'status', 'zoneId', 'hqId', 'type']);
+  const { values, page, pageSize, update } = useFilterParams(['search', 'status', 'zoneId', 'hqId', 'type', 'placeId']);
+  const places = usePlaceDirectory();
+  const [importing, setImporting] = useState(false);
   const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
   const readOnly = useIsReadOnly();
   const zones = useZoneOptions();
@@ -35,6 +42,7 @@ export function RoutesScreen() {
     ...(values.zoneId && { zoneId: values.zoneId }),
     ...(values.hqId && { hqId: values.hqId }),
     ...(values.type && { type: values.type as RouteDto['type'] }),
+    ...(values.placeId && { placeId: values.placeId }),
   });
 
   const columns: readonly Column<RouteDto>[] = [
@@ -47,8 +55,9 @@ export function RoutesScreen() {
         </Link>
       ),
     },
-    { key: 'hq', header: 'HQ', render: (r) => hqs.nameOf.get(r.hqId) ?? '—' },
-    { key: 'destination', header: 'To', render: (r) => r.destinationName },
+    // A route from before Places has no ends: its HQ town is its From.
+    { key: 'from', header: 'From', render: (r) => (r.fromPlaceId ? places.labelOf(r.fromPlaceId) : (hqs.nameOf.get(r.hqId) ?? '—')) },
+    { key: 'to', header: 'To', render: (r) => (r.toPlaceId ? places.labelOf(r.toPlaceId) : r.destinationName) },
     { key: 'type', header: 'Type', render: (r) => ROUTE_TYPE_LABEL[r.type] },
     {
       key: 'distance',
@@ -57,10 +66,17 @@ export function RoutesScreen() {
       render: (r) => (r.distanceKm === null ? <Badge tone="danger">Not set</Badge> : <span className="tabular-nums">{kmLabel(r)}</span>),
     },
     {
-      key: 'rate',
-      header: 'Rate / km',
+      key: 'ta',
+      header: 'TA',
       numeric: true,
-      render: (r) => (r.taPerKmRateOverridePaise === null ? <span className="text-text-subtle">Pay band</span> : `₹${paiseToRupees(r.taPerKmRateOverridePaise)}`),
+      render: (r) =>
+        r.taFixedPaise != null ? (
+          `₹${paiseToRupees(r.taFixedPaise)} fixed`
+        ) : r.taPerKmRateOverridePaise === null ? (
+          <span className="text-text-subtle">Grade rate</span>
+        ) : (
+          `₹${paiseToRupees(r.taPerKmRateOverridePaise)} / km`
+        ),
     },
     {
       key: 'status',
@@ -72,10 +88,15 @@ export function RoutesScreen() {
   return (
     <PagedListFrame
       title="Routes"
-      description="Where an MR travels from an HQ, with the km TA is paid on."
+      description="From one place to another, with the one-way km TA is paid on. A route works both ways."
       noun="route"
       readOnly={readOnly}
-      onNew={() => router.push('/routes/new')}
+      onNew={() => router.push(values.placeId ? `/routes/new?from=${values.placeId}` : '/routes/new')}
+      actions={
+        <Button variant="secondary" disabled={readOnly} onClick={() => setImporting(true)}>
+          <Upload aria-hidden className="size-4" /> Upload CSV
+        </Button>
+      }
       filters={
         <>
           <Input placeholder="Search routes" aria-label="Search routes" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
@@ -103,6 +124,15 @@ export function RoutesScreen() {
               options={[{ value: 'all', label: 'All types' }, ...ROUTE_TYPES.map((t) => ({ value: t, label: ROUTE_TYPE_LABEL[t] }))]}
             />
           </div>
+          <div className="w-52">
+            <SearchableSelect
+              aria-label="Place"
+              value={values.placeId || 'all'}
+              onValueChange={(v) => update({ placeId: v === 'all' ? '' : v })}
+              options={[{ value: 'all', label: 'Any place' }, ...places.options]}
+              searchPlaceholder="Search places"
+            />
+          </div>
           <StatusFilter value={values.status} onChange={(v) => update({ status: v })} />
         </>
       }
@@ -112,6 +142,8 @@ export function RoutesScreen() {
       onPageChange={(p) => update({ page: p })}
       pageSize={pageSize}
       onPageSizeChange={(n) => update({ pageSize: n })}
-    />
+    >
+      {importing ? <RoutesImportDialog onClose={() => setImporting(false)} /> : null}
+    </PagedListFrame>
   );
 }

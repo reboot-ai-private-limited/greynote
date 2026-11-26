@@ -9,6 +9,8 @@ import { sendSuccess } from '@/shared/http/response.util.js';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { ImportHierarchyUseCase } from '../application/usecases/importHierarchy.usecase.js';
+import type { ImportRoutesUseCase } from '../application/usecases/importRoutes.usecase.js';
+import { readRoutesCsv } from './routesImport.csv.js';
 import { MAX_IMPORT_ROWS, readHierarchyCsv } from './hierarchyImport.csv.js';
 
 const MAX_IMPORT_BYTES = 1024 * 1024;
@@ -62,8 +64,48 @@ openApiRegistry.registerPath({
   },
 });
 
-export function buildImportRouter(useCase: ImportHierarchyUseCase): Router {
+openApiRegistry.registerPath({
+  method: 'post',
+  path: '/api/territory/import/routes',
+  tags: ['Territory / Import'],
+  summary: 'Admin: bulk-create Place ↔ Place routes from a CSV',
+  description:
+    'multipart/form-data with a `file` field (CSV, ≤1 MB, ≤' +
+    `${MAX_IMPORT_ROWS} rows). Columns: from_hq, from_place (empty = the HQ town), to_hq (empty = from_hq), to_place, km (one way), ` +
+    'and optionally from_type / to_type (HQ, EX, OUT: only to create a place that is missing), ta_rate (₹ per km), ta_fixed (₹). ' +
+    'A route already there with the same km is skipped; any problem rejects the whole file with every problem listed by line. ' +
+    '`?dryRun=true` reports what would be created without writing.',
+  security: [{ bearerAuth: [] }],
+  request: {
+    query: importQuerySchema,
+    body: { content: { 'multipart/form-data': { schema: z.object({ file: z.string().openapi({ type: 'string', format: 'binary' }) }) } } },
+  },
+  responses: {
+    200: { description: 'Dry run: what would be created' },
+    201: { description: 'Imported' },
+    400: { description: 'Problems found (publicDetails.errors lists each with its line); nothing written' },
+  },
+});
+
+export function buildImportRouter(useCase: ImportHierarchyUseCase, importRoutes: ImportRoutesUseCase): Router {
   const router = Router();
+  router.post(
+    '/routes',
+    authenticate(),
+    requireRole('ADMIN'),
+    validate({ query: importQuerySchema }),
+    uploadMiddleware,
+    asyncHandler(async (req, res) => {
+      if (!req.file) throw AppError.badRequest('A CSV file is required.', { field: 'file' });
+      const { rows, errors } = readRoutesCsv(req.file.buffer.toString('utf8'));
+      if (errors.length > 0) {
+        throw AppError.badRequest(`The file has ${errors.length} problem(s); nothing was imported.`, { errors });
+      }
+      const { dryRun } = req.query as unknown as z.infer<typeof importQuerySchema>;
+      const result = await importRoutes.execute(rows, { dryRun });
+      sendSuccess(req, res, result, dryRun ? 'Dry run: nothing was written.' : 'Import complete.', dryRun ? 200 : 201);
+    }),
+  );
   router.post(
     '/',
     authenticate(),

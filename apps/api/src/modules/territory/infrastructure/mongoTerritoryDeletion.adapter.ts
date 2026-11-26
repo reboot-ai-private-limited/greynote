@@ -4,6 +4,7 @@ import type { RouteType } from '../domain/route.entity.js';
 import type { ArchivedItem, DeletionScope, PeopleAffected, TerritoryDeletionStorePort, TerritoryKind } from '../domain/territoryDeletion.js';
 import { HqModel } from './hq.schema.js';
 import { ManagerCoverageModel } from './managerCoverage.schema.js';
+import { PlaceModel } from './place.schema.js';
 import { RouteModel } from './route.schema.js';
 import { RouteAssignmentModel } from './routeAssignment.schema.js';
 import { TerritoryArchiveModel } from './territoryArchive.schema.js';
@@ -71,13 +72,18 @@ export class MongoTerritoryDeletionAdapter implements TerritoryDeletionStorePort
           destinationName: r.destinationName,
           distanceKm: r.distanceKm?.toString() ?? null,
           taPerKmRateOverridePaise: r.taPerKmRateOverridePaise ?? null,
+          taFixedPaise: r.taFixedPaise ?? null,
         };
       }),
     };
   }
 
-  private routesOf(hqIds: Types.ObjectId[]) {
-    return RouteModel.find({ hqId: { $in: hqIds } }).sort({ name: 1 }).lean();
+  /** The HQs' routes, and any route of another HQ that ends at one of their places (it would be left pointing at nothing). */
+  private async routesOf(hqIds: Types.ObjectId[]) {
+    const placeIds = (await PlaceModel.find({ hqId: { $in: hqIds } }).select('_id').lean()).map((p) => p._id);
+    return RouteModel.find({ $or: [{ hqId: { $in: hqIds } }, { fromPlaceId: { $in: placeIds } }, { toPlaceId: { $in: placeIds } }] })
+      .sort({ name: 1 })
+      .lean();
   }
 
   async countPeople(scope: DeletionScope): Promise<PeopleAffected> {
@@ -126,6 +132,7 @@ export class MongoTerritoryDeletionAdapter implements TerritoryDeletionStorePort
         destinationName: r.destinationName,
         distanceKm: decimal(r.distanceKm),
         taPerKmRateOverridePaise: r.taPerKmRateOverridePaise,
+        taFixedPaise: r.taFixedPaise,
         batchId,
         deletedAt: now,
         deletedBy: by,
@@ -151,6 +158,7 @@ export class MongoTerritoryDeletionAdapter implements TerritoryDeletionStorePort
         );
       }
       if (routeIds.length) await RouteModel.deleteMany({ _id: { $in: routeIds } }, { session });
+      if (hqIds.length) await PlaceModel.deleteMany({ hqId: { $in: hqIds } }, { session });
       if (hqIds.length) await HqModel.deleteMany({ _id: { $in: hqIds } }, { session });
       if (zoneIds.length) await ZoneModel.deleteMany({ _id: { $in: zoneIds } }, { session });
     });
@@ -171,6 +179,7 @@ export class MongoTerritoryDeletionAdapter implements TerritoryDeletionStorePort
       routeType: (doc.routeType as RouteType | null) ?? null,
       distanceKm: doc.distanceKm?.toString() ?? null,
       taPerKmRateOverridePaise: doc.taPerKmRateOverridePaise,
+      taFixedPaise: doc.taFixedPaise ?? null,
     };
   }
 }

@@ -11,7 +11,7 @@ import type { CreateHqDto, CreateZoneDto } from '@greynote/contracts';
  * lists (a renamed zone shows in the HQ table's zone column). Renaming an HQ re-names
  * its routes, so HQ writes refresh the routes too.
  */
-const invalidates = () => [keys.zones.all(), keys.hqs.all(), keys.routes.all()];
+const invalidates = () => [keys.zones.all(), keys.hqs.all(), keys.routes.all(), keys.stations.all()];
 
 export function useCreateZone(onDone: (zone: ZoneDto) => void) {
   return useApiMutation<CreateZoneDto, ZoneDto>({

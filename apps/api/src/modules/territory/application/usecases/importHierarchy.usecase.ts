@@ -7,6 +7,7 @@ import type {
 import type { HqRepositoryPort } from '../../domain/hq.repository.port.js';
 import type { TerritoryStatus } from '../../domain/territoryStatus.js';
 import type { ZoneRepositoryPort } from '../../domain/zone.repository.port.js';
+import type { PlaceRoutes } from './placeRoutes.js';
 
 /** A node the file names: already in the database (`id` set) or to be created (`id` null until written). */
 interface PlanNode {
@@ -32,6 +33,7 @@ export class ImportHierarchyUseCase {
   constructor(
     private readonly zones: ZoneRepositoryPort,
     private readonly hqs: HqRepositoryPort,
+    private readonly placeRoutes?: PlaceRoutes,
   ) {}
 
   async execute(rows: HierarchyImportRow[], options: { dryRun: boolean }): Promise<HierarchyImportResult> {
@@ -118,7 +120,9 @@ export class ImportHierarchyUseCase {
       node.id = (await this.zones.create({ name: node.name, status: 'active' })).id;
     }
     for (const node of toCreate.hqs) {
-      node.id = (await this.hqs.create({ zoneId: parentId(node), name: node.name, status: 'active' })).id;
+      const hq = await this.hqs.create({ zoneId: parentId(node), name: node.name, status: 'active' });
+      await this.placeRoutes?.ensureHqTown(hq);
+      node.id = hq.id;
     }
   }
 }

@@ -59,6 +59,10 @@ RSM's "region" is just that set; there is no Region entity); a ZSM covers whole 
   (any higher designation, vacant levels may be skipped), whose HQ coverage or Zone coverage includes `hqId`; the NSM always; a manager
   with no coverage recorded is listed with `coverage: 'none'` (not blocked). Nearest level first, covering managers before `none`.
 
+### Places and Place ↔ Place routes (2026-11-26)
+
+A **Place** (`places`: `hqId`, `name`/`nameKey`, `type`, `isHqTown`, `status`) is a town or station under one HQ; every HQ has one HQ town, kept in step with the HQ. A **Route** runs between two places (`fromPlaceId`, `toPlaceId`, unique `pairKey`, both directions) with a one-way km and TA = grade rate | own rate per km | fixed amount (`taFixedPaise`). Its HQ, name and type come from the places (`PlaceRoutes` in `application/usecases/placeRoutes.ts`). Endpoints: `GET/POST /api/territory/places`, `PATCH /api/territory/places/:id`, `POST /api/territory/import/routes`; `GET /api/territory/routes?placeId=`. Migration `migrate:places`. Full rules: decision-log 2026-11-26.
+
 ## Public contract
 
 Following the pattern in

@@ -136,10 +136,12 @@ GET    /api/planning/daily/:id  ADMIN,FIELD,HR
 GET    /api/planning/daily/carry-over  FIELD
 GET    /api/planning/daily/route-options  FIELD
 GET    /api/planning/daily/team-suggest  FIELD
+GET    /api/planning/destinations  ADMIN,FIELD,HR
 GET    /api/planning/late-grants  ADMIN,FIELD
 GET    /api/planning/monthly  FIELD
 GET    /api/planning/monthly/:id  ADMIN,FIELD,HR
 GET    /api/planning/monthly/:id/routes  ADMIN,FIELD,HR
+GET    /api/planning/places  ADMIN,FIELD,HR
 GET    /api/planning/team-routes  FIELD
 GET    /api/planning/users/:userId/monthly/:month  ADMIN,FIELD,HR
 GET    /api/reports/dcr  ADMIN
@@ -201,6 +203,7 @@ GET    /api/territory/hqs  ACCOUNTANT,ADMIN,HR
 GET    /api/territory/hqs/:id/delete-impact  ADMIN
 GET    /api/territory/manager-candidates  ACCOUNTANT,ADMIN,HR
 GET    /api/territory/my-routes  FIELD
+GET    /api/territory/places  ACCOUNTANT,ADMIN,HR
 GET    /api/territory/places/search  ADMIN
 GET    /api/territory/routes  ACCOUNTANT,ADMIN,HR
 GET    /api/territory/routes/:id  ADMIN
@@ -242,6 +245,7 @@ PATCH  /api/sales/orders/:id  ACCOUNTANT,ADMIN
 PATCH  /api/sales/orders/:id/invoice-number  ACCOUNTANT,ADMIN
 PATCH  /api/sales/secondary-stock  ADMIN,FIELD
 PATCH  /api/territory/hqs/:id  ADMIN
+PATCH  /api/territory/places/:id  ADMIN
 PATCH  /api/territory/routes/:id  ADMIN
 PATCH  /api/territory/zones/:id  ADMIN
 POST   /api/approvals/:id/approve  ANY
@@ -366,6 +370,8 @@ POST   /api/sales/secondary-stock/submit  FIELD
 POST   /api/sync/push  FIELD
 POST   /api/territory/hqs  ADMIN
 POST   /api/territory/import  ADMIN
+POST   /api/territory/import/routes  ADMIN
+POST   /api/territory/places  ADMIN
 POST   /api/territory/routes  ADMIN
 POST   /api/territory/routes/:id/assignments  ADMIN
 POST   /api/territory/users/:userId/extend-territory  ADMIN,HR

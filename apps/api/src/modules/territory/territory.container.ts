@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import { RouteTypeRules } from './application/usecases/routeTypeRules.js';
+import { toRouteSummaries } from './application/usecases/routeSummaries.js';
 import { AssignRouteUseCase } from './application/usecases/assignRoute.usecase.js';
 import { CreateHqUseCase } from './application/usecases/createHq.usecase.js';
 import { CreateZoneUseCase } from './application/usecases/createZone.usecase.js';
@@ -11,6 +12,7 @@ import { UpdateZoneUseCase } from './application/usecases/updateZone.usecase.js'
 import { CreateRouteUseCase } from './application/usecases/createRoute.usecase.js';
 import { GetRouteUseCase } from './application/usecases/getRoute.usecase.js';
 import { ImportHierarchyUseCase } from './application/usecases/importHierarchy.usecase.js';
+import { ImportRoutesUseCase } from './application/usecases/importRoutes.usecase.js';
 import { GetRoutePathUseCase } from './application/usecases/getRoutePath.usecase.js';
 import { GetRouteSummaryUseCase } from './application/usecases/getRouteSummary.usecase.js';
 import { ListRouteAssignmentsUseCase } from './application/usecases/listRouteAssignments.usecase.js';
@@ -37,6 +39,9 @@ import type { ManagerDirectoryPort } from './domain/managerDirectory.port.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
 import { SearchPlacesUseCase } from './application/usecases/searchPlaces.usecase.js';
 import { UpdateRouteUseCase } from './application/usecases/updateRoute.usecase.js';
+import { CreatePlaceUseCase, ListPlacesUseCase, UpdatePlaceUseCase } from './application/usecases/places.usecase.js';
+import { PlaceRoutes } from './application/usecases/placeRoutes.js';
+import { MongoPlaceAdapter } from './infrastructure/mongoPlace.adapter.js';
 import { MongoHqAdapter } from './infrastructure/mongoHq.adapter.js';
 import { MongoZoneAdapter } from './infrastructure/mongoZone.adapter.js';
 import { GooglePlaceSearchAdapter } from './infrastructure/googlePlaceSearch.adapter.js';
@@ -71,6 +76,8 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
   const zoneRepository = new MongoZoneAdapter();
   const hqRepository = new MongoHqAdapter();
   const routeRepository = new MongoRouteAdapter();
+  const placeRepository = new MongoPlaceAdapter();
+  const placeRoutes = new PlaceRoutes(placeRepository, hqRepository, routeRepository);
   const assignmentRepository = new MongoRouteAssignmentAdapter();
   const placeSearch = new GooglePlaceSearchAdapter();
   const userHqRepository = new MongoUserHqAssignmentAdapter();
@@ -88,17 +95,25 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
   };
   const hqs = {
     list: new ListHqsUseCase(hqRepository),
-    create: new CreateHqUseCase(hqRepository, zoneRepository),
-    update: new UpdateHqUseCase(hqRepository, zoneRepository, routeRepository),
+    create: new CreateHqUseCase(hqRepository, zoneRepository, placeRoutes),
+    update: new UpdateHqUseCase(hqRepository, zoneRepository, routeRepository, placeRepository, placeRoutes),
   };
+  const placeCrud = makeHierarchyController(
+    {
+      list: new ListPlacesUseCase(placeRepository),
+      create: new CreatePlaceUseCase(placeRepository, hqRepository),
+      update: new UpdatePlaceUseCase(placeRepository, hqRepository, routeRepository, placeRoutes),
+    },
+    'Place',
+  );
 
   // 3. Controllers — Routes share the list/create/update shape with the levels above, plus
   // assignments.
   const routeCrud = makeHierarchyController(
     {
       list: new ListRoutesUseCase(routeRepository),
-      create: new CreateRouteUseCase(routeRepository, hqRepository, typeRules),
-      update: new UpdateRouteUseCase(routeRepository, hqRepository, assignmentRepository, typeRules),
+      create: new CreateRouteUseCase(routeRepository, hqRepository, placeRepository, placeRoutes, typeRules),
+      update: new UpdateRouteUseCase(routeRepository, hqRepository, assignmentRepository, placeRoutes, typeRules),
     },
     'Route',
   );
@@ -112,12 +127,13 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
     ),
     unassign: makeUnassignRouteController(new UnassignRouteUseCase(assignmentRepository)),
   };
-  const listRoutesForUser = new ListRoutesForUserUseCase(assignmentRepository, routeRepository, hqRepository);
-  const listRoutesForUsers = new ListRoutesForUsersUseCase(assignmentRepository, routeRepository, hqRepository);
+  const listRoutesForUsers = new ListRoutesForUsersUseCase(userHqRepository, routeRepository, placeRepository, hqRepository);
+  const listRoutesForUser = new ListRoutesForUserUseCase(listRoutesForUsers);
   const getRouteSummary = new GetRouteSummaryUseCase(routeRepository, hqRepository);
   const getRoutePath = new GetRoutePathUseCase(routeRepository, hqRepository);
   const listRouteIdsInScope = new ListRouteIdsInScopeUseCase(routeRepository);
-  const importHierarchy = new ImportHierarchyUseCase(zoneRepository, hqRepository);
+  const importHierarchy = new ImportHierarchyUseCase(zoneRepository, hqRepository, placeRoutes);
+  const importRoutes = new ImportRoutesUseCase(hqRepository, placeRepository, routeRepository, placeRoutes);
   const searchPlaces = makeSearchPlacesController(new SearchPlacesUseCase(placeSearch));
   const userHq = {
     set: new SetUserHqUseCase(userHqRepository, hqRepository, users, transactions),
@@ -129,12 +145,12 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
   const managerCoverage = {
     get: getCoverage,
     set: setCoverage,
-    territory: new GetUserTerritoryUseCase(coverageRepository, userHqRepository, hqRepository),
-    extend: new ExtendManagerTerritoryUseCase(getCoverage, setCoverage, hqRepository, users),
-    gaps: new GetTerritoryGapsUseCase(users, getCoverage, assignmentRepository, routeRepository, hqRepository),
+    territory: new GetUserTerritoryUseCase(userHqRepository, hqRepository),
+    extend: new ExtendManagerTerritoryUseCase(getCoverage),
+    gaps: new GetTerritoryGapsUseCase(),
   };
   const teamTerritory = new GetTeamTerritoryUseCase(users, getCoverage, hqRepository, zoneRepository, routeRepository);
-  const managerCandidates = new ListManagerCandidatesUseCase(users, coverageRepository, hqRepository);
+  const managerCandidates = new ListManagerCandidatesUseCase(users, userHqRepository, hqRepository);
 
   return {
     contract: {
@@ -153,6 +169,9 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
               distanceKm: gone.distanceKm,
               distanceStatus: gone.distanceKm === null ? 'FAILED' : 'CALCULATED',
               taPerKmRateOverridePaise: gone.taPerKmRateOverridePaise,
+              taFixedPaise: gone.taFixedPaise ?? null,
+              fromPlaceId: null,
+              toPlaceId: null,
               status: 'inactive',
             }
           : null;
@@ -192,6 +211,42 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
           await assignRoute.execute(routeId, userId, actorId);
         }
       },
+      getPlace: (placeId) => (/^[a-f\d]{24}$/i.test(placeId) ? placeRepository.findById(placeId) : Promise.resolve(null)),
+      getPlaces: (placeIds) => placeRepository.findByIds(placeIds.filter((id) => /^[a-f\d]{24}$/i.test(id))),
+      listPlacesForUser: async (userId) => {
+        const hq = await userHqRepository.findActive(userId);
+        if (!hq) return [];
+        return (await placeRepository.list({ hqId: hq.hqId, status: 'active', page: 1, pageSize: 100_000 })).items;
+      },
+      listPlacesForUsers: async (userIds) => {
+        const hqIds = [...new Set((await userHqRepository.findActiveForUsers(userIds)).map((a) => a.hqId))];
+        const [lists, hqs] = await Promise.all([
+          Promise.all(hqIds.map((hqId) => placeRepository.list({ hqId, status: 'active', page: 1, pageSize: 100_000 }))),
+          hqRepository.findByIds(hqIds),
+        ]);
+        const hqName = new Map(hqs.map((h) => [h.id, h.name]));
+        return lists.flatMap((l) => l.items.map((p) => ({ ...p, hqName: hqName.get(p.hqId) ?? '' })));
+      },
+      findRouteBetween: async (placeA, placeB) => {
+        const valid = (id: string) => /^[a-f\d]{24}$/i.test(id);
+        if (!valid(placeA) || !valid(placeB)) return null;
+        const route = await routeRepository.findByPair(placeA, placeB);
+        return route ? ((await toRouteSummaries(hqRepository, [route]))[0] ?? null) : null;
+      },
+      listPlaceIdsInScope: async (scope) => {
+        if (!scope.hqId && !scope.zoneId) return [];
+        const query = scope.hqId ? { hqId: scope.hqId } : { zoneId: scope.zoneId };
+        return (await placeRepository.list({ ...query, page: 1, pageSize: 100_000 })).items.map((p) => p.id);
+      },
+      anchorRouteForPlace: async (placeId) => {
+        const place = /^[a-f\d]{24}$/i.test(placeId) ? await placeRepository.findById(placeId) : null;
+        if (!place) return null;
+        const town = await placeRepository.findHqTown(place.hqId);
+        const toTown = town ? await routeRepository.findByPair(place.id, town.id) : null;
+        if (toTown?.status === 'active') return toTown.id;
+        const touching = (await routeRepository.listTouchingPlace(place.id)).filter((r) => r.status === 'active').sort((a, b) => a.name.localeCompare(b.name));
+        return touching[0]?.id ?? null;
+      },
       getHq: async (hqId) => {
         const live = await hqRepository.findById(hqId);
         if (live) return live;
@@ -216,8 +271,8 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
       router.use(buildTerritoryDeletionRouter(deletion));
       router.use(buildHierarchyRouter({ zones, hqs }));
       router.use('/routes', buildRoutesRouter(routeControllers));
-      router.use('/places', buildPlacesRouter(searchPlaces));
-      router.use('/import', buildImportRouter(importHierarchy));
+      router.use('/places', buildPlacesRouter({ search: searchPlaces, ...placeCrud }));
+      router.use('/import', buildImportRouter(importHierarchy, importRoutes));
       router.use('/my-routes', buildMyRoutesRouter(makeMyRoutesController(listRoutesForUser)));
       router.use('/users', buildUserHqRouter({ ...userHq, routes: makeUserRoutesController(listRoutesForUser) }));
       router.use('/users', buildManagerCoverageRouter(managerCoverage));

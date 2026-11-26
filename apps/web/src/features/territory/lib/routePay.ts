@@ -12,9 +12,11 @@ export interface RoutePayRow {
   gradeName: string;
   /** The per-km rate actually used. */
   taRatePaise: number;
-  /** True when the route's own rate replaced the grade's. */
+  /** True when the route's own rate (or fixed amount) replaced the grade's. */
   overridden: boolean;
   taPaise: number;
+  /** A day trip (2026-11-26: home the same night) pays the capped km there and back; a fixed amount stays as typed. */
+  dayTripTaPaise: number;
   /** Null when the route's type is not known yet (Automatic with no km). */
   daPaise: number | null;
   totalPaise: number | null;
@@ -37,6 +39,8 @@ export function routePayPreview(input: {
   distanceKm: string;
   type: RouteType | null;
   overridePaise: number | null;
+  /** A fixed TA for the day: paid as typed, instead of km × rate and the cap (2026-11-26). */
+  fixedPaise?: number | null | undefined;
   capKm: number | null;
   grades: readonly PayBandDto[];
 }): RoutePayPreview {
@@ -49,9 +53,11 @@ export function routePayPreview(input: {
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((g): RoutePayRow => {
       const taRatePaise = input.overridePaise ?? g.taPerKmRatePaise;
-      const taPaise = noTa || paidHundredths === null ? 0 : Math.floor((taRatePaise * paidHundredths + 50) / 100);
+      const fixed = input.fixedPaise ?? null;
+      const taPaise = noTa ? 0 : fixed !== null ? fixed : paidHundredths === null ? 0 : Math.floor((taRatePaise * paidHundredths + 50) / 100);
+      const dayTripTaPaise = noTa ? 0 : fixed !== null ? fixed : paidHundredths === null ? 0 : Math.floor((taRatePaise * paidHundredths * 2 + 50) / 100);
       const daPaise = input.type ? g[DA_FIELD[input.type]] : null;
-      return { gradeId: g.id, gradeName: g.name, taRatePaise, overridden: input.overridePaise !== null, taPaise, daPaise, totalPaise: daPaise === null ? null : taPaise + daPaise };
+      return { gradeId: g.id, gradeName: g.name, taRatePaise, overridden: input.overridePaise !== null || fixed !== null, taPaise, dayTripTaPaise, daPaise, totalPaise: daPaise === null ? null : taPaise + daPaise };
     });
   return {
     paidKm: paidHundredths === null ? null : paidHundredths / 100,

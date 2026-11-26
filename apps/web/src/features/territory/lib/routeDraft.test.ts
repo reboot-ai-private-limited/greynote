@@ -1,6 +1,6 @@
 import type { RouteDto } from '@greynote/contracts';
 import { describe, expect, it } from 'vitest';
-import { buildRoute, changedRouteFields, kmLabel, parseKm, suggestedType } from './routeDraft';
+import { buildPlaceRoute, buildRoute, changedPlaceRouteFields, changedRouteFields, kmLabel, parseKm, routeTypeBetween, suggestedType, taModeOf } from './routeDraft';
 
 const route = (over: Partial<RouteDto> = {}): RouteDto => ({
   id: 'r1',
@@ -102,5 +102,40 @@ describe('kmLabel', () => {
   it('never shows a missing km as 0', () => {
     expect(kmLabel({ distanceKm: '12.50' })).toBe('12.50 km');
     expect(kmLabel({ distanceKm: null })).toBe('Not set');
+  });
+});
+
+describe('routes between places (2026-11-26)', () => {
+  const base = { fromPlaceId: 'a', toPlaceId: 'b', distanceKm: '25', taMode: 'GRADE' as const, rate: '', fixed: '' };
+
+  it('builds the body for each TA choice, sending only the one chosen', () => {
+    expect(buildPlaceRoute(base)).toEqual({ ok: true, body: { fromPlaceId: 'a', toPlaceId: 'b', distanceKm: '25' } });
+    expect(buildPlaceRoute({ ...base, taMode: 'RATE', rate: '7.5', fixed: '350' })).toMatchObject({ body: { taPerKmRateOverridePaise: 750 } });
+    expect(buildPlaceRoute({ ...base, taMode: 'FIXED', rate: '7.5', fixed: '350' })).toEqual({
+      ok: true,
+      body: { fromPlaceId: 'a', toPlaceId: 'b', distanceKm: '25', taFixedPaise: 35000 },
+    });
+  });
+
+  it('refuses the same place twice, a missing end and an empty amount', () => {
+    const r = buildPlaceRoute({ ...base, toPlaceId: 'a', taMode: 'FIXED' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(Object.keys(r.errors).sort()).toEqual(['fixed', 'toPlaceId']);
+    expect(buildPlaceRoute({ ...base, fromPlaceId: '' }).ok).toBe(false);
+  });
+
+  it('an edit sends only what changed, and switching the TA choice clears the other', () => {
+    const route = { distanceKm: '25.00', taPerKmRateOverridePaise: 750, taFixedPaise: null } as RouteDto;
+    expect(changedPlaceRouteFields(route, { distanceKm: '25', taMode: 'RATE', rate: '7.50', fixed: '' })).toEqual({ ok: true, body: {} });
+    expect(changedPlaceRouteFields(route, { distanceKm: '25', taMode: 'FIXED', rate: '7.50', fixed: '200' })).toEqual({
+      ok: true,
+      body: { taPerKmRateOverridePaise: null, taFixedPaise: 20000 },
+    });
+    expect(taModeOf(route)).toBe('RATE');
+  });
+
+  it('types a route by the farther end, and out-station across HQs', () => {
+    expect(routeTypeBetween({ hqId: 'h1', type: 'HQ' }, { hqId: 'h1', type: 'EX_STATION' })).toBe('EX_STATION');
+    expect(routeTypeBetween({ hqId: 'h1', type: 'HQ' }, { hqId: 'h2', type: 'HQ' })).toBe('OUT_STATION');
   });
 });

@@ -19,6 +19,7 @@ export interface TerritoryArchiveDoc {
   destinationName: string | null;
   distanceKm: Types.Decimal128 | null;
   taPerKmRateOverridePaise: number | null;
+  taFixedPaise?: number | null;
   /** All the items deleted by one action share it. */
   batchId: string;
   deletedAt: Date;
@@ -37,6 +38,7 @@ const territoryArchiveSchema = new Schema<TerritoryArchiveDoc>({
   destinationName: { type: String, default: null },
   distanceKm: { type: Schema.Types.Decimal128, default: null },
   taPerKmRateOverridePaise: { type: Number, default: null },
+  taFixedPaise: { type: Number, default: null },
   batchId: { type: String, required: true },
   deletedAt: { type: Date, required: true },
   deletedBy: { type: Schema.Types.ObjectId, required: true, ref: 'User' },

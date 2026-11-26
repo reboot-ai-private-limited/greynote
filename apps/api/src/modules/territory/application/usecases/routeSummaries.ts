@@ -20,6 +20,9 @@ export async function toRouteSummaries(hqs: HqRepositoryPort, routes: Route[]): 
       distanceKm: route.distanceKm,
       distanceStatus: route.distanceKm === null ? 'FAILED' : 'CALCULATED',
       taPerKmRateOverridePaise: route.taPerKmRateOverridePaise,
+      taFixedPaise: route.taFixedPaise,
+      fromPlaceId: route.fromPlaceId,
+      toPlaceId: route.toPlaceId,
       status: route.status,
     };
   });

@@ -30,8 +30,24 @@ export interface Route {
   distanceKm: string | null;
   /** Paise per km; overrides the MR's `PayBand.taPerKmRatePaise` on this route. */
   taPerKmRateOverridePaise: number | null;
+  /**
+   * A fixed TA for a day on this route (a bus fare), whole paise: paid as typed, never doubled or capped.
+   * At most one of this and `taPerKmRateOverridePaise` is set (decision-log 2026-11-26).
+   */
+  taFixedPaise: number | null;
+  /**
+   * The two ends (decision-log 2026-11-26): a route runs Place ↔ Place and serves both directions. Null only on a
+   * route from before Places that `migrate:places` has not reached yet. `hqId` is the From place's HQ.
+   */
+  fromPlaceId: string | null;
+  toPlaceId: string | null;
   status: TerritoryStatus;
 }
+
+/** The fields a route's edit may change, as the repository writes them. */
+export type RouteChange = Partial<
+  Pick<Route, 'name' | 'destinationName' | 'type' | 'typeSource' | 'distanceKm' | 'status' | 'taPerKmRateOverridePaise' | 'taFixedPaise' | 'fromPlaceId' | 'toPlaceId'>
+>;
 
 /** "SLG-1 to Naxalbari" — the only way a Route's name is made. */
 export const routeNameFor = (hqName: string, destinationName: string): string => `${hqName} to ${destinationName}`;

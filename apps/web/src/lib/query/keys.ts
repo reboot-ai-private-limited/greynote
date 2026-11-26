@@ -137,6 +137,13 @@ export const keys = {
     detail: (id: string) => [...keys.payroll.all(), 'detail', id] as const,
   },
   monthlyStock: { missing: (month: string) => ['monthlyStock', fy(), 'missing', month] as const },
+  /** Our Places (towns and stations under an HQ, 2026-11-26). `places` is the Google search. */
+  stations: {
+    all: () => ['stations', fy()] as const,
+    list: (query?: object) => [...keys.stations.all(), 'list', query ?? {}] as const,
+    /** Every place, all pages: for the route form's pickers and table names. */
+    directory: () => [...keys.stations.all(), 'directory'] as const,
+  },
   routes: {
     all: () => ['routes', fy()] as const,
     list: (query?: object) => [...keys.routes.all(), 'list', query ?? {}] as const,

@@ -16,6 +16,11 @@ export interface RouteSummary {
   /** `FAILED` exactly when `distanceKm` is null. Kept so TA and the phone's snapshot did not change with the map's removal. */
   distanceStatus: 'CALCULATED' | 'FAILED';
   taPerKmRateOverridePaise: number | null;
+  /** A fixed TA for a day on this route, paise (decision-log 2026-11-26): paid as typed instead of km × rate. */
+  taFixedPaise: number | null;
+  /** The route's two places; null on a route not yet migrated to Places. */
+  fromPlaceId: string | null;
+  toPlaceId: string | null;
   status: Route['status'];
 }
 

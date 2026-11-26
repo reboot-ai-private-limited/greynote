@@ -107,3 +107,69 @@ export function changedRouteFields(
 export function kmLabel(route: Pick<RouteDto, 'distanceKm'>): string {
   return route.distanceKm === null ? 'Not set' : `${route.distanceKm} km`;
 }
+
+/** How a route pays TA (decision-log 2026-11-26): each grade's rate, the route's own rate per km, or a fixed amount. */
+export type TaMode = 'GRADE' | 'RATE' | 'FIXED';
+export const TA_MODE_LABEL: Record<TaMode, string> = { GRADE: "Each grade's rate per km", RATE: 'Own rate per km', FIXED: 'Fixed amount for the day' };
+
+export function taModeOf(route: Pick<RouteDto, 'taPerKmRateOverridePaise' | 'taFixedPaise'>): TaMode {
+  if (route.taFixedPaise != null) return 'FIXED';
+  return route.taPerKmRateOverridePaise != null ? 'RATE' : 'GRADE';
+}
+
+/** The TA fields to send for the chosen mode: the other one is always null, so a switch clears it. */
+function parseTa(draft: { taMode: TaMode; rate: string; fixed: string }):
+  | { ok: true; taPerKmRateOverridePaise: number | null; taFixedPaise: number | null }
+  | { ok: false; errors: Record<string, string | undefined> } {
+  if (draft.taMode === 'GRADE') return { ok: true, taPerKmRateOverridePaise: null, taFixedPaise: null };
+  const raw = draft.taMode === 'RATE' ? draft.rate : draft.fixed;
+  const paise = raw.trim() === '' ? null : rupeesToPaise(raw.trim());
+  if (paise === null || paise <= 0) {
+    return { ok: false, errors: draft.taMode === 'RATE' ? { rate: RATE_HINT } : { fixed: 'Enter the amount in rupees, like 350.' } };
+  }
+  return draft.taMode === 'RATE' ? { ok: true, taPerKmRateOverridePaise: paise, taFixedPaise: null } : { ok: true, taPerKmRateOverridePaise: null, taFixedPaise: paise };
+}
+
+const TYPE_RANK: Record<RouteType, number> = { HQ: 0, EX_STATION: 1, OUT_STATION: 2 };
+/** The type the server gives a route between these places: out-station across HQs, else the farther end's (`routeTypeBetween`). */
+export function routeTypeBetween(from: { hqId: string; type: RouteType }, to: { hqId: string; type: RouteType }): RouteType {
+  if (from.hqId !== to.hqId) return 'OUT_STATION';
+  return TYPE_RANK[from.type] >= TYPE_RANK[to.type] ? from.type : to.type;
+}
+
+export function buildPlaceRoute(draft: { fromPlaceId: string; toPlaceId: string; distanceKm: string; taMode: TaMode; rate: string; fixed: string }): BuildResult<CreateRouteDto> {
+  const km = parseKm(draft.distanceKm);
+  const ta = parseTa(draft);
+  const errors = {
+    fromPlaceId: draft.fromPlaceId ? undefined : 'Choose where the route starts.',
+    toPlaceId: !draft.toPlaceId ? 'Choose where the route goes.' : draft.toPlaceId === draft.fromPlaceId ? 'Choose a different place: a day at one place needs no route.' : undefined,
+    distanceKm: km.ok ? undefined : km.error,
+    ...(ta.ok ? {} : ta.errors),
+  };
+  if (errors.fromPlaceId || errors.toPlaceId || !km.ok || !ta.ok) return fail(errors);
+  return {
+    ok: true,
+    body: {
+      fromPlaceId: draft.fromPlaceId,
+      toPlaceId: draft.toPlaceId,
+      distanceKm: km.km,
+      ...(ta.taPerKmRateOverridePaise !== null && { taPerKmRateOverridePaise: ta.taPerKmRateOverridePaise }),
+      ...(ta.taFixedPaise !== null && { taFixedPaise: ta.taFixedPaise }),
+    },
+  };
+}
+
+/** km and TA of a route between places (its name and type come from the places). Unchanged → `{ ok: true, body: {} }`. */
+export function changedPlaceRouteFields(original: RouteDto, draft: { distanceKm: string; taMode: TaMode; rate: string; fixed: string }): BuildResult<UpdateRouteDto> {
+  const km = parseKm(draft.distanceKm);
+  const ta = parseTa(draft);
+  if (!km.ok || !ta.ok) return fail({ distanceKm: km.ok ? undefined : km.error, ...(ta.ok ? {} : ta.errors) });
+  return {
+    ok: true,
+    body: {
+      ...(Number(km.km) !== Number(original.distanceKm) && { distanceKm: km.km }),
+      ...(ta.taPerKmRateOverridePaise !== original.taPerKmRateOverridePaise && { taPerKmRateOverridePaise: ta.taPerKmRateOverridePaise }),
+      ...(ta.taFixedPaise !== (original.taFixedPaise ?? null) && { taFixedPaise: ta.taFixedPaise }),
+    },
+  };
+}

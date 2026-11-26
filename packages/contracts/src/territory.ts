@@ -38,7 +38,33 @@ export interface UpdateHqDto {
 }
 
 /**
- * A Route: "<HQ> to <destination>" with a km typed by Admin. `distanceKm` is a two-decimal string,
+ * A town or station under one HQ (decision-log 2026-11-26). Routes run Place ↔ Place. `type` is the DA a day there pays
+ * that HQ's own people. Every HQ has one `isHqTown` place, named after it; it follows the HQ and can't be edited itself.
+ */
+export interface PlaceDto {
+  id: string;
+  hqId: string;
+  name: string;
+  type: RouteType;
+  isHqTown: boolean;
+  status: TerritoryStatus;
+}
+export interface CreatePlaceDto {
+  hqId: string;
+  name: string;
+  type: RouteType;
+}
+/** At least one field. A rename or new type re-makes the place's routes. */
+export interface UpdatePlaceDto {
+  name?: string | undefined;
+  type?: RouteType | undefined;
+  status?: TerritoryStatus | undefined;
+}
+
+/**
+ * A Route: since 2026-11-26 between two places ("From to To"), serving both directions, with a one-way km typed by
+ * Admin; its HQ (the From place's), name and type come from the places. A route from before Places that has not
+ * been migrated has no ends and is "<HQ> to <destination>". `distanceKm` is a two-decimal string,
  * null only for a Route migrated from the map version that has no km yet. There is no HQ name
  * (join it client-side).
  */
@@ -55,19 +81,33 @@ export interface RouteDto {
   distanceKm: string | null;
   /** Paise per km; null means the pay band's rate applies. */
   taPerKmRateOverridePaise: number | null;
+  /** A fixed TA for a day on this route (a bus fare), paise: paid as typed. At most one of this and the rate is set. Absent from older servers. */
+  taFixedPaise?: number | null | undefined;
+  /** The two ends; null on a route not yet migrated. Absent from older servers. */
+  fromPlaceId?: string | null | undefined;
+  toPlaceId?: string | null | undefined;
   status: TerritoryStatus;
 }
 
-export interface CreateRouteDto {
-  hqId: string;
-  /** The route's name is made from it: "<HQ> to <destination>". */
-  destinationName: string;
-  /** Typed by Admin: more than 0, up to 2 decimals. */
+/** Place ↔ Place. At most one of the rate and the fixed amount. */
+export interface CreatePlaceRouteDto {
+  fromPlaceId: string;
+  toPlaceId: string;
+  /** Typed by Admin, one way: more than 0, up to 2 decimals. */
   distanceKm: string;
-  /** Left out: the type follows the km (AUTO). */
+  taPerKmRateOverridePaise?: number | null | undefined;
+  taFixedPaise?: number | null | undefined;
+}
+/** The form from before Places, still accepted: it becomes HQ town ↔ a place named `destinationName` (made with `type`, or the km's, if new). */
+export interface CreateLegacyRouteDto {
+  hqId: string;
+  destinationName: string;
+  distanceKm: string;
   type?: RouteType | undefined;
   taPerKmRateOverridePaise?: number | null | undefined;
+  taFixedPaise?: number | null | undefined;
 }
+export type CreateRouteDto = CreatePlaceRouteDto | CreateLegacyRouteDto;
 
 export interface UpdateRouteDto {
   destinationName?: string | undefined;
@@ -76,8 +116,10 @@ export interface UpdateRouteDto {
   /** `AUTO` hands the type back to the km. */
   typeSource?: 'AUTO' | undefined;
   status?: TerritoryStatus | undefined;
-  /** `null` clears the override. */
+  /** `null` clears the override. Setting it clears `taFixedPaise`. */
   taPerKmRateOverridePaise?: number | null | undefined;
+  /** `null` clears it. Setting it clears the rate. */
+  taFixedPaise?: number | null | undefined;
 }
 
 export interface RouteAssignmentDto {

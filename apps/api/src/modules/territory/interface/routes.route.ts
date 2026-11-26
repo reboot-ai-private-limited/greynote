@@ -6,12 +6,15 @@ import { validate } from '@/shared/http/validate.middleware.js';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import {
   assignRouteBodySchema,
+  createPlaceBodySchema,
   createRouteBodySchema,
+  listPlacesQuerySchema,
   listRouteAssignmentsQuerySchema,
   routeAssignmentParamsSchema,
   listRoutesQuerySchema,
   searchPlacesQuerySchema,
   territoryIdParamsSchema,
+  updatePlaceBodySchema,
   updateRouteBodySchema,
 } from './territory.schemas.js';
 
@@ -30,6 +33,33 @@ openApiRegistry.registerPath({
 });
 openApiRegistry.registerPath({
   method: 'get',
+  path: '/api/territory/places',
+  tags: [ROUTES_TAG],
+  summary: 'Admin, Accountant, HR: list places (towns and stations), optionally by HQ, Zone or type; the HQ town first',
+  security: bearer,
+  request: { query: listPlacesQuerySchema },
+  responses: { 200: { description: 'Places listed' } },
+});
+openApiRegistry.registerPath({
+  method: 'post',
+  path: '/api/territory/places',
+  tags: [ROUTES_TAG],
+  summary: 'Admin: create a place under an HQ, with the DA type a day there pays that HQ\'s people',
+  security: bearer,
+  request: { body: json(createPlaceBodySchema) },
+  responses: { 201: { description: 'Place created' } },
+});
+openApiRegistry.registerPath({
+  method: 'patch',
+  path: '/api/territory/places/{id}',
+  tags: [ROUTES_TAG],
+  summary: 'Admin: rename, re-type, deactivate or reactivate a place (its routes follow). Not the HQ town: it follows its HQ.',
+  security: bearer,
+  request: { params: territoryIdParamsSchema, body: json(updatePlaceBodySchema) },
+  responses: { 200: { description: 'Place updated' } },
+});
+openApiRegistry.registerPath({
+  method: 'get',
   path: '/api/territory/routes',
   tags: [ROUTES_TAG],
   summary: 'Admin: list routes, optionally by HQ, Zone or type',
@@ -41,7 +71,7 @@ openApiRegistry.registerPath({
   method: 'post',
   path: '/api/territory/routes',
   tags: [ROUTES_TAG],
-  summary: 'Admin: create a route from an HQ, a destination name and a km — named "<HQ> to <destination>"',
+  summary: 'Admin: create a route between two places with its one-way km and TA (grade rate, own rate per km, or a fixed amount). The older HQ + destination form is still accepted.',
   security: bearer,
   request: { body: json(createRouteBodySchema) },
   responses: { 201: { description: 'Route created' } },
@@ -132,9 +162,14 @@ export function buildRoutesRouter(controllers: {
   return router;
 }
 
-export function buildPlacesRouter(search: RequestHandler): Router {
+export function buildPlacesRouter(controllers: { search: RequestHandler; list: RequestHandler; create: RequestHandler; update: RequestHandler }): Router {
   const router = Router();
-  router.get('/search', authenticate(), requireRole('ADMIN'), validate({ query: searchPlacesQuerySchema }), search);
+  router.use(authenticate());
+  // `/search` (Google, for a doctor's map pin) before `/:id`.
+  router.get('/search', requireRole('ADMIN'), validate({ query: searchPlacesQuerySchema }), controllers.search);
+  router.get('/', requireRole('ADMIN', 'ACCOUNTANT', 'HR'), validate({ query: listPlacesQuerySchema }), controllers.list);
+  router.post('/', requireRole('ADMIN'), validate({ body: createPlaceBodySchema }), controllers.create);
+  router.patch('/:id', requireRole('ADMIN'), validate({ params: territoryIdParamsSchema, body: updatePlaceBodySchema }), controllers.update);
   return router;
 }
 

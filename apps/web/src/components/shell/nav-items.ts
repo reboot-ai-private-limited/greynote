@@ -14,6 +14,7 @@ import {
   Pill,
   Receipt,
   Route,
+  MapPin,
   Settings2,
   Smartphone,
   Gift,
@@ -105,6 +106,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
 
   { label: 'Zones', href: '/zones', icon: MapIcon, group: 'Master data', section: 'Territory', roles: ['ADMIN'] },
   { label: 'HQs', href: '/hqs', icon: Building2, group: 'Master data', section: 'Territory', roles: ['ADMIN'] },
+  { label: 'Places', href: '/places', icon: MapPin, group: 'Master data', section: 'Territory', roles: ['ADMIN'] },
   { label: 'Routes', href: '/routes', icon: Route, group: 'Master data', section: 'Territory', roles: ['ADMIN'] },
   { label: 'Doctors', href: '/doctors', icon: Stethoscope, group: 'Master data', section: 'Outlets', roles: ['ADMIN'] },
   { label: 'Distributors', href: '/distributors', icon: Truck, group: 'Master data', section: 'Outlets', roles: ['ADMIN'], secondDoor: true },

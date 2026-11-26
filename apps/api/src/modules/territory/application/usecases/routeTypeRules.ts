@@ -16,7 +16,9 @@ export class RouteTypeRules {
     };
   }
 
+  /** A route between places takes its type from them, so the km has nothing to say about it. */
   async annotate(route: Route): Promise<RouteWithWarning> {
+    if (route.fromPlaceId) return { ...route, typeWarning: null };
     return { ...route, typeWarning: routeTypeWarning(route, await this.thresholds()) };
   }
 }

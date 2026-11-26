@@ -3,6 +3,18 @@ import type { TerritoryStatus } from './domain/territoryStatus.js';
 
 export type { RoutePath, RouteSummary } from './domain/routeView.js';
 
+/** What other modules see of a Place. */
+export interface PlaceSummary {
+  id: string;
+  hqId: string;
+  name: string;
+  type: 'HQ' | 'EX_STATION' | 'OUT_STATION';
+  isHqTown: boolean;
+  status: TerritoryStatus;
+  /** Filled by `listPlacesForUsers`, for a picker that groups by HQ. */
+  hqName?: string;
+}
+
 /** The only thing another module may import from `territory/`. */
 export interface TerritoryPublicContract {
   /**
@@ -40,6 +52,23 @@ export interface TerritoryPublicContract {
    * cleared. Their main HQ stays on record, as where they were based. Safe to run again.
    */
   releaseUserHoldings(userId: string, actorId: string): Promise<{ routes: number; coverage: number }>;
+  /** A place (decision-log 2026-11-26), or `null` for an unknown id. */
+  getPlace(placeId: string): Promise<PlaceSummary | null>;
+  /** Several places at once; an unknown id is left out. */
+  getPlaces(placeIds: string[]): Promise<PlaceSummary[]>;
+  /** The active places of the HQ an employee is based in: where their doctors, chemists and distributors may sit. Empty with no HQ. */
+  listPlacesForUser(userId: string): Promise<PlaceSummary[]>;
+  /** The active places of the HQs these employees are based in, each once: what a manager's Tour Plan may visit (own HQ + the team's). */
+  listPlacesForUsers(userIds: string[]): Promise<PlaceSummary[]>;
+  /** The route between two places, whichever way it was typed, or `null` (2026-11-26: a Tour Plan day may only go along a typed route). */
+  findRouteBetween(placeA: string, placeB: string): Promise<RouteSummary | null>;
+  /** Every place id under an HQ or a Zone (the most specific one given), any status: for filtering lists by territory. */
+  listPlaceIdsInScope(scope: { hqId?: string | undefined; zoneId?: string | undefined }): Promise<string[]>;
+  /**
+   * The route a record on this place keeps as its `routeId` until everything reads places (phase 4): the active route between the place
+   * and its HQ town (for the HQ town itself, town ↔ town), else any active route touching it. `null` when the place has no active route.
+   */
+  anchorRouteForPlace(placeId: string): Promise<string | null>;
   getHq(hqId: string): Promise<{ id: string; zoneId: string; name: string; status: TerritoryStatus } | null>;
   getZone(zoneId: string): Promise<{ id: string; name: string; status: TerritoryStatus } | null>;
   /** Case-insensitive name lookups — for files that name places (HR's holiday import). */

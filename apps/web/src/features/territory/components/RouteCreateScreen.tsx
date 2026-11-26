@@ -1,56 +1,47 @@
 'use client';
 
-import { ROUTE_TYPES } from '@greynote/contracts';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { FormField } from '@/components/ui/FormField';
 import { Input } from '@/components/ui/Input';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Select } from '@/components/ui/Select';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
-import { useHqs } from '../hooks/useHqs';
+import { usePlaceDirectory } from '../hooks/usePlaces';
 import { useCreateRoute } from '../hooks/useRouteMutations';
-import { useStationThresholds } from '../hooks/useStationThresholds';
-import { AUTO_ROUTE_TYPE, ROUTE_TYPE_LABEL, autoTypeLabel } from '../lib/draft';
-import { buildRoute, suggestedType } from '../lib/routeDraft';
+import { ROUTE_TYPE_LABEL } from '../lib/draft';
+import { buildPlaceRoute, routeTypeBetween, type TaMode } from '../lib/routeDraft';
 import { RoutePayPreview } from './RoutePayPreview';
+import { TaChoiceFields } from './TaChoiceFields';
 
-/** HQ → destination → km → type (Automatic by default, changeable) → save. The route is named "<HQ> to <destination>". */
+/**
+ * From place → To place → km (one way) → TA → save (decision-log 2026-11-26). One route serves both directions; its
+ * name and type come from the two places. `?from=<placeId>` starts with From chosen.
+ */
 export function RouteCreateScreen() {
   const router = useRouter();
+  const params = useSearchParams();
   const readOnly = useIsReadOnly();
-  const thresholds = useStationThresholds();
-  // One page of 100 (the API's cap), as for the other pickers.
-  const hqs = useHqs({ page: 1, pageSize: 100, status: 'active' });
-  const [hqId, setHqId] = useState('');
-  const [destinationName, setDestinationName] = useState('');
+  const places = usePlaceDirectory();
+  const [fromPlaceId, setFrom] = useState(params.get('from') ?? '');
+  const [toPlaceId, setTo] = useState('');
   const [distanceKm, setDistanceKm] = useState('');
-  const [type, setType] = useState<string>(AUTO_ROUTE_TYPE);
+  const [taMode, setTaMode] = useState<TaMode>('GRADE');
   const [rate, setRate] = useState('');
+  const [fixed, setFixed] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const create = useCreateRoute((route) => router.push(`/routes/${route.id}`));
 
-  const options = useMemo(
-    () => (hqs.data?.items ?? []).map((h) => ({ value: h.id, label: h.name })),
-    [hqs.data],
-  );
-  const hq = hqs.data?.items.find((h) => h.id === hqId);
-  const suggestion = suggestedType(distanceKm, thresholds);
-  const typeOptions = [
-    { value: AUTO_ROUTE_TYPE, label: autoTypeLabel(suggestion) },
-    ...ROUTE_TYPES.map((t) => ({ value: t, label: ROUTE_TYPE_LABEL[t] })),
-  ];
-  const routeName =
-    hq && destinationName.trim()
-      ? `${hq.name} to ${destinationName.trim().replace(/\s+/g, ' ')}`
-      : null;
+  const from = places.byId.get(fromPlaceId);
+  const to = places.byId.get(toPlaceId);
+  const type = from && to ? routeTypeBetween(from, to) : null;
+  const name = from && to ? `${places.labelOf(from.id)} to ${places.labelOf(to.id)}` : null;
 
   function submit() {
-    const built = buildRoute({ hqId, destinationName, distanceKm, type, rate });
+    const built = buildPlaceRoute({ fromPlaceId, toPlaceId, distanceKm, taMode, rate, fixed });
     if (!built.ok) return setErrors(built.errors);
     setErrors({});
     create.mutate(built.body);
@@ -65,18 +56,13 @@ export function RouteCreateScreen() {
       </p>
       <PageHeader
         title="New route"
-        description="Choose the HQ, name the destination and enter the distance in km."
+        description="Choose the two places and enter the one-way distance. A route works both ways."
         actions={
           <div className="flex gap-2">
             <Button variant="secondary" onClick={() => router.push('/routes')}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              form="route-form"
-              disabled={readOnly || create.isPending}
-              title={readOnly ? 'A past financial year is read-only' : undefined}
-            >
+            <Button type="submit" form="route-form" disabled={readOnly || create.isPending} title={readOnly ? 'A past financial year is read-only' : undefined}>
               {create.isPending ? 'Saving…' : 'Save route'}
             </Button>
           </div>
@@ -94,82 +80,56 @@ export function RouteCreateScreen() {
         <Card
           title="Details"
           description={
-            routeName
-              ? `The route will be named “${routeName}”.`
-              : 'The route is named “HQ to destination”.'
+            name
+              ? `“${name}”, ${type ? ROUTE_TYPE_LABEL[type] : ''}${from && to && from.hqId !== to.hqId ? ' (the places are in different HQs)' : ''}.`
+              : 'Missing a place? Add it under Places first.'
           }
         >
           <div className="grid gap-5 p-5 sm:grid-cols-2">
-            <FormField label="HQ" htmlFor="new-hq" error={errors['hqId']}>
+            <FormField label="From" htmlFor="new-from" error={errors['fromPlaceId']}>
               <SearchableSelect
-                id="new-hq"
-                value={hqId}
-                onValueChange={setHqId}
-                options={options}
-                placeholder={hqs.isLoading ? 'Loading HQs…' : 'Choose an HQ'}
-                searchPlaceholder="Search HQs"
-                aria-invalid={errors['hqId'] ? true : undefined}
+                id="new-from"
+                value={fromPlaceId}
+                onValueChange={setFrom}
+                options={places.options}
+                placeholder={places.isLoading ? 'Loading places…' : 'Choose a place'}
+                searchPlaceholder="Search places"
+                aria-invalid={errors['fromPlaceId'] ? true : undefined}
               />
             </FormField>
-            <FormField
-              label="Destination"
-              htmlFor="new-destination"
-              error={errors['destinationName']}
-              hint="The place the MR travels to, e.g. Naxalbari."
-            >
-              <Input
-                id="new-destination"
-                value={destinationName}
-                onChange={(e) => setDestinationName(e.target.value)}
-                aria-invalid={errors['destinationName'] ? true : undefined}
+            <FormField label="To" htmlFor="new-to" error={errors['toPlaceId']}>
+              <SearchableSelect
+                id="new-to"
+                value={toPlaceId}
+                onValueChange={setTo}
+                options={places.options.filter((o) => o.value !== fromPlaceId)}
+                placeholder={places.isLoading ? 'Loading places…' : 'Choose a place'}
+                searchPlaceholder="Search places"
+                aria-invalid={errors['toPlaceId'] ? true : undefined}
               />
             </FormField>
-            <FormField
-              label="Distance (km)"
-              htmlFor="new-km"
-              error={errors['distanceKm']}
-              hint="One way, by road, never doubled. TA is paid on exactly this number; see what it pays below."
-            >
-              <Input
-                id="new-km"
-                inputMode="decimal"
-                value={distanceKm}
-                onChange={(e) => setDistanceKm(e.target.value)}
-                aria-invalid={errors['distanceKm'] ? true : undefined}
-              />
+            <FormField label="Distance (km)" htmlFor="new-km" error={errors['distanceKm']} hint="One way, by road.">
+              <Input id="new-km" inputMode="decimal" value={distanceKm} onChange={(e) => setDistanceKm(e.target.value)} aria-invalid={errors['distanceKm'] ? true : undefined} />
             </FormField>
-            <FormField
-              label="Type"
-              htmlFor="new-type"
-              error={errors['type']}
-              hint="Sets which DA rate a day on this route earns. Automatic follows the km; you can choose another type and will only be warned."
-            >
-              <Select
-                id="new-type"
-                value={type}
-                onValueChange={setType}
-                options={typeOptions}
-                aria-invalid={errors['type'] ? true : undefined}
-              />
-            </FormField>
-            <FormField
-              label="TA rate override (₹ per km)"
-              htmlFor="new-rate"
-              error={errors['rate']}
-              hint="Optional. Replaces the pay grade rate for every grade on this route. Empty uses each grade's own rate."
-            >
-              <Input
-                id="new-rate"
-                inputMode="decimal"
-                value={rate}
-                onChange={(e) => setRate(e.target.value)}
-                aria-invalid={errors['rate'] ? true : undefined}
-              />
-            </FormField>
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium text-text">Type</p>
+              <p className="text-sm text-text-muted">{type ? ROUTE_TYPE_LABEL[type] : '—'}</p>
+              <p className="text-[13px] text-text-subtle">From the places: the farther one&apos;s type, or Out-station when they are in different HQs.</p>
+            </div>
+            <TaChoiceFields
+              idPrefix="new"
+              taMode={taMode}
+              onTaModeChange={setTaMode}
+              rate={rate}
+              onRateChange={setRate}
+              fixed={fixed}
+              onFixedChange={setFixed}
+              errors={errors}
+            />
           </div>
         </Card>
 
-        <RoutePayPreview distanceKm={distanceKm} type={type} rate={rate} />
+        <RoutePayPreview distanceKm={distanceKm} type={type ?? 'HQ'} rate={taMode === 'RATE' ? rate : ''} fixed={taMode === 'FIXED' ? fixed : ''} />
       </form>
     </>
   );

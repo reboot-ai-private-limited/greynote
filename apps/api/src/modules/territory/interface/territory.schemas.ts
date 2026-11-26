@@ -41,16 +41,36 @@ const decimalSchema = z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a number wi
 /** Typed by Admin: more than 0, up to 2 decimal places. */
 const distanceKmSchema = decimalSchema.refine((value) => Number(value) > 0, 'Must be greater than 0.');
 
-export const createRouteBodySchema = z.object({
-  hqId: objectIdSchema,
-  /** The route's name is made from it: "<HQ> to <destination>". */
-  destinationName: nameSchema,
-  distanceKm: distanceKmSchema,
-  /** Left out: the type follows the km. Given: kept as chosen, with a warning if the km disagrees. */
-  type: z.enum(ROUTE_TYPES).optional(),
+const routeTaSchema = {
   /** Paise per km (₹7.50 = 750). */
   taPerKmRateOverridePaise: paiseSchema.nullable().optional(),
-});
+  /** A fixed TA for a day on this route (a bus fare), paise: paid as typed, never doubled or capped. */
+  taFixedPaise: paiseSchema.nullable().optional(),
+};
+const oneTaChoice = (body: { taPerKmRateOverridePaise?: number | null | undefined; taFixedPaise?: number | null | undefined }) =>
+  body.taPerKmRateOverridePaise == null || body.taFixedPaise == null;
+const ONE_TA_CHOICE = { message: 'Choose either a rate per km or a fixed amount, not both.', path: ['taFixedPaise'] };
+
+/** Place ↔ Place (decision-log 2026-11-26), or the older "<HQ> to <destination>" form, which becomes HQ town ↔ a place of that name. */
+export const createRouteBodySchema = z
+  .union([
+    z.object({
+      fromPlaceId: objectIdSchema,
+      toPlaceId: objectIdSchema,
+      /** Typed by Admin, one way: more than 0, up to 2 decimals. */
+      distanceKm: distanceKmSchema,
+      ...routeTaSchema,
+    }),
+    z.object({
+      hqId: objectIdSchema,
+      destinationName: nameSchema,
+      distanceKm: distanceKmSchema,
+      /** Left out: the new place's type follows the km. */
+      type: z.enum(ROUTE_TYPES).optional(),
+      ...routeTaSchema,
+    }),
+  ])
+  .refine(oneTaChoice, ONE_TA_CHOICE);
 export const updateRouteBodySchema = z
   .object({
     destinationName: nameSchema,
@@ -59,12 +79,28 @@ export const updateRouteBodySchema = z
     /** `AUTO`: hand the type back to the km. Choosing a `type` makes it MANUAL. */
     typeSource: z.literal('AUTO'),
     status: z.enum(TERRITORY_STATUSES),
-    /** `null` clears the override, falling back to the MR's PayBand rate. */
+    /** `null` clears the override, falling back to the MR's PayBand rate. Setting it clears `taFixedPaise`. */
     taPerKmRateOverridePaise: paiseSchema.nullable(),
+    /** `null` clears it. Setting it clears `taPerKmRateOverridePaise`. */
+    taFixedPaise: paiseSchema.nullable(),
   })
   .partial()
-  .refine((body) => Object.keys(body).length > 0, 'Nothing to update.');
+  .refine((body) => Object.keys(body).length > 0, 'Nothing to update.')
+  .refine(oneTaChoice, ONE_TA_CHOICE);
 export const listRoutesQuerySchema = listQuerySchema.extend({
+  hqId: objectIdSchema.optional(),
+  zoneId: objectIdSchema.optional(),
+  type: z.enum(ROUTE_TYPES).optional(),
+  /** Routes with this place at either end. */
+  placeId: objectIdSchema.optional(),
+});
+
+export const createPlaceBodySchema = z.object({ hqId: objectIdSchema, name: nameSchema, type: z.enum(ROUTE_TYPES) });
+export const updatePlaceBodySchema = z
+  .object({ name: nameSchema, type: z.enum(ROUTE_TYPES), status: z.enum(TERRITORY_STATUSES) })
+  .partial()
+  .refine((body) => Object.keys(body).length > 0, 'Nothing to update.');
+export const listPlacesQuerySchema = listQuerySchema.extend({
   hqId: objectIdSchema.optional(),
   zoneId: objectIdSchema.optional(),
   type: z.enum(ROUTE_TYPES).optional(),

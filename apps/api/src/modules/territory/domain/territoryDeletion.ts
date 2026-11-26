@@ -20,6 +20,7 @@ export interface DeletionScope {
     destinationName: string;
     distanceKm: string | null;
     taPerKmRateOverridePaise: number | null;
+    taFixedPaise: number | null;
   }>;
 }
 
@@ -42,6 +43,7 @@ export interface ArchivedItem {
   routeType: RouteType | null;
   distanceKm: string | null;
   taPerKmRateOverridePaise: number | null;
+  taFixedPaise: number | null;
 }
 
 export interface TerritoryDeletionStorePort {
@@ -50,7 +52,7 @@ export interface TerritoryDeletionStorePort {
   countPeople(scope: DeletionScope): Promise<PeopleAffected>;
   /**
    * Deletes it all in one transaction: archives each item, removes route assignments and coverage entries, ends main-HQ assignments, then
-   * removes the Routes, HQs and Zones.
+   * removes the Routes, the HQs' places, the HQs and Zones.
    */
   remove(scope: DeletionScope, actorId: string, batchId: string): Promise<void>;
   /** A deleted item's archive row, or `null`. */

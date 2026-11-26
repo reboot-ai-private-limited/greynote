@@ -1,5 +1,6 @@
 import type {
   CreateHqDto,
+  CreatePlaceDto,
   CreateRouteDto,
   CreateZoneDto,
   HqDto,
@@ -11,6 +12,8 @@ import type {
   PaginatedDto,
   PaginationQueryDto,
   PlaceCandidateDto,
+  PlaceDto,
+  UpdatePlaceDto,
   RouteAssignmentDto,
   TerritoryDeleteImpactDto,
   TerritoryDeleteResultDto,
@@ -54,6 +57,8 @@ export interface ListRoutesQuery extends ListZonesQuery {
   hqId?: string | undefined;
   zoneId?: string | undefined;
   type?: RouteType | undefined;
+  /** Routes with this place at either end. */
+  placeId?: string | undefined;
 }
 
 export const routesApi = {
@@ -81,10 +86,39 @@ export const assignmentsApi = {
     request<RouteAssignmentDto>(`/territory/routes/${routeId}/assignments/${userId}`, { method: 'DELETE', token }),
 };
 
+export interface ListPlacesQuery extends ListZonesQuery {
+  hqId?: string | undefined;
+  zoneId?: string | undefined;
+  type?: RouteType | undefined;
+}
+
 export const placesApi = {
-  /** 2–200 chars; at most 10 results. 503 when Google or its server key is unavailable. */
+  /** Google: 2–200 chars; at most 10 results. 503 when Google or its server key is unavailable. For a doctor's map pin, not our Places. */
   search: (token: string, q: string, signal?: AbortSignal) =>
     request<PlaceCandidateDto[]>('/territory/places/search', { token, query: { q }, signal }),
+  /** Our towns and stations under each HQ (2026-11-26); the HQ town first. */
+  list: (token: string, query: ListPlacesQuery | undefined, signal?: AbortSignal) =>
+    request<PaginatedDto<PlaceDto>>('/territory/places', { token, ...(query && { query: { ...query } }), signal }),
+  create: (token: string, body: CreatePlaceDto) => request<PlaceDto>('/territory/places', { method: 'POST', token, body }),
+  /** A rename or new type re-makes the place's routes. */
+  update: (token: string, id: string, body: UpdatePlaceDto) => request<PlaceDto>(`/territory/places/${id}`, { method: 'PATCH', token, body }),
+};
+
+/** What a routes CSV import made (or, in a dry run, would make). */
+export interface RoutesImportResultDto {
+  dryRun: boolean;
+  rows: number;
+  created: { places: string[]; routes: string[] };
+  existing: { routes: number };
+}
+
+export const routesImportApi = {
+  /** multipart `file`; `dryRun` previews. A 400 carries `details.errors: [{ line, message }]`. */
+  upload: (token: string, file: File, dryRun: boolean) => {
+    const form = new FormData();
+    form.append('file', file);
+    return request<RoutesImportResultDto>('/territory/import/routes', { method: 'POST', token, body: form, query: { dryRun } });
+  },
 };
 
 /** A field employee's HQ, which decides which holidays apply to them. Admin and HR. */

@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Hq } from '../../domain/hq.entity.js';
 import type { HqRepositoryPort } from '../../domain/hq.repository.port.js';
+import type { PlaceRepositoryPort } from '../../domain/place.repository.port.js';
 import type { RouteRepositoryPort } from '../../domain/route.repository.port.js';
+import type { PlaceRoutes } from './placeRoutes.js';
 import type { Zone } from '../../domain/zone.entity.js';
 import type { ZoneRepositoryPort } from '../../domain/zone.repository.port.js';
 import { CreateHqUseCase } from './createHq.usecase.js';
@@ -68,6 +70,9 @@ class FakeHqs extends FakeTable<Hq> implements HqRepositoryPort {
 /** An HQ's Routes: none here; route-dependent rules are in route.usecase.test.ts. */
 let activeRoutes = 0;
 const routes = { countActiveInHq: async () => activeRoutes } as unknown as RouteRepositoryPort;
+/** No places here either; place rules are in route.usecase.test.ts. */
+const places = { findHqTown: async () => null, countActiveOutsideTownInHq: async () => 0 } as unknown as PlaceRepositoryPort;
+const placeRoutes = { ensureHqTown: async () => undefined, refreshRoutesOf: async () => undefined } as unknown as PlaceRoutes;
 
 let zones: FakeZones;
 let hqs: FakeHqs;
@@ -80,7 +85,7 @@ beforeEach(() => {
 
 async function seedChain() {
   const zone = await new CreateZoneUseCase(zones).execute({ name: 'West Bengal' });
-  const hq = await new CreateHqUseCase(hqs, zones).execute({ zoneId: zone.id, name: 'SLG-1' });
+  const hq = await new CreateHqUseCase(hqs, zones, placeRoutes).execute({ zoneId: zone.id, name: 'SLG-1' });
   return { zone, hq };
 }
 
@@ -96,16 +101,16 @@ describe('names', () => {
   it('allows the same HQ name in two different Zones', async () => {
     const a = await new CreateZoneUseCase(zones).execute({ name: 'A' });
     const b = await new CreateZoneUseCase(zones).execute({ name: 'B' });
-    await new CreateHqUseCase(hqs, zones).execute({ zoneId: a.id, name: 'Central' });
-    await expect(new CreateHqUseCase(hqs, zones).execute({ zoneId: b.id, name: 'Central' })).resolves.toMatchObject({
+    await new CreateHqUseCase(hqs, zones, placeRoutes).execute({ zoneId: a.id, name: 'Central' });
+    await expect(new CreateHqUseCase(hqs, zones, placeRoutes).execute({ zoneId: b.id, name: 'Central' })).resolves.toMatchObject({
       zoneId: b.id,
     });
   });
 
   it('rejects renaming an HQ onto a sibling name, but allows re-saving its own name', async () => {
     const { zone, hq } = await seedChain();
-    await new CreateHqUseCase(hqs, zones).execute({ zoneId: zone.id, name: 'SLG-2' });
-    const update = new UpdateHqUseCase(hqs, zones, routes);
+    await new CreateHqUseCase(hqs, zones, placeRoutes).execute({ zoneId: zone.id, name: 'SLG-2' });
+    const update = new UpdateHqUseCase(hqs, zones, routes, places, placeRoutes);
 
     await expect(update.execute(hq.id, { name: 'slg-2' })).rejects.toMatchObject({ statusCode: 409 });
     await expect(update.execute(hq.id, { name: 'SLG-1' })).resolves.toMatchObject({ name: 'SLG-1' });
@@ -114,7 +119,7 @@ describe('names', () => {
 
 describe('parents', () => {
   it('rejects an HQ under a Zone that does not exist, naming the field', async () => {
-    await expect(new CreateHqUseCase(hqs, zones).execute({ zoneId: 'missing', name: 'X' })).rejects.toMatchObject({
+    await expect(new CreateHqUseCase(hqs, zones, placeRoutes).execute({ zoneId: 'missing', name: 'X' })).rejects.toMatchObject({
       statusCode: 400,
       publicDetails: { field: 'zoneId' },
     });
@@ -122,10 +127,10 @@ describe('parents', () => {
 
   it('rejects reactivating an HQ whose Zone is inactive', async () => {
     const { zone, hq } = await seedChain();
-    await new UpdateHqUseCase(hqs, zones, routes).execute(hq.id, { status: 'inactive' });
+    await new UpdateHqUseCase(hqs, zones, routes, places, placeRoutes).execute(hq.id, { status: 'inactive' });
     await new UpdateZoneUseCase(zones, hqs).execute(zone.id, { status: 'inactive' });
 
-    await expect(new UpdateHqUseCase(hqs, zones, routes).execute(hq.id, { status: 'active' })).rejects.toMatchObject({
+    await expect(new UpdateHqUseCase(hqs, zones, routes, places, placeRoutes).execute(hq.id, { status: 'active' })).rejects.toMatchObject({
       statusCode: 409,
     });
   });
@@ -142,7 +147,7 @@ describe('deactivation', () => {
 
   it('refuses to deactivate an HQ with an active Route, then allows it once there is none', async () => {
     const { hq } = await seedChain();
-    const updateHq = new UpdateHqUseCase(hqs, zones, routes);
+    const updateHq = new UpdateHqUseCase(hqs, zones, routes, places, placeRoutes);
 
     activeRoutes = 2;
     await expect(updateHq.execute(hq.id, { status: 'inactive' })).rejects.toMatchObject({

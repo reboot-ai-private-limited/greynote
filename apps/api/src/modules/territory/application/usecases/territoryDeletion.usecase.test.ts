@@ -22,6 +22,7 @@ const zoneScope: DeletionScope = {
     destinationName: `R${n}`,
     distanceKm: '10',
     taPerKmRateOverridePaise: null,
+    taFixedPaise: null,
   })),
 };
 

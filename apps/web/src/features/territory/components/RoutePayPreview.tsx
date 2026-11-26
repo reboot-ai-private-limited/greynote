@@ -21,10 +21,14 @@ export function RoutePayPreview({
   distanceKm,
   type,
   rate,
+  fixed = '',
 }: {
   distanceKm: string;
+  /** A route type, or Automatic (the km's). A route between places passes its type, worked out from the places. */
   type: string;
   rate: string;
+  /** A fixed TA for the day, in rupees ('' = none). */
+  fixed?: string;
 }) {
   const grades = usePayBands();
   const capKm = useTaMaxKm();
@@ -32,10 +36,12 @@ export function RoutePayPreview({
   const effectiveType: RouteType | null =
     type === AUTO_ROUTE_TYPE ? suggestedType(distanceKm, thresholds) : (type as RouteType);
   const overridePaise = rate.trim() === '' ? null : rupeesToPaise(rate);
+  const fixedPaise = fixed.trim() === '' ? null : rupeesToPaise(fixed);
   const preview = routePayPreview({
     distanceKm,
     type: effectiveType,
     overridePaise,
+    fixedPaise,
     capKm,
     grades: grades.data ?? [],
   });
@@ -56,9 +62,10 @@ export function RoutePayPreview({
       key: 'rate',
       header: 'TA / km',
       numeric: true,
-      render: (r) => `${formatMoney(r.taRatePaise)}${r.overridden ? ' *' : ''}`,
+      render: (r) => (fixedPaise !== null ? 'Fixed *' : `${formatMoney(r.taRatePaise)}${r.overridden ? ' *' : ''}`),
     },
-    { key: 'ta', header: 'TA', numeric: true, render: (r) => formatMoney(r.taPaise) },
+    { key: 'ta', header: 'TA one way', numeric: true, render: (r) => formatMoney(r.taPaise) },
+    { key: 'trip', header: 'TA day trip', numeric: true, render: (r) => formatMoney(r.dayTripTaPaise) },
     {
       key: 'da',
       header: 'DA',
@@ -92,7 +99,7 @@ export function RoutePayPreview({
               ? 'Enter the distance to see the amounts.'
               : preview.noTa
                 ? 'An HQ route earns no TA, only DA.'
-                : `${km(preview.paidKm)} are paid, one way — the distance is never doubled.`}
+                : `${km(preview.paidKm)} are paid one way; a day trip (home the same night) pays them there and back.`}
           </p>
           {preview.capped && !preview.noTa && preview.capKm !== null ? (
             <p role="status" className="mt-1 text-[13px] text-warning-fg">
@@ -101,9 +108,11 @@ export function RoutePayPreview({
           ) : null}
         </div>
         <p className="text-[13px] text-text-muted">
-          {overridePaise !== null
-            ? `Your rate of ${formatMoney(overridePaise)} per km (*) replaces every grade's own TA rate.`
-            : "No rate set here, so each grade's own TA rate is used."}
+          {fixedPaise !== null
+            ? `A fixed TA of ${formatMoney(fixedPaise)} (*) is paid for the day, for every grade, whatever the km.`
+            : overridePaise !== null
+              ? `Your rate of ${formatMoney(overridePaise)} per km (*) replaces every grade's own TA rate.`
+              : "No rate set here, so each grade's own TA rate is used."}
           {effectiveType ? ` DA is for a ${ROUTE_TYPE_LABEL[effectiveType]} day.` : ''}
         </p>
         {grades.isLoading ? (
@@ -125,9 +134,9 @@ export function RoutePayPreview({
           />
         )}
         <ul className="list-disc space-y-1 pl-5 text-[13px] text-text-muted">
-          <li>If the MR is paid for the way back too, enter the full there-and-back distance.</li>
-          <li>When a day has several routes, only the longest one (not an HQ route) is paid TA.</li>
-          <li>A day&apos;s DA follows the highest route type of that day.</li>
+          <li>Enter the km one way. A day trip doubles it; going away, moving on and coming back each pay it once.</li>
+          <li>DA follows where the person is against their own HQ: out-station while away (anywhere outside their HQ, or an out-station place of it), ex-station on the day back.</li>
+          <li>The DA column is for someone of this route&apos;s HQ on a day trip there.</li>
         </ul>
         <p className="text-[13px]">
           <Link href="/pay-grades" className="text-accent hover:underline">

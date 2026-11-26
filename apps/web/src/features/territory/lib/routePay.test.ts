@@ -37,3 +37,13 @@ describe('routePayPreview', () => {
     expect(p.rows[0]).toMatchObject({ taPaise: 0, daPaise: null, totalPaise: null });
   });
 });
+
+describe('day trip TA (2026-11-26)', () => {
+  it('doubles the capped km, rounding once; a fixed amount stays as typed', () => {
+    const grade = { id: 'g', name: 'G1', taPerKmRatePaise: 750, hqDaPaise: 0, exStationDaPaise: 20000, outStationDaPaise: 50000 } as PayBandDto;
+    const p = routePayPreview({ distanceKm: '10.67', type: 'EX_STATION', overridePaise: null, capKm: 100, grades: [grade] });
+    expect([p.rows[0]!.taPaise, p.rows[0]!.dayTripTaPaise]).toEqual([8003, 16005]);
+    const fixed = routePayPreview({ distanceKm: '150', type: 'EX_STATION', overridePaise: null, fixedPaise: 35000, capKm: 100, grades: [grade] });
+    expect([fixed.rows[0]!.taPaise, fixed.rows[0]!.dayTripTaPaise]).toEqual([35000, 35000]);
+  });
+});
