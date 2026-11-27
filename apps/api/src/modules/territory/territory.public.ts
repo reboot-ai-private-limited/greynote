@@ -60,6 +60,8 @@ export interface TerritoryPublicContract {
   getPlaces(placeIds: string[]): Promise<PlaceSummary[]>;
   /** The active places of the HQ an employee is based in: where their doctors, chemists and distributors may sit. Empty with no HQ. */
   listPlacesForUser(userId: string): Promise<PlaceSummary[]>;
+  /** `listPlacesForUser` for many people at once (2026-11-27): each person's places, one read per HQ. */
+  listPlacesByUser(userIds: string[]): Promise<Array<{ userId: string; places: PlaceSummary[] }>>;
   /** The active places of the HQs these employees are based in, each once: what a manager's Tour Plan may visit (own HQ + the team's). */
   listPlacesForUsers(userIds: string[]): Promise<PlaceSummary[]>;
   /** The route between two places, whichever way it was typed, or `null` (2026-11-26: a Tour Plan day may only go along a typed route). */

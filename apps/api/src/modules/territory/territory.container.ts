@@ -234,6 +234,14 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
         if (!hq) return [];
         return (await placeRepository.list({ hqId: hq.hqId, status: 'active', page: 1, pageSize: 100_000 })).items;
       },
+      listPlacesByUser: async (userIds) => {
+        const assignments = await userHqRepository.findActiveForUsers(userIds);
+        const hqOf = new Map(assignments.map((a) => [a.userId, a.hqId]));
+        const hqIds = [...new Set(assignments.map((a) => a.hqId))];
+        const lists = await Promise.all(hqIds.map(async (hqId) => [hqId, (await placeRepository.list({ hqId, status: 'active', page: 1, pageSize: 100_000 })).items] as const));
+        const placesOf = new Map(lists);
+        return userIds.map((userId) => ({ userId, places: placesOf.get(hqOf.get(userId) ?? '') ?? [] }));
+      },
       listPlacesForUsers: async (userIds) => {
         const hqIds = [...new Set((await userHqRepository.findActiveForUsers(userIds)).map((a) => a.hqId))];
         const [lists, hqs] = await Promise.all([

@@ -28,6 +28,11 @@ export class DoctorVisibility {
   /** One scope per user: the places of the HQ they are based in, or `null` when the switch is off. */
   async scopes(userIds: string[]): Promise<AssignedScope[]> {
     if (!(await this.followsRoute())) return userIds.map((userId) => ({ userId, placeIds: null }));
+    // Many people: their places in one batched read (2026-11-27) when Territory offers it.
+    if (userIds.length > 1 && this.territory.listPlacesByUser) {
+      const byUser = new Map((await this.territory.listPlacesByUser(userIds)).map((u) => [u.userId, u.places.map((p) => p.id)]));
+      return userIds.map((userId) => ({ userId, placeIds: byUser.get(userId) ?? [] }));
+    }
     return Promise.all(userIds.map(async (userId) => ({ userId, placeIds: await this.placeIdsOf(userId) })));
   }
 

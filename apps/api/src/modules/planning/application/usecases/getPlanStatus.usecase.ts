@@ -27,6 +27,27 @@ export class GetPlanStatusUseCase {
     return { status: planStatus(await this.approvals.getForRecord('DAILY_PLAN', plan.id)), workingType: plan.workingType, dayKind: plan.dayKind, routeIds: [...plan.routeIds], fromPlaceId: plan.fromPlaceId ?? null, toPlaceId: plan.toPlaceId ?? null, workWith: [...plan.workWith], doctorIds: plan.doctors.map((d) => d.doctorId), changedFromMonthly: plan.plannedFrom !== null, remarks: plan.remarks };
   }
 
+  /** `days` for many people at once (2026-11-27): their plans in one query and the approvals in one more. */
+  async daysForUsers(userIds: string[], from: string, to: string): Promise<Array<{ userId: string; days: Awaited<ReturnType<GetPlanStatusUseCase['days']>> }>> {
+    const plans = userIds.length > 0 ? await this.dailyPlans.listForUsers(userIds, from, to) : [];
+    const requests = new Map((plans.length > 0 ? await this.approvals.listForRecords('DAILY_PLAN', plans.map((p) => p.id)) : []).map((r) => [r.recordId, r]));
+    return userIds.map((userId) => ({
+      userId,
+      days: plans
+        .filter((p) => p.userId === userId)
+        .map((p) => ({
+          date: p.planDate,
+          status: planStatus(requests.get(p.id) ?? null),
+          workingType: p.workingType,
+          routeIds: p.routeIds,
+          workWith: [...p.workWith],
+          doctorIds: p.doctors.map((d) => d.doctorId),
+          remarks: p.remarks,
+          changedFromMonthly: p.plannedFrom !== null,
+        })),
+    }));
+  }
+
   /** A user's daily plans in a range (both ends inclusive), oldest first, each with its status and working type — a calendar's read. */
   async days(
     userId: string,

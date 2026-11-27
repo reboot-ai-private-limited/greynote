@@ -245,6 +245,7 @@ export function buildFieldMasterDataContainer(
         const { items } = await doctors.listAssigned(await visibility.scopes([userId]), {}, null);
         return items.map(({ assignedUserId: _assignedUserId, ...doctor }) => doctor);
       },
+      listAssignedDoctorsForUsers: async (userIds) => (userIds.length === 0 ? [] : (await doctors.listAssigned(await visibility.scopes(userIds), {}, null)).items),
       getDistributor: (id) => distributors.findById(id),
       sumOpeningDues: () => distributors.sumOpeningDues(),
       listDistributorAssignees: async () => (await distributors.listAllActive()).map((d) => ({ id: d.id, assignedUserIds: d.assignedUserIds })),

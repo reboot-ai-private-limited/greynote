@@ -22,10 +22,16 @@ export class DoctorVisitsReport {
     const employees = await this.audience(input.actor, input.userId);
     const figures = await this.fieldActivity.callFigures(monthRange(input.month), employees.map((e) => e.id));
     const calls = new Map(figures.doctorCalls.map((c) => [`${c.userId}|${c.doctorId}`, c.count]));
+    // Everyone's doctors in one read when that is offered (2026-11-27), else one read per person.
+    const heldBy = new Map<string, Awaited<ReturnType<MasterPort['listAssignedDoctors']>>>();
+    if (this.master.listAssignedDoctorsForUsers && employees.length > 0) {
+      for (const e of employees) heldBy.set(e.id, []);
+      for (const { assignedUserId, ...d } of await this.master.listAssignedDoctorsForUsers(employees.map((e) => e.id))) heldBy.get(assignedUserId)?.push(d);
+    }
     const mrs = (
       await Promise.all(
         employees.map(async (e): Promise<DoctorVisitMrDto | null> => {
-          const tracked = (await this.master.listAssignedDoctors(e.id)).filter((d) => d.visitFrequency != null);
+          const tracked = (heldBy.get(e.id) ?? (await this.master.listAssignedDoctors(e.id))).filter((d) => d.visitFrequency != null);
           if (tracked.length === 0) return null;
           const planned = new Map((await this.planning.listPlannedDoctors(e.id, input.month)).map((p) => [p.doctorId, p]));
           const rows = tracked

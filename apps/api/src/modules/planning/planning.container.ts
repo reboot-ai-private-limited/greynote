@@ -164,6 +164,7 @@ export function buildPlanningContainer(
       isMonthlyPlanApproved: (userId, planMonth) => status.isMonthlyPlanApproved(userId, planMonth),
       getDailyPlanDay: (userId, planDate) => status.day(userId, planDate),
       listDailyPlanDays: (userId, from, to) => status.days(userId, from, to),
+      listDailyPlanDaysForUsers: (userIds, from, to) => status.daysForUsers(userIds, from, to),
       listPlannedDoctors: async (userId, planMonth) => {
         const range = monthRange(planMonth);
         const yesterday = new Date(Date.parse(await deadlines.today()) - 86_400_000).toISOString().slice(0, 10);

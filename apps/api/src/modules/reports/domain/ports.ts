@@ -74,6 +74,8 @@ export interface SalesPort {
 export interface MasterPort {
   /** The doctors an employee covers now: those the employee is assigned and can see. */
   listAssignedDoctors(userId: string): Promise<Array<{ id: string; name: string; specialty: string; visitFrequency?: number | null }>>;
+  /** Many people at once, each doctor with who holds it (2026-11-27); optional so fakes need not add it. */
+  listAssignedDoctorsForUsers?(userIds: string[]): Promise<Array<{ id: string; name: string; specialty: string; visitFrequency?: number | null; assignedUserId: string }>>;
   listActiveOutlets(): Promise<{ distributors: Array<{ id: string; name: string }>; chemists: Array<{ id: string; name: string }> }>;
   /** Every active distributor with the field employees it is handed to: whose achievement its secondary counts toward. */
   listDistributorAssignees(): Promise<Array<{ id: string; assignedUserIds: string[] }>>;
@@ -264,11 +266,15 @@ export interface CallFiguresPort {
 /** The working type of each planned day: which counted daily reports are field days. */
 export interface DayTypesPort {
   listDailyPlanDays(userId: string, from: string, to: string): Promise<Array<{ date: string; workingType: string }>>;
+  /** Many people at once (2026-11-27); optional so fakes need not add it. */
+  listDailyPlanDaysForUsers?(userIds: string[], from: string, to: string): Promise<Array<{ userId: string; days: Array<{ date: string; workingType: string }> }>>;
 }
 
 /** The doctors an employee holds, with what the missed-doctors list shows. */
 export interface HeldDoctorsPort {
   listAssignedDoctors(userId: string): Promise<Array<{ id: string; name: string; specialty: string; address?: string; placeId?: string | null; visitFrequency?: number | null }>>;
+  /** Many people at once, each doctor with who holds it (2026-11-27); optional so fakes need not add it. */
+  listAssignedDoctorsForUsers?(userIds: string[]): Promise<Array<{ id: string; name: string; specialty: string; address?: string; placeId?: string | null; visitFrequency?: number | null; assignedUserId: string }>>;
 }
 
 /** Place names for the missed-doctors list. */

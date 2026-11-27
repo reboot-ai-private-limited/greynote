@@ -38,6 +38,8 @@ export interface PlanningPublicContract {
    */
   getDailyPlanDay(userId: string, planDate: string): Promise<{ status: PlanApprovalStatus; workingType: WorkingType; dayKind: DayKind; routeIds: string[]; fromPlaceId: string | null; toPlaceId: string | null; workWith: string[]; doctorIds: string[]; changedFromMonthly: boolean; remarks: string | null } | null>;
   /** The user's daily plans in a date range (both ends inclusive), oldest first, each with its status, working type and Route ids. */
+  /** `listDailyPlanDays` for many people at once (2026-11-27). */
+  listDailyPlanDaysForUsers(userIds: string[], from: string, to: string): Promise<Array<{ userId: string; days: Array<{ date: string; status: PlanApprovalStatus; workingType: WorkingType; routeIds: string[]; workWith: string[]; doctorIds: string[]; remarks: string | null; changedFromMonthly: boolean }> }>>;
   listDailyPlanDays(userId: string, from: string, to: string): Promise<Array<{ date: string; status: PlanApprovalStatus; workingType: WorkingType; routeIds: string[]; workWith: string[]; doctorIds: string[]; remarks: string | null; changedFromMonthly: boolean }>>;
   /**
    * The doctors on this user's approved daily plans in a month up to yesterday: per doctor the days planned, and the day first

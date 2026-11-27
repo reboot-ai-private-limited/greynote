@@ -57,6 +57,8 @@ export interface FieldMasterDataPublicContract {
   getAssignedUserId(doctorId: string): Promise<string | null>;
   /** An MR's Doctors under the same rule as `isAssignedToDoctor`, by name. */
   listAssignedDoctors(userId: string): Promise<Doctor[]>;
+  /** `listAssignedDoctors` for many people at once (2026-11-27), each doctor with who holds it. */
+  listAssignedDoctorsForUsers(userIds: string[]): Promise<Array<Doctor & { assignedUserId: string }>>;
   getChemistLocation(chemistId: string): Promise<GeoPoint | null>;
   getChemist(chemistId: string): Promise<Chemist | null>;
   getProduct(productId: string): Promise<Product | null>;

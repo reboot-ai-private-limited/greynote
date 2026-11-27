@@ -108,14 +108,21 @@ export class CallPerformanceReport {
     const figures = await this.calls.callFigures(range, ids);
     const perDoctor = new Map(figures.doctorCalls.map((c) => [`${c.userId}|${c.doctorId}`, c.count]));
     const held = new Map<string, HeldDoctor[]>();
+    // Everyone in the rows at once when the doctor lists and plan days can be read in a batch (2026-11-27); anyone else one by one.
+    if (this.doctors.listAssignedDoctorsForUsers && ids.length > 0) {
+      for (const id of ids) held.set(id, []);
+      for (const { assignedUserId, ...d } of await this.doctors.listAssignedDoctorsForUsers(ids)) held.get(assignedUserId)?.push(d);
+    }
     const heldBy = async (id: string) => {
       if (!held.has(id)) held.set(id, await this.doctors.listAssignedDoctors(id));
       return held.get(id)!;
     };
+    const dayTypes = new Map<string, Array<{ date: string; workingType: string }>>();
+    if (this.plans.listDailyPlanDaysForUsers && ids.length > 0) for (const u of await this.plans.listDailyPlanDaysForUsers(ids, range.from, range.to)) dayTypes.set(u.userId, u.days);
 
     const rows: CallPerformanceRowDto[] = [];
     for (const e of employees) {
-      const types = new Map((await this.plans.listDailyPlanDays(e.id, range.from, range.to)).map((d) => [d.date, d.workingType]));
+      const types = new Map((dayTypes.get(e.id) ?? (await this.plans.listDailyPlanDays(e.id, range.from, range.to))).map((d) => [d.date, d.workingType]));
       const days = figures.days.filter((d) => d.userId === e.id && (types.has(d.date) ? isFieldDay(types.get(d.date) as WorkingType) : d.doctorCalls + d.chemistCalls > 0));
       const doctorCalls = days.reduce((n, d) => n + d.doctorCalls, 0);
       const chemistCalls = days.reduce((n, d) => n + d.chemistCalls, 0);

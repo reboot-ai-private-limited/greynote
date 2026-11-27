@@ -42,6 +42,9 @@ export class FakeDailyPlans implements DailyPlanRepositoryPort {
       .filter((p) => p.userId === userId && p.planDate >= from && p.planDate <= to)
       .sort((a, b) => a.planDate.localeCompare(b.planDate));
   }
+  async listForUsers(userIds: string[], from: string, to: string) {
+    return [...this.rows.values()].filter((p) => userIds.includes(p.userId) && p.planDate >= from && p.planDate <= to).sort((a, b) => a.planDate.localeCompare(b.planDate));
+  }
   async listForUsersOnDate(userIds: string[], planDate: string) {
     return [...this.rows.values()].filter((p) => userIds.includes(p.userId) && p.planDate === planDate);
   }

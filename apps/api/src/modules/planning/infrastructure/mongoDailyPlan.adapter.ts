@@ -41,6 +41,12 @@ export class MongoDailyPlanAdapter implements DailyPlanRepositoryPort {
     return docs.map(toPlan);
   }
 
+  async listForUsers(userIds: string[], from: string, to: string): Promise<DailyPlan[]> {
+    const ids = userIds.filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id));
+    if (ids.length === 0) return [];
+    return (await DailyPlanModel.find({ userId: { $in: ids }, planDate: { $gte: from, $lte: to } }).sort({ planDate: 1 }).lean()).map(toPlan);
+  }
+
   async listForUsersOnDate(userIds: string[], planDate: string): Promise<DailyPlan[]> {
     const ids = userIds.filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id));
     if (ids.length === 0) return [];
