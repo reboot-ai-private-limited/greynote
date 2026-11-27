@@ -92,12 +92,14 @@ describe('System settings', () => {
   });
 });
 
-describe('Devices', () => {
-  it('is an Admin-only screen, since the device API is', () => {
-    expect(navFor('ADMIN').map((i) => i.href)).toContain('/devices');
-    expect(navFor('HR').map((i) => i.href)).not.toContain('/devices');
-    expect(navFor('ACCOUNTANT').map((i) => i.href)).not.toContain('/devices');
-    expect(isRouteBuilt('/devices')).toBe(true);
+describe('Devices, Documents and Inbox (2026-11-27: HR too)', () => {
+  it('are Admin and HR screens, as their APIs are', () => {
+    for (const href of ['/devices', '/documents', '/inbox']) {
+      expect(navFor('ADMIN').map((i) => i.href)).toContain(href);
+      expect(navFor('HR').map((i) => i.href)).toContain(href);
+      expect(navFor('ACCOUNTANT').map((i) => i.href)).not.toContain(href);
+      expect(isRouteBuilt(href)).toBe(true);
+    }
   });
 });
 

@@ -25,7 +25,7 @@ export function buildInboxContainer(directory: RecipientDirectoryPort, territory
   // Cloudinary is configured on first upload, so a server without its keys still sends text-only messages.
   const storage = new CloudinaryAttachmentStorage();
   const publish = new PublishMessageUseCase(messages, receipts, directory, territory, storage, push);
-  const mine = new MyInboxUseCases(receipts);
+  const mine = new MyInboxUseCases(receipts, undefined, messages);
   const purge = new PurgeSystemNotificationsUseCase(messages, receipts, config);
   const sent = new SentMessagesUseCases(messages, receipts, undefined, storage);
 
@@ -40,6 +40,6 @@ export function buildInboxContainer(directory: RecipientDirectoryPort, territory
       },
     },
     purgeNotifications: () => purge.run(),
-    buildRouter: () => buildInboxRouter(makeInboxControllers({ mine, publish, sent })),
+    buildRouter: () => buildInboxRouter(makeInboxControllers({ mine, publish, sent, names: (ids) => directory.getUserSummaries(ids) })),
   };
 }

@@ -8,7 +8,7 @@ import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import { INBOX_ATTACHMENT_MAX_BYTES, INBOX_MAX_ATTACHMENTS } from '../domain/attachment.js';
 import type { InboxHandlers } from './inbox.controller.js';
-import { clearNotificationsBodySchema, idParamsSchema, myInboxQuerySchema, publishBodySchema, sentQuerySchema } from './inbox.schemas.js';
+import { clearNotificationsBodySchema, idParamsSchema, myDoneBodySchema, myIdsBodySchema, myInboxQuerySchema, publishBodySchema, sentQuerySchema } from './inbox.schemas.js';
 
 const TAG = 'Inbox';
 
@@ -89,23 +89,35 @@ openApiRegistry.registerPath({
   responses: { 201: { description: 'Sent' }, 400: { description: 'Bad audience, file or payload; nothing sent' } },
 });
 doc('get', '/messages', 'Admin: messages sent, newest first, with how many recipients opened each', { query: sentQuerySchema });
+doc('get', '/messages/{id}/recipients', 'Admin or HR: who a mail went to and when each opened it, not opened first (2026-11-27)', { params: idParamsSchema });
+doc('delete', '/messages/{id}/permanent', 'Admin or HR: delete a taken-back mail for good (refused while it is still out)', { params: idParamsSchema });
+doc('post', '/remove', 'Remove some of your own automatic notifications (mail is marked done instead)', { body: myIdsBodySchema });
+doc('post', '/clear-notifications', 'Remove all your own automatic notifications; your mail stays', {});
+doc('post', '/done', 'Mark some of your own mail done (kept under Done), or back to not done', { body: myDoneBodySchema });
 doc('delete', '/messages/{id}', 'Admin: take a message back — recipients stop seeing it (a system notification is deleted outright)', { params: idParamsSchema });
 doc('post', '/messages/clear-notifications', 'Admin: delete every automatic notification (optionally only those older than olderThanDays); Admin mail is untouched', { body: clearNotificationsBodySchema });
 
 export function buildInboxRouter(c: InboxHandlers): Router {
   const router = Router();
   router.use(authenticate());
-  const admin = requireRole('ADMIN');
+  // Mail to the field is sent and managed by Admin and HR (2026-11-27).
+  const admin = requireRole('ADMIN', 'HR');
 
   // The Admin's side is declared first so `/messages` is never read as an `/:id`.
   router.post('/messages', admin, publishUpload, validate({ body: publishBodySchema }), c.publish);
   router.get('/messages', admin, validate({ query: sentQuerySchema }), c.listSent);
   router.post('/messages/clear-notifications', admin, validate({ body: clearNotificationsBodySchema }), c.clearNotifications);
+  router.get('/messages/:id/recipients', admin, validate({ params: idParamsSchema }), c.recipients);
+  router.delete('/messages/:id/permanent', admin, validate({ params: idParamsSchema }), c.deletePermanently);
   router.delete('/messages/:id', admin, validate({ params: idParamsSchema }), c.retract);
 
   router.get('/', validate({ query: myInboxQuerySchema }), c.list);
   router.get('/unread-count', c.unreadCount);
   router.post('/read-all', c.markAllRead);
+  // The person's own tidying (2026-11-27): notifications go, mail is marked done.
+  router.post('/remove', validate({ body: myIdsBodySchema }), c.removeMine);
+  router.post('/clear-notifications', c.clearMyNotifications);
+  router.post('/done', validate({ body: myDoneBodySchema }), c.markDone);
   router.post('/:id/read', validate({ params: idParamsSchema }), c.markRead);
   return router;
 }

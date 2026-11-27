@@ -13,12 +13,14 @@ export interface InboxMessageRepositoryPort {
   findSystemIds(filter: { before?: Date; limit: number }): Promise<string[]>;
   /** Removes the records themselves; unlike `retract`, nothing is kept in the sent list. */
   deleteMany(ids: string[]): Promise<void>;
+  /** Who created each message: a user id, or `null` for a system notification. Unknown ids are left out. */
+  creatorsOf(ids: string[]): Promise<Map<string, string | null>>;
 }
 
 export interface InboxReceiptRepositoryPort {
   insertMany(receipts: InboxReceipt[]): Promise<void>;
   /** Newest first; never an expired message. */
-  listForUser(userId: string, filter: { unreadOnly: boolean; now: Date }, page: { page: number; pageSize: number }): Promise<{ items: InboxReceipt[]; total: number }>;
+  listForUser(userId: string, filter: { unreadOnly: boolean; now: Date; show?: 'active' | 'done' | undefined }, page: { page: number; pageSize: number }): Promise<{ items: InboxReceipt[]; total: number }>;
   countUnread(userId: string, now: Date): Promise<number>;
   /** `false` if this person has no such message; reading one already read is fine. */
   markRead(userId: string, messageId: string, at: Date): Promise<boolean>;
@@ -27,4 +29,12 @@ export interface InboxReceiptRepositoryPort {
   deleteForMessages(messageIds: string[]): Promise<void>;
   /** How many of each message's recipients have opened it. */
   readCounts(messageIds: string[]): Promise<Map<string, number>>;
+  /** Everyone a message went to, with when they opened it (2026-11-27). */
+  listRecipients(messageId: string): Promise<Array<{ userId: string; readAt: Date | null }>>;
+  /** The message ids in this person's inbox (any state). */
+  messageIdsForUser(userId: string): Promise<string[]>;
+  /** Removes this person's copies of these messages; returns how many went. */
+  removeForUser(userId: string, messageIds: string[]): Promise<number>;
+  /** Marks this person's copies done (`at`) or not done (`null`); a done one also counts as read. Returns how many changed. */
+  setDone(userId: string, messageIds: string[], at: Date | null): Promise<number>;
 }

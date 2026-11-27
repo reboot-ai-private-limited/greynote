@@ -8,18 +8,19 @@ import { PrimaryButton } from '@/components/primary-button';
 import { ScreenShell } from '@/components/screen-shell';
 import { Skeleton } from '@/components/skeleton';
 import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
 import { IconChip, InfoCard, Pill, SummaryStrip, sym } from '@/components/ui-cards';
 import { Spacing, type Accent } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { ApiError, NetworkError } from '@/lib/api';
 import { formatSize } from '@/lib/proof-picker';
-import { ATTACHMENT_KIND_LABEL, KIND_LABEL, listInbox, markAllInboxRead, markInboxRead, queueRead, type InboxAttachment, type InboxItem, type InboxKind } from '@/lib/inbox';
+import { ATTACHMENT_KIND_LABEL, clearInboxNotifications, isNotification, KIND_LABEL, listDoneInbox, listInbox, markAllInboxRead, markInboxDone, markInboxRead, queueRead, removeInboxNotifications, type InboxAttachment, type InboxItem, type InboxKind } from '@/lib/inbox';
 import { useSessionUser } from '@/lib/session';
 import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
 import { formatWhen, nowMs } from '@/offline/day';
 
-type Filter = 'ALL' | 'UNREAD';
+type Filter = 'ALL' | 'UNREAD' | 'DONE';
 
 const KIND_STYLE: Record<InboxKind, { accent: Accent; icon: ReturnType<typeof sym> }> = {
   ANNOUNCEMENT: { accent: 'blue', icon: sym('megaphone', 'campaign') },
@@ -57,8 +58,10 @@ const sentText = (iso: string) => {
 };
 
 /**
- * Inbox (Utility, docs/mobile/inbox.md): messages the Admin sent you. The server decides what is in your inbox and what is
- * read; opening a message tells it. Offline you see the last list, and a read made offline is sent when you are back.
+ * Inbox (Utility, docs/mobile/inbox.md): messages the office sent you, and automatic notifications. The server decides what is in your
+ * inbox and what is read; opening a message tells it. Offline you see the last list, and a read made offline is sent when you are back.
+ * Tidying (2026-11-27, online): a notification is removed — one, several ticked, or all; mail is never removed, it is marked done and kept
+ * under Done (and can be moved back).
  */
 export default function InboxScreen() {
   const theme = useTheme();
@@ -71,11 +74,38 @@ export default function InboxScreen() {
   // Ids read here this session, so the dot goes at once without waiting for the next fetch.
   const [readHere, setReadHere] = useState<string[]>([]);
   const [msg, setMsg] = useState<{ tone: 'danger' | 'success'; text: string } | null>(null);
+  const done = useCachedFetch<InboxItem[]>('inbox-done', listDoneInbox, tick);
+  // Ticked messages while choosing several (`null` = not choosing).
+  const [selected, setSelected] = useState<string[] | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const items = (list.data ?? []).map((m) => (readHere.includes(m.id) ? { ...m, read: true } : m));
   const unread = items.filter((m) => !m.read);
-  const shown = filter === 'UNREAD' ? unread : items;
-  const open = items.find((m) => m.id === openId) ?? null;
+  const doneItems = done.data ?? [];
+  const shown = filter === 'UNREAD' ? unread : filter === 'DONE' ? doneItems : items;
+  const open = [...items, ...doneItems].find((m) => m.id === openId) ?? null;
+  const notificationCount = items.filter(isNotification).length;
+  const picked = (selected ?? []).map((id) => shown.find((m) => m.id === id)).filter((m): m is InboxItem => Boolean(m));
+  const pickedNotifications = picked.filter(isNotification).map((m) => m.id);
+  const pickedMail = picked.filter((m) => !isNotification(m)).map((m) => m.id);
+
+  /** Runs a tidy-up online, then reloads both lists. */
+  const tidy = async (action: () => Promise<unknown>, confirmation: string) => {
+    if (!online) return setMsg({ tone: 'danger', text: 'Connect to the internet to tidy your inbox.' });
+    setBusy(true);
+    setMsg(null);
+    try {
+      await action();
+      setSelected(null);
+      setTick((t) => t + 1);
+      setMsg({ tone: 'success', text: confirmation });
+    } catch (err) {
+      setMsg({ tone: 'danger', text: errorText(err) });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const toggle = (id: string) => setSelected((s) => (s === null ? [id] : s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
 
   const markRead = async (m: InboxItem) => {
     if (m.read) return;
@@ -158,18 +188,50 @@ export default function InboxScreen() {
       <View style={styles.head}>
         <View style={styles.grow}>
           <ChoiceChips
-            options={[{ value: 'ALL' as const, label: 'All' }, { value: 'UNREAD' as const, label: unread.length > 0 ? `Unread (${unread.length})` : 'Unread' }]}
+            options={[
+              { value: 'ALL' as const, label: 'All' },
+              { value: 'UNREAD' as const, label: unread.length > 0 ? `Unread (${unread.length})` : 'Unread' },
+              { value: 'DONE' as const, label: doneItems.length > 0 ? `Done (${doneItems.length})` : 'Done' },
+            ]}
             value={filter}
-            onChange={setFilter}
+            onChange={(f) => {
+              setFilter(f);
+              setSelected(null);
+            }}
           />
         </View>
-        {unread.length > 0 ? <PrimaryButton label="Mark all as read" variant="text" onPress={markAll} /> : null}
+        {unread.length > 0 && filter !== 'DONE' ? <PrimaryButton label="Mark all as read" variant="text" onPress={markAll} /> : null}
       </View>
+      <View style={styles.actions}>
+        {shown.length > 0 ? <PrimaryButton label={selected === null ? 'Select' : 'Cancel'} variant="text" disabled={busy} onPress={() => setSelected((s) => (s === null ? [] : null))} /> : null}
+        {filter !== 'DONE' && notificationCount > 0 && selected === null ? (
+          <PrimaryButton label={`Clear all notifications (${notificationCount})`} variant="text" disabled={busy} onPress={() => void tidy(clearInboxNotifications, 'Notifications cleared.')} />
+        ) : null}
+      </View>
+      {selected !== null ? (
+        <InfoCard>
+          <ThemedText type="small" themeColor="textSecondary">
+            {picked.length === 0 ? 'Tick the messages to tidy. Notifications are removed; mail is marked done and kept under Done.' : `${picked.length} ticked`}
+          </ThemedText>
+          <View style={styles.actions}>
+            {pickedNotifications.length > 0 ? (
+              <PrimaryButton label={`Remove ${pickedNotifications.length} notification${pickedNotifications.length === 1 ? '' : 's'}`} variant="text" disabled={busy} onPress={() => void tidy(() => removeInboxNotifications(pickedNotifications), 'Removed.')} />
+            ) : null}
+            {pickedMail.length > 0 ? (
+              filter === 'DONE' ? (
+                <PrimaryButton label={`Move ${pickedMail.length} back to the inbox`} variant="text" disabled={busy} onPress={() => void tidy(() => markInboxDone(pickedMail, false), 'Moved back to the inbox.')} />
+              ) : (
+                <PrimaryButton label={`Mark ${pickedMail.length} done`} variant="text" disabled={busy} onPress={() => void tidy(() => markInboxDone(pickedMail), 'Marked done.')} />
+              )
+            ) : null}
+          </View>
+        </InfoCard>
+      ) : null}
 
       {list.loading && !list.data ? (
         <Skeleton cards={3} lines={3} />
       ) : shown.length === 0 ? (
-        <Notice tone="info">{filter === 'UNREAD' ? 'You have no unread messages.' : list.data ? 'No messages.' : 'Connect once to load your messages.'}</Notice>
+        <Notice tone="info">{filter === 'UNREAD' ? 'You have no unread messages.' : filter === 'DONE' ? 'No mail marked done.' : list.data ? 'No messages.' : 'Connect once to load your messages.'}</Notice>
       ) : (
         shown.map((m) => {
           const style = KIND_STYLE[m.kind];
@@ -177,16 +239,24 @@ export default function InboxScreen() {
             // The whole card opens the message; "Read →" inside does the same.
             <Pressable
               key={m.id}
-              accessibilityRole="button"
-              accessibilityLabel={`Open message: ${m.title}`}
-              onPress={() => (void markRead(m), setOpenId(m.id))}
+              accessibilityRole={selected !== null ? 'checkbox' : 'button'}
+              accessibilityState={selected !== null ? { checked: selected.includes(m.id) } : undefined}
+              accessibilityLabel={selected !== null ? `Tick: ${m.title}` : `Open message: ${m.title}`}
+              // Choosing several: a tap ticks; a long press starts choosing with this one.
+              onPress={() => (selected !== null ? toggle(m.id) : (void markRead(m), setOpenId(m.id)))}
+              onLongPress={() => selected === null && setSelected([m.id])}
               style={({ pressed }) => pressed && styles.pressed}>
               <InfoCard>
                 <View style={styles.head}>
+                  {selected !== null ? (
+                    <ThemedView type={selected.includes(m.id) ? 'primary' : 'backgroundSelected'} style={styles.tick}>
+                      <ThemedText type="small" themeColor="onPrimary">{selected.includes(m.id) ? '✓' : ''}</ThemedText>
+                    </ThemedView>
+                  ) : null}
                   <IconChip icon={style.icon} accent={style.accent} />
                   <View style={styles.grow}>
                     <ThemedText type={m.read ? 'default' : 'smallBold'} numberOfLines={2}>{m.title}</ThemedText>
-                    <ThemedText type="small" themeColor="textSecondary">{`${KIND_LABEL[m.kind]} · ${sentText(m.sentAt)}`}</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary">{`${isNotification(m) ? 'Notification' : KIND_LABEL[m.kind]} · ${sentText(m.sentAt)}`}</ThemedText>
                   </View>
                   {m.read ? null : <View style={[styles.dot, { backgroundColor: theme.primary }]} />}
                 </View>
@@ -194,9 +264,18 @@ export default function InboxScreen() {
                 {(m.attachments ?? []).length > 0 ? (
                   <ThemedText type="small" themeColor="textSecondary">{`📎 ${m.attachments!.length} file${m.attachments!.length === 1 ? '' : 's'}`}</ThemedText>
                 ) : null}
-                <View style={styles.actions}>
-                  <PrimaryButton label="Read →" variant="text" onPress={() => (void markRead(m), setOpenId(m.id))} />
-                </View>
+                {selected === null ? (
+                  <View style={styles.actions}>
+                    {isNotification(m) ? (
+                      <PrimaryButton label="Remove" variant="text" disabled={busy} onPress={() => void tidy(() => removeInboxNotifications([m.id]), 'Removed.')} />
+                    ) : filter === 'DONE' ? (
+                      <PrimaryButton label="Move back" variant="text" disabled={busy} onPress={() => void tidy(() => markInboxDone([m.id], false), 'Moved back to the inbox.')} />
+                    ) : (
+                      <PrimaryButton label="Mark done" variant="text" disabled={busy} onPress={() => void tidy(() => markInboxDone([m.id]), 'Marked done.')} />
+                    )}
+                    <PrimaryButton label="Read →" variant="text" onPress={() => (void markRead(m), setOpenId(m.id))} />
+                  </View>
+                ) : null}
               </InfoCard>
             </Pressable>
           );
@@ -210,6 +289,7 @@ const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   grow: { flex: 1, gap: Spacing.one },
   dot: { width: 10, height: 10, borderRadius: 5 },
+  tick: { width: 24, height: 24, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.75 },
   body: { marginTop: Spacing.one },
   files: { gap: Spacing.two, marginTop: Spacing.two },

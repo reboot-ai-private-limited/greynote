@@ -39,6 +39,7 @@ const toReceipt = (doc: InboxReceiptDoc): InboxReceipt => ({
   sentAt: doc.sentAt,
   expiresAt: doc.expiresAt,
   readAt: doc.readAt,
+  doneAt: doc.doneAt ?? null,
 });
 
 export class MongoInboxMessageAdapter implements InboxMessageRepositoryPort {
@@ -88,6 +89,13 @@ export class MongoInboxMessageAdapter implements InboxMessageRepositoryPort {
   async deleteMany(ids: string[]): Promise<void> {
     if (ids.length > 0) await InboxMessageModel.deleteMany({ _id: { $in: ids.map(oid) } });
   }
+
+  async creatorsOf(ids: string[]): Promise<Map<string, string | null>> {
+    const valid = ids.filter((id) => Types.ObjectId.isValid(id));
+    if (valid.length === 0) return new Map();
+    const docs = await InboxMessageModel.find({ _id: { $in: valid.map(oid) } }).select('_id createdBy').lean();
+    return new Map(docs.map((d) => [String(d._id), d.createdBy ? String(d.createdBy) : null]));
+  }
 }
 
 export class MongoInboxReceiptAdapter implements InboxReceiptRepositoryPort {
@@ -96,16 +104,18 @@ export class MongoInboxReceiptAdapter implements InboxReceiptRepositoryPort {
     await InboxReceiptModel.insertMany(receipts.map((r) => ({ ...r, messageId: oid(r.messageId), userId: oid(r.userId) })));
   }
 
-  private visible(userId: string, now: Date, unreadOnly: boolean) {
+  /** `show`: `active` (default) leaves out mail marked done, `done` lists only that. */
+  private visible(userId: string, now: Date, unreadOnly: boolean, show: 'active' | 'done' = 'active') {
     return {
       userId: oid(userId),
       $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }],
       ...(unreadOnly && { readAt: null }),
+      doneAt: show === 'done' ? { $ne: null } : null,
     };
   }
 
-  async listForUser(userId: string, filter: { unreadOnly: boolean; now: Date }, page: { page: number; pageSize: number }): Promise<{ items: InboxReceipt[]; total: number }> {
-    const query = this.visible(userId, filter.now, filter.unreadOnly);
+  async listForUser(userId: string, filter: { unreadOnly: boolean; now: Date; show?: 'active' | 'done' | undefined }, page: { page: number; pageSize: number }): Promise<{ items: InboxReceipt[]; total: number }> {
+    const query = this.visible(userId, filter.now, filter.unreadOnly, filter.show);
     const { skip, limit } = toSkipLimit(page);
     const [docs, total] = await Promise.all([InboxReceiptModel.find(query).sort({ sentAt: -1, _id: -1 }).skip(skip).limit(limit).lean(), InboxReceiptModel.countDocuments(query)]);
     return { items: docs.map(toReceipt), total };
@@ -142,5 +152,29 @@ export class MongoInboxReceiptAdapter implements InboxReceiptRepositoryPort {
       { $group: { _id: '$messageId', n: { $sum: 1 } } },
     ]);
     return new Map(rows.map((r) => [String(r._id), r.n]));
+  }
+
+  async listRecipients(messageId: string): Promise<Array<{ userId: string; readAt: Date | null }>> {
+    if (!Types.ObjectId.isValid(messageId)) return [];
+    const docs = await InboxReceiptModel.find({ messageId: oid(messageId) }).select('userId readAt').lean();
+    return docs.map((d) => ({ userId: String(d.userId), readAt: d.readAt }));
+  }
+
+  async messageIdsForUser(userId: string): Promise<string[]> {
+    return (await InboxReceiptModel.find({ userId: oid(userId) }).select('messageId').lean()).map((d) => String(d.messageId));
+  }
+
+  async removeForUser(userId: string, messageIds: string[]): Promise<number> {
+    const valid = messageIds.filter((id) => Types.ObjectId.isValid(id));
+    if (valid.length === 0) return 0;
+    return (await InboxReceiptModel.deleteMany({ userId: oid(userId), messageId: { $in: valid.map(oid) } })).deletedCount;
+  }
+
+  async setDone(userId: string, messageIds: string[], at: Date | null): Promise<number> {
+    const valid = messageIds.filter((id) => Types.ObjectId.isValid(id));
+    if (valid.length === 0) return 0;
+    const filter = { userId: oid(userId), messageId: { $in: valid.map(oid) } };
+    if (at) await InboxReceiptModel.updateMany({ ...filter, readAt: null }, { readAt: at });
+    return (await InboxReceiptModel.updateMany(filter, { doneAt: at })).modifiedCount;
   }
 }

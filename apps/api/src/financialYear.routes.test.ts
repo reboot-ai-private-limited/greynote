@@ -99,6 +99,7 @@ const BY_ID = [
   '/api/reports/orders/:id',
   '/api/payroll/:id',
   '/api/approvals/:id',
+  '/api/inbox/messages/:id/recipients', // one mail's recipients (2026-11-27)
 ];
 const TIMELESS = [
   '/api/planning/daily/carry-over',

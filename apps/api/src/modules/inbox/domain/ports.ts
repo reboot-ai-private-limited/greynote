@@ -10,6 +10,8 @@ export interface Recipient {
 /** Inbox's narrow view of Identity; `identity.contract` satisfies it structurally. */
 export interface RecipientDirectoryPort {
   listActiveRecipients(): Promise<Recipient[]>;
+  /** Names for a mail's recipient list (2026-11-27); unknown ids are left out. */
+  getUserSummaries(userIds: string[]): Promise<Array<{ id: string; name: string; employeeCode: string }>>;
 }
 
 /** Inbox's narrow view of Territory; `territory.contract` satisfies it structurally. */

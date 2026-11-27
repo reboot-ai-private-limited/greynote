@@ -44,3 +44,5 @@ What the field app shows in **Utility → Inbox**. Until now the phone had a dem
 - **List row:** a paperclip with the count ("📎 2") when `attachments` is not empty.
 - **Download:** save to the phone's Downloads (Android) or offer the share sheet's "Save to Files" (iOS) under `name`; show progress for files over ~1 MB and a "Saved" or "Couldn't download, try again" message. Downloading needs a connection; it is not part of the offline copy (the list caches only the attachment details, never the files). Pictures may show a small preview from `url`.
 - **Home badge:** the Utility tile (and Inbox row) show the unread count; hide at 0, show "99+" above 99.
+
+> **2026-11-27.** Items carry `source` (`ADMIN` mail / `SYSTEM` notification) and `done`. Notifications: `POST /inbox/remove { ids }`, `POST /inbox/clear-notifications`. Mail: `POST /inbox/done { ids, done }`; `GET /inbox?show=done` lists done mail (the default list leaves it out). Mail can't be removed (400).

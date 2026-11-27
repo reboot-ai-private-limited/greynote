@@ -16,4 +16,6 @@ export interface InboxReceipt {
   sentAt: Date;
   expiresAt: Date | null;
   readAt: Date | null;
+  /** When the person marked this mail done (2026-11-27); absent or null = not done. */
+  doneAt?: Date | null;
 }

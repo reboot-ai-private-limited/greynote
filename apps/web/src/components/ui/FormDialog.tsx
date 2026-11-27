@@ -15,6 +15,7 @@ export function FormDialog({
   pending,
   disabled = false,
   submitLabel = 'Save',
+  pendingLabel = 'Saving…',
   onClose,
   onSubmit,
   wide,
@@ -28,6 +29,8 @@ export function FormDialog({
   disabled?: boolean;
   /** The text of the button that submits the form; Save unless the form says otherwise. */
   submitLabel?: string;
+  /** Shown on the button while it runs, e.g. "Sending…"; "Saving…" unless the form says otherwise. */
+  pendingLabel?: string;
   onClose: () => void;
   onSubmit: () => void;
   wide?: boolean;
@@ -46,7 +49,7 @@ export function FormDialog({
             Cancel
           </Button>
           <Button type="submit" form={formId} disabled={pending || disabled}>
-            {pending ? 'Saving…' : submitLabel}
+            {pending ? pendingLabel : submitLabel}
           </Button>
         </>
       }

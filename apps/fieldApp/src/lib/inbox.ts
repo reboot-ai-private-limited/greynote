@@ -39,6 +39,10 @@ export type InboxItem = {
   expiresAt: string | null;
   read: boolean;
   readAt: string | null;
+  /** `ADMIN`: mail from the office (kept; it can be marked done). `SYSTEM`: an automatic notification (it can be removed). Absent from older servers: treated as mail. */
+  source?: 'ADMIN' | 'SYSTEM';
+  /** Mail marked done (2026-11-27). */
+  done?: boolean;
 };
 
 export const KIND_LABEL: Record<InboxKind, string> = { ANNOUNCEMENT: 'Announcement', REMINDER: 'Reminder', POLICY: 'Policy', UPDATE: 'Update' };
@@ -50,6 +54,13 @@ export const getUnreadCount = async () => (await apiGet<{ unread: number }>('/in
 export const markInboxRead = (id: string) => apiPost<unknown>(`/inbox/${id}/read`, {}, { auth: true });
 
 export const markAllInboxRead = () => apiPost<unknown>('/inbox/read-all', {}, { auth: true });
+
+/** Tidying the inbox (2026-11-27): notifications are removed, mail is marked done (and can be moved back). Online only. */
+export const isNotification = (m: InboxItem) => m.source === 'SYSTEM';
+export const listDoneInbox = async () => (await apiGet<{ items: InboxItem[]; total: number }>('/inbox?pageSize=100&show=done', { auth: true })).items;
+export const removeInboxNotifications = (ids: string[]) => apiPost<{ removed: number }>('/inbox/remove', { ids }, { auth: true });
+export const clearInboxNotifications = () => apiPost<{ removed: number }>('/inbox/clear-notifications', {}, { auth: true });
+export const markInboxDone = (ids: string[], done = true) => apiPost<{ changed: number }>('/inbox/done', { ids, done }, { auth: true });
 
 /* ── reads made while offline: an unsent read is only a missing tick, so keep the ids and send them when back online ── */
 

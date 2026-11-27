@@ -57,7 +57,8 @@ export function buildDevicesRouter(controllers: {
   logout: ReturnType<typeof makeLogoutDeviceController>;
 }): Router {
   const router = Router();
-  const admin = [authenticate(), requireRole('ADMIN')];
+  // Device approvals are Admin's and HR's (2026-11-27).
+  const admin = [authenticate(), requireRole('ADMIN', 'HR')];
   const oneDevice = validate({ params: userDeviceParamsSchema });
 
   router.get('/devices/pending', ...admin, controllers.listPending);

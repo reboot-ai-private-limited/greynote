@@ -13,6 +13,7 @@ export interface InboxReceiptDoc {
   sentAt: Date;
   expiresAt: Date | null;
   readAt: Date | null;
+  doneAt?: Date | null;
 }
 
 const inboxReceiptSchema = new Schema<InboxReceiptDoc>({
@@ -25,6 +26,8 @@ const inboxReceiptSchema = new Schema<InboxReceiptDoc>({
   sentAt: { type: Date, required: true },
   expiresAt: { type: Date, default: null },
   readAt: { type: Date, default: null },
+  // Mail the person marked done (2026-11-27).
+  doneAt: { type: Date, default: null },
 });
 
 // One copy per person per message; a person's inbox reads newest first.

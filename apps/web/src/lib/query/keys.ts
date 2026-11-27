@@ -72,6 +72,7 @@ export const keys = {
   inbox: {
     all: () => ['inbox'] as const,
     sent: (query: object) => ['inbox', 'sent', query] as const,
+    recipients: (id: string) => ['inbox', 'recipients', id] as const,
   },
   documents: { all: () => ['documents'] as const },
   managerCandidates: (q: object) => ['managerCandidates', fy(), q] as const,

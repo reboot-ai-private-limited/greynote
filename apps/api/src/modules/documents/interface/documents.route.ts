@@ -27,8 +27,9 @@ doc('delete', '/{id}', 'Admin: remove a document and its file', idParamsSchema);
 export function buildDocumentsRouter(c: DocumentsHandlers): Router {
   const router = Router();
   router.use(authenticate());
-  router.get('/', requireRole('ADMIN', 'FIELD'), c.list);
-  router.post('/', requireRole('ADMIN'), uploadMiddleware, validate({ body: uploadBodySchema }), c.upload);
-  router.delete('/:id', requireRole('ADMIN'), validate({ params: idParamsSchema }), c.remove);
+  // HR keeps the library too (2026-11-27).
+  router.get('/', requireRole('ADMIN', 'HR', 'FIELD'), c.list);
+  router.post('/', requireRole('ADMIN', 'HR'), uploadMiddleware, validate({ body: uploadBodySchema }), c.upload);
+  router.delete('/:id', requireRole('ADMIN', 'HR'), validate({ params: idParamsSchema }), c.remove);
   return router;
 }

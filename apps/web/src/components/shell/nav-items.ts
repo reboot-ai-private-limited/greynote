@@ -78,9 +78,10 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Leave & holidays', href: '/hr', icon: CalendarDays, group: 'HR', roles: ['ADMIN', 'HR'] },
   { label: 'Promotions', href: '/promotions', icon: TrendingUp, group: 'HR', roles: ['ADMIN', 'HR'] },
   { label: 'Late submissions', href: '/late-submissions', icon: Clock, group: 'HR', roles: ['ADMIN'] },
-  { label: 'Documents', href: '/documents', icon: FileText, group: 'HR', roles: ['ADMIN'] },
-  { label: 'Inbox messages', href: '/inbox', icon: Inbox, group: 'HR', roles: ['ADMIN'] },
-  { label: 'Devices', href: '/devices', icon: Smartphone, group: 'HR', roles: ['ADMIN'] },
+  // HR runs these too (2026-11-27).
+  { label: 'Documents', href: '/documents', icon: FileText, group: 'HR', roles: ['ADMIN', 'HR'] },
+  { label: 'Inbox messages', href: '/inbox', icon: Inbox, group: 'HR', roles: ['ADMIN', 'HR'] },
+  { label: 'Devices', href: '/devices', icon: Smartphone, group: 'HR', roles: ['ADMIN', 'HR'] },
 
   { label: 'Sales dashboard', href: '/reports/sales-dashboard', icon: LayoutDashboard, group: 'Sales & Distribution', roles: ['ADMIN', 'ACCOUNTANT', 'HR'] },
   { label: 'Orders', href: '/orders', icon: ShoppingCart, group: 'Sales & Distribution', roles: ['ADMIN', 'ACCOUNTANT'] },

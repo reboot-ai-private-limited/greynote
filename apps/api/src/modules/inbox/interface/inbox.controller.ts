@@ -7,7 +7,7 @@ import { sendSuccess } from '@/shared/http/response.util.js';
 import type { MyInboxUseCases } from '../application/usecases/myInbox.usecase.js';
 import type { PublishMessageUseCase } from '../application/usecases/publishMessage.usecase.js';
 import type { SentMessagesUseCases } from '../application/usecases/sentMessages.usecase.js';
-import type { clearNotificationsBodySchema, myInboxQuerySchema, publishBodySchema, sentQuerySchema } from './inbox.schemas.js';
+import type { clearNotificationsBodySchema, myDoneBodySchema, myIdsBodySchema, myInboxQuerySchema, publishBodySchema, sentQuerySchema } from './inbox.schemas.js';
 
 const userId = (req: Request): string => {
   if (!req.user) throw AppError.unauthenticated();
@@ -16,13 +16,13 @@ const userId = (req: Request): string => {
 
 const splitSentQuery = (q: z.output<typeof sentQuerySchema>) => [{ page: q.page, pageSize: q.pageSize }, q.source ? { source: q.source } : {}] as const;
 
-export type InboxHandlers = Record<'list' | 'unreadCount' | 'markRead' | 'markAllRead' | 'publish' | 'listSent' | 'retract' | 'clearNotifications', RequestHandler>;
+export type InboxHandlers = Record<'list' | 'unreadCount' | 'markRead' | 'markAllRead' | 'publish' | 'listSent' | 'retract' | 'clearNotifications' | 'recipients' | 'deletePermanently' | 'removeMine' | 'clearMyNotifications' | 'markDone', RequestHandler>;
 
-export function makeInboxControllers(u: { mine: MyInboxUseCases; publish: PublishMessageUseCase; sent: SentMessagesUseCases }): InboxHandlers {
+export function makeInboxControllers(u: { mine: MyInboxUseCases; publish: PublishMessageUseCase; sent: SentMessagesUseCases; names: (userIds: string[]) => Promise<Array<{ id: string; name: string; employeeCode: string }>> }): InboxHandlers {
   return {
     list: asyncHandler(async (req, res) => {
       const q = req.query as unknown as z.output<typeof myInboxQuerySchema>;
-      sendSuccess(req, res, await u.mine.list(userId(req), { unreadOnly: q.unread }, q), 'Your inbox.', 200);
+      sendSuccess(req, res, await u.mine.list(userId(req), { unreadOnly: q.unread, show: q.show }, q), 'Your inbox.', 200);
     }),
     unreadCount: asyncHandler(async (req, res) => sendSuccess(req, res, { unread: await u.mine.unreadCount(userId(req)) }, 'Unread messages.', 200)),
     markRead: asyncHandler(async (req, res) => {
@@ -43,6 +43,20 @@ export function makeInboxControllers(u: { mine: MyInboxUseCases; publish: Publis
     retract: asyncHandler(async (req, res) => {
       await u.sent.retract(requiredParam(req.params, 'id'));
       sendSuccess(req, res, null, 'Message taken back.', 200);
+    }),
+    recipients: asyncHandler(async (req, res) => sendSuccess(req, res, await u.sent.recipients(requiredParam(req.params, 'id'), u.names), 'Who it went to.', 200)),
+    deletePermanently: asyncHandler(async (req, res) => {
+      await u.sent.deletePermanently(requiredParam(req.params, 'id'));
+      sendSuccess(req, res, null, 'Message deleted.', 200);
+    }),
+    removeMine: asyncHandler(async (req, res) => {
+      const { ids } = req.body as z.output<typeof myIdsBodySchema>;
+      sendSuccess(req, res, { removed: await u.mine.remove(userId(req), ids) }, 'Removed.', 200);
+    }),
+    clearMyNotifications: asyncHandler(async (req, res) => sendSuccess(req, res, { removed: await u.mine.clearNotifications(userId(req)) }, 'Notifications cleared.', 200)),
+    markDone: asyncHandler(async (req, res) => {
+      const { ids, done } = req.body as z.output<typeof myDoneBodySchema>;
+      sendSuccess(req, res, { changed: await u.mine.setDone(userId(req), ids, done) }, done ? 'Marked done.' : 'Moved back to the inbox.', 200);
     }),
   };
 }

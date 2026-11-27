@@ -80,6 +80,8 @@ export function ComposeMessageDialog({ onClose }: { onClose: () => void }) {
       description="It goes to the people who match the audience right now, and shows in their app's inbox."
       formId="inbox-form"
       pending={publish.isPending}
+      submitLabel="Send"
+      pendingLabel="Sending…"
       onClose={onClose}
       onSubmit={submit}
       wide

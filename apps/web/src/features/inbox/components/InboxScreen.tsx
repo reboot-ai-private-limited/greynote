@@ -11,7 +11,7 @@ import { PagedListFrame } from '@/components/ui/PagedListFrame';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { formatDateTime } from '@/lib/format';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
-import { useClearNotifications, useRetractMessage, useSentMessages } from '../hooks/useInbox';
+import { useClearNotifications, useDeleteMessage, useRetractMessage, useSentMessages } from '../hooks/useInbox';
 import { INBOX_KIND_LABEL, describeAudience } from '../lib/inbox';
 import { ComposeMessageDialog } from './ComposeMessageDialog';
 import { MessageDetailsDialog } from './MessageDetailsDialog';
@@ -27,6 +27,8 @@ export function InboxScreen() {
   const [viewing, setViewing] = useState<SentInboxMessageDto | null>(null);
   const [clearingAll, setClearingAll] = useState(false);
   const retract = useRetractMessage(() => setRetracting(null));
+  const [deleting, setDeleting] = useState<SentInboxMessageDto | null>(null);
+  const remove = useDeleteMessage(() => setDeleting(null));
   const clearAll = useClearNotifications(() => setClearingAll(false));
   const isNotification = (m: SentInboxMessageDto) => m.source === 'SYSTEM';
 
@@ -67,8 +69,13 @@ export function InboxScreen() {
       render: (m) =>
         m.retractedAt ? (
           <span className="text-text-subtle">—</span>
-        ) : (
+        ) : isNotification(m) ? (
           `${m.readCount} of ${m.recipientCount}`
+        ) : (
+          // Opens the message with who opened it and who hasn't (2026-11-27).
+          <button type="button" onClick={(e) => { e.stopPropagation(); setViewing(m); }} className="cursor-pointer font-medium text-accent hover:underline">
+            {`${m.readCount} of ${m.recipientCount}`}
+          </button>
         ),
     },
     {
@@ -89,7 +96,14 @@ export function InboxScreen() {
       className: 'w-28 text-right',
       render: (m) =>
         m.retractedAt ? (
-          <Badge tone="neutral">Taken back</Badge>
+          <span className="inline-flex items-center gap-2">
+            <Badge tone="neutral">Taken back</Badge>
+            {isNotification(m) ? null : (
+              <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setDeleting(m); }}>
+                Delete
+              </Button>
+            )}
+          </span>
         ) : (
           <Button variant="ghost" size="sm" onClick={() => setRetracting(m)}>
             {isNotification(m) ? 'Clear' : 'Take back'}
@@ -139,6 +153,10 @@ export function InboxScreen() {
             setViewing(null);
             setRetracting(m);
           }}
+          onDelete={(m) => {
+            setViewing(null);
+            setDeleting(m);
+          }}
         />
       ) : null}
       <ConfirmDialog
@@ -153,6 +171,15 @@ export function InboxScreen() {
         confirmLabel={retracting && isNotification(retracting) ? 'Clear' : 'Take back'}
         pending={retract.isPending}
         onConfirm={() => retracting && retract.mutate(retracting.id)}
+      />
+      <ConfirmDialog
+        open={deleting !== null}
+        onOpenChange={(open) => !open && setDeleting(null)}
+        title="Delete this message permanently?"
+        description={deleting ? `“${deleting.title}” is removed from this list for good. It was already taken back, so nobody still sees it. This can't be undone.` : undefined}
+        confirmLabel="Delete permanently"
+        pending={remove.isPending}
+        onConfirm={() => deleting && remove.mutate(deleting.id)}
       />
       <ConfirmDialog
         open={clearingAll}

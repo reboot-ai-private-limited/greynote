@@ -35,17 +35,20 @@ class FakeMessages implements InboxMessageRepositoryPort {
     m.retractedAt = at;
     return true;
   }
+  async creatorsOf(ids: string[]) {
+    return new Map(this.rows.filter((m) => ids.includes(m.id)).map((m) => [m.id, m.createdBy]));
+  }
 }
 class FakeReceipts implements InboxReceiptRepositoryPort {
   rows: InboxReceipt[] = [];
   async insertMany(r: InboxReceipt[]) {
     this.rows.push(...r);
   }
-  private mine(userId: string, now: Date, unreadOnly: boolean) {
-    return this.rows.filter((r) => r.userId === userId && (!r.expiresAt || r.expiresAt > now) && (!unreadOnly || !r.readAt));
+  private mine(userId: string, now: Date, unreadOnly: boolean, show: 'active' | 'done' = 'active') {
+    return this.rows.filter((r) => r.userId === userId && (!r.expiresAt || r.expiresAt > now) && (!unreadOnly || !r.readAt) && (show === 'done' ? !!r.doneAt : !r.doneAt));
   }
-  async listForUser(userId: string, f: { unreadOnly: boolean; now: Date }) {
-    const items = this.mine(userId, f.now, f.unreadOnly);
+  async listForUser(userId: string, f: { unreadOnly: boolean; now: Date; show?: 'active' | 'done' | undefined }) {
+    const items = this.mine(userId, f.now, f.unreadOnly, f.show);
     return { items, total: items.length };
   }
   async countUnread(userId: string, now: Date) {
@@ -70,6 +73,25 @@ class FakeReceipts implements InboxReceiptRepositoryPort {
   }
   async readCounts(ids: string[]) {
     return new Map(ids.map((id) => [id, this.rows.filter((r) => r.messageId === id && r.readAt).length]));
+  }
+  async listRecipients(id: string) {
+    return this.rows.filter((r) => r.messageId === id).map((r) => ({ userId: r.userId, readAt: r.readAt }));
+  }
+  async messageIdsForUser(userId: string) {
+    return this.rows.filter((r) => r.userId === userId).map((r) => r.messageId);
+  }
+  async removeForUser(userId: string, ids: string[]) {
+    const before = this.rows.length;
+    this.rows = this.rows.filter((r) => !(r.userId === userId && ids.includes(r.messageId)));
+    return before - this.rows.length;
+  }
+  async setDone(userId: string, ids: string[], at: Date | null) {
+    const mine = this.rows.filter((r) => r.userId === userId && ids.includes(r.messageId));
+    for (const r of mine) {
+      r.doneAt = at;
+      if (at) r.readAt ??= at;
+    }
+    return mine.length;
   }
 }
 
@@ -127,8 +149,8 @@ describe('Inbox', () => {
     pushes = [];
     const push = { pushTo: async (userIds: string[], message: { title: string; body: string }) => void pushes.push({ userIds, body: message.body }) };
     let n = 0;
-    publish = new PublishMessageUseCase(messages, receipts, { listActiveRecipients: async () => people }, territory, storage, push, () => NOW, () => `att-${++n}`);
-    mine = new MyInboxUseCases(receipts, () => NOW);
+    publish = new PublishMessageUseCase(messages, receipts, { listActiveRecipients: async () => people, getUserSummaries: async () => [] }, territory, storage, push, () => NOW, () => `att-${++n}`);
+    mine = new MyInboxUseCases(receipts, () => NOW, messages);
     sent = new SentMessagesUseCases(messages, receipts, () => NOW, storage);
   });
   const send = (audience: Partial<InboxAudienceDto>, extra: { expiresAt?: Date; files?: Array<{ buffer: Buffer; name: string }>; body?: string } = {}) =>
@@ -235,6 +257,33 @@ describe('Inbox', () => {
 
   describe('system notifications', () => {
     const notify = (userIds: string[]) => publish.execute({ title: 'Approved', body: 'Done', kind: 'UPDATE', audience: { ...none, userIds } }, null);
+
+    it('a person removes notifications (one, several, all) and marks mail done; mail is never removed (2026-11-27)', async () => {
+      const mail = await send({ userIds: ['mr1'] });
+      const n1 = await notify(['mr1']);
+      const n2 = await notify(['mr1']);
+      expect((await mine.list('mr1', { unreadOnly: false }, page)).items.map((i) => i.source).sort()).toEqual(['ADMIN', 'SYSTEM', 'SYSTEM']);
+      await expectStatus(mine.remove('mr1', [mail.id]), 400);
+      expect(await mine.remove('mr1', [n1.id])).toBe(1);
+      expect(await mine.clearNotifications('mr1')).toBe(1);
+      expect((await mine.list('mr1', { unreadOnly: false }, page)).items.map((i) => i.id)).toEqual([mail.id]);
+      await expectStatus(mine.setDone('mr1', [n2.id], true), 400);
+      expect(await mine.setDone('mr1', [mail.id], true)).toBe(1);
+      expect((await mine.list('mr1', { unreadOnly: false }, page)).items).toEqual([]);
+      expect((await mine.list('mr1', { unreadOnly: false, show: 'done' }, page)).items).toMatchObject([{ id: mail.id, done: true, read: true }]);
+      expect(await mine.unreadCount('mr1')).toBe(0);
+    });
+
+    it('lists who a mail reached, not opened first; deletes it for good only once taken back (2026-11-27)', async () => {
+      const mail = await send({ userIds: ['mr1', 'mr2'] });
+      await mine.markRead('mr2', mail.id);
+      const names = async (ids: string[]) => ids.map((id) => ({ id, name: id.toUpperCase(), employeeCode: id }));
+      expect((await sent.recipients(mail.id, names)).map((r) => [r.userId, r.readAt !== null])).toEqual([['mr1', false], ['mr2', true]]);
+      await expectStatus(sent.deletePermanently(mail.id), 409);
+      await sent.retract(mail.id);
+      await sent.deletePermanently(mail.id);
+      expect(messages.rows).toEqual([]);
+    });
 
     it('labels each sent row ADMIN or SYSTEM and filters by it', async () => {
       await send({ zoneIds: ['z1'] });

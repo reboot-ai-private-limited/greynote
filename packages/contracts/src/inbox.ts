@@ -54,6 +54,18 @@ export interface InboxItemDto {
   attachments: InboxAttachmentDto[];
   read: boolean;
   readAt: string | null;
+  /** `ADMIN`: mail sent by Admin or HR (kept; it can be marked done). `SYSTEM`: an automatic notification (it can be removed). 2026-11-27; absent from older servers. */
+  source?: InboxSource;
+  /** Mail the person marked done (2026-11-27): out of the main list, still readable under "Done". */
+  done?: boolean;
+}
+
+/** `GET /inbox/messages/:id/recipients` (2026-11-27): who a mail went to and when each opened it, not opened first. */
+export interface InboxRecipientDto {
+  userId: string;
+  name: string;
+  employeeCode: string;
+  readAt: string | null;
 }
 
 export interface InboxUnreadCountDto {

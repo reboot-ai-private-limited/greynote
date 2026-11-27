@@ -1,4 +1,4 @@
-DELETE /api/documents/:id  ADMIN
+DELETE /api/documents/:id  ADMIN,HR
 DELETE /api/field-activity/dcr/:id/calls/:callId  FIELD
 DELETE /api/field-activity/dcr/:id/followups/:callId  FIELD
 DELETE /api/field-activity/expenses/other/:id  FIELD
@@ -15,10 +15,11 @@ DELETE /api/hr/leaves/:id/attachments/:attachmentId  FIELD
 DELETE /api/identity/auth/push-token  ANY
 DELETE /api/identity/employee-drafts/:id  ADMIN,HR
 DELETE /api/identity/employee-drafts/:id/photo  ADMIN,HR
-DELETE /api/identity/users/:id/devices/:deviceRowId  ADMIN
+DELETE /api/identity/users/:id/devices/:deviceRowId  ADMIN,HR
 DELETE /api/identity/users/:id/documents/:documentId  ADMIN,HR
 DELETE /api/identity/users/:id/photo  ADMIN,HR
-DELETE /api/inbox/messages/:id  ADMIN
+DELETE /api/inbox/messages/:id  ADMIN,HR
+DELETE /api/inbox/messages/:id/permanent  ADMIN,HR
 DELETE /api/marketing/doctors/:doctorId/visuals/:visualId  ADMIN,FIELD
 DELETE /api/marketing/targets/:id  ADMIN,HR
 DELETE /api/marketing/visuals/:id  ADMIN
@@ -40,7 +41,7 @@ GET    /api/attendance/payroll-calendar  ACCOUNTANT,ADMIN,HR
 GET    /api/config  ADMIN
 GET    /api/config/financial-year  ADMIN
 GET    /api/config/public  ANY
-GET    /api/documents  ADMIN,FIELD
+GET    /api/documents  ADMIN,FIELD,HR
 GET    /api/field-activity/dcr  ADMIN,FIELD
 GET    /api/field-activity/dcr/:id  ADMIN,FIELD
 GET    /api/field-activity/dcr/team  FIELD
@@ -95,7 +96,7 @@ GET    /api/hr/leaves/me  FIELD
 GET    /api/hr/weekly-offs  ANY
 GET    /api/identity/auth/me  ANY
 GET    /api/identity/designations  ADMIN,HR
-GET    /api/identity/devices/pending  ADMIN
+GET    /api/identity/devices/pending  ADMIN,HR
 GET    /api/identity/employee-drafts  ADMIN,HR
 GET    /api/identity/employee-drafts/:id  ADMIN,HR
 GET    /api/identity/org/children  ADMIN,HR
@@ -113,7 +114,8 @@ GET    /api/identity/users/:id/reporting  ADMIN,HR
 GET    /api/identity/work-with  FIELD
 GET    /api/identity/work-with/directory  ACCOUNTANT,ADMIN,HR
 GET    /api/inbox  ANY
-GET    /api/inbox/messages  ADMIN
+GET    /api/inbox/messages  ADMIN,HR
+GET    /api/inbox/messages/:id/recipients  ADMIN,HR
 GET    /api/inbox/unread-count  ANY
 GET    /api/late-grants  ACCOUNTANT,ADMIN,FIELD,HR
 GET    /api/late-grants/eligible  ADMIN,FIELD
@@ -258,7 +260,7 @@ POST   /api/approvals/:id/withdraw  ANY
 POST   /api/approvals/bulk  ADMIN,FIELD,HR
 POST   /api/config/financial-year/close  ADMIN
 POST   /api/config/financial-year/reopen  ADMIN
-POST   /api/documents  ADMIN
+POST   /api/documents  ADMIN,HR
 POST   /api/field-activity/admin/doctor-gifts  ADMIN
 POST   /api/field-activity/admin/doctor-services  ADMIN
 POST   /api/field-activity/dcr/:id/calls/:callId/override-geofence  ADMIN,FIELD
@@ -321,9 +323,9 @@ POST   /api/identity/users  ADMIN,HR
 POST   /api/identity/users/:id/anonymise  ADMIN,HR
 POST   /api/identity/users/:id/ctc  ADMIN,HR
 POST   /api/identity/users/:id/deactivate  ADMIN
-POST   /api/identity/users/:id/devices/:deviceRowId/approve  ADMIN
-POST   /api/identity/users/:id/devices/:deviceRowId/logout  ADMIN
-POST   /api/identity/users/:id/devices/:deviceRowId/reject  ADMIN
+POST   /api/identity/users/:id/devices/:deviceRowId/approve  ADMIN,HR
+POST   /api/identity/users/:id/devices/:deviceRowId/logout  ADMIN,HR
+POST   /api/identity/users/:id/devices/:deviceRowId/reject  ADMIN,HR
 POST   /api/identity/users/:id/documents  ADMIN,HR
 POST   /api/identity/users/:id/promotions  ADMIN,HR
 POST   /api/identity/users/:id/promotions/preview  ADMIN,HR
@@ -332,9 +334,12 @@ POST   /api/identity/users/:id/reset-password  ADMIN
 POST   /api/identity/users/:id/unblock  ADMIN,FIELD
 POST   /api/identity/users/manager-changes  ADMIN,HR
 POST   /api/inbox/:id/read  ANY
-POST   /api/inbox/messages  ADMIN
-POST   /api/inbox/messages/clear-notifications  ADMIN
+POST   /api/inbox/clear-notifications  ANY
+POST   /api/inbox/done  ANY
+POST   /api/inbox/messages  ADMIN,HR
+POST   /api/inbox/messages/clear-notifications  ADMIN,HR
 POST   /api/inbox/read-all  ANY
+POST   /api/inbox/remove  ANY
 POST   /api/late-grants  ADMIN,FIELD
 POST   /api/late-grants/:id/revoke  ADMIN,FIELD
 POST   /api/late-grants/bulk  ADMIN,FIELD

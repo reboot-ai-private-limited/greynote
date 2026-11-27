@@ -61,3 +61,25 @@ export function useClearNotifications(onDone: () => void) {
     onSuccess: onDone,
   });
 }
+
+/** Who a mail went to and when each opened it (2026-11-27). */
+export function useRecipientsOf(messageId: string, enabled: boolean) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.inbox.recipients(messageId),
+      fetch: (token, signal) => inboxApi.recipients(token, messageId, signal),
+      staleTime: staleTime.live,
+      enabled,
+    }),
+  );
+}
+
+/** Deletes a taken-back mail for good (2026-11-27). */
+export function useDeleteMessage(onDone: () => void) {
+  return useApiMutation<string>({
+    call: (token, id) => inboxApi.deletePermanently(token, id),
+    invalidates: [keys.inbox.all()],
+    successMessage: 'Message deleted.',
+    onSuccess: onDone,
+  });
+}

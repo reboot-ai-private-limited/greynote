@@ -62,9 +62,9 @@ export class UploadDocumentUseCase {
 export class ListDocumentsUseCase {
   constructor(private readonly docs: CompanyDocumentRepositoryPort) {}
 
-  /** Admin: the whole library. Anyone else: what is for everyone or names them. */
+  /** Admin and HR (2026-11-27): the whole library. Anyone else: what is for everyone or names them. */
   async execute(actor: { id: string; role: string }): Promise<CompanyDocumentDto[]> {
-    const admin = actor.role === 'ADMIN';
+    const admin = actor.role === 'ADMIN' || actor.role === 'HR';
     const items = admin ? await this.docs.listAll() : await this.docs.listVisibleTo(actor.id);
     return items.map((d) => toDocumentDto(d, admin));
   }

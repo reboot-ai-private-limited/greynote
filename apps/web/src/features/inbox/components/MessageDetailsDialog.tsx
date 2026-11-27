@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
 import { formatDateTime } from '@/lib/format';
+import { useRecipientsOf } from '../hooks/useInbox';
 import { INBOX_KIND_LABEL, describeAudience } from '../lib/inbox';
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -26,12 +27,19 @@ export function MessageDetailsDialog({
   message,
   onClose,
   onTakeBack,
+  onDelete,
 }: {
   message: SentInboxMessageDto;
   onClose: () => void;
   onTakeBack: (message: SentInboxMessageDto) => void;
+  /** Only for a taken-back mail (2026-11-27). */
+  onDelete: (message: SentInboxMessageDto) => void;
 }) {
   const automatic = message.source === 'SYSTEM';
+  // Who it reached and who opened it (2026-11-27); a taken-back mail's copies are gone.
+  const recipients = useRecipientsOf(message.id, !automatic && !message.retractedAt);
+  const opened = (recipients.data ?? []).filter((r) => r.readAt !== null);
+  const notOpened = (recipients.data ?? []).filter((r) => r.readAt === null);
   return (
     <Dialog
       open
@@ -43,7 +51,13 @@ export function MessageDetailsDialog({
           <Button variant="secondary" onClick={onClose}>
             Close
           </Button>
-          {message.retractedAt ? null : (
+          {message.retractedAt ? (
+            automatic ? null : (
+              <Button variant="danger" onClick={() => onDelete(message)}>
+                Delete
+              </Button>
+            )
+          ) : (
             <Button variant="danger" onClick={() => onTakeBack(message)}>
               {automatic ? 'Clear' : 'Take back'}
             </Button>
@@ -78,7 +92,37 @@ export function MessageDetailsDialog({
             </Field>
           ) : null}
         </dl>
+        {!automatic && !message.retractedAt ? (
+          <div className="grid gap-4 border-t border-border pt-4 sm:grid-cols-2">
+            <PeopleList title={`Not opened yet (${notOpened.length})`} loading={recipients.isLoading} people={notOpened.map((r) => ({ key: r.userId, name: r.name, code: r.employeeCode, note: null }))} />
+            <PeopleList title={`Opened (${opened.length})`} loading={recipients.isLoading} people={opened.map((r) => ({ key: r.userId, name: r.name, code: r.employeeCode, note: r.readAt ? formatDateTime(r.readAt) : null }))} />
+          </div>
+        ) : null}
       </div>
     </Dialog>
+  );
+}
+
+function PeopleList({ title, loading, people }: { title: string; loading: boolean; people: Array<{ key: string; name: string; code: string; note: string | null }> }) {
+  return (
+    <section className="min-w-0">
+      <h3 className="mb-1.5 text-sm font-semibold text-text">{title}</h3>
+      {loading ? (
+        <p className="text-sm text-text-subtle">Loading…</p>
+      ) : people.length === 0 ? (
+        <p className="text-sm text-text-subtle">Nobody.</p>
+      ) : (
+        <ul className="max-h-56 space-y-1 overflow-y-auto text-sm">
+          {people.map((p) => (
+            <li key={p.key} className="flex items-baseline justify-between gap-2">
+              <span className="truncate">
+                {p.name} <span className="text-xs text-text-subtle">{p.code}</span>
+              </span>
+              {p.note ? <span className="shrink-0 text-xs text-text-muted">{p.note}</span> : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

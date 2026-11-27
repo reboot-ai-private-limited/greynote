@@ -13,7 +13,12 @@ export const myInboxQuerySchema = z.object({
   ...pageFields,
   // `z.coerce.boolean()` would turn the string "false" into true.
   unread: z.enum(['true', 'false']).optional().transform((v) => v === 'true'),
+  /** 2026-11-27: `active` (default) leaves out mail marked done; `done` lists only that. */
+  show: z.enum(['active', 'done']).optional(),
 });
+/** Several of the person's own messages at once (2026-11-27). */
+export const myIdsBodySchema = z.object({ ids: z.array(objectIdSchema).min(1).max(200) });
+export const myDoneBodySchema = myIdsBodySchema.extend({ done: z.boolean().default(true) });
 export const sentQuerySchema = z.object({ ...pageFields, source: z.enum(INBOX_SOURCES).optional() });
 export const clearNotificationsBodySchema = z.object({ olderThanDays: z.number().int().min(0).max(365).optional() });
 

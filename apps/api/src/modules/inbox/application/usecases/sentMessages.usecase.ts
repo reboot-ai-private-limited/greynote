@@ -1,4 +1,4 @@
-import type { InboxSource, SentInboxMessageDto } from '@greynote/contracts';
+import type { InboxRecipientDto, InboxSource, SentInboxMessageDto } from '@greynote/contracts';
 import { AppError } from '@/shared/errors/AppError.js';
 import { buildPaginatedResult, type PaginatedResult } from '@/shared/http/pagination.js';
 import type { InboxMessageRepositoryPort, InboxReceiptRepositoryPort } from '../../domain/inbox.repository.port.js';
@@ -55,6 +55,25 @@ export class SentMessagesUseCases {
     await this.receipts.deleteForMessage(messageId);
     const storage = this.storage;
     if (storage) await Promise.allSettled(message.attachments.map((a) => storage.remove(a.publicId, a.resourceType)));
+  }
+
+  /** Who a mail went to and when each opened it, not opened first (2026-11-27). A taken-back mail's copies are gone, so it lists nobody. */
+  async recipients(messageId: string, names: (userIds: string[]) => Promise<Array<{ id: string; name: string; employeeCode: string }>>): Promise<InboxRecipientDto[]> {
+    if (!(await this.messages.findById(messageId))) throw AppError.notFound('No such message.');
+    const rows = await this.receipts.listRecipients(messageId);
+    const byId = new Map((await names(rows.map((r) => r.userId))).map((u) => [u.id, u]));
+    return rows
+      .map((r) => ({ userId: r.userId, name: byId.get(r.userId)?.name ?? 'Former employee', employeeCode: byId.get(r.userId)?.employeeCode ?? '', readAt: r.readAt?.toISOString() ?? null }))
+      .sort((a, b) => Number(a.readAt !== null) - Number(b.readAt !== null) || a.name.localeCompare(b.name));
+  }
+
+  /** Deletes a mail for good — only once it has been taken back (2026-11-27), so nothing a recipient still sees can vanish by mistake. */
+  async deletePermanently(messageId: string): Promise<void> {
+    const message = await this.messages.findById(messageId);
+    if (!message) throw AppError.notFound('No such message.');
+    if (message.createdBy !== null && !message.retractedAt) throw AppError.conflict('Take this mail back first; only a taken-back mail can be deleted.');
+    await this.receipts.deleteForMessage(messageId);
+    await this.messages.deleteMany([messageId]);
   }
 
   /** Clears every system notification (or only those older than `olderThanDays`); admin mail is untouched. Returns how many went. */
