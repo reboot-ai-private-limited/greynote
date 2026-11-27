@@ -14,9 +14,13 @@ export interface HrPort {
 
 export interface PlanningPort {
   listDailyPlanDays(userId: string, from: string, to: string): Promise<Array<{ date: string; status: string; workingType: string }>>;
+  /** Many people at once (2026-11-27); optional so fakes need not add it. */
+  listDailyPlanDaysForUsers?(userIds: string[], from: string, to: string): Promise<Array<{ userId: string; days: Array<{ date: string; status: string; workingType: string }> }>>;
 }
 
 export interface FieldActivityPort {
   listReportedDates(userId: string, from: string, to: string): Promise<string[]>;
+  /** Many people at once (2026-11-27); optional so fakes need not add it. */
+  listReportedDatesForUsers?(userIds: string[], from: string, to: string): Promise<Array<{ userId: string; dates: string[] }>>;
   countDoctorCallsByDay(range: { from: string; to: string }): Promise<Array<{ userId: string; date: string; count: number }>>;
 }

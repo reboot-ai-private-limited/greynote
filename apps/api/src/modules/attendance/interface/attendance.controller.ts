@@ -23,12 +23,12 @@ export function makeAttendanceControllers(calendar: AttendanceCalendar, identity
       const { month } = req.query as unknown as z.output<typeof payrollCalendarQuerySchema>;
       const ids = await identity.listActiveFieldUserIds();
       const { from, to, dates } = monthBounds(month);
-      const [people, settings, calls] = await Promise.all([identity.getUserSummaries(ids), calendar.settings(), fieldActivity.countDoctorCallsByDay({ from, to })]);
+      const [people, settings, calls, pre] = await Promise.all([identity.getUserSummaries(ids), calendar.settings(), fieldActivity.countDoctorCallsByDay({ from, to }), calendar.prefetch(ids, month)]);
       const callsByDay = new Map(calls.map((c) => [`${c.userId}|${c.date}`, c.count]));
       const byId = new Map(people.map((p) => [p.id, p]));
       const rows: PayrollCalendarDto['rows'] = [];
       for (let i = 0; i < ids.length; i += 8) {
-        const batch = await Promise.all(ids.slice(i, i + 8).map(async (id) => ({ id, built: await calendar.statuses(id, month) })));
+        const batch = await Promise.all(ids.slice(i, i + 8).map(async (id) => ({ id, built: await calendar.statuses(id, month, pre.get(id)) })));
         for (const { id, built } of batch) {
           const user = byId.get(id);
           if (!user) continue;

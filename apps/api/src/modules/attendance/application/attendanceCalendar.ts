@@ -15,6 +15,12 @@ export function monthBounds(month: string): { from: string; to: string; dates: s
   return { from: dates[0]!, to: dates[last - 1]!, dates };
 }
 
+/** One person's plan days and reported days, read for many people at once (`AttendanceCalendar.prefetch`). */
+export interface Prefetched {
+  plans: Array<{ date: string; status: string; workingType: string }>;
+  reported: string[];
+}
+
 /**
  * Builds one employee's month, day by day, from the holiday calendar and weekly off, approved leave, the approved daily plan and the
  * submitted reports — a handful of queries per employee, not one per day. Reads only; the rule itself is `classifyDay`.
@@ -39,7 +45,21 @@ export class AttendanceCalendar {
     return businessDate(this.now(), timeZone, dayStart);
   }
 
-  async statuses(userId: string, month: string): Promise<{ dates: string[]; statuses: DayStatus[] }> {
+  /**
+   * For a calendar of many people (2026-11-27): everyone's plan days and reported days in a few queries, handed to `statuses` per person.
+   * Without the batched reads it returns nothing, and `statuses` reads per person as before.
+   */
+  async prefetch(userIds: string[], month: string): Promise<Map<string, Prefetched>> {
+    const { from, to } = monthBounds(month);
+    const out = new Map<string, Prefetched>();
+    if (!this.planning.listDailyPlanDaysForUsers || !this.fieldActivity.listReportedDatesForUsers || userIds.length === 0) return out;
+    const [plans, reported] = await Promise.all([this.planning.listDailyPlanDaysForUsers(userIds, from, to), this.fieldActivity.listReportedDatesForUsers(userIds, from, to)]);
+    const reportedOf = new Map(reported.map((r) => [r.userId, r.dates]));
+    for (const p of plans) out.set(p.userId, { plans: p.days, reported: reportedOf.get(p.userId) ?? [] });
+    return out;
+  }
+
+  async statuses(userId: string, month: string, pre?: Prefetched): Promise<{ dates: string[]; statuses: DayStatus[] }> {
     const { from, to, dates } = monthBounds(month);
     const { timeZone: zone } = await readBusinessDay(this.config);
     const [today, employment, off, holidays, leave, plans, reported] = await Promise.all([
@@ -48,8 +68,8 @@ export class AttendanceCalendar {
       this.hr.listOffDates(userId, from, to),
       this.hr.listHolidayDates(userId, from, to),
       this.hr.listLeaveDates(userId, from, to),
-      this.planning.listDailyPlanDays(userId, from, to),
-      this.fieldActivity.listReportedDates(userId, from, to),
+      pre ? pre.plans : this.planning.listDailyPlanDays(userId, from, to),
+      pre ? pre.reported : this.fieldActivity.listReportedDates(userId, from, to),
     ]);
     const joinedOn = employment?.dateOfJoining ? businessDate(employment.dateOfJoining, zone) /* a date of record: read at midnight, not shifted by the day start */ : null;
     const holidaySet = new Set(holidays);

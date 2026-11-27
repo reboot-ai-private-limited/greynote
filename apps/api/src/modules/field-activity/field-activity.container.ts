@@ -218,6 +218,7 @@ export function buildFieldActivityContainer(
       },
       hasQualifyingDcr: (userId, date) => hasQualifyingDcr.execute(userId, date),
       listReportedDates: (userId, from, to) => listReportedDates.execute(userId, from, to),
+      listReportedDatesForUsers: (userIds, from, to) => listReportedDates.many(userIds, from, to),
       getPaidTaDaTotal: (userId, month) => paidTaDa.execute(userId, month),
       summarizeExpenses: (range) => expenses.summarizeByMonth(range),
       getExpenseStatement: async (userId, month) => {

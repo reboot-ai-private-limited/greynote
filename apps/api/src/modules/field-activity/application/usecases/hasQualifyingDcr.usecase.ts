@@ -22,6 +22,16 @@ export class ListReportedDatesUseCase {
     private readonly approvals: ApprovalsPort,
   ) {}
 
+  /** `execute` for many people at once (2026-11-27): their DCRs in one query, the approvals in one more. */
+  async many(userIds: string[], from: string, to: string): Promise<Array<{ userId: string; dates: string[] }>> {
+    const dcrs = userIds.length > 0 ? await this.dcrs.listForUsers(userIds, from, to) : [];
+    const requests = new Map((dcrs.length > 0 ? await this.approvals.listForRecords(DCR_KIND, dcrs.map((d) => d.id)) : []).map((r) => [r.recordId, r]));
+    return userIds.map((userId) => ({
+      userId,
+      dates: [...new Set(dcrs.filter((d) => d.userId === userId && isQualifyingDcr(dcrStatus(requests.get(d.id) ?? null))).map((d) => d.reportDate))].sort(),
+    }));
+  }
+
   async execute(userId: string, from: string, to: string): Promise<string[]> {
     const dates: string[] = [];
     const dcrs = await this.dcrs.listForUsers([userId], from, to);
