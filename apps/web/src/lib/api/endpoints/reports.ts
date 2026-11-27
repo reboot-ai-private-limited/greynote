@@ -1,3 +1,4 @@
+import type { CallPerformanceReportDto, MissedDoctorDto } from '@greynote/contracts';
 import type { SalesByDistributorDto, SalesByEmployeeDto, SalesByProductDto, OrdersReportDto, ReportOrderDetailDto, SalesStatementDto, SalesYearReportDto, StockReportDto, TaDaDaysDto, TaDaYearReportDto, DcrCoverageDto, DcrYearReportDto, SalaryYearReportDto, SalesDashboardDto, EmployeeSalesReportDto, DoctorVisitsReportDto } from '@greynote/contracts';
 import { request, requestFile } from '../client';
 
@@ -72,7 +73,19 @@ export const reportsApi = {
 
   /** Each doctor's visit frequency against the calls made in a month, per employee. Omit `userId` for everyone you may see. */
   doctorVisits: (token: string, query: { month: string; userId?: string | undefined }, signal?: AbortSignal) => request<DoctorVisitsReportDto>('/reports/doctor-visits', { token, query: { ...query }, signal }),
+  /** Call average and coverage per employee over whole months (2026-11-27). */
+  callPerformance: (token: string, query: CallPerformanceQuery, signal?: AbortSignal) => request<CallPerformanceReportDto>('/reports/call-performance', { token, query: { ...query }, signal }),
+  callPerformanceMissed: (token: string, userId: string, query: { fromMonth: string; toMonth: string }, signal?: AbortSignal) =>
+    request<MissedDoctorDto[]>(`/reports/call-performance/${userId}/missed`, { token, query: { ...query }, signal }),
 
   /** Net pay by employee and month, month totals and the TA/DA cost for a financial year. */
   salaryYear: (token: string, query: { year: number }, signal?: AbortSignal) => request<SalaryYearReportDto>('/reports/salary', { token, query: { ...query }, signal }),
 };
+
+export interface CallPerformanceQuery {
+  fromMonth: string;
+  toMonth: string;
+  zoneId?: string | undefined;
+  hqId?: string | undefined;
+  managerId?: string | undefined;
+}

@@ -250,3 +250,26 @@ export interface ExpenseStatementPort {
 export interface LeaveDaysPort {
   listLeaveDays(userId: string, from: string, to: string): Promise<Array<{ date: string; portion: number; paid: boolean }>>;
 }
+
+/** Call average and coverage (2026-11-27): Field Activity's counted daily reports with their calls, and each employee's calls per Doctor. */
+export interface CallFiguresPort {
+  callFigures(
+    range: { from: string; to: string },
+    userIds?: string[],
+  ): Promise<{ days: Array<{ userId: string; date: string; doctorCalls: number; chemistCalls: number }>; doctorCalls: Array<{ userId: string; doctorId: string; count: number }> }>;
+}
+
+/** The working type of each planned day: which counted daily reports are field days. */
+export interface DayTypesPort {
+  listDailyPlanDays(userId: string, from: string, to: string): Promise<Array<{ date: string; workingType: string }>>;
+}
+
+/** The doctors an employee holds, with what the missed-doctors list shows. */
+export interface HeldDoctorsPort {
+  listAssignedDoctors(userId: string): Promise<Array<{ id: string; name: string; specialty: string; address?: string; placeId?: string | null; visitFrequency?: number | null }>>;
+}
+
+/** Place names for the missed-doctors list. */
+export interface PlaceNamesPort {
+  getPlaces(placeIds: string[]): Promise<Array<{ id: string; name: string }>>;
+}

@@ -7,6 +7,7 @@ import { sendSuccess } from '@/shared/http/response.util.js';
 import type { DcrReport } from '../application/dcrReport.js';
 import type { OrdersReport } from '../application/ordersReport.js';
 import type { DoctorVisitsReport } from '../application/doctorVisitsReport.js';
+import type { CallPerformanceReport } from '../application/callPerformanceReport.js';
 import type { EmployeeSalesReport } from '../application/employeeSalesReport.js';
 import type { EmployeeMonthlyWorkReport } from '../application/employeeMonthlyWorkReport.js';
 import { buildTourPlanWorkbook } from '../application/tourPlanXlsx.js';
@@ -21,9 +22,9 @@ import type { SalesReport } from '../application/salesReport.js';
 import type { SalaryReport } from '../application/salaryReport.js';
 import type { StockReport } from '../application/stockReport.js';
 import type { TaDaReport } from '../application/taDaReport.js';
-import type { myMonthQuerySchema, doctorVisitsQuerySchema, dcrCoverageQuerySchema, employeeSalesQuerySchema, secondarySheetQuerySchema, employeeMonthQuerySchema, tourPlanQuerySchema, dcrYearQuerySchema, ordersQuerySchema, salaryYearQuerySchema, salesDashboardQuerySchema, salesByProductQuerySchema, salesByDistributorQuerySchema, salesByEmployeeQuerySchema, teamOverviewQuerySchema, salesStatementQuerySchema, salesYearQuerySchema, stockQuerySchema, taDaDaysQuerySchema, taDaYearQuerySchema } from './reports.schemas.js';
+import type { callPerformanceMissedQuerySchema, callPerformanceQuerySchema, myMonthQuerySchema, doctorVisitsQuerySchema, dcrCoverageQuerySchema, employeeSalesQuerySchema, secondarySheetQuerySchema, employeeMonthQuerySchema, tourPlanQuerySchema, dcrYearQuerySchema, ordersQuerySchema, salaryYearQuerySchema, salesDashboardQuerySchema, salesByProductQuerySchema, salesByDistributorQuerySchema, salesByEmployeeQuerySchema, teamOverviewQuerySchema, salesStatementQuerySchema, salesYearQuerySchema, stockQuerySchema, taDaDaysQuerySchema, taDaYearQuerySchema } from './reports.schemas.js';
 
-export function makeReportsControllers(orders: OrdersReport, sales: SalesReport, stock: StockReport, taDa: TaDaReport, dcr: DcrReport, salary: SalaryReport, salesDashboard: SalesDashboardReport, employeeSales: EmployeeSalesReport, doctorVisits: DoctorVisitsReport, teamOverview: TeamOverviewReport, breakdown: SalesBreakdownReport, secondarySheet: SecondarySheetReport, monthlyWork: EmployeeMonthlyWorkReport, tourPlan: TourPlanReport): Record<'tourPlanSheet' | 'monthlyWorkSheet' | 'secondarySheet' | 'salesByProduct' | 'salesByDistributor' | 'salesByEmployee' | 'orders' | 'doctorVisits' | 'teamOverview' | 'salesDashboard' | 'employeeSales' | 'order' | 'salesYear' | 'salesStatement' | 'stock' | 'taDaYear' | 'taDaDays' | 'dcrYear' | 'dcrCoverage' | 'salaryYear' | 'myTaDaYear' | 'myTaDaDays' | 'myDcrYear' | 'myDcrCoverage', RequestHandler> {
+export function makeReportsControllers(orders: OrdersReport, sales: SalesReport, stock: StockReport, taDa: TaDaReport, dcr: DcrReport, salary: SalaryReport, salesDashboard: SalesDashboardReport, employeeSales: EmployeeSalesReport, doctorVisits: DoctorVisitsReport, teamOverview: TeamOverviewReport, breakdown: SalesBreakdownReport, secondarySheet: SecondarySheetReport, monthlyWork: EmployeeMonthlyWorkReport, tourPlan: TourPlanReport, callPerformance: CallPerformanceReport): Record<'callPerformance' | 'callPerformanceMissed' | 'tourPlanSheet' | 'monthlyWorkSheet' | 'secondarySheet' | 'salesByProduct' | 'salesByDistributor' | 'salesByEmployee' | 'orders' | 'doctorVisits' | 'teamOverview' | 'salesDashboard' | 'employeeSales' | 'order' | 'salesYear' | 'salesStatement' | 'stock' | 'taDaYear' | 'taDaDays' | 'dcrYear' | 'dcrCoverage' | 'salaryYear' | 'myTaDaYear' | 'myTaDaDays' | 'myDcrYear' | 'myDcrCoverage', RequestHandler> {
   return {
     orders: asyncHandler(async (req, res) => {
       const q = req.query as unknown as z.output<typeof ordersQuerySchema>;
@@ -135,6 +136,16 @@ export function makeReportsControllers(orders: OrdersReport, sales: SalesReport,
       if (!req.user) throw AppError.unauthenticated();
       const q = req.query as unknown as z.output<typeof teamOverviewQuerySchema>;
       sendSuccess(req, res, await teamOverview.read({ actor: { id: req.user.sub, role: req.user.role }, month: q.month, scope: q.scope, userId: q.userId, search: q.search, page: q.page, pageSize: q.pageSize }), 'The team overview.', 200);
+    }),
+    callPerformance: asyncHandler(async (req, res) => {
+      if (!req.user) throw AppError.unauthenticated();
+      const q = req.query as unknown as z.output<typeof callPerformanceQuerySchema>;
+      sendSuccess(req, res, await callPerformance.read({ actor: { id: req.user.sub, role: req.user.role }, ...q }), 'Call average and coverage.', 200);
+    }),
+    callPerformanceMissed: asyncHandler(async (req, res) => {
+      if (!req.user) throw AppError.unauthenticated();
+      const q = req.query as unknown as z.output<typeof callPerformanceMissedQuerySchema>;
+      sendSuccess(req, res, await callPerformance.missed({ actor: { id: req.user.sub, role: req.user.role }, userId: String(req.params['userId']), ...q }), 'Doctors with no call in the period.', 200);
     }),
     doctorVisits: asyncHandler(async (req, res) => {
       if (!req.user) throw AppError.unauthenticated();

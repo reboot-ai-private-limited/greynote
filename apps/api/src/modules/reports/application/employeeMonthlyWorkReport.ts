@@ -1,7 +1,9 @@
 import { AppError } from '@/shared/errors/AppError.js';
 import { readBusinessDay, readConfig, type ConfigReader } from '@/shared/config/readConfig.js';
 import { businessDate, monthRange, parseMonthName } from '@/shared/time/businessTime.js';
+import type { CallPerformanceRowDto } from '@greynote/contracts';
 import { fyLabel } from '../domain/secondarySheet.js';
+import type { CallPerformanceReport } from './callPerformanceReport.js';
 import { buildDailyWork, type DailyWork, type DayInput } from '../domain/dailyWork.js';
 import type { AttendancePort, DailyWorkActivityPort, DailyWorkPlanningPort, DoctorNamesPort, ExpenseStatementPort, FieldActivityPort, FieldRosterPort, IdentityPort, LeaveDaysPort, MasterPort, SalesPort, TerritoryPort } from '../domain/ports.js';
 
@@ -19,6 +21,8 @@ export interface EmployeeMonthlyWorkModel {
   /** "2026-27": the financial year the month is in. */
   financialYear: string;
   expenseMonth: { status: 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED'; paidPaise: number };
+  /** Call average and coverage for the month (2026-11-27); null when it isn't wired (tests of other parts) or the person isn't a field employee. */
+  callPerformance: CallPerformanceRowDto | null;
 }
 
 const datesOf = (from: string, to: string): string[] => {
@@ -46,6 +50,7 @@ export class EmployeeMonthlyWorkReport {
     private readonly leaves: LeaveDaysPort,
     private readonly config: ConfigReader,
     private readonly now: () => Date = () => new Date(),
+    private readonly calls?: Pick<CallPerformanceReport, 'forEmployee'>,
   ) {}
 
   async read(input: EmployeeMonthlyWorkInput): Promise<EmployeeMonthlyWorkModel> {
@@ -130,7 +135,8 @@ export class EmployeeMonthlyWorkReport {
 
     const targets = assigned.filter((d) => d.visitFrequency != null).map((d) => ({ doctorId: d.id, name: d.name, frequency: d.visitFrequency! }));
     const work = buildDailyWork({ month, dates, days, today, names, targets, planned });
-    return { employee: { id: input.userId, name: who?.name ?? summary!.name, employeeCode: who?.employeeCode ?? summary!.employeeCode, designation: who?.designation ?? null }, work, financialYear, expenseMonth: { status: statement.status, paidPaise: statement.paidPaise } };
+    const callPerformance = this.calls ? await this.calls.forEmployee(input.userId, month, month) : null;
+    return { employee: { id: input.userId, name: who?.name ?? summary!.name, employeeCode: who?.employeeCode ?? summary!.employeeCode, designation: who?.designation ?? null }, work, financialYear, expenseMonth: { status: statement.status, paidPaise: statement.paidPaise }, callPerformance };
   }
 
   private async assertMayRead(actor: { id: string; role: string }, userId: string): Promise<void> {

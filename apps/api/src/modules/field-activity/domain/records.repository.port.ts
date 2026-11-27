@@ -28,6 +28,8 @@ export interface DoctorCallRepositoryPort {
   distinctDoctorIds(dcrIds: string[]): Promise<string[]>;
   /** How many calls each Doctor had in these daily reports. */
   countByDoctor(dcrIds: string[]): Promise<Array<{ doctorId: string; count: number }>>;
+  /** Calls in these DCRs per employee and Doctor (call average and coverage, 2026-11-27). */
+  countByUserAndDoctor(dcrIds: string[]): Promise<Array<{ userId: string; doctorId: string; count: number }>>;
   create(input: Omit<DoctorCall, 'id'>, ctx: TransactionContext): Promise<DoctorCall>;
   /** The days (`YYYY-MM-DD`, both ends inclusive) this employee has a call on this doctor; read in `ctx` so a record of the same push counts. */
   listVisitDates(userId: string, doctorId: string, range: { from: string; to: string }, ctx?: TransactionContext): Promise<string[]>;

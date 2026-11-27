@@ -155,6 +155,23 @@ export async function buildMonthlyWorkWorkbook(m: EmployeeMonthlyWorkModel): Pro
   line('Missed visits', o.targets.missed, o.targets.missed > 0 ? RED_FILL : undefined, true);
   line('Doctors not called at all this month', o.targets.notCalled, o.targets.notCalled > 0 ? RED_FILL : undefined, true);
   r += 1;
+  const cp = m.callPerformance;
+  if (cp) {
+    // 2026-11-27: the month's call average and coverage, the same figures as the Call average & coverage report.
+    const pctText = (v: number | null) => (v === null ? '—' : `${v}%`);
+    section(cp.scope === 'TEAM' ? 'Call average & coverage (coverage: the team’s doctors)' : 'Call average & coverage');
+    line('Field working days (counted DCRs)', cp.fieldDays);
+    line('Doctor call average (per field day)', cp.doctorCallAvg ?? '—', undefined, true);
+    line('Chemist call average (per field day)', cp.chemistCallAvg ?? '—');
+    line('Doctors held', cp.coverage.doctors);
+    line('Doctors met at least once', cp.coverage.met, GREEN_FILL);
+    line('Doctor coverage', pctText(cp.coverage.coveragePct), undefined, true);
+    line('Met as often as their frequency', `${cp.coverage.metFully} of ${cp.coverage.withFrequency}`);
+    line('Frequency coverage', pctText(cp.coverage.frequencyPct), undefined, true);
+    line('Visit compliance (visits made of those owed)', `${cp.coverage.made} of ${cp.coverage.required} · ${pctText(cp.coverage.compliancePct)}`);
+    line('Doctors never met', cp.coverage.missed, cp.coverage.missed > 0 ? RED_FILL : undefined);
+    r += 1;
+  }
   section('Calls and orders');
   line('Doctor calls', o.calls.doctor);
   line('Chemist calls', o.calls.chemist);

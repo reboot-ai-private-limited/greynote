@@ -13,6 +13,7 @@ import { getRejectionReason, workingTypeLabel, type DailyPlanDetail, type Monthl
 import { useCachedFetch } from '@/offline/cached-fetch';
 import { datesInMonth, formatWhen, prettyDay, prettyMonth } from '@/offline/day';
 
+import { CallPerformanceCard } from './call-performance-card';
 import { Notice } from './notice';
 import { PrimaryButton } from './primary-button';
 import { ReportCards } from './report-cards';
@@ -53,6 +54,7 @@ export function DcrReport({ month, year }: { month: string; year: number }) {
   const year_ = useCachedFetch(`rep-dcr-year:${year}`, () => getMyDcrYear(year));
   const coverage = useCachedFetch(`rep-dcr-cover:${year}:${month}`, () => getMyDcrCoverage(month));
   const figures = year_.data?.months.find((m) => m.month === month) ?? null;
+  const me = useSessionUser();
 
   return (
     <View style={styles.stack}>
@@ -71,6 +73,7 @@ export function DcrReport({ month, year }: { month: string; year: number }) {
           </ThemedText>
         </>
       ) : null}
+      {me ? <CallPerformanceCard userId={me.id} month={month} /> : null}
       {coverage.data ? (
         <InfoCard>
           <ThemedText type="smallBold">{`Doctors visited: ${coverage.data.visited} of ${coverage.data.assigned}`}</ThemedText>

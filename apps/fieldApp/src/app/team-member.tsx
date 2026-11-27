@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { CallPerformanceCard } from '@/components/call-performance-card';
 import { MonthStepper } from '@/components/month-stepper';
 import { Notice } from '@/components/notice';
 import { ScreenShell } from '@/components/screen-shell';
@@ -144,6 +145,7 @@ export default function TeamMemberScreen() {
                   ]}
                 />
                 <DoctorsMonthCard userId={String(id)} month={month} doctorCalls={o.field.doctorCalls} onOpen={() => router.push({ pathname: '/team-doctor-metrics', params: { id: String(id), month } })} />
+                <CallPerformanceCard userId={String(id)} month={month} />
                 <CardSection icon={sym('phone', 'call')} accent="green" title="Field work">
                   <ThemedText type="small">{`${o.field.calls} calls (${o.field.doctorCalls} doctor, ${o.field.chemistCalls} chemist) · ${o.field.followups} follow-up${o.field.followups === 1 ? '' : 's'}`}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">{`${o.field.reportedDays} days reported · ${o.field.lateDays} late · ${o.field.callsPerDay === null ? 'no calls per day yet' : `${o.field.callsPerDay.toFixed(1)} calls a day`}`}</ThemedText>

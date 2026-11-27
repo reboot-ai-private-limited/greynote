@@ -22,6 +22,10 @@ export const dcrCoverageQuerySchema = z.object({ userId: objectId, month: monthS
 /** The employee's own reports (/reports/me): the person is always the signed-in user, so there is no userId to send. */
 export const myMonthQuerySchema = z.object({ month: monthSchema });
 export const doctorVisitsQuerySchema = z.object({ month: monthSchema, userId: objectId.optional() });
+/** Call average & coverage (2026-11-27): whole months, optionally one zone, HQ or manager's team. */
+export const callPerformanceQuerySchema = z.object({ fromMonth: monthSchema, toMonth: monthSchema, zoneId: objectId.optional(), hqId: objectId.optional(), managerId: objectId.optional() });
+export const callPerformanceMissedQuerySchema = z.object({ fromMonth: monthSchema, toMonth: monthSchema });
+export const userIdParamsSchema = z.object({ userId: objectId });
 export const salaryYearQuerySchema = z.object({ year: z.coerce.number().int().min(2000).max(2100) });
 
 export const salesDashboardQuerySchema = z

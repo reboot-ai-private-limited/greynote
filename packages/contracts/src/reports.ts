@@ -398,6 +398,64 @@ export interface DoctorVisitsReportDto {
   totals: { quota: number; made: number; missed: number; doctors: number; completedDoctors: number; notCalled: number; carried: number };
 }
 
+// ── Call average & coverage (2026-11-27) ─────────────────────────────────────────────────────────
+
+/** How well a doctor list (MCL) was covered in a period: met at least once, met as often as its visit frequency, and visits made of those owed. */
+export interface CallCoverageDto {
+  /** Active doctors held: the employee's own, or for a manager their team's (`scope: 'TEAM'`; managers hold none). */
+  doctors: number;
+  /** Doctors with at least one call. */
+  met: number;
+  /** Doctors with a visit frequency, and of them those called at least frequency × months times. */
+  withFrequency: number;
+  metFully: number;
+  /** Σ frequency × months, and Σ min(calls, that) — extra calls on one doctor don't make up for another. */
+  required: number;
+  made: number;
+  /** Doctors with no call. */
+  missed: number;
+  /** Whole percentages, `null` when there is nothing to divide by. */
+  coveragePct: number | null;
+  frequencyPct: number | null;
+  compliancePct: number | null;
+}
+
+export interface CallPerformanceRowDto {
+  employee: { id: string; name: string; employeeCode: string; designation: string | null };
+  isManager: boolean;
+  /** Counted daily reports on a Field Work or Doctor Campaign day. */
+  fieldDays: number;
+  doctorCalls: number;
+  chemistCalls: number;
+  /** Calls ÷ field days, one decimal; `null` with no field day. */
+  doctorCallAvg: number | null;
+  chemistCallAvg: number | null;
+  /** `OWN` for an MR (their doctors), `TEAM` for a manager (every doctor held below them, called by its holder). */
+  scope: 'OWN' | 'TEAM';
+  coverage: CallCoverageDto;
+}
+
+/** `GET /reports/call-performance?fromMonth=&toMonth=&zoneId=&hqId=&managerId=`. Totals are over the MRs' own rows (never doubled by a manager's team row). */
+export interface CallPerformanceReportDto {
+  fromMonth: string;
+  toMonth: string;
+  rows: CallPerformanceRowDto[];
+  totals: Omit<CallPerformanceRowDto, 'employee' | 'isManager' | 'scope'>;
+}
+
+/** `GET /reports/call-performance/:userId/missed?fromMonth=&toMonth=`: the doctors held with no call in the period (a manager's: their team's). */
+export interface MissedDoctorDto {
+  id: string;
+  name: string;
+  specialty: string;
+  /** The Area (road or locality) and the place. */
+  address: string;
+  placeName: string | null;
+  visitFrequency: number | null;
+  /** Who holds it (useful on a manager's list). */
+  heldBy: { id: string; name: string } | null;
+}
+
 // ── Salary (sign-off K30) ────────────────────────────────────────────────────────────────────────
 
 /** What a month's finalized salary runs came to, whole paise. Draft runs are never in these figures. */

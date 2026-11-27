@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { DoctorCallsPort, FieldRosterPort, MasterPort, PlannedDoctorsPort } from '../domain/ports.js';
+import type { CallFiguresPort, FieldRosterPort, MasterPort, PlannedDoctorsPort } from '../domain/ports.js';
 import { DoctorVisitsReport } from './doctorVisitsReport.js';
 
 const emp = (id: string, name: string) => ({ id, name, employeeCode: `E-${id}`, designation: null, hqId: null, zoneId: null });
@@ -19,7 +19,13 @@ const doctors: Record<string, Array<{ id: string; name: string; specialty: strin
   mr2: [{ id: 'd4', name: 'Dr D', specialty: 'ENT', visitFrequency: 1 }],
 };
 const master = { listAssignedDoctors: async (id: string) => doctors[id] ?? [] } as unknown as MasterPort;
-const fieldActivity: DoctorCallsPort = { countDoctorCalls: async () => [{ doctorId: 'd1', count: 1 }, { doctorId: 'd2', count: 5 }, { doctorId: 'd3', count: 3 }] };
+// mr1's own calls; mr2's call on d1 must not count for mr1 (2026-11-27: by the employee only).
+const fieldActivity: CallFiguresPort = {
+  callFigures: async () => ({
+    days: [],
+    doctorCalls: [{ userId: 'mr1', doctorId: 'd1', count: 1 }, { userId: 'mr1', doctorId: 'd2', count: 5 }, { userId: 'mr1', doctorId: 'd3', count: 3 }, { userId: 'mr2', doctorId: 'd1', count: 2 }],
+  }),
+};
 const planning: PlannedDoctorsPort = { listPlannedDoctors: async (id) => (id === 'mr1' ? [{ doctorId: 'd1', plannedDays: 2, missedSince: '2026-10-05' }] : []) };
 const report = new DoctorVisitsReport(roster, master, fieldActivity, planning);
 

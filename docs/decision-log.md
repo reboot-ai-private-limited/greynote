@@ -3171,3 +3171,16 @@ The Secondary Sales performance sheet (Excel, shown on the web's Secondary sales
 A doctor not on today's plan, or a chemist not at today's place, is logged from Follow-up as before (no extra link on the call screens). Follow-up rules are unchanged (geofence, field days only, visit gap).
 
 **Needs a migration:** no.
+
+## 2026-11-27: Call average and coverage
+
+**Context.** The standard field-force numbers (call average; doctor coverage and frequency compliance over the MR's doctor list, the MCL) were not reported anywhere.
+
+**Decision.** Per employee over whole months (`GET /reports/call-performance?fromMonth=&toMonth=&zoneId=&hqId=&managerId=`, `…/:userId/missed`):
+- **Field working days**: counted daily reports — final by the `DCR_APPROVAL_REQUIRED` rule — whose planned day is Field Work or Doctor Campaign (a report with no plan row counts when it has calls). **Doctor / chemist call average** = calls on those days ÷ field days, one decimal.
+- **Coverage** of the doctors held now: **doctor coverage** = met at least once ÷ held; **frequency coverage** = met at least frequency × months ÷ those with a frequency; **visit compliance** = Σ min(calls, frequency × months) ÷ Σ frequency × months; **never met** listed. Only the holder's own calls count.
+- **Managers**: their own calls and averages; coverage is their team's (they hold no doctors). Totals count the MRs once.
+- Admin reads everyone; a field employee themself and their downline. Shown on the web report (Excel and CSV), the Monthly Work Excel (Overview block), and the phone's Reports and team member screens.
+- **Fix**: the Doctor visits report counted a doctor's calls by anyone; it now counts the employee's own, on counted reports (`callFigures`).
+
+**Needs a migration:** no.

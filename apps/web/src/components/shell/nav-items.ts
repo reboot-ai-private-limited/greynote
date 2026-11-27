@@ -98,6 +98,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Stock report', href: '/reports/stock', icon: Boxes, group: 'Reports', roles: ['ADMIN'] },
   { label: 'Daily reports', href: '/reports/dcr', icon: ClipboardList, group: 'Reports', roles: ['ADMIN'] },
   { label: 'Doctor visits', href: '/reports/doctor-visits', icon: Stethoscope, group: 'Reports', roles: ['ADMIN'] },
+  { label: 'Call average & coverage', href: '/reports/call-performance', icon: Stethoscope, group: 'Reports', roles: ['ADMIN'] },
   { label: 'TA/DA report', href: '/reports/ta-da', icon: MapPinned, group: 'Reports', roles: ['ADMIN'] },
   { label: 'Salary report', href: '/reports/salary', icon: PiggyBank, group: 'Reports', roles: ['ADMIN'] },
 

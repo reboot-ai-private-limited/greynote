@@ -144,6 +144,14 @@ export class MongoDoctorCallAdapter implements DoctorCallRepositoryPort {
     ]);
     return rows.map((r) => ({ doctorId: String(r._id), count: r.count }));
   }
+  async countByUserAndDoctor(dcrIds: string[]): Promise<Array<{ userId: string; doctorId: string; count: number }>> {
+    if (dcrIds.length === 0) return [];
+    const rows = await DoctorCallModel.aggregate<{ _id: { userId: unknown; doctorId: unknown }; count: number }>([
+      { $match: { dcrId: { $in: dcrIds.map(oid) } } },
+      { $group: { _id: { userId: '$userId', doctorId: '$doctorId' }, count: { $sum: 1 } } },
+    ]);
+    return rows.map((r) => ({ userId: String(r._id.userId), doctorId: String(r._id.doctorId), count: r.count }));
+  }
   async create(input: Omit<DoctorCall, 'id'>, ctx: TransactionContext): Promise<DoctorCall> {
     const [doc] = await DoctorCallModel.create(
       [{ ...callColumns(input), doctorId: oid(input.doctorId), workWith: input.workWith.map(oid), notInPlan: input.notInPlan, routeNotInPlan: input.routeNotInPlan, samples: input.samples.map((s) => ({ allocationId: s.allocationId ? oid(s.allocationId) : null, productId: oid(s.productId), quantity: s.quantity })), lbl: input.lbl.map((l) => ({ productId: oid(l.productId) })) }],

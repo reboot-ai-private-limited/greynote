@@ -71,6 +71,8 @@ const SCOPED = [
   '/api/reports/dcr',
   '/api/reports/dcr/coverage',
   '/api/reports/doctor-visits',
+  '/api/reports/call-performance',
+  '/api/reports/call-performance/:userId/missed',
   '/api/reports/me/ta-da',
   '/api/reports/me/ta-da/days',
   '/api/reports/me/dcr',

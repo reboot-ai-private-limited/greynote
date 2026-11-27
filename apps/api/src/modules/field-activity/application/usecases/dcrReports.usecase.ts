@@ -158,3 +158,42 @@ export class CountDoctorCallsByDayUseCase {
     });
   }
 }
+
+/** What `CallFiguresUseCase` returns: each counted daily report's call counts, and the doctor calls per employee and Doctor. */
+export interface CallFigures {
+  /** One row per counted daily report (also one with no calls): the employee, its day, and its doctor and chemist calls. */
+  days: Array<{ userId: string; date: string; doctorCalls: number; chemistCalls: number }>;
+  /** Doctor calls per employee and Doctor over those reports. */
+  doctorCalls: Array<{ userId: string; doctorId: string; count: number }>;
+}
+
+/**
+ * The call average and coverage reports' input (2026-11-27), over a date range (both ends inclusive): the counted daily reports — final, by
+ * the same rule as `CountDoctorCallsByDayUseCase` (approved while `DCR_APPROVAL_REQUIRED` is on, submitted or later when off) — with their
+ * calls, and each employee's calls per Doctor. A handful of queries however many reports.
+ */
+export class CallFiguresUseCase {
+  constructor(
+    private readonly dcrs: DcrRepositoryPort,
+    private readonly approvals: ApprovalsPort,
+    private readonly doctorCalls: DoctorCallRepositoryPort,
+    private readonly chemistCalls: ChemistCallRepositoryPort,
+    private readonly config: ConfigReader,
+  ) {}
+
+  async execute(range: { from: string; to: string }, userIds?: string[]): Promise<CallFigures> {
+    const approvalRequired = await readConfig(this.config, 'DCR_APPROVAL_REQUIRED', parseBoolean);
+    const all = userIds ? await this.dcrs.listForUsers(userIds, range.from, range.to) : await this.dcrs.listRange(range.from, range.to);
+    const requests = new Map((await this.approvals.listForRecords(DCR_KIND, all.map((d) => d.id))).map((r) => [r.recordId, r]));
+    const counted = all.filter((d) => {
+      const status = dcrStatus(requests.get(d.id) ?? null);
+      return approvalRequired ? isApprovedDcr(status) : isQualifyingDcr(status);
+    });
+    const ids = counted.map((d) => d.id);
+    const [doctor, chemist, perDoctor] = await Promise.all([this.doctorCalls.countForDcrs(ids), this.chemistCalls.countForDcrs(ids), this.doctorCalls.countByUserAndDoctor(ids)]);
+    return {
+      days: counted.map((d) => ({ userId: d.userId, date: d.reportDate, doctorCalls: doctor.get(d.id) ?? 0, chemistCalls: chemist.get(d.id) ?? 0 })),
+      doctorCalls: perDoctor,
+    };
+  }
+}

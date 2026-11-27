@@ -57,3 +57,32 @@ export const getMyTaDaYear = (year: number) => apiGet<TaDaYear>(`/reports/me/ta-
 export const getMyTaDaDays = (month: string) => apiGet<TaDaDays>(`/reports/me/ta-da/days?month=${month}`, { fy: true });
 export const getMyDcrYear = (year: number) => apiGet<DcrYear>(`/reports/me/dcr?year=${year}`, { fy: true });
 export const getMyDcrCoverage = (month: string) => apiGet<DcrCoverage>(`/reports/me/dcr/coverage?month=${month}`, { fy: true });
+
+/** Call average and coverage for one month (2026-11-27): your own row, and your team's when you manage one. */
+export type CallCoverage = {
+  doctors: number;
+  met: number;
+  withFrequency: number;
+  metFully: number;
+  required: number;
+  made: number;
+  missed: number;
+  coveragePct: number | null;
+  frequencyPct: number | null;
+  compliancePct: number | null;
+};
+export type CallPerformanceRow = {
+  employee: { id: string; name: string; employeeCode: string; designation: string | null };
+  isManager: boolean;
+  fieldDays: number;
+  doctorCalls: number;
+  chemistCalls: number;
+  doctorCallAvg: number | null;
+  chemistCallAvg: number | null;
+  scope: 'OWN' | 'TEAM';
+  coverage: CallCoverage;
+};
+export type CallPerformance = { fromMonth: string; toMonth: string; rows: CallPerformanceRow[] };
+
+/** You and everyone below you, for a month. */
+export const getCallPerformance = (month: string) => apiGet<CallPerformance>(`/reports/call-performance?fromMonth=${month}&toMonth=${month}`, { fy: true });

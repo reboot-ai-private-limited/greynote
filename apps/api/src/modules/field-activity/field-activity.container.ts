@@ -35,7 +35,7 @@ import { ListExpensePayoutsUseCase, PayMonthExpensesUseCase } from './applicatio
 import { GetPaidTaDaTotalUseCase, ListExpensesUseCase, MarkExpensePaidUseCase } from './application/usecases/accountantExpenses.usecase.js';
 import { RunMissedDcrCheckUseCase } from './application/usecases/runMissedDcrCheck.usecase.js';
 import type { LeavePort } from './domain/leave.port.js';
-import { CountDoctorCallsByDayUseCase, CountDoctorCallsUseCase, ListCalledDoctorsUseCase, SummarizeDcrsUseCase } from './application/usecases/dcrReports.usecase.js';
+import { CallFiguresUseCase, CountDoctorCallsByDayUseCase, CountDoctorCallsUseCase, ListCalledDoctorsUseCase, SummarizeDcrsUseCase } from './application/usecases/dcrReports.usecase.js';
 import { GetDayActivityUseCase } from './application/usecases/getDayActivity.usecase.js';
 import { GetDcrSummaryUseCase } from './application/usecases/getDcrSummary.usecase.js';
 import { RequestGiftUseCase, ReviewGiftRequestUseCase, AllocateGiftUseCase, CreateAdminDoctorServiceUseCase, DOCTOR_SERVICE_KIND, GetDoctorServiceUseCase, MarkDoctorServiceDoneUseCase, ListDoctorServicesUseCase, SummariseDoctorServicesUseCase, ListGiftsUseCase, ListServicesForDoctorsUseCase, MarkGiftDoneUseCase, SubmitDoctorServiceUseCase } from './application/usecases/servicesAndGifts.usecase.js';
@@ -154,6 +154,7 @@ export function buildFieldActivityContainer(
   const listCalledDoctors = new ListCalledDoctorsUseCase(dcrs, approvals, doctorCalls);
   const countDoctorCalls = new CountDoctorCallsUseCase(dcrs, approvals, doctorCalls);
   const countDoctorCallsByDay = new CountDoctorCallsByDayUseCase(dcrs, approvals, doctorCalls, config);
+  const callFigures = new CallFiguresUseCase(dcrs, approvals, doctorCalls, chemistCalls, config);
   const paidTaDa = new GetPaidTaDaTotalUseCase(expenses, clock);
   const dayActivity = new GetDayActivityUseCase(dcrs, views, doctorCalls, chemistCalls, followups, master);
   const dcrSummary = new GetDcrSummaryUseCase(dcrs, views, doctorCalls, chemistCalls, followups, expenses);
@@ -256,6 +257,7 @@ export function buildFieldActivityContainer(
       summarizeTaDaByUser: async (range) => (await expenses.statementsForRange(range)).map((s) => ({ userId: s.userId, taPaise: s.paid.taPaise + s.unpaid.taPaise, daPaise: s.paid.daPaise + s.unpaid.daPaise })),
       summarizeDcrs: (range) => summarizeDcrs.execute(range),
       countDoctorCallsByDay: (range) => countDoctorCallsByDay.execute(range),
+      callFigures: (range, userIds) => callFigures.execute(range, userIds),
       listCalledDoctorIds: (userId, range) => listCalledDoctors.execute(userId, range),
       countDoctorCalls: (range) => countDoctorCalls.execute(range),
       listAcceptedExpenses: (f) => expenses.listAccepted({ from: f.from, to: f.to, ...(f.userId && { userId: f.userId }) }, f.limit ?? 2000),

@@ -1,13 +1,13 @@
 import type { Expense } from './domain/expense.entity.js';
 import type { ExpenseMonthSummary } from './domain/records.repository.port.js';
-import type { DcrMonthSummary } from './application/usecases/dcrReports.usecase.js';
+import type { CallFigures, DcrMonthSummary } from './application/usecases/dcrReports.usecase.js';
 import type { DoctorServiceView } from './application/usecases/servicesAndGifts.usecase.js';
 import type { DayActivity } from './application/usecases/getDayActivity.usecase.js';
 import type { DcrSummary } from './application/usecases/getDcrSummary.usecase.js';
 
 export type { Expense } from './domain/expense.entity.js';
 export type { ExpenseMonthSummary } from './domain/records.repository.port.js';
-export type { DcrMonthSummary } from './application/usecases/dcrReports.usecase.js';
+export type { CallFigures, DcrMonthSummary } from './application/usecases/dcrReports.usecase.js';
 export type { DoctorServiceView } from './application/usecases/servicesAndGifts.usecase.js';
 export type { DayActivity } from './application/usecases/getDayActivity.usecase.js';
 export type { DcrSummary } from './application/usecases/getDcrSummary.usecase.js';
@@ -55,6 +55,11 @@ export interface FieldActivityPublicContract {
   summarizeDcrs(range: { from: string; to: string }): Promise<DcrMonthSummary[]>;
   /** Doctor calls per employee per day over a range (both ends inclusive), days with none left out: only calls of a final DCR (approved while `DCR_APPROVAL_REQUIRED` is on, submitted or later when off) — the Attendance calendar's input. */
   countDoctorCallsByDay(range: { from: string; to: string }): Promise<Array<{ userId: string; date: string; count: number }>>;
+  /**
+   * Call average and coverage (2026-11-27): the counted daily reports of a range (both ends inclusive; final by the `DCR_APPROVAL_REQUIRED`
+   * rule) with their doctor and chemist calls, and each employee's doctor calls per Doctor. Optionally only these employees.
+   */
+  callFigures(range: { from: string; to: string }, userIds?: string[]): Promise<CallFigures>;
   /** The Doctors this employee called on in their reported days of a range (both ends inclusive). */
   listCalledDoctorIds(userId: string, range: { from: string; to: string }): Promise<string[]>;
   /** Calls per Doctor in the reported days of a range (both ends inclusive), by any employee — the visit-frequency report's input. */

@@ -1,10 +1,11 @@
 import type { DoctorVisitMrDto, DoctorVisitsReportDto } from '@greynote/contracts';
 import { AppError } from '@/shared/errors/AppError.js';
 import { monthRange } from '@/shared/time/businessTime.js';
-import type { DoctorCallsPort, FieldRosterPort, MasterPort, PlannedDoctorsPort } from '../domain/ports.js';
+import type { CallFiguresPort, FieldRosterPort, MasterPort, PlannedDoctorsPort } from '../domain/ports.js';
 
 /**
- * Each Doctor's visit frequency against the calls made on reported days of a month: per employee the quota, calls made
+ * Each Doctor's visit frequency against the employee's own calls on counted days of a month (2026-11-27: by that employee only, on daily
+ * reports counted by the `DCR_APPROVAL_REQUIRED` rule, as the call average and coverage report): per employee the quota, calls made
  * and calls missed, and per Doctor the same. Only Doctors with a frequency count. Calls above a Doctor's frequency don't
  * offset another Doctor's missed ones (`made` is capped per Doctor). Admin reads any employee; a manager reads themself
  * and their downline; any other employee reads only themself. Reads only.
@@ -13,13 +14,14 @@ export class DoctorVisitsReport {
   constructor(
     private readonly roster: FieldRosterPort,
     private readonly master: MasterPort,
-    private readonly fieldActivity: DoctorCallsPort,
+    private readonly fieldActivity: CallFiguresPort,
     private readonly planning: PlannedDoctorsPort,
   ) {}
 
   async month(input: { actor: { id: string; role: string }; month: string; userId?: string | undefined }): Promise<DoctorVisitsReportDto> {
     const employees = await this.audience(input.actor, input.userId);
-    const calls = new Map((await this.fieldActivity.countDoctorCalls(monthRange(input.month))).map((c) => [c.doctorId, c.count]));
+    const figures = await this.fieldActivity.callFigures(monthRange(input.month), employees.map((e) => e.id));
+    const calls = new Map(figures.doctorCalls.map((c) => [`${c.userId}|${c.doctorId}`, c.count]));
     const mrs = (
       await Promise.all(
         employees.map(async (e): Promise<DoctorVisitMrDto | null> => {
@@ -29,7 +31,7 @@ export class DoctorVisitsReport {
           const rows = tracked
             .map((d) => {
               const frequency = d.visitFrequency!;
-              const made = Math.min(calls.get(d.id) ?? 0, frequency);
+              const made = Math.min(calls.get(`${e.id}|${d.id}`) ?? 0, frequency);
               return { doctor: { id: d.id, name: d.name, specialty: d.specialty }, frequency, made, missed: frequency - made, stage: made >= frequency ? ('COMPLETE' as const) : made > 0 ? ('IN_PROGRESS' as const) : ('NOT_STARTED' as const), plannedDays: planned.get(d.id)?.plannedDays ?? 0, missedSince: planned.get(d.id)?.missedSince ?? null };
             })
             .sort((a, b) => b.missed - a.missed || a.doctor.name.localeCompare(b.doctor.name));

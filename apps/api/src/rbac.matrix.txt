@@ -145,6 +145,8 @@ GET    /api/planning/monthly/:id/routes  ADMIN,FIELD,HR
 GET    /api/planning/places  ADMIN,FIELD,HR
 GET    /api/planning/team-routes  FIELD
 GET    /api/planning/users/:userId/monthly/:month  ADMIN,FIELD,HR
+GET    /api/reports/call-performance  ADMIN,FIELD
+GET    /api/reports/call-performance/:userId/missed  ADMIN,FIELD
 GET    /api/reports/dcr  ADMIN
 GET    /api/reports/dcr/coverage  ADMIN
 GET    /api/reports/doctor-visits  ADMIN,FIELD
