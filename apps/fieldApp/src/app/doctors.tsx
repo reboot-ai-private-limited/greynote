@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
 import { DoctorAvatar } from '@/components/doctor-avatar';
@@ -9,6 +9,7 @@ import { PrimaryButton } from '@/components/primary-button';
 import { ScreenShell } from '@/components/screen-shell';
 import { Skeleton } from '@/components/skeleton';
 import { TextField } from '@/components/text-field';
+import { outletPlaceId, placeName } from '@/lib/places';
 import { ThemedText } from '@/components/themed-text';
 import { InfoCard, Pill } from '@/components/ui-cards';
 import { Spacing } from '@/constants/theme';
@@ -58,9 +59,9 @@ function MyDoctorsScreen() {
   const [shown, setShown] = useState({ term: '', count: PAGE });
   const count = shown.term === term ? shown.count : PAGE; // a new search starts from the first 20 again
 
-  const routeName = useMemo(() => new Map((territory.data?.routes ?? []).map((r) => [r.id, r.name])), [territory.data]);
+  const whereOf = (r: { placeId?: string | null; routeId?: string | null }) => placeName(outletPlaceId(r, territory.data), territory.data);
   // Doctors I added and that are not active yet. Offline, the snapshot's pending ones stand in (all "waiting").
-  const notActive: { id: string; name: string; photoUrl?: string | null; specialty: string; clinicName?: string | null; routeId: string; state: string }[] = added.data
+  const notActive: { id: string; name: string; photoUrl?: string | null; specialty: string; clinicName?: string | null; placeId?: string | null; routeId?: string | null; state: string }[] = added.data
     ? added.data.filter((d) => d.status !== 'active').map((d) => ({ ...d, state: d.approval?.status ?? 'SUBMITTED' }))
     : (master.data?.pendingDoctors ?? []).map((d) => ({ ...d, state: 'SUBMITTED' }));
   const unsent = records.filter((r) => !r.deleted && r.status !== 'SYNCED');
@@ -84,7 +85,7 @@ function MyDoctorsScreen() {
             <DoctorAvatar name={p.name} />
             <View style={styles.grow}>
               <ThemedText type="smallBold">{p.name}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">{[p.specialty, routeName.get(p.routeId)].filter(Boolean).join(' · ')}</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">{[p.specialty, whereOf(p)].filter(Boolean).join(' · ')}</ThemedText>
             </View>
             <Pill text="Pending" accent="red" />
           </View>
@@ -115,7 +116,7 @@ function MyDoctorsScreen() {
             <View style={styles.grow}>
               <ThemedText type="smallBold">{d.name}</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
-                {[d.specialty, d.clinicName, routeName.get(d.routeId)].filter(Boolean).join(' · ')}
+                {[d.specialty, d.clinicName, whereOf(d)].filter(Boolean).join(' · ')}
               </ThemedText>
             </View>
             <Pill text={waiting ? 'Pending' : 'Not approved'} accent="red" />
@@ -138,7 +139,7 @@ function MyDoctorsScreen() {
             <View style={styles.grow}>
               <ThemedText type="smallBold">{d.name}</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
-                {[d.specialty, d.clinicName, routeName.get(d.routeId)].filter(Boolean).join(' · ')}
+                {[d.specialty, d.clinicName, whereOf(d)].filter(Boolean).join(' · ')}
               </ThemedText>
             </View>
             <Pill text={d.visitFrequency ? `${d.visitFrequency} a month` : 'No target'} accent={d.visitFrequency ? 'green' : 'slate'} />

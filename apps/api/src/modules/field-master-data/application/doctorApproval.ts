@@ -6,6 +6,7 @@ import type { DoctorRepositoryPort } from '../domain/doctor.repository.port.js';
 import type { DoctorAssignmentRepositoryPort } from '../domain/doctorAssignment.repository.port.js';
 import type { TerritoryPort } from '../domain/territory.port.js';
 import type { UserDirectoryPort } from '../domain/userDirectory.port.js';
+import type { OutletHolders } from './outletHolders.js';
 
 export const NEW_DOCTOR_KIND = 'NEW_DOCTOR';
 
@@ -42,6 +43,7 @@ export function makeDoctorApprovalHandler(
   users: UserDirectoryPort,
   territory: TerritoryPort,
   config: ConfigReader,
+  holders?: OutletHolders,
 ) {
   return async (change: ApprovalStatusChange, ctx: TransactionContext): Promise<void> => {
     if (change.status !== 'APPROVED' && change.status !== 'REOPENED') return;
@@ -58,6 +60,7 @@ export function makeDoctorApprovalHandler(
     if (await assignments.findActiveForDoctor(doctor.id)) return;
     const mr = await users.findUserSummary(doctor.addedBy);
     if (mr?.role !== 'FIELD' || mr.status === 'inactive') return;
+    if (await holders?.managerProblem(mr.id, 'doctors')) return; // a manager's doctor waits for Admin to give it to an MR
     if (!(await territory.listPlacesForUser(mr.id)).some((p) => p.id === doctor.placeId)) return;
     const approver = change.request.history.at(-1)?.actorId ?? doctor.addedBy;
     await assignments.create({ doctorId: doctor.id, userId: mr.id, assignedBy: approver }, ctx);

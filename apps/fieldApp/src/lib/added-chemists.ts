@@ -9,7 +9,8 @@ import { apiGet, apiPut } from './api';
  */
 export type AddedChemist = {
   id: string;
-  routeId: string;
+  placeId?: string | null;
+  routeId?: string | null;
   name: string;
   address: string;
   /** `null` when not set (absent from older servers). */
@@ -21,7 +22,7 @@ export type AddedChemist = {
 };
 
 /** Sending again replaces the details: a `phone` of `null`, or one left out, clears the number. */
-export type AddedChemistBody = { routeId: string; name: string; address: string; phone: string | null; location: GeoPoint };
+export type AddedChemistBody = { placeId?: string; routeId?: string; name: string; address: string; phone: string | null; location: GeoPoint };
 
 type Page<T> = { items: T[]; total: number };
 

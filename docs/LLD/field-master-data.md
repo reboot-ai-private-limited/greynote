@@ -357,3 +357,7 @@ The same flow as *Doctor-creation approval*, for Chemists, with no assignment st
 - Approval: the manager or Admin decides (no second stage). `APPROVED` makes the Chemist `active` and sets `approvedAt`; `REOPENED` puts it back to `pending`.
 - A `pending` Chemist does not exist for other modules: `getChemist` and `getChemistLocation` answer `null`, and the active-only lists (`listActiveOnRoutes`, `listAllActive`, `canActOnChemist`) skip it. Admin cannot change a pending Chemist's status through `PATCH /chemists/:id` (`409`); it is decided in Approvals.
 - Chemists that existed before have no `addedBy` and are read as before.
+
+### Who holds doctors and chemists (2026-11-27)
+
+`OutletHolders.managerProblem` (application/outletHolders.ts) refuses a manager — any designation above MR — as a holder while `MANAGERS_CAN_HOLD_OUTLETS` is off; `AssignDoctor`, `AssignChemist` (so bulk assign), and both approval handlers use it. Chemist auto-assign on approval follows `AUTO_ASSIGN_CHEMIST_ON_APPROVAL`. Admin create takes an optional `assignToUserId` (`assignAfterCreate`: a refused pick keeps the record and returns `assignError`). `address` is labelled "Area" in the clients. Decision-log 2026-11-27.

@@ -7,6 +7,7 @@ import type { DoctorAssignmentRepositoryPort } from '../../domain/doctorAssignme
 import type { TerritoryPort } from '../../domain/territory.port.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { DoctorRetirement } from '../doctorRetirement.js';
+import type { OutletHolders } from '../outletHolders.js';
 
 /**
  * Admin makes an MR responsible for a Doctor, replacing whoever was. The MR must be an active FIELD
@@ -22,6 +23,8 @@ export class AssignDoctorUseCase {
     private readonly territory: TerritoryPort,
     private readonly transactions: TransactionRunnerPort,
     private readonly retirement: DoctorRetirement,
+    /** Leave out only where managers may hold doctors anyway (tests of other rules). */
+    private readonly holders?: OutletHolders,
   ) {}
 
   async execute(doctorId: string, userId: string, adminId: string): Promise<DoctorAssignment> {
@@ -33,6 +36,8 @@ export class AssignDoctorUseCase {
     if (!user) throw AppError.badRequest('No such employee.', { field: 'userId' });
     if (user.role !== 'FIELD') throw AppError.badRequest('Only field employees can be assigned doctors.', { field: 'userId' });
     if (user.status === 'inactive') throw AppError.conflict('That employee is inactive.', { field: 'userId' });
+    const managerProblem = await this.holders?.managerProblem(userId, 'doctors');
+    if (managerProblem) throw AppError.conflict(managerProblem, { field: 'userId' });
 
     // A doctor goes to someone based in the HQ of its place (decision-log 2026-11-26).
     if (!(await this.territory.listPlacesForUser(userId)).some((p) => p.id === doctor.placeId)) {

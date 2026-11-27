@@ -17,4 +17,6 @@ export interface UserDirectoryPort {
   findUserIdsByName(term: string, options?: { restrictTo?: string[]; limit?: number }): Promise<string[]>;
   /** Everyone below this manager at any depth. */
   getDownline(managerId: string): Promise<DirectoryUser[]>;
+  /** Designation levels (1 = MR; higher = a manager). Unknown ids are skipped. */
+  getDesignationLevels(userIds: string[]): Promise<Array<{ userId: string; level: number }>>;
 }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
+import { outletPlaceId, placeName } from '@/lib/places';
 import { FormField } from '@/components/form-field';
 import { NumberedRow } from '@/components/numbered-row';
 import { Notice } from '@/components/notice';
@@ -51,7 +52,7 @@ const APPROVAL_TEXT: Record<string, string> = {
   REOPENED: 'Reopened by Admin — change it and send it again',
 };
 
-const FIELD_ORDER = ['route', 'name', 'address', 'phone', 'location'];
+const FIELD_ORDER = ['place', 'address', 'name', 'phone', 'location'];
 const PHONE = /^\+?\d{10,15}$/;
 const PHONE_ERROR = 'Enter a phone number of 10 to 15 digits.';
 const cleanPhone = (s: string) => s.replace(/[\s-]/g, '');
@@ -92,7 +93,7 @@ function MyChemistsScreen() {
   const reload = () => setReloadKey((k) => k + 1);
 
   const [target, setTarget] = useState<Target | null>(null);
-  const [routeId, setRouteId] = useState<string | null>(null);
+  const [placeId, setPlaceId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
@@ -101,8 +102,9 @@ function MyChemistsScreen() {
   const loc = useLocationReading();
   const form = useFormErrors(FIELD_ORDER);
 
-  const routes = useMemo(() => territory.data?.routes ?? [], [territory.data]);
-  const routeName = useMemo(() => new Map(routes.map((r) => [r.id, r.name])), [routes]);
+  // Doctors and chemists sit on a place of your HQ (2026-11-27): Place first, then its Area.
+  const places = useMemo(() => territory.data?.places ?? [], [territory.data]);
+  const whereOf = (r: { placeId?: string | null; routeId?: string | null }) => placeName(outletPlaceId(r, territory.data), territory.data) ?? 'Place';
   const unsent = records.filter((r) => !r.deleted && r.status !== 'SYNCED');
   const hasDrafts = unsent.some((r) => r.status === 'DRAFT');
   const activeCount = master.data?.chemists.length;
@@ -153,13 +155,13 @@ function MyChemistsScreen() {
     form.clearAll();
     if (t === 'new') {
       // No route is pre-picked unless there is only one: a chemist must not land on the wrong route unnoticed.
-      setRouteId(routes.length === 1 ? routes[0]!.id : null);
+      setPlaceId(null);
       setName('');
       setAddress('');
       setPhone('');
     } else {
       const c = 'local' in t ? (t.local.payload as NewChemistPayload) : t.server;
-      setRouteId(c.routeId);
+      setPlaceId(outletPlaceId(c, territory.data));
       setName(c.name);
       setAddress(c.address);
       setPhone(c.phone ?? '');
@@ -170,14 +172,14 @@ function MyChemistsScreen() {
   const save = async () => {
     if (loc.busy) return setMsg({ tone: 'info', text: 'Still reading your location. Wait for the result, then save.' });
     const problems: Record<string, string> = {};
-    if (!routeId) problems.route = 'Choose the route this chemist is on.';
+    if (!placeId) problems.place = 'Choose the place this chemist is in.';
     if (!name.trim()) problems.name = 'Enter the chemist’s name.';
-    if (!address.trim()) problems.address = 'Enter the chemist’s address.';
+    if (!address.trim()) problems.address = 'Enter the area — the road or locality.';
     if (!phone.trim()) problems.phone = 'Enter the chemist’s phone number.';
     else if (!PHONE.test(cleanPhone(phone))) problems.phone = PHONE_ERROR;
     const locationIssue = locationProblem(loc.reading, 'chemist');
     if (locationIssue) problems.location = locationIssue;
-    if (Object.keys(problems).length > 0 || !routeId) {
+    if (Object.keys(problems).length > 0 || !placeId) {
       setMsg({ tone: 'danger', text: 'Fix the fields marked in red.' });
       return form.fail(problems);
     }
@@ -191,7 +193,7 @@ function MyChemistsScreen() {
     if (!fix) return;
     setBusy(true);
 
-    const payload = { routeId, name: name.trim(), address: address.trim(), phone: cleanPhone(phone), location: fix.point };
+    const payload = { placeId, name: name.trim(), address: address.trim(), phone: cleanPhone(phone), location: fix.point };
     try {
       if (target && typeof target === 'object' && 'server' in target) {
         await editAddedChemist(target.server.id, payload);
@@ -264,7 +266,7 @@ function MyChemistsScreen() {
           <View style={styles.rowHead}>
             <View style={styles.grow}>
               <ThemedText type="smallBold">{p.name}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">{routeName.get(p.routeId) ?? 'Route'}</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">{whereOf(p)}</ThemedText>
             </View>
             <Pill text="Pending" accent="red" />
           </View>
@@ -296,7 +298,7 @@ function MyChemistsScreen() {
           <View style={styles.rowHead}>
             <View style={styles.grow}>
               <ThemedText type="smallBold">{c.name}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">{[c.address, routeName.get(c.routeId) ?? 'Route'].filter(Boolean).join(' · ')}</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">{[c.address, whereOf(c)].filter(Boolean).join(' · ')}</ThemedText>
             </View>
             <Pill text={state === 'APPROVED' ? 'Approved' : waiting || state === 'MANAGER_APPROVED' ? 'Pending' : 'Not approved'} accent={state === 'APPROVED' ? 'green' : 'red'} />
           </View>
@@ -322,7 +324,7 @@ function MyChemistsScreen() {
       node: (
         <InfoCard key={c.id}>
           <ThemedText type="smallBold">{c.name}</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">{[c.address, routeName.get(c.routeId)].filter(Boolean).join(' · ')}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">{[c.address, whereOf(c)].filter(Boolean).join(' · ')}</ThemedText>
           {c.phone ? <PrimaryButton label={c.phone} variant="text" onPress={() => void Linking.openURL(`tel:${c.phone}`)} style={styles.phone} /> : null}
         </InfoCard>
       ),
@@ -351,24 +353,38 @@ function MyChemistsScreen() {
         {!online ? <Notice tone="info">You’re offline. It will be kept on this phone and sent when you’re back online.</Notice> : null}
         {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
         <Notice tone="info">The chemist’s location is your phone’s position when you save, so save this while you’re at the chemist’s shop.</Notice>
-        <CardSection icon={sym('signpost.right', 'route')} accent="blue" title="Route">
-          {routes.length === 0 ? (
-            <ThemedText type="small" themeColor="textSecondary">Connect to the internet once so your routes can load.</ThemedText>
+        <CardSection icon={sym('mappin.and.ellipse', 'place')} accent="blue" title="Where">
+          {places.length === 0 ? (
+            <ThemedText type="small" themeColor="textSecondary">Connect to the internet once so your places can load.</ThemedText>
           ) : (
-            <FormField form={form} name="route">
+            <FormField form={form} name="place">
               <OutletPicker
-                label="Route"
-                options={[...routes].sort((a, b) => a.name.localeCompare(b.name)).map((r) => ({ id: r.id, name: r.name, subtitle: r.hqName }))}
-                value={routeId}
+                label="Place"
+                options={[...places].sort((a, b) => Number(b.isHqTown) - Number(a.isHqTown) || a.name.localeCompare(b.name)).map((p) => ({ id: p.id, name: p.name, subtitle: p.hqName ?? '' }))}
+                value={placeId}
                 onChange={(v) => {
-                  setRouteId(v);
-                  form.clear('route');
+                  setPlaceId(v);
+                  form.clear('place');
                 }}
                 disabled={busy}
-                emptyText="Connect to the internet once so your routes can load."
+                emptyText="Connect to the internet once so your places can load."
               />
             </FormField>
           )}
+          <FormField form={form} name="address" outline={false}>
+            <TextField
+              label="Area"
+              value={address}
+              onChangeText={(v) => {
+                setAddress(v);
+                form.clear('address');
+              }}
+              error={form.errors.address}
+              multiline
+              editable={!busy}
+              maxLength={500}
+            />
+          </FormField>
         </CardSection>
         <CardSection icon={sym('cross.case', 'local_pharmacy')} accent="green" title="Chemist">
           <FormField form={form} name="name" outline={false}>
@@ -382,20 +398,6 @@ function MyChemistsScreen() {
               error={form.errors.name}
               editable={!busy}
               maxLength={150}
-            />
-          </FormField>
-          <FormField form={form} name="address" outline={false}>
-            <TextField
-              label="Address"
-              value={address}
-              onChangeText={(v) => {
-                setAddress(v);
-                form.clear('address');
-              }}
-              error={form.errors.address}
-              multiline
-              editable={!busy}
-              maxLength={500}
             />
           </FormField>
           <FormField form={form} name="phone" outline={false}>

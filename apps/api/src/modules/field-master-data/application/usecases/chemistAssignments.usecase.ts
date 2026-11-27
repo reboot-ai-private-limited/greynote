@@ -7,6 +7,7 @@ import type { ChemistAssignmentRepositoryPort } from '../../domain/chemistAssign
 import type { PageQuery } from '../../domain/masterStatus.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { Actor } from '../actor.js';
+import type { OutletHolders } from '../outletHolders.js';
 
 /**
  * Admin makes an MR responsible for a Chemist. Many MRs can hold one Chemist, so this never replaces anyone — it adds. The MR must be
@@ -17,6 +18,8 @@ export class AssignChemistUseCase {
     private readonly chemists: ChemistRepositoryPort,
     private readonly assignments: ChemistAssignmentRepositoryPort,
     private readonly users: UserDirectoryPort,
+    /** Leave out only where managers may hold chemists anyway (tests of other rules). */
+    private readonly holders?: OutletHolders,
   ) {}
 
   async execute(chemistId: string, userId: string, adminId: string): Promise<ChemistAssignment> {
@@ -27,6 +30,8 @@ export class AssignChemistUseCase {
     if (!user) throw AppError.badRequest('No such employee.', { field: 'userId' });
     if (user.role !== 'FIELD') throw AppError.badRequest('Only field employees can be assigned chemists.', { field: 'userId' });
     if (user.status === 'inactive') throw AppError.conflict('That employee is inactive.', { field: 'userId' });
+    const managerProblem = await this.holders?.managerProblem(userId, 'chemists');
+    if (managerProblem) throw AppError.conflict(managerProblem, { field: 'userId' });
     return this.assignments.assign({ chemistId, userId, assignedBy: adminId });
   }
 }

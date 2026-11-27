@@ -32,6 +32,7 @@ import {
 import { formatPoint, pointFromInputs } from '../lib/location';
 import { LocationPicker } from './LocationPicker';
 import { PlacePickerField } from './PlacePickerField';
+import { EmployeePickerField } from '@/features/people/components/EmployeePickerField';
 
 const STEP_TITLE: Record<DoctorStep, string> = {
   details: 'Doctor details',
@@ -51,6 +52,8 @@ export function DoctorDetailsForm({ doctor, review = false }: { doctor?: DoctorD
   const [errors, setErrors] = useState<Record<string, string>>({});
   // Adding: the photo is held until the doctor exists, then uploaded; the doctor is kept (and its page opened) even if the upload fails.
   const [pendingPhoto, setPendingPhoto] = useState<File | null>(null);
+  // Adding: the MR who holds it from the start (2026-11-27); optional, refused like any assignment without undoing the add.
+  const [assignTo, setAssignTo] = useState('');
   const setPhoto = useSetDoctorPhoto();
   const removePhoto = useRemoveDoctorPhoto();
   const create = useCreateDoctor((created) => {
@@ -113,7 +116,7 @@ export function DoctorDetailsForm({ doctor, review = false }: { doctor?: DoctorD
     const built = buildDoctor(draft);
     if (!built.ok) return setErrors(built.errors);
     setErrors({});
-    create.mutate(built.body);
+    create.mutate({ ...built.body, ...(assignTo && { assignToUserId: assignTo }) });
   }
 
   const invalid = (field: string) => (shown[field] ? true : undefined);
@@ -146,6 +149,17 @@ export function DoctorDetailsForm({ doctor, review = false }: { doctor?: DoctorD
             ? { hint: 'This doctor will be hidden from an MR who is not based in the new place’s HQ.' }
             : {})}
         />
+      </div>
+      <div className="sm:col-span-2">
+        <FormField label="Area" htmlFor="doctor-address" error={shown['address']} hint="The road or locality in this place, e.g. Hill Cart Road.">
+          <Input
+            id="doctor-address"
+            value={draft.address}
+            disabled={locked}
+            onChange={(e) => set('address')(e.target.value)}
+            aria-invalid={invalid('address')}
+          />
+        </FormField>
       </div>
       <FormField label="Name" htmlFor="doctor-name" error={shown['name']}>
         <Input
@@ -211,17 +225,19 @@ export function DoctorDetailsForm({ doctor, review = false }: { doctor?: DoctorD
           disabled={locked}
         />
       </FormField>
-      <div className="sm:col-span-2">
-        <FormField label="Address" htmlFor="doctor-address" error={shown['address']}>
-          <Input
-            id="doctor-address"
-            value={draft.address}
+      {doctor ? null : (
+        <div className="sm:col-span-2">
+          <EmployeePickerField
+            id="doctor-assign"
+            label="Assign to (optional)"
+            title="Choose the MR who holds this doctor"
+            value={assignTo}
+            onChange={setAssignTo}
             disabled={locked}
-            onChange={(e) => set('address')(e.target.value)}
-            aria-invalid={invalid('address')}
+            hint="An MR based in this place’s HQ. Leave empty to assign later."
           />
-        </FormField>
-      </div>
+        </div>
+      )}
     </Grid>
   );
   const locationPicker = (
@@ -304,7 +320,7 @@ export function DoctorDetailsForm({ doctor, review = false }: { doctor?: DoctorD
           <Field label="Date of birth">{draft.dateOfBirth || null}</Field>
           <Field label="Anniversary">{draft.anniversary || null}</Field>
           <Field label="Visit frequency">{draft.visitFrequency ? `${draft.visitFrequency} a month` : null}</Field>
-          <Field label="Address">{draft.address}</Field>
+          <Field label="Area">{draft.address}</Field>
           <Field label="Location">{point.ok ? formatPoint(point.point) : 'Not valid'}</Field>
         </FieldList>
       ) : null}

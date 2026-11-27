@@ -10,7 +10,8 @@ import { apiGet, apiPatch, apiPut } from './api';
  */
 export type AddedDoctor = {
   id: string;
-  routeId: string;
+  placeId?: string | null;
+  routeId?: string | null;
   name: string;
   address: string;
   email: string | null;
@@ -31,7 +32,8 @@ export type AddedDoctor = {
 };
 
 export type AddedDoctorBody = {
-  routeId: string;
+  placeId?: string;
+  routeId?: string;
   name: string;
   address: string;
   specialty: string;

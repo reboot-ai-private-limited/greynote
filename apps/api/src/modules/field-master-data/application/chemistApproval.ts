@@ -4,6 +4,9 @@ import { AppError } from '@/shared/errors/AppError.js';
 import type { ChemistAssignmentRepositoryPort } from '../domain/chemistAssignment.repository.port.js';
 import type { ChemistRepositoryPort } from '../domain/chemist.repository.port.js';
 import type { TerritoryPort } from '../domain/territory.port.js';
+import type { UserDirectoryPort } from '../domain/userDirectory.port.js';
+import { parseBoolean, readConfigOr, type ConfigReader } from '@/shared/config/readConfig.js';
+import type { OutletHolders } from './outletHolders.js';
 
 export const NEW_CHEMIST_KIND = 'NEW_CHEMIST';
 
@@ -25,11 +28,16 @@ export function makeChemistDescriber(chemists: ChemistRepositoryPort, territory:
 /**
  * The `NEW_CHEMIST` kind's `onStatusChange`, run inside the approval module's transaction (if it throws, the decision rolls back too):
  *
- * - `APPROVED` — the Chemist becomes `active`, is assigned to the employee who added it, and can be called on, ordered for and planned.
+ * - `APPROVED` — the Chemist becomes `active`. With `AUTO_ASSIGN_CHEMIST_ON_APPROVAL` on (2026-11-27), the active MR who added it holds
+ *   it; a manager only when `MANAGERS_CAN_HOLD_OUTLETS` is on. Otherwise it is left for Admin to assign.
  * - `REOPENED` (Admin reopens an approved one) — back to `pending`, so nobody acts on it while it is reconsidered.
  * - Rejected or withdrawn — nothing to do; it stays `pending`.
  */
-export function makeChemistApprovalHandler(chemists: ChemistRepositoryPort, assignments: ChemistAssignmentRepositoryPort) {
+export function makeChemistApprovalHandler(
+  chemists: ChemistRepositoryPort,
+  assignments: ChemistAssignmentRepositoryPort,
+  extra?: { users: UserDirectoryPort; config: ConfigReader; holders: OutletHolders },
+) {
   return async (change: ApprovalStatusChange, ctx: TransactionContext): Promise<void> => {
     if (change.status !== 'APPROVED' && change.status !== 'REOPENED') return;
     const chemist = await chemists.findById(change.recordId);
@@ -40,6 +48,13 @@ export function makeChemistApprovalHandler(chemists: ChemistRepositoryPort, assi
     }
     await chemists.update(chemist.id, { status: 'active', approvedAt: new Date() }, ctx);
     // The employee who added it holds it, like a Doctor they added (and, being many-MR, without displacing anyone).
-    if (chemist.addedBy) await assignments.assign({ chemistId: chemist.id, userId: chemist.addedBy, assignedBy: chemist.addedBy });
+    if (!chemist.addedBy) return;
+    if (extra) {
+      if (!(await readConfigOr(extra.config, 'AUTO_ASSIGN_CHEMIST_ON_APPROVAL', parseBoolean, true))) return;
+      const adder = await extra.users.findUserSummary(chemist.addedBy);
+      if (adder?.role !== 'FIELD' || adder.status === 'inactive') return;
+      if (await extra.holders.managerProblem(adder.id, 'chemists')) return;
+    }
+    await assignments.assign({ chemistId: chemist.id, userId: chemist.addedBy, assignedBy: chemist.addedBy });
   };
 }

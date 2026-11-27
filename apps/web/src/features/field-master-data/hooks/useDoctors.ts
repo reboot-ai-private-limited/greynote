@@ -1,6 +1,7 @@
 'use client';
 
-import type { CreateDoctorDto, DoctorDeleteResultDto, DoctorDto, IssueSampleDto, PhotoDto, SampleAllocationDto, UpdateDoctorDto } from '@greynote/contracts';
+import { toast } from '@/components/ui/toast';
+import type { CreateDoctorDto, CreatedDoctorDto, DoctorDeleteResultDto, DoctorDto, IssueSampleDto, PhotoDto, SampleAllocationDto, UpdateDoctorDto } from '@greynote/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { doctorsApi, type ListDoctorsQuery } from '@/lib/api/endpoints/fieldMasterData';
 import { authedQueryOptions } from '@/lib/query/factory';
@@ -29,12 +30,16 @@ export function useDoctor(id: string) {
   );
 }
 
-export function useCreateDoctor(onDone: (doctor: DoctorDto) => void) {
-  return useApiMutation<CreateDoctorDto, DoctorDto>({
+/** Adds one; when the MR picked can't hold it, it is still added and the reason is shown (2026-11-27). */
+export function useCreateDoctor(onDone: (doctor: CreatedDoctorDto) => void) {
+  return useApiMutation<CreateDoctorDto, CreatedDoctorDto>({
     call: (token, body) => doctorsApi.create(token, body),
     invalidates: [keys.doctors.all()],
-    successMessage: 'Doctor created.',
-    onSuccess: onDone,
+    onSuccess: (created) => {
+      if (created.assignError) toast.error(`Doctor added, but not assigned: ${created.assignError}`);
+      else toast.success('Doctor created.');
+      onDone(created);
+    },
   });
 }
 

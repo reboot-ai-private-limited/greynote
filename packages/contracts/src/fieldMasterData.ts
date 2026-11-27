@@ -130,7 +130,11 @@ export interface CreateChemistDto {
   address: string;
   phone?: string | null;
   location?: GeoPoint | null;
+  /** Optional (2026-11-27): the MR who holds it from the start. */
+  assignToUserId?: string | null;
 }
+/** What adding one on the web returns: `assignError` says why the MR picked could not hold it (the record is kept). */
+export type CreatedChemistDto = ChemistDto & { assignError?: string | null };
 export interface UpdateChemistDto {
   placeId?: string;
   routeId?: string;
@@ -214,7 +218,11 @@ export interface CreateDoctorDto {
   anniversary?: string | null;
   visitFrequency?: number | null;
   location?: GeoPoint | null;
+  /** Optional (2026-11-27): the MR who holds it from the start. */
+  assignToUserId?: string | null;
 }
+/** What adding one on the web returns: `assignError` says why the MR picked could not hold it (the record is kept). */
+export type CreatedDoctorDto = DoctorDto & { assignError?: string | null };
 export interface UpdateDoctorDto {
   placeId?: string;
   routeId?: string;

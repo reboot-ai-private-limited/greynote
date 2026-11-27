@@ -244,6 +244,11 @@ export class FakeUsers implements UserDirectoryPort {
   async getDownline(managerId: string) {
     return this.rows.filter((u) => (this.downline.get(managerId) ?? []).includes(u.id));
   }
+  /** user → designation level; anyone not listed is an MR (1). */
+  levels = new Map<string, number>([['asm', 2]]);
+  async getDesignationLevels(ids: string[]) {
+    return ids.map((userId) => ({ userId, level: this.levels.get(userId) ?? 1 }));
+  }
   async findUserIdsByName(term: string, options: { restrictTo?: string[]; limit?: number } = {}) {
     const t = term.toLowerCase();
     return this.rows
@@ -452,7 +457,7 @@ export class FakeDoctors implements DoctorRepositoryPort {
 }
 
 export class FakeConfig implements ConfigReader {
-  values = new Map<string, string>([['DOCTOR_VISIBILITY_FOLLOWS_ROUTE', 'true'], ['MANAGER_CAN_ADD_DOCTORS', 'false'], ['MANAGER_CAN_ADD_CHEMISTS', 'false']]);
+  values = new Map<string, string>([['DOCTOR_VISIBILITY_FOLLOWS_ROUTE', 'true'], ['MANAGER_CAN_ADD_DOCTORS', 'false'], ['MANAGER_CAN_ADD_CHEMISTS', 'false'], ['MANAGERS_CAN_HOLD_OUTLETS', 'false'], ['AUTO_ASSIGN_CHEMIST_ON_APPROVAL', 'true']]);
   async get(key: string) {
     return this.values.get(key) ?? '';
   }

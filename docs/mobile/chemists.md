@@ -46,3 +46,5 @@ Each entry of `chemists` in the snapshot (active, on my routes) now also has **`
 
 
 **A manager reads a chemist to decide a request (2026-11-18).** `GET /field-master-data/chemists/:id/review` (field roles only) returns the chemist (name, address, phone, `location`, `capturedLocation`, status) when it was added by, or is held by, someone below the caller; otherwise `404`. The plain `GET /chemists/:id` stays Admin and Accounts only. The phone's New chemist review shows the address, phone, coordinates and Open in Maps from it.
+
+> **2026-11-27.** The add screens pick a **Place** (from the cached `territory.places`) and send `placeId`; `routeId` is still accepted, so drafts saved by older versions go through. The `address` field is shown as **Area** (the road or locality in the place). On approval the adder holds it unless the matching `AUTO_ASSIGN_*_ON_APPROVAL` setting is off, or the adder is a manager and `MANAGERS_CAN_HOLD_OUTLETS` is off.

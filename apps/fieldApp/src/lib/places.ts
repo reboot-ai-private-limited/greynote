@@ -51,3 +51,13 @@ export function dayWhere(day: { fromPlaceId?: string | null; toPlaceId?: string 
   if (!to) return null;
   return day.fromPlaceId === day.toPlaceId ? `At ${to}` : `${from ?? 'Start'} → ${to}`;
 }
+
+/**
+ * The place a doctor or chemist sits on (2026-11-27: added by place). A draft saved by an older version, or an older server's record,
+ * may carry only a route: its To place is used.
+ */
+export function outletPlaceId(record: { placeId?: string | null; routeId?: string | null }, territory?: TerritorySnapshot | null): string | null {
+  if (record.placeId) return record.placeId;
+  const route = record.routeId ? territory?.routes.find((r) => r.id === record.routeId) : undefined;
+  return route?.toPlaceId ?? null;
+}

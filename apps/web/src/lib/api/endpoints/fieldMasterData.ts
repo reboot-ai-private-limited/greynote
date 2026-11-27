@@ -6,8 +6,10 @@ import type {
   ChemistDto,
   ChemistStatus,
   CreateChemistDto,
+  CreatedChemistDto,
   CreateDistributorDto,
   CreateDoctorDto,
+  CreatedDoctorDto,
   CreateProductDto,
   CreateSpecialtyDto,
   DistributorDeleteResultDto,
@@ -116,7 +118,7 @@ export const chemistsApi = {
   get: (token: string, id: string, signal?: AbortSignal) => request<ChemistDto>(`${BASE}/chemists/${id}`, { token, signal }),
   list: (token: string, query: ListChemistsQuery | undefined, signal?: AbortSignal) =>
     request<PaginatedDto<ChemistDto>>(`${BASE}/chemists`, { token, ...(query && { query: { ...query } }), signal }),
-  create: (token: string, body: CreateChemistDto) => request<ChemistDto>(`${BASE}/chemists`, { method: 'POST', token, body }),
+  create: (token: string, body: CreateChemistDto) => request<CreatedChemistDto>(`${BASE}/chemists`, { method: 'POST', token, body }),
   update: (token: string, id: string, body: UpdateChemistDto) =>
     request<ChemistDto>(`${BASE}/chemists/${id}`, { method: 'PATCH', token, body }),
   /** Admin: who holds this chemist, now and before. Many MRs can hold one. */
@@ -155,7 +157,7 @@ export const doctorsApi = {
   assignedTo: (token: string, userId: string, query: ListEmployeeDoctorsQuery | undefined, signal?: AbortSignal) =>
     request<PaginatedDto<DoctorDto>>(`${BASE}/doctors/assigned`, { token, query: { ...query, userId }, signal }),
   get: (token: string, id: string, signal?: AbortSignal) => request<DoctorDto>(`${BASE}/doctors/${id}`, { token, signal }),
-  create: (token: string, body: CreateDoctorDto) => request<DoctorDto>(`${BASE}/doctors`, { method: 'POST', token, body }),
+  create: (token: string, body: CreateDoctorDto) => request<CreatedDoctorDto>(`${BASE}/doctors`, { method: 'POST', token, body }),
   update: (token: string, id: string, body: UpdateDoctorDto) =>
     request<DoctorDto>(`${BASE}/doctors/${id}`, { method: 'PATCH', token, body }),
 

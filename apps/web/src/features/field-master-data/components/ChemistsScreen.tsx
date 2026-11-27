@@ -63,7 +63,7 @@ export function ChemistsScreen() {
       header: 'Held by',
       render: (c) => ((c.assignedTo ?? []).length === 0 ? <span className="text-text-subtle">Nobody</span> : <span className="line-clamp-1 max-w-[14rem]">{(c.assignedTo ?? []).map((h) => h.name).join(', ')}</span>),
     },
-    { key: 'address', header: 'Address', render: (c) => <span className="line-clamp-1 max-w-xs">{c.address}</span> },
+    { key: 'address', header: 'Area', render: (c) => <span className="line-clamp-1 max-w-xs">{c.address}</span> },
     {
       key: 'location',
       header: 'Location',

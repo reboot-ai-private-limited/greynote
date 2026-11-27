@@ -34,7 +34,9 @@ export type ExpensePayload = { reportDate: string; type: ExpenseType; amountPais
 
 /** A doctor the MR met who is not on their list: the server creates it pending and sends it for approval. */
 export type NewDoctorPayload = {
-  routeId: string;
+  /** The place it sits on (2026-11-27). A draft saved by an older version has `routeId` instead; the server takes either. */
+  placeId?: string;
+  routeId?: string;
   name: string;
   address: string;
   specialty: string;
@@ -53,7 +55,9 @@ export type NewDoctorPayload = {
 
 /** A chemist the MR adds (docs/mobile/chemists.md section 2): created pending, decided by the manager or Admin. The sync `clientId` is the server's `clientRequestId`. */
 export type NewChemistPayload = {
-  routeId: string;
+  /** The place it sits on (2026-11-27). A draft saved by an older version has `routeId` instead; the server takes either. */
+  placeId?: string;
+  routeId?: string;
   name: string;
   address: string;
   /** Optional: 10–15 digits with an optional leading `+`. */

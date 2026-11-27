@@ -87,6 +87,8 @@ export const createChemistBodySchema = z
     phone: mobileSchema,
     /** Picked on a Google map. Omit to add the Chemist now and set the point later. */
     location: locationSchema.nullish().transform((v) => v ?? null),
+    /** Optional (2026-11-27): the MR who holds it from the start. */
+    assignToUserId: objectIdSchema.nullish(),
   })
   .refine(hasPlace, NEEDS_PLACE);
 export const updateChemistBodySchema = z
@@ -150,6 +152,8 @@ export const createDoctorBodySchema = z
     email: emailSchema.nullish().transform((v) => v ?? null),
     /** Picked on a Google map. Omit to add the Doctor now and set the point later. */
     location: locationSchema.nullish().transform((v) => v ?? null),
+    /** Optional (2026-11-27): the MR who holds it from the start. */
+    assignToUserId: objectIdSchema.nullish(),
   })
   .refine(hasPlace, NEEDS_PLACE);
 const doctorChangeObject = z.object({

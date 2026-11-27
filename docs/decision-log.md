@@ -3137,3 +3137,13 @@ The Secondary Sales performance sheet (Excel, shown on the web's Secondary sales
 - **Routes from an HQ town to itself are removed** (`migrate:drop-town-routes`): a day at one place needs no route, and an HQ place pays no TA (`calculatePlaceTaDa`), so no pay changes. Each goes through the normal permanent delete (history keeps its name from the archive); doctors and chemists on one move to another active route of that place first. New ones were already refused.
 
 **Needs a migration:** yes — `pnpm --filter @greynote/api migrate:drop-town-routes` (dry run), then with `-- --apply`. Safe to repeat.
+
+## 2026-11-27: Who holds doctors and chemists
+
+**Decision.**
+- **An MR who adds a doctor or chemist holds it once approved**: doctors as before (`AUTO_ASSIGN_DOCTOR_ON_APPROVAL`), chemists now behind their own setting, `AUTO_ASSIGN_CHEMIST_ON_APPROVAL` (default on). Off: Admin assigns it.
+- **Managers don't hold doctors or chemists** unless `MANAGERS_CAN_HOLD_OUTLETS` is on (default off). A manager is any designation above MR (the same test planning uses). Assign, bulk assign (SKIPPED with the reason) and auto-assign on approval refuse a manager; managers keep seeing and calling their team's. Nothing already held is taken away: `migrate:manager-outlets` reports who holds some, for Admin to move from the employee page.
+- **Office staff pick the MR when adding** on the web: `POST /doctors` and `POST /chemists` take an optional `assignToUserId`; a refused pick keeps the record and returns `assignError`.
+- **Address is shown as "Area"** (the road or locality in the place) on the web and phone; the stored field stays `address`. Place comes first, then Area. The phone's add screens pick a **Place** (not a route) and send `placeId`; drafts saved with `routeId` still go through.
+
+**Needs a migration:** no (`migrate:manager-outlets` only reports).

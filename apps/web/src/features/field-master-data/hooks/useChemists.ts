@@ -1,6 +1,7 @@
 'use client';
 
-import type { ChemistDto, CreateChemistDto, UpdateChemistDto } from '@greynote/contracts';
+import { toast } from '@/components/ui/toast';
+import type { ChemistDto, CreateChemistDto, CreatedChemistDto, UpdateChemistDto } from '@greynote/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { chemistsApi, type ListChemistsQuery } from '@/lib/api/endpoints/fieldMasterData';
 import { authedQueryOptions } from '@/lib/query/factory';
@@ -27,12 +28,16 @@ export function useChemist(id: string) {
   );
 }
 
-export function useCreateChemist(onDone: (chemist: ChemistDto) => void) {
-  return useApiMutation<CreateChemistDto, ChemistDto>({
+/** Adds one; when the MR picked can't hold it, it is still added and the reason is shown (2026-11-27). */
+export function useCreateChemist(onDone: (chemist: CreatedChemistDto) => void) {
+  return useApiMutation<CreateChemistDto, CreatedChemistDto>({
     call: (token, body) => chemistsApi.create(token, body),
     invalidates: [keys.chemists.all()],
-    successMessage: 'Chemist created.',
-    onSuccess: onDone,
+    onSuccess: (created) => {
+      if (created.assignError) toast.error(`Chemist added, but not assigned: ${created.assignError}`);
+      else toast.success('Chemist created.');
+      onDone(created);
+    },
   });
 }
 

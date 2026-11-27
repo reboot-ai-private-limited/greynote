@@ -18,6 +18,7 @@ import { makeChemistApprovalHandler, makeChemistDescriber, NEW_CHEMIST_KIND } fr
 import { AddedChemists } from './application/usecases/addedChemists.js';
 import { ReviewPendingDoctorUseCase } from './application/usecases/reviewPendingDoctor.usecase.js';
 import { makeDoctorApprovalHandler, makeDoctorDescriber, NEW_DOCTOR_KIND } from './application/doctorApproval.js';
+import { OutletHolders } from './application/outletHolders.js';
 import { DoctorVisibility } from './application/doctorVisibility.js';
 import { DoctorViews } from './application/doctorViews.js';
 import { DoctorRetirement } from './application/doctorRetirement.js';
@@ -104,6 +105,7 @@ export function buildFieldMasterDataContainer(
   const doctors = new MongoDoctorAdapter();
   const assignments = new MongoDoctorAssignmentAdapter();
   const transactions = new MongooseTransactionRunner();
+  const holders = new OutletHolders(users, config);
   const photoStorage = new CloudinaryPhotoStorage();
 
   // An MR-added Doctor: Employee → Manager → Admin (sign-off C4). Approval makes it active and, per
@@ -115,7 +117,7 @@ export function buildFieldMasterDataContainer(
     // The manager's approval is the decision (Admin can still decide at any time); no second stage.
     managerOnly: true,
     describeRecords: makeDoctorDescriber(doctors, territory),
-    onStatusChange: makeDoctorApprovalHandler(doctors, assignments, users, territory, config),
+    onStatusChange: makeDoctorApprovalHandler(doctors, assignments, users, territory, config, holders),
   });
 
   // An employee-added Chemist: the same route as a Doctor (Employee → Manager → Admin); approval makes it active.
@@ -125,7 +127,7 @@ export function buildFieldMasterDataContainer(
     overrideRoles: ['HR', 'ADMIN'],
     managerOnly: true,
     describeRecords: makeChemistDescriber(chemists, territory),
-    onStatusChange: makeChemistApprovalHandler(chemists, chemistAssignments),
+    onStatusChange: makeChemistApprovalHandler(chemists, chemistAssignments, { users, config, holders }),
   });
 
   // 2. Use cases
@@ -141,12 +143,13 @@ export function buildFieldMasterDataContainer(
     get: new GetSpecialtyUseCase(specialties),
     update: new UpdateSpecialtyUseCase(specialties, doctors),
   };
+  const assignChemist = new AssignChemistUseCase(chemists, chemistAssignments, users, holders);
   const chemistUseCases = {
     list: new ListChemistsUseCase(chemists, chemistAssignments, users, territory),
-    create: new CreateChemistUseCase(chemists, territory),
+    create: new CreateChemistUseCase(chemists, territory, (id, userId, adminId) => assignChemist.execute(id, userId, adminId)),
     get: new GetChemistUseCase(chemists),
     update: new UpdateChemistUseCase(chemists, territory),
-    assign: new AssignChemistUseCase(chemists, chemistAssignments, users),
+    assign: assignChemist,
     unassign: new UnassignChemistUseCase(chemistAssignments),
     listAssignments: new ListChemistAssignmentsUseCase(chemistAssignments, users),
     team: new ListTeamChemistsUseCase(chemists, chemistAssignments, users),
@@ -167,11 +170,11 @@ export function buildFieldMasterDataContainer(
 
   const retirement = new DoctorRetirement(doctors, assignments, sampleAllocations, new MongoDoctorArchiveAdapter(), users, transactions, photoStorage);
   const updateDoctor = new UpdateDoctorUseCase(doctors, assignments, territory, views, specialtyCatalog, transactions, retirement);
-  const assignDoctor = new AssignDoctorUseCase(doctors, assignments, users, territory, transactions, retirement);
+  const assignDoctor = new AssignDoctorUseCase(doctors, assignments, users, territory, transactions, retirement, holders);
   const leaverWork = new LeaverWork(doctors, assignments, distributors, territory, assignDoctor, retirement, chemistAssignments);
   const doctorUseCases = {
     list: new ListDoctorsUseCase(doctors, views, users, assignments, territory),
-    create: new CreateDoctorUseCase(doctors, territory, views, specialtyCatalog),
+    create: new CreateDoctorUseCase(doctors, territory, views, specialtyCatalog, (id, userId, adminId) => assignDoctor.execute(id, userId, adminId)),
     get: new GetDoctorUseCase(doctors, visibility, views),
     update: updateDoctor,
     review: new ReviewPendingDoctorUseCase(doctors, users, updateDoctor),

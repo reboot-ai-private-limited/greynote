@@ -41,6 +41,7 @@ import { useSession } from '@/lib/auth/SessionProvider';
 import { ChemistAssignmentsCard } from './ChemistAssignmentsCard';
 import { LocationPicker } from './LocationPicker';
 import { PlacePickerField } from './PlacePickerField';
+import { EmployeePickerField } from '@/features/people/components/EmployeePickerField';
 
 /** `/chemists/new` (no id) and `/chemists/[id]` (edit). */
 export function ChemistFormScreen({ id }: { id?: string }) {
@@ -80,6 +81,8 @@ function ChemistForm({ chemist }: { chemist?: ChemistDto }) {
   const [draft, setDraft] = useState<ChemistDraft>(chemist ? chemistToDraft(chemist) : EMPTY_CHEMIST);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [toggling, setToggling] = useState(false);
+  // Adding: an MR who holds it from the start (2026-11-27); optional.
+  const [assignTo, setAssignTo] = useState('');
   const [step, setStep] = useState<ChemistStep>('details');
   // Errors show for a step only once Next has been pressed on it, as in the employee wizard.
   const [tried, setTried] = useState<ReadonlySet<ChemistStep>>(new Set());
@@ -123,7 +126,7 @@ function ChemistForm({ chemist }: { chemist?: ChemistDto }) {
     const built = buildChemist(draft);
     if (!built.ok) return setErrors(built.errors);
     setErrors({});
-    create.mutate(built.body);
+    create.mutate({ ...built.body, ...(assignTo && { assignToUserId: assignTo }) });
   }
 
   const detailsFields = (
@@ -137,6 +140,15 @@ function ChemistForm({ chemist }: { chemist?: ChemistDto }) {
           disabled={locked}
         />
       </div>
+      <FormField label="Area" htmlFor="chemist-address" error={shown['address']} hint="The road or locality in this place, e.g. Hill Cart Road.">
+        <Input
+          id="chemist-address"
+          value={draft.address}
+          disabled={locked}
+          onChange={(e) => set('address')(e.target.value)}
+          aria-invalid={invalid('address')}
+        />
+      </FormField>
       <FormField label="Name" htmlFor="chemist-name" error={shown['name']}>
         <Input
           id="chemist-name"
@@ -144,15 +156,6 @@ function ChemistForm({ chemist }: { chemist?: ChemistDto }) {
           disabled={locked}
           onChange={(e) => set('name')(e.target.value)}
           aria-invalid={invalid('name')}
-        />
-      </FormField>
-      <FormField label="Address" htmlFor="chemist-address" error={shown['address']}>
-        <Input
-          id="chemist-address"
-          value={draft.address}
-          disabled={locked}
-          onChange={(e) => set('address')(e.target.value)}
-          aria-invalid={invalid('address')}
         />
       </FormField>
       <FormField label="Phone" htmlFor="chemist-phone" error={shown['phone']}>
@@ -166,6 +169,19 @@ function ChemistForm({ chemist }: { chemist?: ChemistDto }) {
           aria-invalid={invalid('phone')}
         />
       </FormField>
+      {chemist ? null : (
+        <div className="sm:col-span-2">
+          <EmployeePickerField
+            id="chemist-assign"
+            label="Assign to (optional)"
+            title="Choose an MR who holds this chemist"
+            value={assignTo}
+            onChange={setAssignTo}
+            disabled={locked}
+            hint="An MR of this place’s HQ. Leave empty to assign later."
+          />
+        </div>
+      )}
     </Grid>
   );
   const locationPicker = (
@@ -205,7 +221,7 @@ function ChemistForm({ chemist }: { chemist?: ChemistDto }) {
           <FieldList>
             <Field label="Place">{draft.placeId ? places.labelOf(draft.placeId) : null}</Field>
             <Field label="Name">{draft.name}</Field>
-            <Field label="Address">{draft.address}</Field>
+            <Field label="Area">{draft.address}</Field>
             <Field label="Phone">{draft.phone || '—'}</Field>
             <Field label="Location">{point.ok ? formatPoint(point.point) : 'Not valid'}</Field>
           </FieldList>

@@ -114,7 +114,7 @@ export function makeChemistControllers(u: {
       const query = req.query as unknown as z.output<typeof listChemistsQuerySchema>;
       sendSuccess(req, res, await u.list.execute(query), 'Chemists.', 200);
     }),
-    create: asyncHandler(async (req, res) => sendSuccess(req, res, await u.create.execute(req.body), 'Chemist created.', 201)),
+    create: asyncHandler(async (req, res) => sendSuccess(req, res, await u.create.execute(req.body, actorOf(req).id), 'Chemist created.', 201)),
     get: asyncHandler(async (req, res) => sendSuccess(req, res, await u.get.execute(requiredParam(req.params, 'id')), 'Chemist.', 200)),
     update: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await u.update.execute(requiredParam(req.params, 'id'), req.body), 'Chemist updated.', 200),

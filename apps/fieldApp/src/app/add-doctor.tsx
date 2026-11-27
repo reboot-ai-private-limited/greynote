@@ -6,6 +6,7 @@ import { Alert } from '@/lib/alert';
 import { ChoiceChips } from '@/components/choice-chips';
 import { DateField, EMPTY_PARTS, isoFromParts, partsFromIso, type DateParts } from '@/components/date-field';
 import { DoctorAvatar } from '@/components/doctor-avatar';
+import { outletPlaceId, placeName } from '@/lib/places';
 import { FormField } from '@/components/form-field';
 import { Notice } from '@/components/notice';
 import { OutletPicker } from '@/components/outlet-picker';
@@ -54,7 +55,7 @@ const APPROVAL_TEXT: Record<string, string> = {
 };
 
 /** The form's fields top to bottom, so a failed save scrolls to the first one with a problem. */
-const FIELD_ORDER = ['route', 'name', 'address', 'specialty', 'qualification', 'phone', 'email', 'birth', 'anniversary', 'frequency', 'location'];
+const FIELD_ORDER = ['place', 'address', 'name', 'specialty', 'qualification', 'phone', 'email', 'birth', 'anniversary', 'frequency', 'location'];
 const EMAIL =/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** 10 to 15 digits, with an optional leading `+` (spaces and dashes are stripped before checking). */
 const PHONE = /^\+?\d{10,15}$/;
@@ -92,7 +93,7 @@ export default function AddDoctorScreen() {
   const reload = () => setReloadKey((k) => k + 1);
 
   const [target, setTarget] = useState<Target | null>(null);
-  const [routeId, setRouteId] = useState<string | null>(null);
+  const [placeId, setPlaceId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [specialty, setSpecialty] = useState<string | null>(null);
@@ -112,9 +113,10 @@ export default function AddDoctorScreen() {
   const loc = useLocationReading();
   const form = useFormErrors(FIELD_ORDER);
 
-  const routes = useMemo(() => territory.data?.routes ?? [], [territory.data]);
+  // Doctors and chemists sit on a place of your HQ (2026-11-27): Place first, then its Area.
+  const places = useMemo(() => territory.data?.places ?? [], [territory.data]);
   const specialties = master.data?.specialties ?? [];
-  const routeName = useMemo(() => new Map(routes.map((r) => [r.id, r.name])), [routes]);
+  const whereOf = (r: { placeId?: string | null; routeId?: string | null }) => placeName(outletPlaceId(r, territory.data), territory.data) ?? 'Place';
   const unsent = records.filter((r) => !r.deleted && r.status !== 'SYNCED');
   const hasDrafts = unsent.some((r) => r.status === 'DRAFT');
 
@@ -167,7 +169,7 @@ export default function AddDoctorScreen() {
     setMsg(null);
     if (t === 'new') {
       // No route is pre-picked unless there is only one: a doctor must not land on the wrong route unnoticed.
-      setRouteId(routes.length === 1 ? routes[0]!.id : null);
+      setPlaceId(null);
       setName('');
       setAddress('');
       setSpecialty(null);
@@ -183,7 +185,7 @@ export default function AddDoctorScreen() {
       setPhoto(null);
       if ('local' in t) void getPendingPhoto(t.local.clientId).then((p) => p && setPhoto({ uri: p.uri, name: p.name, mimeType: p.mimeType }));
       const d = 'local' in t ? (t.local.payload as NewDoctorPayload) : t.server;
-      setRouteId(d.routeId);
+      setPlaceId(outletPlaceId(d, territory.data));
       setName(d.name);
       setAddress(d.address);
       setSpecialty(d.specialty);
@@ -214,9 +216,9 @@ export default function AddDoctorScreen() {
     const dob = isoFromParts(birth, today);
     const wedding = isoFromParts(anniversary, today);
     const problems: Record<string, string> = {};
-    if (!routeId) problems.route = 'Choose the route this doctor is on.';
+    if (!placeId) problems.place = 'Choose the place this doctor is in.';
     if (!name.trim()) problems.name = 'Enter the doctor’s name.';
-    if (!address.trim()) problems.address = 'Enter the doctor’s address.';
+    if (!address.trim()) problems.address = 'Enter the area — the road or locality.';
     if (!specialty) problems.specialty = 'Choose the speciality.';
     if (!qualification.trim()) problems.qualification = 'Enter the qualification.';
     if (!phone.trim()) problems.phone = 'Enter the doctor’s phone number.';
@@ -227,7 +229,7 @@ export default function AddDoctorScreen() {
     if (wedding.error) problems.anniversary = wedding.error;
     const locationIssue = locationProblem(loc.reading, 'doctor');
     if (locationIssue) problems.location = locationIssue;
-    if (Object.keys(problems).length > 0 || !routeId || !specialty) {
+    if (Object.keys(problems).length > 0 || !placeId || !specialty) {
       setMsg({ tone: 'danger', text: 'Fix the fields marked in red.' });
       return form.fail(problems);
     }
@@ -242,7 +244,7 @@ export default function AddDoctorScreen() {
     setBusy(true);
 
     const payload: NewDoctorPayload = {
-      routeId,
+      placeId,
       name: name.trim(),
       address: address.trim(),
       specialty,
@@ -367,26 +369,38 @@ export default function AddDoctorScreen() {
         <Notice tone="info">
           The doctor’s location is your phone’s position when you save, so save this while you’re at the doctor’s place.
         </Notice>
-        <CardSection icon={sym('signpost.right', 'route')} accent="blue" title="Route">
-          {routes.length === 0 ? (
-            <ThemedText type="small" themeColor="textSecondary">
-              Connect to the internet once so your routes can load.
-            </ThemedText>
+        <CardSection icon={sym('mappin.and.ellipse', 'place')} accent="blue" title="Where">
+          {places.length === 0 ? (
+            <ThemedText type="small" themeColor="textSecondary">Connect to the internet once so your places can load.</ThemedText>
           ) : (
-            <FormField form={form} name="route">
+            <FormField form={form} name="place">
               <OutletPicker
-                label="Route"
-                options={[...routes].sort((a, b) => a.name.localeCompare(b.name)).map((r) => ({ id: r.id, name: r.name, subtitle: r.hqName }))}
-                value={routeId}
+                label="Place"
+                options={[...places].sort((a, b) => Number(b.isHqTown) - Number(a.isHqTown) || a.name.localeCompare(b.name)).map((p) => ({ id: p.id, name: p.name, subtitle: p.hqName ?? '' }))}
+                value={placeId}
                 onChange={(v) => {
-                  setRouteId(v);
-                  form.clear('route');
+                  setPlaceId(v);
+                  form.clear('place');
                 }}
                 disabled={busy}
-                emptyText="Connect to the internet once so your routes can load."
+                emptyText="Connect to the internet once so your places can load."
               />
             </FormField>
           )}
+          <FormField form={form} name="address" outline={false}>
+            <TextField
+              label="Area"
+              value={address}
+              onChangeText={(v) => {
+                setAddress(v);
+                form.clear('address');
+              }}
+              error={form.errors.address}
+              multiline
+              editable={!busy}
+              maxLength={500}
+            />
+          </FormField>
         </CardSection>
         <CardSection icon={sym('stethoscope', 'medical_services')} accent="teal" title="Doctor">
           <FormField form={form} name="name" outline={false}>
@@ -400,20 +414,6 @@ export default function AddDoctorScreen() {
               error={form.errors.name}
               editable={!busy}
               maxLength={150}
-            />
-          </FormField>
-          <FormField form={form} name="address" outline={false}>
-            <TextField
-              label="Address"
-              value={address}
-              onChangeText={(v) => {
-                setAddress(v);
-                form.clear('address');
-              }}
-              error={form.errors.address}
-              multiline
-              editable={!busy}
-              maxLength={500}
             />
           </FormField>
           <FormField form={form} name="specialty">
@@ -555,7 +555,7 @@ export default function AddDoctorScreen() {
                   <View style={styles.grow}>
                     <ThemedText type="smallBold">{p.name}</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary">
-                      {`${p.specialty} · ${routeName.get(p.routeId) ?? 'Route'}`}
+                      {`${p.specialty} · ${whereOf(p)}`}
                     </ThemedText>
                   </View>
                 </View>
@@ -608,7 +608,7 @@ export default function AddDoctorScreen() {
               <View style={styles.grow}>
                 <ThemedText type="smallBold">{d.name}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  {[d.specialty, d.clinicName, routeName.get(d.routeId) ?? 'Route'].filter(Boolean).join(' · ')}
+                  {[d.specialty, d.clinicName, whereOf(d)].filter(Boolean).join(' · ')}
                 </ThemedText>
               </View>
             </View>

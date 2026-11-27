@@ -87,6 +87,8 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
   // ── Field master data ──
   toggle('DOCTOR_VISIBILITY_FOLLOWS_ROUTE', 'FIELD_MASTER_DATA', 'Doctors follow the MR’s routes', 'Whether an MR sees only the assigned Doctors on the Routes they currently have. Off: an MR keeps every assigned Doctor after a Route change.', true),
   toggle('AUTO_ASSIGN_DOCTOR_ON_APPROVAL', 'FIELD_MASTER_DATA', 'Assign a new doctor to the MR who added it', 'Whether approving a Doctor an MR added assigns that Doctor to the MR who added it.', true),
+  toggle('AUTO_ASSIGN_CHEMIST_ON_APPROVAL', 'FIELD_MASTER_DATA', 'Assign a new chemist to the MR who added it', 'Whether approving a Chemist an MR added assigns that Chemist to the MR who added it. Off: Admin assigns it.', true),
+  toggle('MANAGERS_CAN_HOLD_OUTLETS', 'FIELD_MASTER_DATA', 'Managers can hold doctors and chemists', 'Whether a manager (any designation above MR) can be assigned Doctors and Chemists. Off: only MRs hold them; managers see and call their team’s.', false),
 
   toggle('MANAGER_CAN_ADD_DOCTORS', 'FIELD_MASTER_DATA', 'Managers can add doctors', 'Whether a manager (anyone with a team under them) may add a Doctor from the app. Off: only MRs without a team, and Admin, can. A manager’s Doctor goes to their own manager, or Admin, for approval.', false),
   toggle('MANAGER_CAN_ADD_CHEMISTS', 'FIELD_MASTER_DATA', 'Managers can add chemists', 'Whether a manager (anyone with a team under them) may add a Chemist from the app. Off: only MRs without a team, and Admin, can. A manager’s Chemist goes to their own manager, or Admin, for approval.', false),
