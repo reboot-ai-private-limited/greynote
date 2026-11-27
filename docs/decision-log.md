@@ -3168,6 +3168,6 @@ The Secondary Sales performance sheet (Excel, shown on the web's Secondary sales
 
 ## 2026-11-27: Follow-ups for anything unplanned
 
-The Dr Call and Chemist Call screens link to Follow-up ("Not on today's plan? Log a … follow-up"): a doctor not on today's plan, or a chemist not at today's place, is a follow-up. Follow-up rules are unchanged (geofence, field days only, visit gap).
+A doctor not on today's plan, or a chemist not at today's place, is logged from Follow-up as before (no extra link on the call screens). Follow-up rules are unchanged (geofence, field days only, visit gap).
 
 **Needs a migration:** no.

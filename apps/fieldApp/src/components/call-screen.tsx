@@ -303,7 +303,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
             fe.clear('outlet');
           }}
           disabled={busy}
-          emptyText={isDoctor ? 'No doctors planned today. Use Follow-up for another doctor, or ask your manager or Admin to change the plan.' : `No ${noun}s for you yet. Connect to the internet once so your list can load.`}
+          emptyText={isDoctor ? 'No doctors planned today. Use Follow-up for another doctor, or ask your manager or Admin to change the plan.' : `No ${noun}s at today’s place. Use Follow-up for one elsewhere.`}
           avatars={isDoctor}
         />
         </FormField>
