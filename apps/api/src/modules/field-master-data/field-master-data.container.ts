@@ -264,14 +264,18 @@ export function buildFieldMasterDataContainer(
       canActOnDistributor: async (userId, distributorId) => {
         const distributor = await distributors.findById(distributorId);
         if (!distributor || distributor.status !== 'active') return false;
-        // Only a distributor handed to the employee; route coverage no longer grants access (2026-11-04).
-        return distributor.assignedUserIds.includes(userId);
+        // A distributor handed to the employee, or (2026-11-27) to anyone below them — a manager orders for their team's.
+        if (distributor.assignedUserIds.includes(userId)) return true;
+        const below = new Set((await users.getDownline(userId)).map((u) => u.id));
+        return distributor.assignedUserIds.some((id) => below.has(id));
       },
       canActOnChemist: async (userId, chemistId) => {
         const chemist = await chemists.findById(chemistId);
         if (!chemist || chemist.status !== 'active') return false;
-        // Only a chemist handed to the employee; the Route no longer grants access (decision-log 2026-11-16).
-        return chemistAssignments.isAssigned(userId, chemistId);
+        // A chemist held by the employee, or (2026-11-27) by anyone below them — a manager orders for their team's, as they call on them.
+        if (await chemistAssignments.isAssigned(userId, chemistId)) return true;
+        const below = new Set((await users.getDownline(userId)).map((u) => u.id));
+        return (await chemistAssignments.listActiveForChemist(chemistId)).some((a) => below.has(a.userId));
       },
       listOutletsForUser: async (userId) => {
         const [chemistList, distributorList] = await Promise.all([chemists.listActiveAmong((await chemistAssignments.listActiveForUsers([userId])).map((a) => a.chemistId), {}, { page: 1, pageSize: 100_000 }), distributors.listActiveForUser(userId)]);

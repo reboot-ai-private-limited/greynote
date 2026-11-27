@@ -160,7 +160,8 @@ export type FieldMasterDataSnapshot = {
   /** `phone` is `null` when not set (absent from older servers). */
   chemists: { id: string; routeId: string; /** Where it sits (2026-11-26): chemist calls are made at the day's To place. Absent from older servers. */ placeId?: string; name: string; address: string; phone?: string | null; location: GeoPoint | null }[];
   /** A distributor can be on several routes (the API sends `routeIds`; there is no single `routeId`). */
-  distributors?: { id: string; routeIds: string[]; name: string; address: string; location: GeoPoint | null; gstNumber?: string | null; contactPerson?: string | null; mobile?: string | null }[];
+  /** `placeIds` (2026-11-27): the places it serves; `routeIds` is empty from newer servers. A manager's include their team's. */
+  distributors?: { id: string; routeIds: string[]; placeIds?: string[]; name: string; address: string; location: GeoPoint | null; gstNumber?: string | null; contactPerson?: string | null; mobile?: string | null }[];
   products: {
     id: string;
     name: string;

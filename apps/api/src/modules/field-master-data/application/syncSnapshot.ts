@@ -1,4 +1,3 @@
-import { expandRouteIds } from './distributorCoverage.js';
 import type { FieldMasterDataSnapshot } from '@greynote/contracts';
 import type { SyncSourceDefinition } from '@/modules/sync/sync.public.js';
 import type { ChemistRepositoryPort } from '../domain/chemist.repository.port.js';
@@ -22,8 +21,9 @@ export const FIELD_MASTER_DATA_SYNC_SOURCE = 'fieldMasterData';
  *
  * - `doctors` — the MR's own, by the same visibility rule as `GET /doctors/mine`.
  * - `pendingDoctors` — the ones they added that are waiting for approval, so the phone can show them.
- * - `chemists` — active, on the Routes the MR currently has.
- * - `distributors` — active ones handed to the MR (assigned). Route coverage alone no longer shows a distributor.
+ * - `chemists` — active ones held by the person, and for a manager by anyone below them (own first, capped).
+ * - `distributors` — active ones handed to the person, and for a manager to anyone below them (2026-11-27), with their places.
+ *   `routeIds` is sent empty: places replaced routes, and the key stays so an older build still parses.
  * - `products` — the active catalog.
  * - `sampleAllocations` — always empty since 2026-11 (samples are the employee's own credit); kept so older builds parse.
  *
@@ -51,24 +51,23 @@ export function makeFieldMasterDataSource(deps: {
    * (an MR has nobody below, so only their own). The phone's chemist picker reads only this list, and the server accepts a manager's call on a
    * team chemist (`CallChecks.chemist`). The person's own come first so the cap never drops them.
    */
-  const chemistsFor = async (userId: string) => {
-    const downline = (await deps.users.getDownline(userId)).map((u) => u.id);
-    const rows = await deps.chemistAssignments.listActiveForUsers([userId, ...downline]);
+  const chemistsFor = async (userId: string, people: string[]) => {
+    const rows = await deps.chemistAssignments.listActiveForUsers(people);
     const own = rows.filter((r) => r.userId === userId).map((r) => r.chemistId);
-    const team = rows.filter((r) => r.userId !== userId).map((r) => r.chemistId).sort();
-    const ids = [...new Set([...own, ...team])].slice(0, MAX_SNAPSHOT_CHEMISTS);
+    const others = rows.filter((r) => r.userId !== userId).map((r) => r.chemistId).sort();
+    const ids = [...new Set([...own, ...others])].slice(0, MAX_SNAPSHOT_CHEMISTS);
     return (await deps.chemists.listActiveAmong(ids, {}, { page: 1, pageSize: 100_000 })).items;
   };
   return {
     name: FIELD_MASTER_DATA_SYNC_SOURCE,
     async snapshot(userId): Promise<FieldMasterDataSnapshot> {
-      const [scopes, routes] = await Promise.all([deps.visibility.scopes([userId]), deps.territory.listRoutesForUser(userId)]);
-      const routeIds = routes.map((r) => r.id);
-      const [{ items: mine }, pending, chemists, distributors, products, specialties] = await Promise.all([
+      const scopes = await deps.visibility.scopes([userId]);
+      const team = [userId, ...(await deps.users.getDownline(userId)).map((u) => u.id)];
+      const [{ items: mine }, pending, chemists, { items: distributors }, products, specialties] = await Promise.all([
         deps.doctors.listAssigned(scopes, {}, null),
         deps.doctors.listPendingAdded(userId),
-        chemistsFor(userId),
-        deps.distributors.listActiveForUser(userId),
+        chemistsFor(userId, team),
+        deps.distributors.listActiveAssignedToAny(team, {}, { page: 1, pageSize: MAX_SNAPSHOT_CHEMISTS }),
         deps.products.listActive(),
         deps.specialties.listActive(),
       ]);
@@ -92,10 +91,9 @@ export function makeFieldMasterDataSource(deps: {
         })),
         pendingDoctors: byId(pending).map((d) => ({ id: d.id, routeId: d.routeId, placeId: d.placeId, name: d.name, address: d.address, specialty: d.specialty, qualification: d.qualification, location: d.location, photoUrl: d.photo?.url ?? null })),
         chemists: byId(chemists).map((c) => ({ id: c.id, routeId: c.routeId, placeId: c.placeId, name: c.name, address: c.address, phone: c.phone, location: c.location })),
-        distributors: await Promise.all(byId(distributors).map(async (d) => ({
+        distributors: byId(distributors).map((d) => ({
           id: d.id,
-          // The phone's cache wants concrete Routes, so a Zone- or HQ-wide distributor is expanded here.
-          routeIds: await expandRouteIds(deps.territory, d),
+          routeIds: [],
           placeIds: d.placeIds,
           name: d.name,
           gstNumber: d.gstNumber,
@@ -103,7 +101,7 @@ export function makeFieldMasterDataSource(deps: {
           mobile: d.mobile,
           address: d.address,
           location: d.location,
-        }))),
+        })),
         specialties: specialties.map((s) => s.name),
         products: byId(products).map((p) => ({ id: p.id, name: p.name, sku: p.sku, category: p.category, composition: p.composition, type: p.type, packSize: p.packSize, ptsPaise: p.ptsPaise, ptrPaise: p.ptrPaise, mrpPaise: p.mrpPaise, gstPercent: p.gstPercent, division: p.division })),
         // Samples are the employee's own credit now (2026-11): no per-doctor allocation goes to the phone. The key stays (empty) so an older build still parses the snapshot.

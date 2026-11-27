@@ -283,7 +283,7 @@ export function buildFieldActivityContainer(
           markServiceDone: new MarkDoctorServiceDoneUseCase(services, approvals, master),
           allocateGift: new AllocateGiftUseCase(master, gifts),
           listGifts: new ListGiftsUseCase(gifts, master, users),
-          requestGift: new RequestGiftUseCase(master, gifts),
+          requestGift: new RequestGiftUseCase(master, gifts, () => new Date(), users),
           reviewGift: new ReviewGiftRequestUseCase(gifts),
           createSampleRequest: new CreateSampleRequestUseCase(sampleRequests, master, users),
           cancelSampleRequest: new CancelSampleRequestUseCase(sampleRequests),

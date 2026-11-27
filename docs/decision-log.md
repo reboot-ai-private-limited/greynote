@@ -3184,3 +3184,20 @@ A doctor not on today's plan, or a chemist not at today's place, is logged from 
 - **Fix**: the Doctor visits report counted a doctor's calls by anyone; it now counts the employee's own, on counted reports (`callFigures`).
 
 **Needs a migration:** no.
+
+## 2026-11-27: Sync — stop the loop, pace the phone, cheaper pulls
+
+**Context.** Every open phone synced about every 5 s for as long as it was open: `runSync` always signalled "outbox changed", and that signal scheduled the next `runSync`. Each pull rebuilt all six snapshots (about 100–370 queries), uncompressed.
+
+**Decision.**
+- **Phone** (`offline/sync-pacing.ts`, `engine.ts`, `hooks.ts`): `runSync` signals the outbox only when records changed. Pulls happen at sign-in and reconnect, on returning to the app after 15+ minutes, every 15 minutes while open, and after a save only if the last pull is over a minute old; `refreshNow` joins a running pull and reuses one from the last 10 s. Errors back off from 30 s to 15 min. `useCachedFetch` shows a copy younger than 1 minute without refetching on open (a reload or a new `refreshKey` always fetches); an unchanged pull no longer re-renders screens; the manager's roster is refetched at most every 10 minutes.
+- **Server:** gzip (`compression`); a 60-second per-user, per-source snapshot cache in `/sync/pull`, cleared when that user pushes; settings read once and kept 30 seconds (`CachedSystemConfigRepository`, dropped on any change); daily plans and carry-over read their approvals in one query; a manager's carry-over work is skipped; distributors are no longer expanded into routes.
+- Measured (`src/scripts/measure-sync-pull.ts`, local data): an MR's pull went from 255 queries / 71 KB to 111 queries / 10 KB on the wire; a repeat pull within a minute is 4 queries.
+
+## 2026-11-27: Request screens list the right doctors, chemists and distributors
+
+- **Gifts:** the doctor picker is Doctor Services' (own for an MR, the team's for a manager); the server accepts a manager's request for a team doctor.
+- **Orders:** a manager may order for a chemist or distributor held by anyone below them (`canActOnChemist` / `canActOnDistributor`); the phone's snapshot sends a manager their team's distributors. Error text: "not assigned to you or your team".
+- **Distributors** show their places, not route names (`placeIds`; `routeIds` is sent empty). **Team doctors** carry their place (`placeName`; `routeName` holds the same for older phones). **Places** in the phone's cache carry their HQ name. Doctor Services' offline team list is cached per manager flag.
+
+**Needs a migration:** no.

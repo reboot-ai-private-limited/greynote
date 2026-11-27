@@ -58,6 +58,8 @@ export interface TeamDoctorRow {
   name: string;
   specialty: string;
   clinicName: string | null;
+  /** Where the doctor sits (2026-11-27). `routeName` carries the same, for older phones that show it. */
+  placeName: string | null;
   routeName: string | null;
   visitFrequency: number | null;
   /** The MR who holds him (on a manager's page this is how you tell their team apart). */
@@ -140,15 +142,20 @@ export class TeamMemberDoctorsUseCase {
     for (const s of services) byDoctor.set(s.doctorId, [...(byDoctor.get(s.doctorId) ?? []), s]);
     const giftsByDoctor = new Map<string, TeamDoctorGift[]>();
     for (const g of gifts) giftsByDoctor.set(g.doctorId, [...(giftsByDoctor.get(g.doctorId) ?? []), g]);
-    const routeNames = new Map<string, string | null>();
-    for (const id of new Set(held.map((h) => h.d.routeId))) routeNames.set(id, (await this.routes.getRoute(id))?.name ?? null);
+    // The place each doctor sits on (2026-11-27), one lookup per place; a doctor from before places falls back to its route's name.
+    const placeNames = new Map<string, string | null>();
+    for (const id of new Set(held.flatMap((h) => (h.d.placeId ? [h.d.placeId] : [])))) placeNames.set(id, (await this.routes.getPlace?.(id))?.name ?? null);
+    const whereOf = async (d: { placeId?: string | null; routeId: string }) => (d.placeId ? (placeNames.get(d.placeId) ?? null) : ((await this.routes.getRoute(d.routeId))?.name ?? null));
+    const where = new Map<string, string | null>();
+    for (const { d } of held) where.set(d.id, await whereOf(d));
     const items = held
       .map(({ d, by }): TeamDoctorRow => ({
         id: d.id,
         name: d.name,
         specialty: d.specialty,
         clinicName: d.clinicName,
-        routeName: routeNames.get(d.routeId) ?? null,
+        placeName: where.get(d.id) ?? null,
+        routeName: where.get(d.id) ?? null,
         visitFrequency: d.visitFrequency,
         heldBy: { id: by, name: names.get(by) ?? '' },
         visitsThisMonth: visits.get(d.id)?.month ?? 0,
@@ -187,7 +194,7 @@ export class TeamDoctorUseCase {
       .flatMap((a) => a.doctorCalls.filter((c) => c.doctorId === doctorId).map((c) => ({ date: a.date, at: c.recordedAt.toISOString(), remarks: c.remarks, geofence: c.geofence })))
       .sort((a, b) => b.date.localeCompare(a.date));
     return {
-      doctor: { id: doctor.id, name: doctor.name, specialty: doctor.specialty, clinicName: doctor.clinicName, phone: doctor.phone, address: doctor.address, visitFrequency: doctor.visitFrequency, routeName: (await this.routes.getRoute(doctor.routeId))?.name ?? null },
+      doctor: { id: doctor.id, name: doctor.name, specialty: doctor.specialty, clinicName: doctor.clinicName, phone: doctor.phone, address: doctor.address, visitFrequency: doctor.visitFrequency, placeName: doctor.placeId ? ((await this.routes.getPlace?.(doctor.placeId))?.name ?? null) : null, routeName: doctor.placeId ? ((await this.routes.getPlace?.(doctor.placeId))?.name ?? null) : ((await this.routes.getRoute(doctor.routeId))?.name ?? null) },
       heldBy: { id: person.id, name: person.name, employeeCode: person.employeeCode },
       month,
       visitsThisMonth: calls.filter((c) => c.date >= range.from && c.date <= range.to).length,

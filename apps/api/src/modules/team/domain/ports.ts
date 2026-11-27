@@ -49,6 +49,8 @@ export interface TeamPlanRoute {
 /** Team's narrow view of Territory's routes; `territory.contract` satisfies it structurally (a deleted route still answers). */
 export interface TeamRoutesPort {
   getRoute(routeId: string): Promise<TeamPlanRoute | null>;
+  /** A place's name (2026-11-27: doctors sit on places); optional so older fakes need not add it. */
+  getPlace?(placeId: string): Promise<{ id: string; name: string } | null>;
 }
 
 /** Identity's compliance block, one person at a time. */
@@ -104,6 +106,8 @@ export interface TeamDoctorInfo {
   specialty: string;
   clinicName: string | null;
   phone: string | null;
+  /** Where it sits (2026-11-27); absent on a doctor from before places. */
+  placeId?: string | null;
   address: string;
   routeId: string;
   visitFrequency: number | null;

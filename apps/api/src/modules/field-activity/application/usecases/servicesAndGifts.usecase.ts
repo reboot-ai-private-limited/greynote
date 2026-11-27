@@ -225,19 +225,30 @@ export class AllocateGiftUseCase {
   }
 }
 
-/** An employee asks for a gift for one of their own doctors (2026-11). Admin or Accounts accept it with an amount, or reject it; until then it is `REQUESTED`. */
+/**
+ * An employee asks for a gift for one of their own doctors (2026-11) — or, for a manager, one of their team's (2026-11-27: managers hold
+ * no doctors). Admin or Accounts accept it with an amount, or reject it; until then it is `REQUESTED`.
+ */
 export class RequestGiftUseCase {
   constructor(
     private readonly master: FieldMasterDataPort,
     private readonly gifts: DoctorGiftRepositoryPort,
     private readonly now: () => Date = () => new Date(),
+    /** Who is above whom; without it only the employee's own doctors count. */
+    private readonly users?: Pick<UserDirectoryPort, 'getManagerChain'>,
   ) {}
+
+  private async mayAsk(userId: string, doctorId: string): Promise<boolean> {
+    if (await this.master.isAssignedToDoctor(userId, doctorId)) return true;
+    const holder = await this.master.getAssignedUserId(doctorId);
+    return holder !== null && !!this.users && (await this.users.getManagerChain(holder)).some((u) => u.id === userId);
+  }
 
   async execute(userId: string, input: { doctorId: string; productName: string; note: string | null }): Promise<DoctorGift> {
     const doctor = await this.master.getDoctor(input.doctorId);
     if (!doctor) throw AppError.notFound('No such doctor.');
     if (doctor.status !== 'active') throw AppError.conflict('This doctor is inactive, so it can’t be given a gift.');
-    if (!(await this.master.isAssignedToDoctor(userId, input.doctorId))) throw AppError.forbidden('This doctor is not yours.');
+    if (!(await this.mayAsk(userId, input.doctorId))) throw AppError.forbidden('This doctor is not yours or your team’s.');
     return this.gifts.create({ doctorId: input.doctorId, allocatedBy: userId, productName: input.productName, amountPaise: 0, status: 'REQUESTED', origin: 'EMPLOYEE', requestedBy: userId, requestNote: input.note, rejectReason: null, completedBy: null, completedAt: null, allocatedAt: this.now() });
   }
 }

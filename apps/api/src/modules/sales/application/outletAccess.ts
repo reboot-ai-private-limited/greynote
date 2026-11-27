@@ -16,6 +16,6 @@ export class OutletAccess {
     if (!found || found.status !== 'active') throw new StockRefusal(STOCK_CODES.outletNotFound, 'That outlet does not exist or is no longer active.');
     if (actor.role === 'ADMIN' || actor.role === 'ACCOUNTANT') return;
     const allowed = outlet.type === 'CHEMIST' ? await this.master.canActOnChemist(actor.id, outlet.id) : await this.master.canActOnDistributor(actor.id, outlet.id);
-    if (!allowed) throw new StockRefusal(STOCK_CODES.outletNotYours, 'That outlet is not on your Routes.');
+    if (!allowed) throw new StockRefusal(STOCK_CODES.outletNotYours, 'That outlet is not assigned to you or your team.');
   }
 }

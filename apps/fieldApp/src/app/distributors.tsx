@@ -11,6 +11,7 @@ import { ThemedText } from '@/components/themed-text';
 import { InfoCard } from '@/components/ui-cards';
 import { Spacing } from '@/constants/theme';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { placeName } from '@/lib/places';
 import { useCachedSource } from '@/offline/cache';
 import { formatWhen } from '@/offline/day';
 import type { FieldMasterDataSnapshot, TerritorySnapshot } from '@/types/sync';
@@ -25,16 +26,23 @@ export default function DistributorsScreen() {
   const { isManager } = useCurrentUser();
   const [query, setQuery] = useState('');
 
+  // The places a distributor serves (2026-11-27), by name where this phone knows them; an older server's routes as a fallback.
   const routeName = new Map((territory.data?.routes ?? []).map((r) => [r.id, r.name]));
   const q = query.trim().toLowerCase();
   const rows = [...(master.data?.distributors ?? [])]
-    .map((d) => ({ d, routes: d.routeIds.map((id) => routeName.get(id)).filter((n): n is string => Boolean(n)) }))
+    .map((d) => ({
+      d,
+      routes: (d.placeIds && d.placeIds.length > 0
+        ? d.placeIds.map((id) => placeName(id, territory.data))
+        : d.routeIds.map((id) => routeName.get(id))
+      ).filter((n): n is string => Boolean(n)),
+    }))
     .filter(({ d, routes }) => !q || [d.name, d.address, d.contactPerson, d.mobile, d.gstNumber, ...routes].some((v) => (v ?? '').toLowerCase().includes(q)))
     .sort((a, b) => a.d.name.localeCompare(b.d.name));
 
   return (
     <ScreenShell title="Distributors" subtitle={isManager ? 'Yours, and your team’s' : 'The distributors handed to you'}>
-      <TextField label="Search" placeholder="Name, place, contact, mobile, GST or route" value={query} onChangeText={setQuery} autoCapitalize="none" />
+      <TextField label="Search" placeholder="Name, place, contact, mobile or GST" value={query} onChangeText={setQuery} autoCapitalize="none" />
       {isManager ? <PrimaryButton label="Team distributors →" variant="text" onPress={() => router.push('/team-distributors')} /> : null}
       {master.fetchedAt ? <ThemedText type="small" themeColor="textSecondary">{`As of ${formatWhen(master.fetchedAt)}.`}</ThemedText> : null}
 
@@ -53,7 +61,7 @@ export default function DistributorsScreen() {
               {[d.contactPerson, d.gstNumber ? `GST ${d.gstNumber}` : null].filter(Boolean).length > 0 ? (
                 <ThemedText type="small" themeColor="textSecondary">{[d.contactPerson, d.gstNumber ? `GST ${d.gstNumber}` : null].filter(Boolean).join(' · ')}</ThemedText>
               ) : null}
-              {routes.length > 0 ? <ThemedText type="small" themeColor="textSecondary">{`Routes: ${routes.join(', ')}`}</ThemedText> : null}
+              {routes.length > 0 ? <ThemedText type="small" themeColor="textSecondary">{`${d.placeIds && d.placeIds.length > 0 ? 'Places' : 'Routes'}: ${routes.join(', ')}`}</ThemedText> : null}
               {d.mobile ? (
                 <View style={styles.row}>
                   <PrimaryButton label={d.mobile} variant="text" onPress={() => void Linking.openURL(`tel:${d.mobile}`)} />

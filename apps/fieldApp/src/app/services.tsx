@@ -79,7 +79,8 @@ export default function ServicesScreen() {
 
   // A manager may ask for a service for a doctor of anyone in their team too (docs/mobile/service-requests.md rule 1); an MR, only their own.
   const { isManager } = useCurrentUser();
-  const team = useCachedFetch<TeamDoctor[]>('services-team-doctors', isManager ? listAllTeamDoctors : async () => []);
+  // Keyed by the manager flag (2026-11-27): a list cached before the flag arrived (empty) is never reused for a manager.
+  const team = useCachedFetch<TeamDoctor[]>(`services-team-doctors:${isManager ? 'team' : 'none'}`, isManager ? listAllTeamDoctors : async () => []);
   const own = master.data?.doctors ?? [];
   const doctors = [
     ...own.map((d) => ({ id: d.id, name: d.name, subtitle: d.address, photoUrl: d.photoUrl })),

@@ -8,7 +8,7 @@ type Snapshot = {
   doctors: Array<{ id: string; name: string }>;
   pendingDoctors: Array<{ id: string; name: string }>;
   chemists: Array<{ id: string; name: string }>;
-  distributors: Array<{ id: string; name: string }>;
+  distributors: Array<{ id: string; name: string; routeIds: string[]; placeIds?: string[] }>;
   products: Array<{ id: string; name: string }>;
   sampleAllocations: Array<{ id: string; doctorId: string; quantityRemaining: number }>;
 };
@@ -124,6 +124,10 @@ describe('the phone’s cache of Field Master Data', () => {
     await distributors.create({ ...base, routeIds: ['route-2', 'route-1'], name: 'One Of Several Routes', assignedUserIds: [], status: 'active' });
     await distributors.create({ ...base, routeIds: [], hqIds: ['h1'], name: 'Whole HQ', assignedUserIds: [], status: 'active' });
     expect(names((await snap('mr1')).distributors)).toEqual(['Assigned To Me']);
+    // 2026-11-27: a manager also gets the distributors handed to their team, with places and no expanded routes.
+    const team = (await snap('asm')).distributors;
+    expect(names(team)).toEqual(['Assigned To Me', 'Not Mine']);
+    expect(team.every((d) => Array.isArray(d.placeIds) && d.routeIds.length === 0)).toBe(true);
   });
 
   it('Products are the active catalog; no per-doctor sample allocation goes to the phone any more (2026-11)', async () => {

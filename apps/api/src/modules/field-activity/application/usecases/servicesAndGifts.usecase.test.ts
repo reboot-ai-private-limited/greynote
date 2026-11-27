@@ -254,6 +254,12 @@ describe('gift requests (2026-11)', () => {
     expect(g).toMatchObject({ status: 'REQUESTED', origin: 'EMPLOYEE', requestedBy: 'mr1', amountPaise: 0, requestNote: 'Birthday' });
   });
 
+  it('a manager asks for a gift for a team doctor (2026-11-27); a stranger still cannot', async () => {
+    const withTeam = new RequestGiftUseCase(kit.fmd, kit.gifts, () => new Date(), kit.users);
+    expect(await withTeam.execute('asm', { doctorId: 'd1', productName: 'Desk clock', note: null })).toMatchObject({ status: 'REQUESTED', requestedBy: 'asm' });
+    expect((await refusal(withTeam.execute('stranger', { doctorId: 'd1', productName: 'x', note: null }))).message).toMatch(/not yours/);
+  });
+
   it('not for a doctor that is not theirs, or one that does not exist', async () => {
     expect((await refusal(request.execute('mr2', { doctorId: 'd1', productName: 'x', note: null }))).message).toMatch(/not yours/);
     expect(((await refusal(request.execute('mr1', { doctorId: 'nope', productName: 'x', note: null }))) as AppError).statusCode).toBe(404);

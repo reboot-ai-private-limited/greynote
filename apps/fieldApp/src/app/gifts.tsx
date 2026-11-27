@@ -12,6 +12,7 @@ import { CardSection, InfoCard, Pill, SummaryStrip, sym } from '@/components/ui-
 import { OutletPicker } from '@/components/outlet-picker';
 import { Spacing } from '@/constants/theme';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { useDoctorPicker } from '@/hooks/use-doctor-picker';
 import { useDebounced } from '@/hooks/use-debounced';
 import { useWindowed } from '@/hooks/use-windowed';
 import { giftStatusText, listGifts, requestGift, type GiftView } from '@/lib/gifts';
@@ -75,6 +76,8 @@ export default function GiftsScreen() {
   const [askName, setAskName] = useState('');
   const [askNote, setAskNote] = useState('');
   const myDoctors = (master.data?.doctors ?? []).map((d) => ({ id: d.id, name: d.name, subtitle: d.address }));
+  // The same picker as Doctor Services (2026-11-27): an MR's own doctors, a manager's team's (managers hold none), searched on the server.
+  const picker = useDoctorPicker(isManager, [...myDoctors].sort((a, b) => a.name.localeCompare(b.name)));
 
   const sendRequest = async () => {
     if (!askDoctor) return setMsg({ tone: 'danger', text: 'Choose the doctor the gift is for.' });
@@ -143,7 +146,20 @@ export default function GiftsScreen() {
 
       {asking ? (
         <CardSection icon={sym('gift', 'redeem')} accent="pink" title="Request a gift">
-          <OutletPicker label="Doctor" options={myDoctors} value={askDoctor} onChange={setAskDoctor} disabled={busy !== null} emptyText="No doctors are assigned to you yet." searchable />
+          <OutletPicker
+            label="Doctor"
+            options={picker.options}
+            onSearch={picker.search}
+            onEndReached={picker.more}
+            loading={picker.loading}
+            selectedOption={picker.find(askDoctor)}
+            searchPlaceholder="Search a doctor"
+            value={askDoctor}
+            onChange={setAskDoctor}
+            disabled={busy !== null}
+            emptyText={isManager ? 'No doctors are assigned to your team yet.' : 'No doctors are assigned to you yet.'}
+            searchable
+          />
           <TextField label="Gift" value={askName} onChangeText={setAskName} placeholder="e.g. Desk clock" maxLength={200} editable={busy === null} />
           <TextField label="Note (optional)" value={askNote} onChangeText={setAskNote} multiline maxLength={500} editable={busy === null} />
           <PrimaryButton label="Send request" loading={busy === 'ask'} onPress={() => void sendRequest()} />
