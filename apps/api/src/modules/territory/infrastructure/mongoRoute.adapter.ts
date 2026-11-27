@@ -98,6 +98,9 @@ export class MongoRouteAdapter implements RouteRepositoryPort {
     if (query.placeId) {
       const place = new Types.ObjectId(query.placeId);
       filter.$or = [{ fromPlaceId: place }, { toPlaceId: place }];
+    } else if (query.touchingHqId) {
+      const placeIds = (await PlaceModel.find({ hqId: new Types.ObjectId(query.touchingHqId) }).select('_id').lean()).map((p) => p._id);
+      filter.$or = [{ fromPlaceId: { $in: placeIds } }, { toPlaceId: { $in: placeIds } }, { hqId: new Types.ObjectId(query.touchingHqId), fromPlaceId: null }];
     }
     const [docs, total] = await Promise.all([
       RouteModel.find(filter).sort(sort).skip(skip).limit(limit).lean(),

@@ -19,4 +19,6 @@ export interface PlaceRepositoryPort {
   countActiveOutsideTownInHq(hqId: string): Promise<number>;
   create(input: Omit<Place, 'id'>): Promise<Place>;
   update(id: string, input: Partial<Pick<Place, 'name' | 'type' | 'status'>>): Promise<Place>;
+  /** Only to undo a place just made whose route could not be made (`CreatePlaceUseCase`). */
+  delete(id: string): Promise<void>;
 }

@@ -18,7 +18,7 @@ import { UpdateRouteUseCase } from './updateRoute.usecase.js';
 import { UnassignRouteUseCase } from './unassignRoute.usecase.js';
 import { RouteTypeRules } from './routeTypeRules.js';
 import { PlaceRoutes } from './placeRoutes.js';
-import { CreatePlaceUseCase, UpdatePlaceUseCase } from './places.usecase.js';
+import { CreatePlaceUseCase, ListPlacesUseCase, UpdatePlaceUseCase } from './places.usecase.js';
 import { pairKeyOf } from '../../domain/place.entity.js';
 import { ImportRoutesUseCase } from './importRoutes.usecase.js';
 import type { RouteImportRow } from '../../interface/routesImport.csv.js';
@@ -77,6 +77,9 @@ class FakeRoutes implements RouteRepositoryPort {
   }
 }
 
+/** A place on its own, with no route yet: how these tests build up routes one by one (the API itself always adds a place with its route). */
+const rawPlace = (hqId: string, name: string, type: Place['type']) => places.create({ hqId, name, type, isHqTown: false, status: 'active' });
+
 class FakePlaces implements PlaceRepositoryPort {
   rows = new Map<string, Place>();
   private nextId = 1;
@@ -103,6 +106,9 @@ class FakePlaces implements PlaceRepositoryPort {
     const row = { ...input, id: `place-${this.nextId++}` };
     this.rows.set(row.id, row);
     return row;
+  }
+  async delete(id: string) {
+    this.rows.delete(id);
   }
   async update(id: string, input: Partial<Place>) {
     const row = { ...(this.rows.get(id) as Place), ...input };
@@ -388,7 +394,7 @@ describe('contract reads', () => {
     const slg = await placeRoutes.ensureHqTown(hqRow);
     const jal = await placeRoutes.ensureHqTown(otherHqs[0]!);
     const mal = await placeRoutes.ensureHqTown(otherHqs[1]!);
-    const maina = await new CreatePlaceUseCase(places, hqs).execute({ hqId: 'hq-2', name: 'Mainaguri', type: 'EX_STATION' });
+    const maina = await rawPlace('hq-2', 'Mainaguri', 'EX_STATION');
     await newRoute().execute({ fromPlaceId: jal.id, toPlaceId: maina.id, distanceKm: '20' });
     await newRoute().execute({ fromPlaceId: slg.id, toPlaceId: maina.id, distanceKm: '65' });
     await newRoute().execute({ fromPlaceId: slg.id, toPlaceId: mal.id, distanceKm: '60' });
@@ -402,7 +408,7 @@ describe('contract reads', () => {
   it('who "holds" a route is everyone based in the HQ of either end', async () => {
     otherHqs = [{ id: 'hq-2', zoneId: 'zone-1', name: 'Jalpaiguri', status: 'active' }];
     const slg = await placeRoutes.ensureHqTown(hqRow);
-    const maina = await new CreatePlaceUseCase(places, hqs).execute({ hqId: 'hq-2', name: 'Mainaguri', type: 'EX_STATION' });
+    const maina = await rawPlace('hq-2', 'Mainaguri', 'EX_STATION');
     const cross = await newRoute().execute({ fromPlaceId: slg.id, toPlaceId: maina.id, distanceKm: '65' });
     const holders = await forUsers({ zsm: 'hq-1', mr: 'hq-2', other: 'hq-9' }).holders([cross.id]);
     expect(holders).toEqual([
@@ -452,7 +458,7 @@ describe('a route not yet migrated keeps the km-driven type rules', () => {
 });
 
 describe('places and routes between them (decision-log 2026-11-26)', () => {
-  const addPlace = (name: string, type: Place['type'], hqId = hqRow.id) => new CreatePlaceUseCase(places, hqs).execute({ hqId, name, type });
+  const addPlace = (name: string, type: Place['type'], hqId = hqRow.id) => rawPlace(hqId, name, type);
   const town = () => placeRoutes.ensureHqTown(hqRow);
   const updatePlace = () => new UpdatePlaceUseCase(places, hqs, routes, placeRoutes);
 
@@ -583,5 +589,38 @@ describe('importing routes from a CSV (decision-log 2026-11-26)', () => {
         ],
       },
     });
+  });
+});
+
+describe('the Territory page (2026-11-27)', () => {
+  const create = () => new CreatePlaceUseCase(places, hqs, (input) => newRoute().execute(input));
+
+  it('a place always comes with its km from the HQ town: one save makes the place and that route, with its TA', async () => {
+    await placeRoutes.ensureHqTown(hqRow);
+    const made = await create().execute({ hqId: hqRow.id, name: 'Naxalbari', type: 'EX_STATION', distanceKm: '25', taFixedPaise: 35000 });
+    expect(made).toMatchObject({ name: 'Naxalbari' });
+    expect(routes.rows.get(made.routeId)).toMatchObject({ name: 'SLG-1 to Naxalbari', distanceKm: '25', taFixedPaise: 35000 });
+  });
+
+  it('checks first, and if the route still fails no place is left behind', async () => {
+    await expect(create().execute({ hqId: hqRow.id, name: 'Rangapani', type: 'EX_STATION', distanceKm: '10' })).rejects.toMatchObject({ statusCode: 409 });
+    await placeRoutes.ensureHqTown(hqRow);
+    await expect(
+      create().execute({ hqId: hqRow.id, name: 'Rangapani', type: 'EX_STATION', distanceKm: '10', taFixedPaise: 100, taPerKmRateOverridePaise: 400 }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    const failing = new CreatePlaceUseCase(places, hqs, async () => {
+      throw new Error('boom');
+    });
+    await expect(failing.execute({ hqId: hqRow.id, name: 'Matigara', type: 'HQ', distanceKm: '8' })).rejects.toThrow('boom');
+    expect(await places.findByName(hqRow.id, 'Matigara')).toBeNull();
+    expect(await places.findByName(hqRow.id, 'Rangapani')).toBeNull();
+  });
+
+  it('lists the places that still have no route to their HQ town (older data)', async () => {
+    await placeRoutes.ensureHqTown(hqRow);
+    await create().execute({ hqId: hqRow.id, name: 'Naxalbari', type: 'EX_STATION', distanceKm: '25' });
+    await rawPlace(hqRow.id, 'Rangapani', 'EX_STATION');
+    const missing = await new ListPlacesUseCase(places, routes).execute({ page: 1, pageSize: 20, missingHqTownRoute: true });
+    expect(missing.items.map((p) => p.name)).toEqual(['Rangapani']);
   });
 });

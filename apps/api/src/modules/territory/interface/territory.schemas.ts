@@ -93,9 +93,20 @@ export const listRoutesQuerySchema = listQuerySchema.extend({
   type: z.enum(ROUTE_TYPES).optional(),
   /** Routes with this place at either end. */
   placeId: objectIdSchema.optional(),
+  /** Routes with either end at a place of this HQ. */
+  touchingHqId: objectIdSchema.optional(),
 });
 
-export const createPlaceBodySchema = z.object({ hqId: objectIdSchema, name: nameSchema, type: z.enum(ROUTE_TYPES) });
+export const createPlaceBodySchema = z
+  .object({
+    hqId: objectIdSchema,
+    name: nameSchema,
+    type: z.enum(ROUTE_TYPES),
+    /** Required (2026-11-27): the one-way km from the HQ town; the route the place is planned by is made with it. */
+    distanceKm: distanceKmSchema,
+    ...routeTaSchema,
+  })
+  .refine(oneTaChoice, ONE_TA_CHOICE);
 export const updatePlaceBodySchema = z
   .object({ name: nameSchema, type: z.enum(ROUTE_TYPES), status: z.enum(TERRITORY_STATUSES) })
   .partial()
@@ -104,6 +115,8 @@ export const listPlacesQuerySchema = listQuerySchema.extend({
   hqId: objectIdSchema.optional(),
   zoneId: objectIdSchema.optional(),
   type: z.enum(ROUTE_TYPES).optional(),
+  /** `true`: only places with no active route to their HQ town (what still needs a km). */
+  missingHqTownRoute: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
 });
 
 export const searchPlacesQuerySchema = z.object({ q: z.string().trim().min(2).max(200) });

@@ -98,10 +98,12 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
     create: new CreateHqUseCase(hqRepository, zoneRepository, placeRoutes),
     update: new UpdateHqUseCase(hqRepository, zoneRepository, routeRepository, placeRepository, placeRoutes),
   };
+  const createRoute = new CreateRouteUseCase(routeRepository, hqRepository, placeRepository, placeRoutes, typeRules);
   const placeCrud = makeHierarchyController(
     {
-      list: new ListPlacesUseCase(placeRepository),
-      create: new CreatePlaceUseCase(placeRepository, hqRepository),
+      list: new ListPlacesUseCase(placeRepository, routeRepository),
+      // A place may come with its km from the HQ town: that route is made by the same use case as any route.
+      create: new CreatePlaceUseCase(placeRepository, hqRepository, (input) => createRoute.execute(input)),
       update: new UpdatePlaceUseCase(placeRepository, hqRepository, routeRepository, placeRoutes),
     },
     'Place',
@@ -112,7 +114,7 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
   const routeCrud = makeHierarchyController(
     {
       list: new ListRoutesUseCase(routeRepository),
-      create: new CreateRouteUseCase(routeRepository, hqRepository, placeRepository, placeRoutes, typeRules),
+      create: createRoute,
       update: new UpdateRouteUseCase(routeRepository, hqRepository, assignmentRepository, placeRoutes, typeRules),
     },
     'Route',

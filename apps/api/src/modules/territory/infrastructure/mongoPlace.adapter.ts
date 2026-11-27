@@ -69,6 +69,10 @@ export class MongoPlaceAdapter implements PlaceRepositoryPort {
     }
   }
 
+  async delete(id: string): Promise<void> {
+    await PlaceModel.deleteOne({ _id: new Types.ObjectId(id) });
+  }
+
   async update(id: string, input: Partial<Pick<Place, 'name' | 'type' | 'status'>>): Promise<Place> {
     const change = input.name === undefined ? input : { ...input, nameKey: toNameKey(input.name) };
     try {

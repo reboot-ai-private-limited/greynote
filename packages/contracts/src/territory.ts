@@ -53,7 +53,13 @@ export interface CreatePlaceDto {
   hqId: string;
   name: string;
   type: RouteType;
+  /** Required (2026-11-27): the one-way km from the HQ town; the place's route from there is made in the same step, with its TA. */
+  distanceKm: string;
+  taPerKmRateOverridePaise?: number | null | undefined;
+  taFixedPaise?: number | null | undefined;
 }
+/** What `POST /territory/places` made: the place, its HQ-town route if one was asked for, or why that route could not be made. */
+export type CreatedPlaceDto = PlaceDto & { routeId: string };
 /** At least one field. A rename or new type re-makes the place's routes. */
 export interface UpdatePlaceDto {
   name?: string | undefined;

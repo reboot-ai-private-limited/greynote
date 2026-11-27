@@ -7,6 +7,8 @@ export type RouteListQuery = TerritoryListQuery & {
   type?: RouteType | undefined;
   /** Routes with this place at either end. */
   placeId?: string | undefined;
+  /** Routes with either end at a place of this HQ, whichever HQ the route belongs to (2026-11-27, the Territory page). */
+  touchingHqId?: string | undefined;
 };
 
 export interface RouteRepositoryPort {

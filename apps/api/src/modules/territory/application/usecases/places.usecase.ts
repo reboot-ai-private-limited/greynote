@@ -10,25 +10,84 @@ import { assertNameFree, assertNoActiveChildren, assertParentUsable } from './hi
 import type { PlaceRoutes } from './placeRoutes.js';
 
 export class ListPlacesUseCase {
-  constructor(private readonly places: PlaceRepositoryPort) {}
+  constructor(
+    private readonly places: PlaceRepositoryPort,
+    private readonly routes?: RouteRepositoryPort,
+  ) {}
 
-  async execute(query: PlaceListQuery): Promise<PaginatedResult<Place>> {
-    const { items, total } = await this.places.list(query);
-    return buildPaginatedResult(items, total, query);
+  /**
+   * `missingHqTownRoute`: only the active places (not HQ towns) with no active route to their HQ town — what still needs a km on the
+   * Territory page. Worked out over the whole filtered list, then paged.
+   */
+  async execute(query: PlaceListQuery & { missingHqTownRoute?: boolean | undefined }): Promise<PaginatedResult<Place>> {
+    const { missingHqTownRoute, ...rest } = query;
+    if (!missingHqTownRoute || !this.routes) {
+      const { items, total } = await this.places.list(rest);
+      return buildPaginatedResult(items, total, rest);
+    }
+    const all = (await this.places.list({ ...rest, status: 'active', page: 1, pageSize: 100_000 })).items.filter((p) => !p.isHqTown);
+    const towns = new Map<string, string | null>();
+    const missing: Place[] = [];
+    for (const p of all) {
+      if (!towns.has(p.hqId)) towns.set(p.hqId, (await this.places.findHqTown(p.hqId))?.id ?? null);
+      const town = towns.get(p.hqId);
+      const route = town ? await this.routes.findByPair(p.id, town) : null;
+      if (route?.status !== 'active') missing.push(p);
+    }
+    const start = (rest.page - 1) * rest.pageSize;
+    return buildPaginatedResult(missing.slice(start, start + rest.pageSize), missing.length, rest);
   }
 }
 
-/** A town or station under an HQ, with the DA type a day there pays that HQ's people. */
+/** What adding a place made: the place and the id of its route from the HQ town. */
+export type CreatedPlace = Place & { routeId: string };
+
+/** Makes the route HQ town ↔ the new place (the same rules as any route). */
+export type HqTownRouteMaker = (input: { fromPlaceId: string; toPlaceId: string; distanceKm: string; taPerKmRateOverridePaise?: number | null | undefined; taFixedPaise?: number | null | undefined }) => Promise<{ id: string }>;
+
+/**
+ * A town or station under an HQ, with the DA type a day there pays that HQ's people, and — always (2026-11-27: one way to make a route) —
+ * its route from the HQ town, with the km and TA given. Everything is checked before anything is written; if the route still can't be
+ * made, the place is removed again, so a place never exists without the route it is planned by.
+ */
 export class CreatePlaceUseCase {
   constructor(
     private readonly places: PlaceRepositoryPort,
     private readonly hqs: HqRepositoryPort,
+    private readonly makeRoute: HqTownRouteMaker,
   ) {}
 
-  async execute(input: { hqId: string; name: string; type: RouteType }): Promise<Place> {
-    assertParentUsable(await this.hqs.findById(input.hqId), 'hqId', 'HQ');
+  async execute(input: {
+    hqId: string;
+    name: string;
+    type: RouteType;
+    distanceKm: string;
+    taPerKmRateOverridePaise?: number | null | undefined;
+    taFixedPaise?: number | null | undefined;
+  }): Promise<CreatedPlace> {
+    const hq = await this.hqs.findById(input.hqId);
+    assertParentUsable(hq, 'hqId', 'HQ');
     assertNameFree(await this.places.findByName(input.hqId, input.name), 'place');
-    return this.places.create({ hqId: input.hqId, name: input.name, type: input.type, isHqTown: false, status: 'active' });
+    if (input.taPerKmRateOverridePaise != null && input.taFixedPaise != null) {
+      throw AppError.badRequest('Choose either a rate per km or a fixed amount, not both.', { field: 'taFixedPaise' });
+    }
+    const town = await this.places.findHqTown(input.hqId);
+    if (!town || town.status !== 'active') throw AppError.conflict('This HQ has no active HQ town place.', { field: 'hqId' });
+
+    const place = await this.places.create({ hqId: input.hqId, name: input.name, type: input.type, isHqTown: false, status: 'active' });
+    try {
+      const route = await this.makeRoute({
+        fromPlaceId: town.id,
+        toPlaceId: place.id,
+        distanceKm: input.distanceKm,
+        taPerKmRateOverridePaise: input.taPerKmRateOverridePaise ?? null,
+        taFixedPaise: input.taFixedPaise ?? null,
+      });
+      return { ...place, routeId: route.id };
+    } catch (err) {
+      await this.places.delete(place.id);
+      throw err;
+    }
   }
 }
 
