@@ -21,6 +21,7 @@ import { ROUTE_TYPE_LABEL } from '../lib/draft';
 import { buildHqWorkspace } from '../lib/hqWorkspace';
 import { AddPlaceDialog } from './AddPlaceDialog';
 import { AddRouteDialog } from './AddRouteDialog';
+import { DeleteTerritoryDialog } from './DeleteTerritoryDialog';
 import { PlaceRouteDialog, RouteStatusDialog, taText, type DialogMode } from './PlaceRouteDialog';
 import { RoutePayPreview } from './RoutePayPreview';
 
@@ -47,6 +48,7 @@ export function HqWorkspace({ hqId }: { hqId: string }) {
   const [townDay, setTownDay] = useState(false);
   const [toggling, setToggling] = useState<PlaceDto | null>(null);
   const [togglingRoute, setTogglingRoute] = useState<RouteDto | null>(null);
+  const [deletingRoute, setDeletingRoute] = useState<RouteDto | null>(null);
   const updatePlace = useUpdatePlace(() => setToggling(null));
 
   if (!hq) return hqs.isLoading ? <Skeleton className="h-80 w-full" /> : <p className="text-sm text-text-muted">That HQ no longer exists. Choose another on the left.</p>;
@@ -190,6 +192,7 @@ export function HqWorkspace({ hqId }: { hqId: string }) {
                       { label: 'View', alwaysOn: true, onClick: () => setOpened({ routeId: r.id, mode: 'view' }) },
                       { label: 'Edit', onClick: () => setOpened({ routeId: r.id, mode: 'edit' }) },
                       r.status === 'active' ? { label: 'Deactivate', tone: 'danger', onClick: () => setTogglingRoute(r) } : { label: 'Reactivate', onClick: () => setTogglingRoute(r) },
+                      { label: 'Delete…', tone: 'danger', onClick: () => setDeletingRoute(r) },
                     ]}
                   />
                 </span>
@@ -215,6 +218,7 @@ export function HqWorkspace({ hqId }: { hqId: string }) {
           <RoutePayPreview title={`What a day in ${townName} pays`} distanceKm="0" type="HQ" rate="" />
         </Dialog>
       ) : null}
+      <DeleteTerritoryDialog segment="routes" item={deletingRoute ? { id: deletingRoute.id, name: routeLabel(deletingRoute) } : null} onClose={() => setDeletingRoute(null)} />
       <RouteStatusDialog route={togglingRoute} label={togglingRoute ? routeLabel(togglingRoute) : ''} onClose={() => setTogglingRoute(null)} />
       <StatusToggleDialog
         item={toggling}

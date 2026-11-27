@@ -23,6 +23,7 @@ import { ROUTE_TYPE_LABEL } from '../lib/draft';
 import { kmLabel } from '../lib/routeDraft';
 import { hqFilterOptions, pickHq, pickZone } from '../lib/routeFilters';
 import { AddRouteDialog } from './AddRouteDialog';
+import { DeleteTerritoryDialog } from './DeleteTerritoryDialog';
 import { PlaceRouteDialog, RouteStatusDialog } from './PlaceRouteDialog';
 import { RoutesImportDialog } from './RoutesImportDialog';
 
@@ -41,6 +42,7 @@ export function RoutesScreen({ embedded = false }: { embedded?: boolean } = {}) 
   const [importing, setImporting] = useState(false);
   const [addingRoute, setAddingRoute] = useState(false);
   const [toggling, setToggling] = useState<RouteDto | null>(null);
+  const [deleting, setDeleting] = useState<RouteDto | null>(null);
   const status = values.status || 'active';
   const hqName = (id: string) => hqs.data?.find((h) => h.id === id)?.name;
 
@@ -105,6 +107,7 @@ export function RoutesScreen({ embedded = false }: { embedded?: boolean } = {}) 
             { label: 'View', alwaysOn: true, onClick: () => update({ route: r.id, edit: '', page }) },
             { label: 'Edit', onClick: () => update({ route: r.id, edit: '1', page }) },
             r.status === 'active' ? { label: 'Deactivate', tone: 'danger', onClick: () => setToggling(r) } : { label: 'Reactivate', onClick: () => setToggling(r) },
+            { label: 'Delete…', tone: 'danger', onClick: () => setDeleting(r) },
           ]}
         />
       ),
@@ -194,6 +197,7 @@ export function RoutesScreen({ embedded = false }: { embedded?: boolean } = {}) 
       {values.route ? (
         <PlaceRouteDialog key={`${values.route}:${values.edit}`} routeId={values.route} mode={values.edit ? 'edit' : 'view'} onClose={() => update({ route: '', edit: '', page })} />
       ) : null}
+      <DeleteTerritoryDialog segment="routes" item={deleting ? { id: deleting.id, name: label(deleting) } : null} onClose={() => setDeleting(null)} />
       <RouteStatusDialog route={toggling} label={toggling ? label(toggling) : ''} onClose={() => setToggling(null)} />
     </PagedListFrame>
   );

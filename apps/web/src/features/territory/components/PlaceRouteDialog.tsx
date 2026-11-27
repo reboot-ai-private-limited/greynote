@@ -7,7 +7,6 @@ import { Dialog } from '@/components/ui/Dialog';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { FormField } from '@/components/ui/FormField';
 import { Input } from '@/components/ui/Input';
-import { ActionLinks } from '@/components/ui/RowActions';
 import { Select } from '@/components/ui/Select';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { StatusToggleDialog } from '@/components/ui/StatusToggleDialog';
@@ -18,7 +17,6 @@ import { useUpdateRoute } from '../hooks/useRouteMutations';
 import { useRoute } from '../hooks/useRoutes';
 import { ROUTE_TYPE_LABEL } from '../lib/draft';
 import { kmLabel, placeRouteChanges, taModeOf, type TaMode } from '../lib/routeDraft';
-import { DeleteTerritoryDialog } from './DeleteTerritoryDialog';
 import { RoutePayPreview } from './RoutePayPreview';
 import { TaChoiceFields } from './TaChoiceFields';
 
@@ -47,9 +45,6 @@ function Body({ route, startMode, onClose }: { route: RouteDto; startMode: Dialo
   const readOnly = useIsReadOnly();
   const places = usePlaceDirectory();
   const [mode, setMode] = useState<DialogMode>(readOnly ? 'view' : startMode);
-  const [toggling, setToggling] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const status = useUpdateRoute(route.id, () => setToggling(false));
 
   const from = route.fromPlaceId ? places.byId.get(route.fromPlaceId) : undefined;
   const to = route.toPlaceId ? places.byId.get(route.toPlaceId) : undefined;
@@ -89,28 +84,10 @@ function Body({ route, startMode, onClose }: { route: RouteDto; startMode: Dialo
               fixed={route.taFixedPaise == null ? '' : paiseToRupees(route.taFixedPaise)}
             />
           </div>
-          <div className="mt-3">
-            <ActionLinks
-              label={title}
-              disabled={readOnly}
-              actions={[
-                route.status === 'active' ? { label: 'Deactivate', tone: 'danger', onClick: () => setToggling(true) } : { label: 'Reactivate', onClick: () => setToggling(true) },
-                { label: 'Delete…', tone: 'danger', onClick: () => setDeleting(true) },
-              ]}
-            />
-          </div>
         </Dialog>
       ) : (
         <EditForm route={route} own={own} typeNote={typeNote} title={title} onCancel={() => (startMode === 'view' ? setMode('view') : onClose())} onSaved={() => setMode('view')} />
       )}
-      <StatusToggleDialog
-        item={toggling ? { id: route.id, name: title, status: route.status } : null}
-        noun="route"
-        pending={status.isPending}
-        onClose={() => setToggling(false)}
-        onConfirm={(next) => status.mutate({ status: next })}
-      />
-      <DeleteTerritoryDialog segment="routes" item={deleting ? { id: route.id, name: title } : null} onClose={() => setDeleting(false)} onDeleted={onClose} />
     </>
   );
 }
