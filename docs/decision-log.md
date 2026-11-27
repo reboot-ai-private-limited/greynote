@@ -3156,3 +3156,18 @@ The Secondary Sales performance sheet (Excel, shown on the web's Secondary sales
 - **A chemist call is made at the day's To place** (`CallChecks.chemistAtPlace`, refusal `CHEMIST_NOT_AT_PLACE`, which the phone lets the MR remove); the phone lists only those chemists. A chemist elsewhere gets a follow-up. Older days without places are not checked. The phone's chemist cache now reads `placeId`.
 
 **Needs a migration:** no.
+
+## 2026-11-27: A manager's day — work with the team approved at the same place, call their doctors
+
+**Decision.**
+- **Works with** on a manager's daily plan offers only the people below them whose **daily plan for that date is approved** and goes to the **same To place** (a field day). `ManagerScope.teamAtPlace`; `GET /planning/daily/work-with-options?date=` lists them with their planned doctors. The old rule (whoever holds the day's routes) is gone.
+- **A manager picks no doctors.** Their doctors are the union of the doctors on the approved plans of the people they work with, worked out on every save and again on submit (`ManagerScope.teamDoctors`); a doctor list an older app sends for a manager is ignored. With nobody to work with, a manager's day has no doctors: they log follow-ups. `MANAGER_PLAN_DOCTORS_MAX` no longer applies to these plans.
+- **No carry-over for managers** (`CarryOver.pending` is empty for them, so the snapshot's `owedDoctors` and the carry-over endpoint are too). MRs keep it.
+- **A manager's doctor call** must be for a doctor on that day's plan (`CallChecks.managerCallOnPlan`, refusal `DOCTOR_NOT_ON_TEAM_PLAN`, removable on the phone). Any other team doctor is a follow-up.
+- **Phone:** the manager's daily plan shows the Tour Plan's From → To, "Who you work with" from the new endpoint (with each person's doctor count), and the doctors read-only. `route-options` and `team-suggest` stay on the server for older builds.
+
+## 2026-11-27: Follow-ups for anything unplanned
+
+The Dr Call and Chemist Call screens link to Follow-up ("Not on today's plan? Log a … follow-up"): a doctor not on today's plan, or a chemist not at today's place, is a follow-up. Follow-up rules are unchanged (geofence, field days only, visit gap).
+
+**Needs a migration:** no.

@@ -136,6 +136,7 @@ GET    /api/planning/daily/:id  ADMIN,FIELD,HR
 GET    /api/planning/daily/carry-over  FIELD
 GET    /api/planning/daily/route-options  FIELD
 GET    /api/planning/daily/team-suggest  FIELD
+GET    /api/planning/daily/work-with-options  FIELD
 GET    /api/planning/destinations  ADMIN,FIELD,HR
 GET    /api/planning/late-grants  ADMIN,FIELD
 GET    /api/planning/monthly  FIELD

@@ -3,6 +3,8 @@ export const LOG_CODES = {
   invalidPayload: 'INVALID_PAYLOAD',
   doctorNotFound: 'DOCTOR_NOT_FOUND',
   doctorNotAssigned: 'DOCTOR_NOT_ASSIGNED',
+  /** 2026-11-27: a manager calls only the doctors their work-with people planned that day; any other is a follow-up. */
+  doctorNotOnTeamPlan: 'DOCTOR_NOT_ON_TEAM_PLAN',
   chemistNotFound: 'CHEMIST_NOT_FOUND',
   chemistRouteNotAssigned: 'CHEMIST_ROUTE_NOT_ASSIGNED',
   /** 2026-11-27: a chemist call is made at the day's To place; anywhere else it is a follow-up. */

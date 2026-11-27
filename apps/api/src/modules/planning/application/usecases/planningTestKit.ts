@@ -42,6 +42,9 @@ export class FakeDailyPlans implements DailyPlanRepositoryPort {
       .filter((p) => p.userId === userId && p.planDate >= from && p.planDate <= to)
       .sort((a, b) => a.planDate.localeCompare(b.planDate));
   }
+  async listForUsersOnDate(userIds: string[], planDate: string) {
+    return [...this.rows.values()].filter((p) => userIds.includes(p.userId) && p.planDate === planDate);
+  }
   async listWithDoctor(doctorId: string, fromDate: string, userId: string | null) {
     return [...this.rows.values()]
       .filter((p) => p.planDate >= fromDate && (!userId || p.userId === userId) && p.doctors.some((d) => d.doctorId === doctorId))
@@ -454,7 +457,7 @@ export function planningKit(clock: Clock) {
   /** Unbound: no day is locked. A test that needs off days binds its own list. */
   const offDays = new OffDays();
   const views = new PlanViews(approvals, grants, deadlines, offDays);
-  const scope = new ManagerScope(users, config, routes);
+  const scope = new ManagerScope(users, config, routes, { plans: dailyPlans, approvals });
   const submitter = new PlanSubmitter(users, routes, approvals, grants, inlineTransactions, clock.now, scope);
   approvals.registerKind({
     kind: 'MONTHLY_PLAN',
@@ -471,7 +474,7 @@ export function planningKit(clock: Clock) {
   /** Each user's visible doctors, and the calls they made (`userId` → `{ doctorId, date }`), as the test sets them. */
   const doctors = new Map<string, Array<{ id: string; routeId: string }>>();
   const calls: Array<{ userId: string; doctorId: string; date: string }> = [];
-  const carryOver = new CarryOver(dailyPlans, approvals, config);
+  const carryOver = new CarryOver(dailyPlans, approvals, config, (id) => scope.isManager(id));
   carryOver.bind(
     { listAssignedDoctors: async (userId) => doctors.get(userId) ?? [], getDoctorNames: async (ids) => ids.map((id) => ({ id, name: `Dr ${id}` })) },
     async (userId, { from, to }) => calls.filter((c) => c.userId === userId && c.date >= from && c.date <= to).map((c) => c.doctorId),

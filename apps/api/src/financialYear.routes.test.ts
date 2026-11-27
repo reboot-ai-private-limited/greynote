@@ -102,6 +102,7 @@ const TIMELESS = [
   '/api/planning/daily/carry-over',
   '/api/planning/daily/team-suggest', // one named day's suggestion for a manager; the day is chosen by the caller
   '/api/planning/daily/route-options', // one named day's people and doctors for the chosen routes
+  '/api/planning/daily/work-with-options', // one named day's team approved at the same place, for a manager (2026-11-27)
   '/api/planning/team-routes', // who holds which route now, not a dated record
   '/api/field-activity/expense-months/history', // the last twelve months, across a year end
   '/api/config', // system settings: global, not a dated record

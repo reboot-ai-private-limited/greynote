@@ -65,6 +65,11 @@ export class FakeUsers implements UserDirectoryPort {
   async getDownline(managerId: string) {
     return [...this.users.values()].filter((u) => u.managerId === managerId);
   }
+  /** user → designation level; anyone not listed counts as an MR (1). */
+  levels = new Map<string, number>();
+  async getDesignationLevels(ids: string[]) {
+    return ids.map((userId) => ({ userId, level: this.levels.get(userId) ?? 1 }));
+  }
   async isBlocked(userId: string) {
     return this.users.get(userId)?.blocked ?? false;
   }

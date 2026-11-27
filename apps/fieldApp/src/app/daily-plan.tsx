@@ -26,8 +26,8 @@ import {
   LATE_TEXT,
   getCarryOver,
   getDailyPlanRoutes,
-  getRouteOptions,
-  type RouteOptions,
+  getWorkWithOptions,
+  type WorkWithOptions,
   getDailyPlanDetail,
   getRejectionReason,
   isFieldDay,
@@ -39,6 +39,7 @@ import {
   type DailyPlanDetail,
   type PlannedDoctor,
 } from '@/lib/planning';
+import { dayWhere } from '@/lib/places';
 import { getTeamToday, type TeamDayRow } from '@/lib/team-section';
 import { WorkWithPicker } from '@/components/work-with-picker';
 import { refreshNow, useColleagues, useOnline } from '@/offline';
@@ -66,14 +67,14 @@ const plannedPicks = (plan: { doctors?: PlannedDoctor[] } | null): string[] =>
   (plan?.doctors ?? []).filter((d) => d.carriedFrom === null).map((d) => d.doctorId);
 
 /** What an unsent change to the day is kept as on the phone. Older drafts hold only the doctors. */
-type LocalDraft = { doctorIds: string[]; workWith?: string[]; routeIds?: string[] };
+type LocalDraft = { doctorIds: string[]; workWith?: string[] };
 
 const sameIds = (a: string[], b: string[]) => a.length === b.length && a.every((id) => b.includes(id));
 
 const errorText = planErrorText;
 
 /** The fields of this screen the server can name in a `400` (its `field`), top to bottom. */
-const FIELD_ORDER = ['routeIds', 'workWith', 'doctorIds'];
+const FIELD_ORDER = ['workWith', 'doctorIds'];
 
 /**
  * Daily Plan (docs/mobile/dailyplan.md). The day starts from the approved Monthly Plan. While it is editable the employee can
@@ -105,7 +106,6 @@ export default function DailyPlanScreen() {
   const fe = useFormErrors(FIELD_ORDER);
   const [showOriginal, setShowOriginal] = useState(false);
   // A manager is route first (dailyplan.md §1b, 2026-11-17): which of the day's approved routes the day covers; null = as saved.
-  const [routeDraft, setRouteDraft] = useState<string[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Msg | null>(null);
   // What the server said, kept with the plan it belongs to: a different day or plan reads as "not loaded yet".
@@ -136,22 +136,16 @@ export default function DailyPlanScreen() {
   const detailKey = `${date}:${existing?.id ?? 'none'}:${status}`;
   const detail = detailState?.key === detailKey ? detailState.detail : null;
 
-  // A manager's day, route first (dailyplan.md §1b): the routes it may cover are the approved ones (what the Tour Plan said, `plannedFrom`, once the day
-  // was changed), the ones chosen are a subset, and Works with and Doctors list only who is on the chosen routes (`route-options`, online; kept for offline).
-  const approvedRouteIds = managerDay ? (detail?.changedFromMonthly && detail.plannedFrom ? detail.plannedFrom.routeIds : existing.routeIds) : [];
-  const chosenRoutes = managerDay ? (routeDraft ?? existing.routeIds) : [];
-  const optionsKey = managerDay && chosenRoutes.length > 0 ? `plan-options:${date}:${chosenRoutes.join(',')}` : 'plan-options:none';
-  const routeOptions = useCachedFetch<RouteOptions | null>(optionsKey, async () => (managerDay && chosenRoutes.length > 0 ? getRouteOptions(date, chosenRoutes) : null));
-  const approvedKey = managerDay && approvedRouteIds.length > 0 ? `plan-options:${date}:${approvedRouteIds.join(',')}` : 'plan-options:none';
-  // The names of the approved routes (the chosen ones are a subset, so the same call usually answers both).
-  const approvedInfo = useCachedFetch<RouteOptions | null>(approvedKey, async () => (managerDay && approvedRouteIds.length > 0 ? getRouteOptions(date, approvedRouteIds) : null));
-  const optionPeople = useMemo(() => new Set((routeOptions.data?.people ?? []).map((p) => p.id)), [routeOptions.data]);
-  const optionDoctors = useMemo(() => new Set((routeOptions.data?.doctors ?? []).map((d) => d.id)), [routeOptions.data]);
-  const routeNameOf = (id: string) => [...(approvedInfo.data?.routes ?? []), ...(routeOptions.data?.routes ?? [])].find((r) => r.id === id)?.name ?? 'Route';
-  // Someone saved earlier who is not on the chosen routes is dropped, not carried into the save (the server would refuse it).
+  // A manager's day (2026-11-27): the Tour Plan's From → To; "Works with" offers the people below whose plan that day is approved at the same
+  // place (`work-with-options`, online; kept for offline), and the manager's doctors are the ones those people planned — never picked.
+  const optionsKey = managerDay ? `plan-work-with:${date}` : 'plan-work-with:none';
+  const workWithOptions = useCachedFetch<WorkWithOptions | null>(optionsKey, async () => (managerDay ? getWorkWithOptions(date) : null));
+  const optionPeople = useMemo(() => new Set((workWithOptions.data?.people ?? []).map((p) => p.id)), [workWithOptions.data]);
+  // Someone saved earlier who no longer qualifies is dropped, not carried into the save (the server would refuse it).
   const draftWorkWith = fieldDay
-    ? (workWithDraft ?? existing?.workWith ?? []).filter((id) => !managerDay || !routeOptions.data || optionPeople.has(id))
+    ? (workWithDraft ?? existing?.workWith ?? []).filter((id) => !managerDay || !workWithOptions.data || optionPeople.has(id))
     : [];
+  const teamDoctorIds = [...new Set((workWithOptions.data?.people ?? []).filter((p) => draftWorkWith.includes(p.id)).flatMap((p) => p.doctorIds))];
   const rejectionKey = status === 'REJECTED' ? (existing?.approvalRequestId ?? null) : null;
   const rejection = rejectionKey !== null && rejectionState?.key === rejectionKey ? rejectionState.text : null;
 
@@ -164,13 +158,8 @@ export default function DailyPlanScreen() {
     const extra = (planning.data?.owedDoctors ?? []).filter((o) => !stored.some((d) => d.doctorId === o.doctorId));
     return [...stored, ...extra];
   }, [existing, date, planning.data]);
-  // For a manager the carry-over call leaves out doctors owed from their downline, which the saved plan does carry, so both are shown.
-  const owed =
-    owedState?.date === date
-      ? isManager
-        ? [...owedState.list, ...savedOwed.filter((s) => !owedState.list.some((o) => o.doctorId === s.doctorId))]
-        : owedState.list
-      : savedOwed;
+  // A manager has no carry-over (2026-11-27): they call what their team planned that day.
+  const owed = isManager ? [] : owedState?.date === date ? owedState.list : savedOwed;
 
   // Days between visits to a doctor (dcr.md rule 11), counted from this plan's date: a doctor visited too recently can't be
   // called that day, so it isn't offered for the plan either. Ticked ones (from before) can still be unticked.
@@ -237,7 +226,6 @@ export default function DailyPlanScreen() {
       const kept = local !== null && editable;
       setDoctorIds(kept && local.doctorIds ? local.doctorIds : plannedPicks(existing));
       setWorkWithDraft(kept && local.workWith ? local.workWith : null);
-      setRouteDraft(kept && local.routeIds ? local.routeIds : null);
     });
   }, [planning.loaded, date, existing, editable]);
 
@@ -305,14 +293,8 @@ export default function DailyPlanScreen() {
     if (!existing) return { ids: serverPicks, changed: false };
     // A day that is not a field day has no doctors.
     if (!fieldDay) return { ids: [], changed: serverPicks.length > 0 };
-    // A manager's doctors are those on the chosen routes who are assigned to anyone below them (dailyplan.md §1b, 2026-11-17): a tick that is no
-    // longer on the chosen routes is dropped before the save, and the server checks the rest.
-    if (isManager) {
-      const ids = routeOptions.data ? doctorIds.filter((id) => optionDoctors.has(id)) : doctorIds;
-      const samePicks = ids.length === serverPicks.length && ids.every((id) => serverPicks.includes(id));
-      const onServer = new Set(savedOwed.map((d) => d.doctorId));
-      return { ids, changed: !samePicks || !owed.every((o) => onServer.has(o.doctorId)) };
-    }
+    // A manager picks no doctors (2026-11-27): the server takes the ones their work-with people planned, so nothing is sent.
+    if (isManager) return { ids: [], changed: false };
     if (!master.data) return { ids: serverPicks, changed: false };
     // The day's doctors are those at its To place (2026-11-27, as the picker and the server); an older day without places goes by its routes.
     const toPlaceId = existing.toPlaceId ?? null;
@@ -350,20 +332,19 @@ export default function DailyPlanScreen() {
 
   const refreshAll = () => Promise.all([refreshNow(), loadDetail()]);
 
-  const localDraft = (): LocalDraft => ({ doctorIds, workWith: draftWorkWith, ...(managerDay ? { routeIds: chosenRoutes } : {}) });
+  const localDraft = (): LocalDraft => ({ doctorIds, workWith: draftWorkWith });
 
   /** Whether the work-with or doctors differ from what the server has. */
   function dayChanged(): boolean {
     if (!existing) return false;
-    return !sameIds(draftWorkWith, existing.workWith) || (managerDay && !sameIds(chosenRoutes, existing.routeIds)) || doctorChange().changed;
+    return !sameIds(draftWorkWith, existing.workWith) || doctorChange().changed;
   }
 
   /** Sends the day's working type (as it is), work-with and doctors together; the server sets the routes and returns the whole plan. */
   async function sendDay() {
     if (!existing) return;
-    const saved = await saveDailyPlan(date, { workingType: existing.workingType, workWith: draftWorkWith, doctorIds: doctorChange().ids, ...(managerDay ? { routeIds: chosenRoutes } : {}) });
+    const saved = await saveDailyPlan(date, { workingType: existing.workingType, workWith: draftWorkWith, doctorIds: doctorChange().ids });
     // Show what the server saved until the refreshed plan arrives (clearing the draft would flash the old list back).
-    setRouteDraft(null);
     setWorkWithDraft(saved.workWith);
     setDoctorIds(plannedPicks(saved));
     await clearLocalDraft(`daily:${date}`);
@@ -387,8 +368,7 @@ export default function DailyPlanScreen() {
       if (!existing || !monthlyDay) return null;
       if (!online) return { tone: 'warning', text: 'Connect to the internet to go back to the monthly plan.' };
       const doctorIdsToKeep = isFieldDay(monthlyDay.workingType) ? doctorChange().ids : [];
-      const saved = await saveDailyPlan(date, { workingType: monthlyDay.workingType, workWith: monthlyDay.workWith, doctorIds: doctorIdsToKeep, ...(managerDay ? { routeIds: monthlyDay.routeIds } : {}) });
-      setRouteDraft(null);
+      const saved = await saveDailyPlan(date, { workingType: monthlyDay.workingType, workWith: monthlyDay.workWith, doctorIds: doctorIdsToKeep });
       setWorkWithDraft(saved.workWith);
       setDoctorIds(plannedPicks(saved));
       setShowOriginal(false);
@@ -459,28 +439,13 @@ export default function DailyPlanScreen() {
       </View>
 
       {existing && editable && fieldDay && managerDay ? (
-        <CardSection icon={sym('calendar', 'event')} accent="blue" title="Route and who you work with">
-          <FormField form={fe} name="routeIds">
-            <OutletPicker
-              label="Routes for the day (from your Tour Plan)"
-              multiple
-              values={chosenRoutes}
-              onChangeValues={(ids) => {
-                if (ids.length === 0) return; // a field day always keeps at least one route
-                fe.clear('routeIds');
-                setRouteDraft(ids);
-              }}
-              options={approvedRouteIds.map((id) => ({ id, name: routeNameOf(id) }))}
-              disabled
-              emptyText="This day has no approved routes."
-            />
-          </FormField>
+        <CardSection icon={sym('calendar', 'event')} accent="blue" title="Who you work with">
           <ThemedText type="small" themeColor="textSecondary">
-            These are your Tour Plan’s routes for the day. To change them, change the Tour Plan for this day (a change goes to the manager above you for approval). Who you work with and the doctors come from these routes.
+            {`${dayWhere(existing, territory.data) ?? 'Your Tour Plan’s place'}. You can work with the people below you whose plan for this day is approved and goes to the same place.`}
           </ThemedText>
           <FormField form={fe} name="workWith">
             <OutletPicker
-              label="Who you work with (optional)"
+              label="Who you work with"
               multiple
               searchable
               values={draftWorkWith}
@@ -488,19 +453,17 @@ export default function DailyPlanScreen() {
                 fe.clear('workWith');
                 setWorkWithDraft(ids);
               }}
-              options={(routeOptions.data?.people ?? []).map((p) => ({ id: p.id, name: `${p.label}${p.routes.length > 0 ? ` (${p.routes.map((r) => r.name).join(', ')})` : ''}` }))}
-              disabled={busy || blocked || !routeOptions.data}
-              emptyText="Nobody is on this route."
+              options={(workWithOptions.data?.people ?? []).map((p) => ({ id: p.id, name: `${p.label} (${p.doctorIds.length} doctor${p.doctorIds.length === 1 ? '' : 's'})` }))}
+              disabled={busy || blocked || !workWithOptions.data}
+              emptyText="Nobody below you has an approved plan at this place."
             />
           </FormField>
-          {routeOptions.data && routeOptions.data.people.length === 0 ? (
-            <Notice tone="warning" title="Nobody is on this route">
-              Nobody below you holds this route, so there is no one to work with. Ask your manager or Admin to change the plan.
+          {workWithOptions.data && workWithOptions.data.people.length === 0 ? (
+            <Notice tone="info" title="Nobody to work with here">
+              Nobody below you has an approved plan at this place for this day. You can still go: log follow-ups for the doctors and chemists you meet.
             </Notice>
           ) : null}
-          {!routeOptions.data && !routeOptions.loading ? (
-            <Notice tone="info">Connect to the internet once to load the people and doctors on this route.</Notice>
-          ) : null}
+          {!workWithOptions.data && !workWithOptions.loading ? <Notice tone="info">Connect to the internet once to load who you can work with.</Notice> : null}
           {away.length > 0 ? (
             <Notice tone={away.some((r) => draftWorkWith.includes(r.user.id)) ? 'warning' : 'info'} title="Away today">
               {away.map((r) => `${r.user.name} (${r.state === 'ON_LEAVE' ? 'on leave' : 'off'})`).join(', ')}
@@ -584,24 +547,27 @@ export default function DailyPlanScreen() {
       {existing && fieldDay ? (
         editable ? (
           <CardSection icon={sym('stethoscope', 'medical_services')} accent="blue" title="Doctors to call">
-            <FormField form={fe} name="doctorIds">
-              <PlanDoctorsPicker routeIds={managerDay ? chosenRoutes : existing.routeIds} toPlaceId={existing.toPlaceId ?? null} limitToRoutes={managerDay} onlyIds={managerDay && routeOptions.data && !existing.toPlaceId ? optionDoctors : undefined} picked={doctorIds} owed={owed} onChange={(ids) => { fe.clear('doctorIds'); setDoctorIds(ids); }} disabled={busy || blocked} tooSoon={visitGap} />
-            </FormField>
+            {managerDay ? (
+              // A manager's doctors are the ones the people they work with planned (2026-11-27): shown, not picked.
+              <PlanDoctorsPicker readOnly routeIds={existing.routeIds} picked={teamDoctorIds} owed={[]} onChange={setDoctorIds} />
+            ) : (
+              <FormField form={fe} name="doctorIds">
+                <PlanDoctorsPicker routeIds={existing.routeIds} toPlaceId={existing.toPlaceId ?? null} picked={doctorIds} owed={owed} onChange={(ids) => { fe.clear('doctorIds'); setDoctorIds(ids); }} disabled={busy || blocked} tooSoon={visitGap} />
+              </FormField>
+            )}
             {tooSoonPicked.length > 0 ? (
               <Notice tone="warning" title="Visited too recently">
                 {`${tooSoonPicked.join('; ')}. A call on this day would be refused. Untick to plan another doctor.`}
               </Notice>
             ) : null}
             {teamMissing ? <Notice tone="info">Your team’s doctors haven’t loaded yet. Connect to the internet to pick them.</Notice> : null}
-            {managerDay && routeOptions.data && routeOptions.data.doctors.length === 0 ? (
-              <Notice tone="warning" title="No doctors on this route">
-                No doctor assigned to you or your team is on this route. Ask your manager or Admin to change the plan.
-              </Notice>
+            {managerDay && teamDoctorIds.length === 0 ? (
+              <Notice tone="info">{draftWorkWith.length === 0 ? 'Choose who you work with to see their doctors.' : 'The people you work with planned no doctors for this day.'}</Notice>
             ) : null}
             <ThemedText type="small" themeColor="textSecondary">
               {isManager
-                ? 'Only doctors on the route(s) above, assigned to you or your team, can be picked. Doctors you missed on earlier days stay on the plan until you call them.'
-                : 'Only your doctors on this day’s routes can be picked. Doctors you missed on earlier days stay on the plan until you call them.'}
+                ? 'You call the doctors the people you work with planned. Any other doctor is a follow-up.'
+                : 'Only your doctors at this day’s place can be picked. Doctors you missed on earlier days stay on the plan until you call them.'}
             </ThemedText>
           </CardSection>
         ) : (

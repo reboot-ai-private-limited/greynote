@@ -60,6 +60,7 @@ doc('get', '/destinations', 'From a place, where a day can go: places a typed ro
 doc('get', '/team-routes', 'A manager: the routes held by anyone below them (and their own), paged, with HQs to start from, each with who holds it and how many doctors are on it', { query: teamRoutesQuerySchema });
 doc('get', '/daily/route-options', 'A manager: for the day’s chosen routes, the people below them who hold them (routes in brackets) and the doctors on them — what Works with and Doctors offer', { query: routeOptionsQuerySchema });
 doc('get', '/daily/team-suggest', 'A manager: the routes and doctors of the team members they would work with that day, from those people’s own plans', { query: teamSuggestQuerySchema });
+doc('get', '/daily/work-with-options', 'A manager: the people below them whose plan for that date is approved at the same place, with their planned doctors (2026-11-27)', { query: carryOverQuerySchema });
 doc('get', '/daily/carry-over', 'Doctors planned on earlier days and not called since — they are owed on this date', { query: carryOverQuerySchema });
 doc('get', '/daily', 'My daily plans between two dates, with status and submit deadline', { query: dateRangeQuerySchema });
 doc('get', '/daily/{id}', 'One daily plan — owner, their managers (read-only), Admin', { params: planIdParamsSchema });
@@ -88,6 +89,7 @@ export function buildPlanningRouter(c: PlanningHandlers): Router {
   router.get('/team-routes', requireRole('FIELD'), validate({ query: teamRoutesQuerySchema }), c.teamRoutes);
   router.get('/daily/route-options', requireRole('FIELD'), validate({ query: routeOptionsQuerySchema }), c.routeOptions);
   router.get('/daily/team-suggest', requireRole('FIELD'), validate({ query: teamSuggestQuerySchema }), c.teamSuggest);
+  router.get('/daily/work-with-options', requireRole('FIELD'), validate({ query: carryOverQuerySchema }), c.workWithOptions);
   router.get('/daily/carry-over', requireRole('FIELD'), validate({ query: carryOverQuerySchema }), c.carryOver);
   router.get('/daily', requireRole('FIELD'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: false }), validate({ query: listDailyPlansQuerySchema }), c.listDaily);
   router.get('/daily/:id', requireRole('FIELD', 'ADMIN', 'HR'), validate({ params: planIdParamsSchema }), c.getDaily);

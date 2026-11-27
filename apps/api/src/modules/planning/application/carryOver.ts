@@ -34,6 +34,8 @@ export class CarryOver {
     private readonly plans: DailyPlanRepositoryPort,
     private readonly approvals: ApprovalsPort,
     private readonly config: ConfigProviderPort,
+    /** Managers have no carry-over (2026-11-27): they call what their team planned that day. Without it, everyone is treated as an MR. */
+    private readonly isManager?: (userId: string) => Promise<boolean>,
   ) {}
 
   /** Field Master Data and Field Activity sit beside and above Planning, so they are handed in after the containers are built. */
@@ -49,6 +51,7 @@ export class CarryOver {
 
   /** The doctors still owed on `date`: first planned on a day before it, not called since, still the MR's. Oldest first. */
   async pending(userId: string, date: string, people: string[] = [userId]): Promise<PlannedDoctor[]> {
+    if (this.isManager && (await this.isManager(userId))) return [];
     const [forever, days] = await Promise.all([
       readConfig(this.config, PLANNING_CONFIG_KEYS.carryOverForever, parseBoolean),
       readConfig(this.config, PLANNING_CONFIG_KEYS.carryOverDays, parseDays),

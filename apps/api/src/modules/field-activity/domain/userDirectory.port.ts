@@ -19,6 +19,8 @@ export interface UserDirectoryPort {
   getManagerChain(userId: string): Promise<DirectoryUser[]>;
   /** Everyone below this manager, at any depth. */
   getDownline(managerId: string): Promise<DirectoryUser[]>;
+  /** Designation levels (1 = MR; higher = a manager). Unknown ids are skipped. */
+  getDesignationLevels(userIds: string[]): Promise<Array<{ userId: string; level: number }>>;
   /** Whether a compliance block (HLD 10) stops this user submitting anything new. */
   isBlocked(userId: string): Promise<boolean>;
   /** Every active FIELD employee's id — who the missed-DCR job checks. */

@@ -3,7 +3,12 @@ import { PLANNING_CONFIG_KEYS, type ConfigProviderPort } from '../domain/configP
 import { MR_LEVEL } from '../domain/plan.js';
 import type { UserDirectoryPort } from '../domain/userDirectory.port.js';
 import type { RouteDirectoryPort } from '../domain/routeDirectory.port.js';
+import type { ApprovalsPort } from '../domain/approvals.port.js';
+import type { DailyPlan } from '../domain/dailyPlan.entity.js';
+import type { DailyPlanRepositoryPort } from '../domain/dailyPlan.repository.port.js';
+import { isFieldDay, type PlannedDoctor } from '../domain/plan.js';
 import { MAX_PLAN_DOCTORS } from './carryOver.js';
+import { planStatus } from './planViews.js';
 
 const DEFAULT_MANAGER_MAX_DOCTORS = 100;
 
@@ -24,6 +29,8 @@ export class ManagerScope {
     private readonly config: ConfigProviderPort,
     /** Who holds a route; without it `workWithCandidates` finds nobody. */
     private readonly routes?: RouteDirectoryPort,
+    /** The team's plans for a day (a manager's work-with and doctors, 2026-11-27); without it a manager has nobody to work with. */
+    private readonly day?: { plans: Pick<DailyPlanRepositoryPort, 'listForUsersOnDate'>; approvals: Pick<ApprovalsPort, 'getForRecord'> },
   ) {}
 
   async isManager(userId: string): Promise<boolean> {
@@ -60,6 +67,39 @@ export class ManagerScope {
       for (const m of chains.get(userId)!) {
         if (m.id === ownerId) break;
         add(m.id, routeId);
+      }
+    }
+    return out;
+  }
+
+  /**
+   * A manager's day (2026-11-27): the people below them whose daily plan for that date is **approved** and goes to the **same To place**
+   * (a field day). These are the only people the manager may work with that day, and their planned doctors are the manager's.
+   */
+  async teamAtPlace(ownerId: string, planDate: string, toPlaceId: string | null): Promise<DailyPlan[]> {
+    if (!this.day || !toPlaceId) return [];
+    const below = (await this.users.getDownline(ownerId)).map((u) => u.id);
+    const out: DailyPlan[] = [];
+    for (const plan of await this.day.plans.listForUsersOnDate(below, planDate)) {
+      if (plan.toPlaceId !== toPlaceId || !isFieldDay(plan.workingType)) continue;
+      const status = planStatus(await this.day.approvals.getForRecord('DAILY_PLAN', plan.id));
+      if (status === 'MANAGER_APPROVED' || status === 'APPROVED') out.push(plan);
+    }
+    return out;
+  }
+
+  /** The doctors a manager calls that day: every doctor on the approved plans of the people they work with, each once. No picking. */
+  async teamDoctors(ownerId: string, planDate: string, toPlaceId: string | null, workWith: string[]): Promise<PlannedDoctor[]> {
+    if (workWith.length === 0) return [];
+    const chosen = new Set(workWith);
+    const seen = new Set<string>();
+    const out: PlannedDoctor[] = [];
+    for (const plan of await this.teamAtPlace(ownerId, planDate, toPlaceId)) {
+      if (!chosen.has(plan.userId)) continue;
+      for (const d of plan.doctors) {
+        if (seen.has(d.doctorId)) continue;
+        seen.add(d.doctorId);
+        out.push({ doctorId: d.doctorId, carriedFrom: null });
       }
     }
     return out;

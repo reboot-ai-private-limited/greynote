@@ -1,3 +1,4 @@
+import type { WorkWithOptionsUseCase } from '../application/usecases/workWithOptions.usecase.js';
 import type { Request, RequestHandler } from 'express';
 import type { z } from 'zod';
 import { AppError } from '@/shared/errors/AppError.js';
@@ -62,6 +63,7 @@ export type PlanningHandlers = Record<
   | 'places'
   | 'destinations'
   | 'routeOptions'
+  | 'workWithOptions'
   | 'carryOver'
   | 'listDaily'
   | 'getDaily'
@@ -90,6 +92,7 @@ export function makePlanningControllers(useCases: {
   teamSuggest: SuggestFromTeamUseCase;
   teamRoutes: ListTeamRoutesUseCase;
   routeOptions: RouteOptionsUseCase;
+  workWithOptions: WorkWithOptionsUseCase;
   planPlaces: PlanPlacesUseCase;
   carryOver: CarryOver;
   listDaily: ListDailyPlansUseCase;
@@ -132,6 +135,10 @@ export function makePlanningControllers(useCases: {
     teamSuggest: asyncHandler(async (req, res) => {
       const { date, userIds } = req.query as unknown as z.output<typeof teamSuggestQuerySchema>;
       sendSuccess(req, res, await useCases.teamSuggest.execute(actorOf(req).id, date, userIds), 'Routes and doctors of the people you would work with.', 200);
+    }),
+    workWithOptions: asyncHandler(async (req, res) => {
+      const { date } = req.query as unknown as z.output<typeof carryOverQuerySchema>;
+      sendSuccess(req, res, await useCases.workWithOptions.execute(actorOf(req).id, date), 'Who you can work with that day.', 200);
     }),
     carryOver: asyncHandler(async (req, res) => {
       const { date } = req.query as unknown as z.output<typeof carryOverQuerySchema>;

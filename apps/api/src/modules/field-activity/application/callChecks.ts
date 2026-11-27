@@ -44,6 +44,16 @@ export class CallChecks {
   }
 
   /**
+   * A manager's doctor call (2026-11-27): only a doctor on that day's plan, which for a manager is the doctors their work-with people
+   * planned. Any other doctor of the team is a follow-up. An MR is not checked here (their calls follow assignment and the phone's list).
+   */
+  async managerCallOnPlan(userId: string, day: DayContext, doctorId: string): Promise<void> {
+    const [level] = await this.users.getDesignationLevels([userId]);
+    if ((level?.level ?? 1) <= 1 || day.doctorIds.includes(doctorId)) return;
+    throw new LogRefusal(LOG_CODES.doctorNotOnTeamPlan, 'This doctor is not on today’s plan of the people you work with. Log a follow-up instead.');
+  }
+
+  /**
    * Whether `managerId` is above `memberId` in the reporting chain. Walks up from the one assigned MR (about five hops) rather than loading
    * the manager's whole downline, so a ZSM or NSM logging a call costs the same as an ASM.
    */

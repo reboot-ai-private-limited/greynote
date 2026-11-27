@@ -1,3 +1,4 @@
+import { WorkWithOptionsUseCase } from './application/usecases/workWithOptions.usecase.js';
 import type { Router } from 'express';
 import { Types } from 'mongoose';
 import { DailyPlanModel } from './infrastructure/dailyPlan.schema.js';
@@ -96,13 +97,14 @@ export function buildPlanningContainer(
   approvals.registerKind({ kind: 'DAILY_PLAN', finalApproverRoles: ['HR', 'ADMIN'], overrideRoles: ['HR', 'ADMIN'], managerOnly: true, onStatusChange: async (change, ctx) => { await makeDailyPlanMirrorHandler(dailyPlans, monthlyPlans, deadlines)(change, ctx); await reopenGrant('DAILY_PLAN')(change); }, describeRecords: describeEach((id) => dailyPlans.findById(id), (plan) => ({ title: dayTitle(plan.planDate), subtitle: null })) });
   approvals.registerKind({ kind: 'MONTHLY_PLAN', finalApproverRoles: ['HR', 'ADMIN'], overrideRoles: ['HR', 'ADMIN'], managerOnly: true, managerReopen: true, describeRecords: describeEach((id) => monthlyPlans.findById(id), (plan) => ({ title: monthTitle(plan.planMonth), subtitle: null })), onStatusChange: async (change, ctx) => { await makeMonthlyPlanInheritHandler(monthlyPlans, dailyPlans, approvals, deadlines, offDays, dayLocks)(change, ctx); await reopenGrant('MONTHLY_PLAN')(change); } });
   const views = new PlanViews(approvals, grants, deadlines, offDays, dayLocks);
-  const scope = new ManagerScope(users, config, routes);
+  const scope = new ManagerScope(users, config, routes, { plans: dailyPlans, approvals });
   const submitter = new PlanSubmitter(users, routes, approvals, grants, transactions, deadlines.now, scope);
-  const carryOver = new CarryOver(dailyPlans, approvals, config);
+  const carryOver = new CarryOver(dailyPlans, approvals, config, (id) => scope.isManager(id));
   const submitDaily = new SubmitDailyPlanUseCase(dailyPlans, deadlines, submitter, approvals, carryOver, (u, m) => status.isMonthlyPlanApproved(u, m), scope, monthlyPlans);
   const setDoctors = new SetDailyPlanDoctorsUseCase(dailyPlans, approvals, carryOver, views, scope);
   const teamRoutes = new ListTeamRoutesUseCase(users, routes, scope, carryOver);
   const routeOptions = new RouteOptionsUseCase(users, routes, scope, carryOver);
+  const workWithOptions = new WorkWithOptionsUseCase(dailyPlans, users, scope);
   const planPlacesUseCase = new PlanPlacesUseCase(routes, users, scope);
   const teamSuggest = new SuggestFromTeamUseCase(dailyPlans, monthlyPlans, approvals, users, carryOver, scope);
   const setDay = new SetDailyPlanUseCase(dailyPlans, approvals, users, submitter, carryOver, scope, views, routes);
@@ -193,6 +195,7 @@ export function buildPlanningContainer(
           teamSuggest,
           teamRoutes,
           routeOptions,
+          workWithOptions,
           planPlaces: planPlacesUseCase,
           carryOver,
           listDaily,

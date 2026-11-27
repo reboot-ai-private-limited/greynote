@@ -135,3 +135,5 @@ A day's routes are its Tour Plan day's routes, for an MR and a manager alike. A 
 - **Doctors of the day are the ones at its To place** (`placeId` on each doctor in the `fieldMasterData` pull). A day at one place offers that place's doctors. Older days (routes, no places) still go by `routeIds`.
 - A manager's "Works with" on a day at one place counts whoever holds the route that reaches the place.
 - Show the day as "From → To" (or "At <place>"); the place names are in `territory.places` (or the planning places reads).
+
+> **2026-11-27 — a manager's day.** "Works with" comes from `GET /planning/daily/work-with-options?date=` (`{ toPlaceId, people: [{ id, name, designation, label, doctorIds }] }`): people below whose plan that day is approved at the same place. A manager picks no doctors: send `doctorIds: []`; the server sets them from the work-with people's approved plans. Managers have no owed doctors. A manager's doctor call off those plans is refused with `DOCTOR_NOT_ON_TEAM_PLAN` (removable) — use Follow-up. An MR's doctor picks are kept by the day's To place.

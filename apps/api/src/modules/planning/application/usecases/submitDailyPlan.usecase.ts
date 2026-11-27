@@ -37,7 +37,10 @@ export class SubmitDailyPlanUseCase {
     // be edited is touched; one already waiting or approved is refused by the submitter below.
     const request = await this.approvals.getForRecord('DAILY_PLAN', plan.id);
     if (isFieldDay(plan.workingType) && (!request || isEditableBySubmitter(request.status))) {
-      const doctors = await this.carryOver.compose(plan, plan.doctors.filter((d) => d.carriedFrom === null).map((d) => d.doctorId), await this.scope.doctorScope(plan.userId, plan.workWith));
+      // A manager's doctors are their work-with people's approved picks, refreshed here (2026-11-27); an MR's are their picks plus what is owed.
+      const doctors = (await this.scope.isManager(plan.userId))
+        ? await this.scope.teamDoctors(plan.userId, plan.planDate, plan.toPlaceId ?? null, plan.workWith)
+        : await this.carryOver.compose(plan, plan.doctors.filter((d) => d.carriedFrom === null).map((d) => d.doctorId), await this.scope.doctorScope(plan.userId, plan.workWith));
       const changed = doctors.length !== plan.doctors.length || doctors.some((d, i) => d.doctorId !== plan.doctors[i]?.doctorId || d.carriedFrom !== plan.doctors[i]?.carriedFrom);
       if (changed) {
         const saved = await this.plans.saveDoctors(plan.id, plan.revision, doctors);

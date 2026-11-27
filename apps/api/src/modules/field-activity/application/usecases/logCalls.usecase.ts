@@ -57,6 +57,7 @@ export class LogDoctorCallUseCase {
     const dcr = await this.gate.open(rec.userId, input.reportDate, rec.recordedAt);
     const doctor = await this.checks.doctor(rec.userId, input.doctorId);
     const day = await this.checks.day(rec.userId, input.reportDate);
+    await this.checks.managerCallOnPlan(rec.userId, day, doctor.id);
     await this.visitGap.assertAllowed(rec.userId, doctor.id, input.reportDate, ctx);
     const { routeId, routeType, routeNotInPlan } = await this.checks.route(day, doctor.routeId);
     const notInPlan = this.checks.doctorNotInPlan(day, doctor.id, routeNotInPlan);

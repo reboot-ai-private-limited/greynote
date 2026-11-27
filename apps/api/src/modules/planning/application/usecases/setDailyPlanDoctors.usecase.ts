@@ -27,7 +27,12 @@ export class SetDailyPlanDoctorsUseCase {
       throw AppError.badRequest('Only a field work or doctor campaign day has doctors.', { field: 'doctorIds' });
     }
     await assertEditable(this.approvals, 'DAILY_PLAN', plan.id);
-    const doctors: PlannedDoctor[] = isFieldDay(plan.workingType) ? await this.carryOver.compose(plan, doctorIds, await this.scope.doctorScope(userId, plan.workWith)) : [];
+    // A manager picks no doctors (2026-11-27): theirs are the work-with people's, worked out again; the ids sent are ignored.
+    const doctors: PlannedDoctor[] = !isFieldDay(plan.workingType)
+      ? []
+      : (await this.scope.isManager(userId))
+        ? await this.scope.teamDoctors(userId, plan.planDate, plan.toPlaceId ?? null, plan.workWith)
+        : await this.carryOver.compose(plan, doctorIds, await this.scope.doctorScope(userId, plan.workWith));
     const saved = await this.plans.saveDoctors(plan.id, plan.revision, doctors);
     if (!saved) throw AppError.conflict('This plan changed while you were saving it. Reload it and try again.');
     return this.views.daily(saved);

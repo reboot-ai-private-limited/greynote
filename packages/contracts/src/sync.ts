@@ -202,6 +202,8 @@ export const DCR_REFUSAL_CODES = [
   'PAYROLL_FINALIZED',
   'DOCTOR_NOT_FOUND',
   'DOCTOR_NOT_ASSIGNED',
+  /** A manager's doctor call for a doctor not on that day's work-with plans (2026-11-27): log a follow-up instead. */
+  'DOCTOR_NOT_ON_TEAM_PLAN',
   'CHEMIST_NOT_FOUND',
   'CHEMIST_ROUTE_NOT_ASSIGNED',
   /** A chemist call away from the day's To place (2026-11-27): log a follow-up for that chemist instead. */

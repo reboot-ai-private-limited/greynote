@@ -7,6 +7,8 @@ export interface DailyPlanRepositoryPort {
   findByUserAndDate(userId: string, planDate: string): Promise<DailyPlan | null>;
   /** Both ends inclusive, oldest first. */
   listForUser(userId: string, from: string, to: string): Promise<DailyPlan[]>;
+  /** Each of these people's plan for one date, where they have one (a manager's work-with, 2026-11-27). */
+  listForUsersOnDate(userIds: string[], planDate: string): Promise<DailyPlan[]>;
   /** Plans from `fromDate` on that list this doctor — one employee's, or everyone's (`userId` null). */
   listWithDoctor(doctorId: string, fromDate: string, userId: string | null): Promise<DailyPlan[]>;
   /**

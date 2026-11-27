@@ -62,9 +62,9 @@ export class SetDailyPlanUseCase {
     // The Monthly Plan's version of the day: kept from the first change, or read off the day while it is still the Monthly Plan's.
     const original = plan.plannedFrom ?? (plan.source === 'MONTHLY' ? bodyOf(plan) : null);
     const routeIds = await this.routesFor(plan, input, field, original);
-    // A day spent at one place has no route: who works it with the manager is whoever holds the route that reaches the place.
-    const held = routeIds.length > 0 ? routeIds : await this.anchorOf((plan.dayKind !== 'NORMAL' ? plan : (original ?? plan)).toPlaceId ?? null);
-    if (manager && field) await this.assertWorkWithOnRoutes(userId, held, input.workWith);
+    const toPlaceId = field ? ((plan.dayKind !== 'NORMAL' ? plan : (original ?? plan)).toPlaceId ?? null) : null;
+    // A manager works with the people below them whose plan for this day is approved at the same To place (2026-11-27).
+    if (manager && field) await this.assertWorkWithAtPlace(userId, planDate, toPlaceId, input.workWith);
 
     // The places are the Tour Plan's too (2026-11-26); a meeting, conference or strike has none.
     const source = plan.dayKind !== 'NORMAL' ? plan : (original ?? plan);
@@ -78,9 +78,12 @@ export class SetDailyPlanUseCase {
       remarks: plan.remarks,
     };
     await this.submitter.validateDays(userId, [{ day, field: '' }]);
-    const doctors = field
-      ? await this.carryOver.compose({ userId, planDate, routeIds, toPlaceId: day.toPlaceId }, input.doctorIds, await this.scope.doctorScope(userId, input.workWith))
-      : [];
+    // A manager picks no doctors: theirs are the ones the people they work with planned (2026-11-27); a list sent by an older app is ignored.
+    const doctors = !field
+      ? []
+      : manager
+        ? await this.scope.teamDoctors(userId, planDate, day.toPlaceId ?? null, input.workWith)
+        : await this.carryOver.compose({ userId, planDate, routeIds, toPlaceId: day.toPlaceId }, input.doctorIds, await this.scope.doctorScope(userId, input.workWith));
 
     const origin: { source: PlanSource; plannedFrom: PlanDay | null } =
       // "Works with" is chosen on the day itself (the Tour Plan has none), so it never makes the day "changed from monthly".
@@ -91,18 +94,13 @@ export class SetDailyPlanUseCase {
     return this.views.daily(saved);
   }
 
-  private async anchorOf(placeId: string | null): Promise<string[]> {
-    const anchor = placeId && this.routes?.anchorRouteForPlace ? await this.routes.anchorRouteForPlace(placeId) : null;
-    return anchor ? [anchor] : [];
-  }
-
-  /** A manager's "Works with" for a day: only people below them who hold the day's routes (or the managers above those holders). */
-  private async assertWorkWithOnRoutes(ownerId: string, routeIds: string[], workWith: string[]): Promise<void> {
+  /** A manager's "Works with" for a day: only people below them whose plan for that day is approved at the same To place. */
+  private async assertWorkWithAtPlace(ownerId: string, planDate: string, toPlaceId: string | null, workWith: string[]): Promise<void> {
     if (workWith.length === 0) return;
-    const allowed = await this.scope.workWithCandidates(ownerId, routeIds);
+    const allowed = new Set((await this.scope.teamAtPlace(ownerId, planDate, toPlaceId)).map((p) => p.userId));
     const unknown = workWith.filter((id) => !allowed.has(id));
     if (unknown.length > 0) {
-      throw AppError.badRequest('Pick people who hold this day’s routes. Nobody to pick, or someone missing? Ask your manager or Admin to change the plan.', { field: 'workWith', userIds: unknown });
+      throw AppError.badRequest('Pick people whose plan for this day is approved and goes to the same place.', { field: 'workWith', userIds: unknown });
     }
   }
 

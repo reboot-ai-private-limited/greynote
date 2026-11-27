@@ -247,6 +247,17 @@ export type RouteOptions = {
 export const getRouteOptions = (date: string, routeIds: string[]) =>
   apiGet<RouteOptions>(`/planning/daily/route-options?date=${date}&routeIds=${routeIds.join(',')}`, { auth: true });
 
+/**
+ * A manager's "Works with" for a day (2026-11-27): the people below them whose plan that day is approved and goes to the same place, with the
+ * doctors they planned. Those doctors are the manager's for the day; a manager picks none.
+ */
+export type WorkWithOptions = {
+  toPlaceId: string | null;
+  people: { id: string; name: string; designation: string | null; label: string; doctorIds: string[] }[];
+};
+
+export const getWorkWithOptions = (date: string) => apiGet<WorkWithOptions>(`/planning/daily/work-with-options?date=${date}`, { auth: true });
+
 /** One team member's routes and doctors for a date: from their Daily Plan, else their Monthly Plan, else nothing. */
 export type TeamSuggestPerson = {
   userId: string;
