@@ -1,6 +1,7 @@
 'use client';
 
-import type { CreatePlaceDto, PlaceDto, UpdatePlaceDto } from '@greynote/contracts';
+import type { CreatePlaceDto, CreatedPlaceDto, PlaceDto, UpdatePlaceDto } from '@greynote/contracts';
+import { toast } from '@/components/ui/toast';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import type { SelectOption } from '@/components/ui/Select';
@@ -63,12 +64,26 @@ export function usePlaceDirectory() {
 /** A place's name or type re-makes its routes, so place writes refresh the routes too. */
 const invalidates = () => [keys.stations.all(), keys.routes.all()];
 
-export function useCreatePlace(onDone: () => void) {
-  return useApiMutation<CreatePlaceDto, PlaceDto>({
+/** Places with no active route to their HQ town, company-wide (the Territory page's "still to do"). */
+export function usePlacesMissingRoute() {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.stations.list({ missingHqTownRoute: true }),
+      fetch: (token, signal) => fetchAllPages((page) => placesApi.list(token, { page, pageSize: MAX_PAGE_SIZE, missingHqTownRoute: true }, signal)).then((r) => r.items),
+      staleTime: staleTime.configuration,
+    }),
+  );
+}
+
+/** Adds a place together with its route from the HQ town (one save; if the route is refused, so is the place). */
+export function useCreatePlace(onDone: (place: CreatedPlaceDto) => void) {
+  return useApiMutation<CreatePlaceDto, CreatedPlaceDto>({
     call: (token, body) => placesApi.create(token, body),
     invalidates: invalidates(),
-    successMessage: 'Place created.',
-    onSuccess: onDone,
+    onSuccess: (place) => {
+      toast.success('Place and its route added.');
+      onDone(place);
+    },
   });
 }
 

@@ -1,6 +1,6 @@
 import type { RouteDto } from '@greynote/contracts';
 import { describe, expect, it } from 'vitest';
-import { buildPlaceRoute, buildRoute, changedPlaceRouteFields, changedRouteFields, kmLabel, parseKm, routeTypeBetween, suggestedType, taModeOf } from './routeDraft';
+import { buildNewPlace, buildPlaceRoute, buildRoute, changedPlaceRouteFields, changedRouteFields, kmLabel, parseKm, placeRouteChanges, routeTypeBetween, suggestedType, taModeOf, typeForKm } from './routeDraft';
 
 const route = (over: Partial<RouteDto> = {}): RouteDto => ({
   id: 'r1',
@@ -137,5 +137,53 @@ describe('routes between places (2026-11-26)', () => {
   it('types a route by the farther end, and out-station across HQs', () => {
     expect(routeTypeBetween({ hqId: 'h1', type: 'HQ' }, { hqId: 'h1', type: 'EX_STATION' })).toBe('EX_STATION');
     expect(routeTypeBetween({ hqId: 'h1', type: 'HQ' }, { hqId: 'h2', type: 'HQ' })).toBe('OUT_STATION');
+  });
+});
+
+describe('adding a place with its km (2026-11-27)', () => {
+  const base = { hqId: 'h1', name: ' Naxalbari ', type: 'EX_STATION' as const, distanceKm: '', taMode: 'GRADE' as const, rate: '', fixed: '' };
+  it('always sends the km, and the TA when one is chosen', () => {
+    expect(buildNewPlace({ ...base, distanceKm: '12' })).toEqual({ ok: true, body: { hqId: 'h1', name: 'Naxalbari', type: 'EX_STATION', distanceKm: '12' } });
+    expect(buildNewPlace({ ...base, distanceKm: '25', taMode: 'FIXED', fixed: '350' })).toEqual({
+      ok: true,
+      body: { hqId: 'h1', name: 'Naxalbari', type: 'EX_STATION', distanceKm: '25', taFixedPaise: 35000 },
+    });
+  });
+  it('needs a name, a type and a good km', () => {
+    const r = buildNewPlace({ ...base, name: '', type: '', distanceKm: 'abc' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(Object.keys(r.errors).sort()).toEqual(['distanceKm', 'name', 'type']);
+    const noKm = buildNewPlace(base);
+    expect(noKm.ok).toBe(false);
+    if (!noKm.ok) expect(Object.keys(noKm.errors)).toEqual(['distanceKm']);
+  });
+});
+
+describe('the place/route dialog’s Save (2026-11-27)', () => {
+  const r = route({ fromPlaceId: 'town', toPlaceId: 'p1', distanceKm: '25', taPerKmRateOverridePaise: 600 });
+  const place = { name: 'Naxalbari', type: 'EX_STATION' as const };
+  const draft = { name: 'Naxalbari', type: 'EX_STATION' as const, distanceKm: '25', taMode: 'RATE' as const, rate: '6', fixed: '' };
+  it('sends nothing when nothing changed', () => {
+    expect(placeRouteChanges(place, r, draft)).toEqual({ ok: true, body: {} });
+  });
+  it('sends only the part that changed', () => {
+    expect(placeRouteChanges(place, r, { ...draft, type: 'OUT_STATION' })).toEqual({ ok: true, body: { place: { type: 'OUT_STATION' } } });
+    expect(placeRouteChanges(place, r, { ...draft, distanceKm: '30' })).toEqual({ ok: true, body: { route: { distanceKm: '30' } } });
+    expect(placeRouteChanges(place, r, { ...draft, name: ' Naxal ', distanceKm: '30' })).toEqual({ ok: true, body: { place: { name: 'Naxal' }, route: { distanceKm: '30' } } });
+  });
+  it('a route that is not a place’s own never sends a place part; a bad km is an error', () => {
+    expect(placeRouteChanges(null, r, { ...draft, type: 'HQ' })).toEqual({ ok: true, body: {} });
+    const bad = placeRouteChanges(place, r, { ...draft, distanceKm: 'abc' });
+    expect(bad.ok).toBe(false);
+  });
+});
+
+describe('"+ Place": the type follows the km until picked by hand', () => {
+  it('sets it from the km, then leaves it alone', () => {
+    expect(typeForKm('10', limits, '', false)).toBe('HQ');
+    expect(typeForKm('30', limits, 'HQ', false)).toBe('EX_STATION');
+    expect(typeForKm('80', limits, 'EX_STATION', false)).toBe('OUT_STATION');
+    expect(typeForKm('80', limits, 'HQ', true)).toBe('HQ');
+    expect(typeForKm('', limits, 'HQ', false)).toBe('HQ');
   });
 });

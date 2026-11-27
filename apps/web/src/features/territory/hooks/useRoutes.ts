@@ -38,3 +38,15 @@ export function useActiveRoutes(hqId?: string, enabled = true) {
     }),
   );
 }
+
+/** Every route with either end at a place of this HQ (any status), all pages: the Territory page's HQ view. */
+export function useRoutesTouchingHq(hqId: string | null) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.routes.list({ touchingHqId: hqId, all: true }),
+      fetch: (token, signal) => fetchAllPages((page) => routesApi.list(token, { page, pageSize: MAX_PAGE_SIZE, touchingHqId: hqId! }, signal)).then((r) => r.items),
+      staleTime: staleTime.configuration,
+      enabled: Boolean(hqId),
+    }),
+  );
+}

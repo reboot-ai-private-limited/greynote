@@ -14,9 +14,9 @@ import { FormDialog } from '@/components/ui/FormDialog';
  * Create, or edit (`hq`). An HQ cannot move to another zone, so the zone is read-only on edit.
  * Renaming an HQ re-names its routes ("<HQ> to <destination>").
  */
-export function HqFormDialog({ hq, onClose }: { hq?: HqDto | undefined; onClose: () => void }) {
+export function HqFormDialog({ hq, defaultZoneId, onClose }: { hq?: HqDto | undefined; defaultZoneId?: string | undefined; onClose: () => void }) {
   const [name, setName] = useState(hq?.name ?? '');
-  const [zoneId, setZoneId] = useState(hq?.zoneId ?? '');
+  const [zoneId, setZoneId] = useState(hq?.zoneId ?? defaultZoneId ?? '');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const zones = useZoneOptions();
   const create = useCreateHq(onClose);

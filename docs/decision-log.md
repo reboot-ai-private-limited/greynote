@@ -3110,3 +3110,30 @@ The Secondary Sales performance sheet (Excel, shown on the web's Secondary sales
 - Contract: `docs/mobile/monthlyplan.md` §10, `dailyplan.md` ("From → To days"), `team-visibility.md` ("One HQ, places").
 
 **Needs a migration:** no. Ships after phases 1–5 (server first).
+
+## 2026-11-27: One Territory page
+
+**Context.** Zones, HQs, Places and Routes were four pages: setting up one HQ meant visiting all four, and nothing showed which places still had no route.
+
+**Decision.**
+- One sidebar item, **Territory** (`/territory`). *By HQ*: Zones and their HQs on the left (search, add zone, add HQ in a zone, rename / deactivate / delete); the chosen HQ on the right with its **places** (HQ town first; each with the km and TA of its route from the HQ town, or "⚠ No route [Add km]") and its **other routes** (place ↔ place inside the HQ, and to or from other HQs). *All routes*: the company-wide list (search, filters, CSV upload). With no HQ chosen, the page lists the HQs whose places still lack a route.
+- **A place is always added with its km from the HQ town** (required, with the TA choice), and that route is made in the same save (`POST /territory/places` with `distanceKm`, `taPerKmRateOverridePaise` / `taFixedPaise`). Everything is checked first; if the route is still refused, the place is removed again and the error returned — no place exists without the route it is planned by.
+- **One way to make any other route: "+ Route"** (`AddRouteDialog`, with the pay preview) — in an HQ (From = its places) and on All routes (From = any place). The separate New route page is gone (`/routes/new` redirects to All routes); "Add a route from here" is gone. A place left without its HQ-town route (older data) shows "No route" and opens the same dialog, both ends chosen. Rename / re-type a place is edit-only (`PlaceFormDialog`).
+- The Zones list: a search over zone and HQ names on top (a matching zone shows all its HQs), Expand all / Collapse all, zones closed except the chosen HQ's, and no scroll of its own. The sidebar shows one "Territory" item with no section heading.
+- Searchable dropdowns inside dialogs are drawn on the dialog itself, so the dialog's scrolling body no longer hides them (e.g. the Zone in "New HQ").
+- `GET /territory/routes?touchingHqId=`: routes with either end at a place of the HQ. `GET /territory/places?missingHqTownRoute=true`: active places with no active route to their HQ town.
+- `/zones`, `/hqs` and `/places` redirect to `/territory`; `/routes` to the All routes tab with its filters; `/routes/new` and `/routes/:id` stay.
+
+**Needs a migration:** no.
+
+## 2026-11-27: Territory page — pay charts, text actions, one route dialog
+
+**Decision.**
+- **One compact dialog for a place and its route** (`PlaceRouteDialog`, the "New route" layout: normal width, fields stacked) replaces the route page and the place edit dialog. **View** opens it read-only with an **Edit** button; the row's **Edit** opens it in edit mode. For a place's own route from its HQ town, the place's name and type are edited there with the km and TA; other routes show their type read-only (it comes from their places). Deactivate / Delete sit under the chart. `/routes/<id>` redirects to `/territory?tab=routes&route=<id>` (`&edit=1` for edit mode).
+- **"+ Place" sets the type from the km** (the server's ex/out-station limits) until the user picks one by hand; km comes before type in the form.
+- **Row actions are words** (`ActionLinks`: "View · Edit · Deactivate"), accent for ordinary actions and red for deactivate / delete, instead of the "⋯" menu, in the Places table, Other routes and All routes. The narrow Zones/HQs tree keeps its "⋯".
+- **The HQ town is 0 km, no TA**; its View shows what a day in the town pays (the HQ DA). "+ Place" shows the same pay chart, live, for the route it makes (the place's own type).
+- **All routes filters:** Search, Zone → HQ (the HQ list follows the zone; choosing an HQ sets its zone), Type, Status (Active unless changed), and Clear filters. The "Any place" filter is gone.
+- **Routes from an HQ town to itself are removed** (`migrate:drop-town-routes`): a day at one place needs no route, and an HQ place pays no TA (`calculatePlaceTaDa`), so no pay changes. Each goes through the normal permanent delete (history keeps its name from the archive); doctors and chemists on one move to another active route of that place first. New ones were already refused.
+
+**Needs a migration:** yes — `pnpm --filter @greynote/api migrate:drop-town-routes` (dry run), then with `-- --apply`. Safe to repeat.

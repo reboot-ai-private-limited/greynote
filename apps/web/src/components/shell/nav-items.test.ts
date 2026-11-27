@@ -6,12 +6,12 @@ import { activeGroupOf, canOpen, isActiveItem, isRouteBuilt, NAV_ITEMS, navFor, 
 
 describe('navFor', () => {
   it('gives ADMIN the zones screen', () => {
-    expect(navFor('ADMIN').map((i) => i.href)).toContain('/zones');
+    expect(navFor('ADMIN').map((i) => i.href)).toContain('/territory');
   });
 
   it('hides master data from HR and Accountant', () => {
-    expect(navFor('HR').map((i) => i.href)).not.toContain('/zones');
-    expect(navFor('ACCOUNTANT').map((i) => i.href)).not.toContain('/zones');
+    expect(navFor('HR').map((i) => i.href)).not.toContain('/territory');
+    expect(navFor('ACCOUNTANT').map((i) => i.href)).not.toContain('/territory');
   });
 
   it('gives Accountant neither payroll nor leave', () => {
@@ -23,9 +23,9 @@ describe('navFor', () => {
 
 describe('Routes', () => {
   it('is an Admin-only Master data screen', () => {
-    expect(navFor('ADMIN').map((i) => i.href)).toContain('/routes');
-    expect(navFor('HR').map((i) => i.href)).not.toContain('/routes');
-    expect(navFor('ACCOUNTANT').map((i) => i.href)).not.toContain('/routes');
+    expect(canOpen('ADMIN', '/routes/new')).toBe(true);
+    expect(canOpen('HR', '/routes')).toBe(false);
+    expect(canOpen('ACCOUNTANT', '/territory')).toBe(false);
   });
 });
 

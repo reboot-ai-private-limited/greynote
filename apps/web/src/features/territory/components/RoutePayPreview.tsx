@@ -22,6 +22,7 @@ export function RoutePayPreview({
   type,
   rate,
   fixed = '',
+  title = 'What this route pays',
 }: {
   distanceKm: string;
   /** A route type, or Automatic (the km's). A route between places passes its type, worked out from the places. */
@@ -29,6 +30,8 @@ export function RoutePayPreview({
   rate: string;
   /** A fixed TA for the day, in rupees ('' = none). */
   fixed?: string;
+  /** E.g. "What a day in SILIGURI pays" for the HQ town (no route: 0 km, HQ type). */
+  title?: string;
 }) {
   const grades = usePayBands();
   const capKm = useTaMaxKm();
@@ -56,7 +59,7 @@ export function RoutePayPreview({
       key: 'km',
       header: 'Km paid',
       numeric: true,
-      render: () => (preview.paidKm === null ? '—' : preview.noTa ? '0 km' : km(preview.paidKm)),
+      render: () => (preview.noTa ? '0 km' : preview.paidKm === null ? '—' : km(preview.paidKm)),
     },
     {
       key: 'rate',
@@ -86,7 +89,7 @@ export function RoutePayPreview({
 
   return (
     <Card
-      title="What this route pays"
+      title={title}
       description="Worked out live from the distance, type and rate you enter."
     >
       <div className="space-y-4 p-5 text-sm">
@@ -95,10 +98,10 @@ export function RoutePayPreview({
             TA = min(distance, {capKm === null ? 'TA cap' : km(capKm)}) × rate per km
           </p>
           <p className="mt-1 text-[13px] text-text-muted">
-            {preview.paidKm === null
-              ? 'Enter the distance to see the amounts.'
-              : preview.noTa
-                ? 'An HQ route earns no TA, only DA.'
+            {preview.noTa
+              ? 'An HQ place earns no TA, only DA.'
+              : preview.paidKm === null
+                ? 'Enter the distance to see the amounts.'
                 : `${km(preview.paidKm)} are paid one way; a day trip (home the same night) pays them there and back.`}
           </p>
           {preview.capped && !preview.noTa && preview.capKm !== null ? (

@@ -1,12 +1,6 @@
-import { Suspense } from 'react';
-import { SkeletonTable } from '@/components/ui/Skeleton';
-import { ZonesScreen } from '@/features/territory/components/ZonesScreen';
+import { redirect } from 'next/navigation';
 
-// The screen reads `useSearchParams`, which needs a Suspense boundary to prerender.
-export default function ZonesPage() {
-  return (
-    <Suspense fallback={<SkeletonTable />}>
-      <ZonesScreen />
-    </Suspense>
-  );
+/** Zones, HQs and Places are one Territory page since 2026-11-27. */
+export default function Page() {
+  redirect('/territory');
 }

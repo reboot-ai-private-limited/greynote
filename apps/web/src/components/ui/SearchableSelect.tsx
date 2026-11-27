@@ -1,11 +1,30 @@
 'use client';
 
 import { Check, ChevronDown, Loader2, Search } from 'lucide-react';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { cn } from './cn';
 import { fieldClass } from './Input';
 import { matchesSearch } from '@/lib/search';
 import type { SelectOption } from './Select';
+
+/** Room the open list needs below the field before it opens upward instead (search box + up to 15rem of options). */
+const LIST_HEIGHT = 300;
+
+/**
+ * Inside a dialog the list would be cut off by the dialog's scrolling body, so it is drawn on the dialog element itself (still inside it,
+ * so the dialog keeps focus and clicks) and placed at the field — below it, or above when there isn't room below (2026-11-27).
+ */
+function placeInDialog(trigger: HTMLElement, dialog: HTMLElement): CSSProperties {
+  const t = trigger.getBoundingClientRect();
+  const d = dialog.getBoundingClientRect();
+  const left = t.left - d.left - dialog.clientLeft;
+  const below = window.innerHeight - t.bottom;
+  if (below < LIST_HEIGHT && t.top > below) {
+    return { position: 'absolute', left, width: t.width, bottom: d.top + dialog.clientTop + dialog.clientHeight - t.top + 4 };
+  }
+  return { position: 'absolute', left, width: t.width, top: t.bottom - d.top - dialog.clientTop + 4 };
+}
 
 /** A `Select` with a search box at the top of the list, for pickers that run long (HQs, zones). Same props as `Select`. */
 export function SearchableSelect({
@@ -43,6 +62,9 @@ export function SearchableSelect({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const root = useRef<HTMLDivElement>(null);
+  const popup = useRef<HTMLDivElement>(null);
+  const [dialog, setDialog] = useState<HTMLElement | null>(null);
+  const [place, setPlace] = useState<CSSProperties | null>(null);
   const searchBox = useRef<HTMLInputElement>(null);
   const listId = useId();
   const searchChanged = useRef(onSearchChange);
@@ -61,7 +83,8 @@ export function SearchableSelect({
     if (!open) return;
     searchBox.current?.focus();
     const onDown = (e: MouseEvent) => {
-      if (root.current && !root.current.contains(e.target as Node)) close();
+      const target = e.target as Node;
+      if (root.current && !root.current.contains(target) && !popup.current?.contains(target)) close();
     };
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close();
     document.addEventListener('mousedown', onDown);
@@ -71,6 +94,26 @@ export function SearchableSelect({
       document.removeEventListener('keydown', onKey);
     };
   }, [open]);
+
+  // In a dialog: keep the list at the field while the dialog scrolls or the window resizes.
+  useEffect(() => {
+    if (!open || !dialog) return;
+    const measure = () => root.current && setPlace(placeInDialog(root.current, dialog));
+    window.addEventListener('resize', measure);
+    window.addEventListener('scroll', measure, true);
+    return () => {
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('scroll', measure, true);
+    };
+  }, [open, dialog]);
+
+  function toggle(trigger: HTMLElement) {
+    if (open) return close();
+    const host = trigger.closest<HTMLElement>('[role="dialog"]');
+    setDialog(host);
+    setPlace(host ? placeInDialog(trigger, host) : null);
+    setOpen(true);
+  }
 
   function pick(v: string) {
     onValueChange(v);
@@ -89,14 +132,14 @@ export function SearchableSelect({
         aria-invalid={invalid}
         aria-label={ariaLabel}
         disabled={disabled}
-        onClick={() => setOpen((o) => !o)}
+        onClick={(e) => toggle(e.currentTarget)}
         className={cn(fieldClass, 'inline-flex h-10 items-center justify-between gap-2 text-left')}
       >
         {selected ? <span className="truncate">{selected.label}</span> : <span className="text-text-subtle">{placeholder}</span>}
         <ChevronDown aria-hidden className="size-4 shrink-0 text-text-subtle" />
       </button>
-      {open ? (
-        <div className="absolute left-0 top-full z-50 mt-1 w-full overflow-hidden rounded-md border border-border bg-surface shadow-pop">
+      {open ? withPortal(dialog, (
+        <div ref={popup} style={place ?? undefined} className={cn('z-50 overflow-hidden rounded-md border border-border bg-surface shadow-pop', !dialog && 'absolute left-0 top-full mt-1 w-full')}>
           <div className="relative border-b border-border p-1">
             <Search aria-hidden className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-text-subtle" />
             <input
@@ -136,7 +179,9 @@ export function SearchableSelect({
             ))}
           </ul>
         </div>
-      ) : null}
+      )) : null}
     </div>
   );
 }
+
+const withPortal = (host: HTMLElement | null, node: ReactNode) => (host ? createPortal(node, host) : node);

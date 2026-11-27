@@ -1,6 +1,7 @@
 import type {
   CreateHqDto,
   CreatePlaceDto,
+  CreatedPlaceDto,
   CreateRouteDto,
   CreateZoneDto,
   HqDto,
@@ -59,6 +60,8 @@ export interface ListRoutesQuery extends ListZonesQuery {
   type?: RouteType | undefined;
   /** Routes with this place at either end. */
   placeId?: string | undefined;
+  /** Routes with either end at a place of this HQ. */
+  touchingHqId?: string | undefined;
 }
 
 export const routesApi = {
@@ -90,6 +93,8 @@ export interface ListPlacesQuery extends ListZonesQuery {
   hqId?: string | undefined;
   zoneId?: string | undefined;
   type?: RouteType | undefined;
+  /** Only places with no active route to their HQ town. */
+  missingHqTownRoute?: boolean | undefined;
 }
 
 export const placesApi = {
@@ -99,7 +104,7 @@ export const placesApi = {
   /** Our towns and stations under each HQ (2026-11-26); the HQ town first. */
   list: (token: string, query: ListPlacesQuery | undefined, signal?: AbortSignal) =>
     request<PaginatedDto<PlaceDto>>('/territory/places', { token, ...(query && { query: { ...query } }), signal }),
-  create: (token: string, body: CreatePlaceDto) => request<PlaceDto>('/territory/places', { method: 'POST', token, body }),
+  create: (token: string, body: CreatePlaceDto) => request<CreatedPlaceDto>('/territory/places', { method: 'POST', token, body }),
   /** A rename or new type re-makes the place's routes. */
   update: (token: string, id: string, body: UpdatePlaceDto) => request<PlaceDto>(`/territory/places/${id}`, { method: 'PATCH', token, body }),
 };

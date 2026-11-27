@@ -63,6 +63,10 @@ RSM's "region" is just that set; there is no Region entity); a ZSM covers whole 
 
 A **Place** (`places`: `hqId`, `name`/`nameKey`, `type`, `isHqTown`, `status`) is a town or station under one HQ; every HQ has one HQ town, kept in step with the HQ. A **Route** runs between two places (`fromPlaceId`, `toPlaceId`, unique `pairKey`, both directions) with a one-way km and TA = grade rate | own rate per km | fixed amount (`taFixedPaise`). Its HQ, name and type come from the places (`PlaceRoutes` in `application/usecases/placeRoutes.ts`). Endpoints: `GET/POST /api/territory/places`, `PATCH /api/territory/places/:id`, `POST /api/territory/import/routes`; `GET /api/territory/routes?placeId=`. Migration `migrate:places`. Full rules: decision-log 2026-11-26.
 
+### The Territory page (2026-11-27)
+
+The web manages all of this on one page, `/territory`: Zones and HQs on the left, the chosen HQ's places (with the km and TA of each one's HQ-town route, or a "No route" flag) and other routes on the right, and an "All routes" tab. A place is always created with its km from the HQ town (`POST /territory/places`, `distanceKm` required), which makes that route too (the place is undone if the route fails); every other route is made with "+ Route". A route is seen and edited in one dialog (the route page is gone; `/routes/<id>` redirects to it); the HQ town is 0 km with no route, and routes from a place to itself are removed (`migrate:drop-town-routes`). `GET /territory/routes?touchingHqId=` and `GET /territory/places?missingHqTownRoute=true` feed it. Decision-log 2026-11-27.
+
 ## Public contract
 
 Following the pattern in

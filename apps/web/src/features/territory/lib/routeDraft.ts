@@ -1,4 +1,4 @@
-import { ROUTE_TYPES, type CreateRouteDto, type RouteDto, type RouteType, type UpdateRouteDto } from '@greynote/contracts';
+import { ROUTE_TYPES, type CreatePlaceDto, type CreateRouteDto, type PlaceDto, type RouteDto, type RouteType, type UpdatePlaceDto, type UpdateRouteDto } from '@greynote/contracts';
 import { rupeesToPaise } from '@/lib/money';
 import { AUTO_ROUTE_TYPE, fail, nameError, normalizeName, type BuildResult } from './draft';
 
@@ -172,4 +172,61 @@ export function changedPlaceRouteFields(original: RouteDto, draft: { distanceKm:
       ...(ta.taFixedPaise !== (original.taFixedPaise ?? null) && { taFixedPaise: ta.taFixedPaise }),
     },
   };
+}
+
+/**
+ * The Territory page's "+ Place" (2026-11-27): name, type, and the km from the HQ town with its TA — the place and that route are made in
+ * one save. The km is required: a place is planned by that route.
+ */
+export function buildNewPlace(draft: { hqId: string; name: string; type: RouteType | ''; distanceKm: string; taMode: TaMode; rate: string; fixed: string }): BuildResult<CreatePlaceDto> {
+  const name = normalizeName(draft.name);
+  const km = parseKm(draft.distanceKm);
+  const ta = parseTa(draft);
+  const errors = {
+    name: nameError(name)?.replace('Enter a name.', 'Enter the place’s name.'),
+    type: draft.type ? undefined : 'Choose a type.',
+    distanceKm: km.ok ? undefined : km.error,
+    ...(ta.ok ? {} : ta.errors),
+  };
+  if (errors.name || errors.type || !km.ok || !ta.ok || !draft.type) return fail(errors);
+  return {
+    ok: true,
+    body: {
+      hqId: draft.hqId,
+      name,
+      type: draft.type,
+      distanceKm: km.km,
+      ...(ta.taPerKmRateOverridePaise !== null && { taPerKmRateOverridePaise: ta.taPerKmRateOverridePaise }),
+      ...(ta.taFixedPaise !== null && { taFixedPaise: ta.taFixedPaise }),
+    },
+  };
+}
+
+/**
+ * The place/route dialog's Save (2026-11-27): what changed on the place (name, type — only for a place's own route from its HQ town) and on
+ * the route (km, TA). Either part is left out when nothing in it changed.
+ */
+export function placeRouteChanges(
+  place: Pick<PlaceDto, 'name' | 'type'> | null,
+  route: RouteDto,
+  draft: { name: string; type: RouteType; distanceKm: string; taMode: TaMode; rate: string; fixed: string },
+): BuildResult<{ place?: { name?: string; type?: RouteType }; route?: UpdateRouteDto }> {
+  const name = normalizeName(draft.name);
+  const nameProblem = place ? nameError(name) : undefined;
+  const routePart = changedPlaceRouteFields(route, draft);
+  if (nameProblem || !routePart.ok) return fail({ name: nameProblem, ...(routePart.ok ? {} : routePart.errors) });
+  const placePart = place ? { ...(name !== place.name && { name }), ...(draft.type !== place.type && { type: draft.type }) } : {};
+  return {
+    ok: true,
+    body: {
+      ...(Object.keys(placePart).length > 0 && { place: placePart satisfies UpdatePlaceDto }),
+      ...(Object.keys(routePart.body).length > 0 && { route: routePart.body }),
+    },
+  };
+}
+
+/** "+ Place": the type follows the km (the server's rule) until the user picks one by hand. */
+export function typeForKm(rawKm: string, thresholds: StationThresholds | null, current: RouteType | '', pickedByHand: boolean): RouteType | '' {
+  if (pickedByHand) return current;
+  return suggestedType(rawKm, thresholds) ?? current;
 }

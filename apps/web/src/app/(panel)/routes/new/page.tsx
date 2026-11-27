@@ -1,12 +1,6 @@
-import { Suspense } from 'react';
-import { Skeleton } from '@/components/ui/Skeleton';
-import { RouteCreateScreen } from '@/features/territory/components/RouteCreateScreen';
+import { redirect } from 'next/navigation';
 
-// The screen reads `useSearchParams` (`?from=`), which needs a Suspense boundary to prerender.
+// Routes are made with "+ Route" on the Territory page (2026-11-27: one way to make a route).
 export default function NewRoutePage() {
-  return (
-    <Suspense fallback={<Skeleton className="h-64 w-full" />}>
-      <RouteCreateScreen />
-    </Suspense>
-  );
+  redirect('/territory?tab=routes');
 }
