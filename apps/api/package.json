@@ -57,6 +57,7 @@
         "migrate:weekly-off-schedule": "tsx src/scripts/migrate-weekly-off-schedule.ts",
         "migrate:places": "tsx src/scripts/migrate-places.ts",
         "migrate:outlet-places": "tsx src/scripts/migrate-outlet-places.ts",
+        "migrate:drop-town-routes": "tsx src/scripts/migrate-drop-town-routes.ts",
         "report:phone-gaps": "tsx src/scripts/report-phone-gaps.ts",
         "compliance:run": "tsx src/scripts/run-compliance.ts",
         "stock-check:run": "tsx src/scripts/run-stock-check.ts"
