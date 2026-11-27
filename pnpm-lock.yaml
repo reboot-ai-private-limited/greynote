@@ -257,7 +257,7 @@ importers:
         specifier: ^2.5.1
         version: 2.11.0
       compression:
-        specifier: 1.7.5
+        specifier: ^1.7.5
         version: 1.7.5(supports-color@8.1.1)
       cookie-parser:
         specifier: ^1.4.7
@@ -321,7 +321,7 @@ importers:
         specifier: ^5.0.2
         version: 5.0.2
       '@types/compression':
-        specifier: 1.7.5
+        specifier: ^1.7.5
         version: 1.7.5
       '@types/cookie-parser':
         specifier: ^1.4.8
