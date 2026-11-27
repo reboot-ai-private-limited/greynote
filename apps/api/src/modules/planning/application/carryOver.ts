@@ -75,10 +75,12 @@ export class CarryOver {
    */
   async monthSummary(userId: string, from: string, to: string): Promise<Array<{ doctorId: string; plannedDays: number; missedSince: string | null }>> {
     const plannedDays = new Map<string, number>();
-    for (const plan of await this.approvedPlans(userId, from, to)) {
+    // The approved plans are read once and shared (2026-11-27; they were read twice).
+    const approved = await this.approvedPlans(userId, from, to);
+    for (const plan of approved) {
       for (const d of plan.doctors) plannedDays.set(d.doctorId, (plannedDays.get(d.doctorId) ?? 0) + 1);
     }
-    const missed = await this.uncalled(userId, from, to);
+    const missed = await this.uncalled(userId, from, to, approved);
     return [...plannedDays].map(([doctorId, days]) => ({ doctorId, plannedDays: days, missedSince: missed.get(doctorId) ?? null }));
   }
 
@@ -94,10 +96,10 @@ export class CarryOver {
   }
 
   /** Doctors on approved plans in `from`–`to`, mapped to the day first planned, left out once called on or after that day (up to `to`). */
-  private async uncalled(userId: string, from: string, to: string): Promise<Map<string, string>> {
+  private async uncalled(userId: string, from: string, to: string, approved?: DailyPlan[]): Promise<Map<string, string>> {
     if (!this.called) throw new Error('Planning: the called-doctors lookup was never bound.');
     const firstPlanned = new Map<string, string>();
-    for (const plan of await this.approvedPlans(userId, from, to)) {
+    for (const plan of approved ?? (await this.approvedPlans(userId, from, to))) {
       for (const d of plan.doctors) {
         const original = d.carriedFrom ?? plan.planDate;
         if (original < from) continue;
@@ -105,12 +107,11 @@ export class CarryOver {
         if (!known || original < known) firstPlanned.set(d.doctorId, original);
       }
     }
-    // A call clears a doctor only if it was on or after the day they were first planned.
-    const byDay = new Map<string, string[]>();
-    for (const [doctorId, original] of firstPlanned) byDay.set(original, [...(byDay.get(original) ?? []), doctorId]);
-    for (const original of byDay.keys()) {
-      for (const id of await this.called(userId, { from: original, to })) firstPlanned.delete(id);
-    }
+    // A call clears a doctor only if it was on or after the day they were first planned. This used to ask once per distinct first-planned
+    // day and clear every doctor called in each answer — the same as one ask from the earliest of those days (2026-11-27), now one read.
+    if (firstPlanned.size === 0) return firstPlanned;
+    const earliest = [...firstPlanned.values()].sort()[0]!;
+    for (const id of await this.called(userId, { from: earliest, to })) firstPlanned.delete(id);
     return firstPlanned;
   }
 
