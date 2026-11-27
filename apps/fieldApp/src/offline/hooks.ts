@@ -5,6 +5,7 @@ import { useSessionUser } from '@/lib/session';
 
 import { onReconnect, startConnectivityWatch } from './connectivity';
 import { getSyncStatus, runSync, subscribeSyncStatus } from './engine';
+import { PULL_AFTER_SAVE_MS, PULL_EVERY_MS } from './sync-pacing';
 import { countByStatus, listRecords, subscribeOutbox } from './outbox';
 import type { OutboxRecord, OutboxStatus, SyncKind } from './types';
 
@@ -34,9 +35,9 @@ export function useSyncStatus() {
 }
 
 /**
- * Keeps the phone current while a user is signed in: syncs once at start, whenever the phone
- * comes back online, whenever the app returns to the foreground, and shortly after the outbox
- * changes (the draft backup, debounced). Mount once, in the root layout.
+ * Keeps the phone current while a user is signed in (2026-11-27 pacing, sync-pacing.ts): a full sync at sign-in and when the phone comes
+ * back online; on returning to the app when the last pull is 15+ minutes old; every 15 minutes while the app is open; and 5 s after the
+ * outbox changes (sends at once, pulls only if the last pull is over a minute old). Mount once, in the root layout.
  */
 export function useAutoSync() {
   const user = useSessionUser();
@@ -50,21 +51,26 @@ export function useAutoSync() {
 
   useEffect(() => {
     if (!signedIn) return;
-    void runSync();
+    void runSync({ pullIfOlderThan: 0, force: true });
 
-    const offReconnect = onReconnect(() => void runSync());
+    const offReconnect = onReconnect(() => void runSync({ pullIfOlderThan: 0, force: true }));
     const appState = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void runSync();
+      if (state === 'active') void runSync({ pullIfOlderThan: PULL_EVERY_MS });
     });
+    // While the app is in front: a pull every 15 minutes (runSync skips it if one happened since).
+    const every = setInterval(() => {
+      if (AppState.currentState === 'active') void runSync({ pullIfOlderThan: PULL_EVERY_MS });
+    }, PULL_EVERY_MS);
     let timer: ReturnType<typeof setTimeout> | undefined;
     const offOutbox = subscribeOutbox(() => {
       clearTimeout(timer);
-      timer = setTimeout(() => void runSync(), 5000);
+      timer = setTimeout(() => void runSync({ pullIfOlderThan: PULL_AFTER_SAVE_MS }), 5000);
     });
 
     return () => {
       offReconnect();
       appState.remove();
+      clearInterval(every);
       offOutbox();
       clearTimeout(timer);
     };

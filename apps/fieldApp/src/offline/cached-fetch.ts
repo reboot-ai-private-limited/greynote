@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useSessionUser } from '@/lib/session';
 
@@ -23,8 +23,18 @@ export type CachedFetch<T> = {
   reload: () => void;
 };
 
-/** `refreshKey` is anything that should trigger a fresh fetch when it changes (e.g. how many records have synced). */
-export function useCachedFetch<T>(key: string, fetcher: () => Promise<T>, refreshKey?: unknown): CachedFetch<T> {
+/** How old a saved copy may be before opening the screen fetches again (2026-11-27). Pull-to-refresh and `refreshKey` always fetch. */
+export const DEFAULT_MAX_AGE_MS = 60_000;
+
+/**
+ * `refreshKey` is anything that should trigger a fresh fetch when it changes (e.g. how many records have synced). `maxAgeMs`: a saved copy
+ * younger than this is shown without asking the server again when the screen opens or the key changes (2026-11-27: screens used to fetch
+ * on every open). A reload the person asks for, or a new `refreshKey`, always fetches.
+ */
+export function useCachedFetch<T>(key: string, fetcher: () => Promise<T>, refreshKey?: unknown, options: { maxAgeMs?: number } = {}): CachedFetch<T> {
+  const maxAgeMs = options.maxAgeMs ?? DEFAULT_MAX_AGE_MS;
+  // What the last run fetched for: a run caused only by opening the screen (or a new key) may use a fresh copy.
+  const lastRun = useRef<{ tick: number; refreshKey: unknown } | null>(null);
   const online = useOnline();
   const userId = useSessionUser()?.id ?? 'anon';
   const metaKey = `fetch:${userId}:${key}`;
@@ -54,6 +64,13 @@ export function useCachedFetch<T>(key: string, fetcher: () => Promise<T>, refres
       setState(held ? { key: metaKey, data: held.data, fetchedAt: held.fetchedAt, loading: online, error: null, stale: true } : { key: metaKey, data: null, fetchedAt: null, loading: online, error: null, stale: true });
       if (!online) {
         setState((s) => ({ ...s, loading: false }));
+        setRefreshing(false);
+        return;
+      }
+      const asked = lastRun.current !== null && (lastRun.current.tick !== tick || lastRun.current.refreshKey !== refreshKey);
+      lastRun.current = { tick, refreshKey };
+      if (!asked && held && Date.now() - Date.parse(held.fetchedAt) < maxAgeMs) {
+        setState((s) => ({ ...s, loading: false, stale: false }));
         setRefreshing(false);
         return;
       }

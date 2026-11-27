@@ -30,8 +30,14 @@ async function loadCachedTeam(userId: string): Promise<TeamMember[]> {
 }
 
 /** Fetches the roster and keeps it. A failure keeps what was cached. */
+/** When each manager's roster was last fetched: it changes rarely, so screens opening within 10 minutes reuse it (2026-11-27). */
+const fetchedAt = new Map<string, number>();
+const ROSTER_MAX_AGE_MS = 10 * 60_000;
+
 async function refreshTeam(userId: string, today: string): Promise<void> {
   if (!isOnline()) return;
+  if (Date.now() - (fetchedAt.get(`${userId}:${today}`) ?? 0) < ROSTER_MAX_AGE_MS) return;
+  fetchedAt.set(`${userId}:${today}`, Date.now());
   try {
     // A single day, outside the financial-year switch: it is the people that matter, not the figures.
     const dash = await getSalesDashboard(today, today, 100, { fy: false });
@@ -41,11 +47,12 @@ async function refreshTeam(userId: string, today: string): Promise<void> {
     await store.setMeta(KEY(userId), JSON.stringify(team));
     listeners.forEach((l) => l());
   } catch {
-    // Offline, or the server is unreachable: the cached roster stays.
+    // Offline, or the server is unreachable: the cached roster stays, and the next screen tries again.
+    fetchedAt.delete(`${userId}:${today}`);
   }
 }
 
-/** The signed-in manager's team (empty for anyone else), refreshed each time a screen using it opens. */
+/** The signed-in manager's team (empty for anyone else), refreshed when a screen using it opens and the copy is over 10 minutes old. */
 export function useTeam(): { team: TeamMember[]; loaded: boolean } {
   const user = useSessionUser();
   const { isManager } = useCurrentUser();

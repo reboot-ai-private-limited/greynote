@@ -39,9 +39,19 @@ export class PushRecordsUseCase {
     private readonly users: UserDirectoryPort,
     private readonly config: ConfigReader,
     private readonly now: () => Date = () => new Date(),
+    /** Told after every push (2026-11-27): the pull cache forgets this user's snapshots, so their next pull shows what they sent. */
+    private readonly afterPush?: (userId: string) => void,
   ) {}
 
   async execute(actor: { id: string; role: RoleName }, records: SyncRecordInput[]): Promise<PushResponse> {
+    try {
+      return await this.pushAll(actor, records);
+    } finally {
+      this.afterPush?.(actor.id);
+    }
+  }
+
+  private async pushAll(actor: { id: string; role: RoleName }, records: SyncRecordInput[]): Promise<PushResponse> {
     await this.assertMayPush(actor);
     const maxBatch = await readConfig(this.config, 'SYNC_MAX_BATCH', parsePositiveInt(10_000));
     if (records.length > maxBatch) {

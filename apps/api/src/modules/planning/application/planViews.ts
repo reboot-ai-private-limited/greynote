@@ -45,12 +45,20 @@ export class PlanViews {
     private readonly locks?: { lockedDays(plan: MonthlyPlan): Promise<{ locked: Map<string, unknown> }> },
   ) {}
 
-  async daily(plan: DailyPlan): Promise<DailyPlanView> {
+  /** `request`: the plan's approval request when the caller already read it (a list reads them in one query), `null` for none. */
+  async daily(plan: DailyPlan, request?: ApprovalRequest | null): Promise<DailyPlanView> {
     const [deadline, policy] = await Promise.all([
       this.deadlines.daily(plan.planDate),
       this.deadlines.dailyResubmitPolicy(plan.planDate),
     ]);
-    return { ...plan, changedFromMonthly: plan.plannedFrom !== null, ...(await this.state('DAILY_PLAN', plan, plan.planDate, deadline, policy)) };
+    return { ...plan, changedFromMonthly: plan.plannedFrom !== null, ...(await this.state('DAILY_PLAN', plan, plan.planDate, deadline, policy, request)) };
+  }
+
+  /** Many Daily Plans at once (2026-11-27): their approval requests in one query instead of one each. */
+  async dailyMany(plans: DailyPlan[]): Promise<DailyPlanView[]> {
+    if (plans.length === 0) return [];
+    const requests = new Map((await this.approvals.listForRecords('DAILY_PLAN', plans.map((p) => p.id))).map((r) => [r.recordId, r]));
+    return Promise.all(plans.map((p) => this.daily(p, requests.get(p.id) ?? null)));
   }
 
   async monthly(plan: MonthlyPlan): Promise<MonthlyPlanView> {
@@ -69,10 +77,11 @@ export class PlanViews {
     planKey: string,
     submitDeadline: Date,
     policy: ResubmitPolicy,
+    known?: ApprovalRequest | null,
   ): Promise<PlanStateView> {
     const now = this.deadlines.now();
     const [request, grant] = await Promise.all([
-      this.approvals.getForRecord(kind, plan.id),
+      known !== undefined ? Promise.resolve(known) : this.approvals.getForRecord(kind, plan.id),
       this.grants.findUsable(plan.userId, kind, planKey, now),
     ]);
     const windowEnd = resubmitWindowEnd(request, submitDeadline, policy, plan.lateResubmits);

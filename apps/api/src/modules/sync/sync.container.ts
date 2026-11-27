@@ -5,6 +5,7 @@ import { SyncSourceRegistry } from './application/syncSourceRegistry.js';
 import { SyncHandlerRegistry } from './application/syncHandlerRegistry.js';
 import { ListDraftsUseCase } from './application/usecases/listDrafts.usecase.js';
 import { PullSnapshotsUseCase } from './application/usecases/pullSnapshots.usecase.js';
+import { SnapshotCache } from './application/snapshotCache.js';
 import { PushRecordsUseCase } from './application/usecases/pushRecords.usecase.js';
 import { PutDraftsUseCase } from './application/usecases/putDrafts.usecase.js';
 import type { UserDirectoryPort } from './domain/userDirectory.port.js';
@@ -31,10 +32,12 @@ export function buildSyncContainer(users: UserDirectoryPort, config: ConfigReade
   const sources = new SyncSourceRegistry();
 
   // 2. Use cases
-  const push = new PushRecordsUseCase(handlers, receipts, drafts, transactions, users, config);
+  // A phone's pull within a minute reuses what was built (2026-11-27); a push clears that user's copies.
+  const snapshots = new SnapshotCache();
+  const push = new PushRecordsUseCase(handlers, receipts, drafts, transactions, users, config, () => new Date(), (userId) => snapshots.forget(userId));
   const putDrafts = new PutDraftsUseCase(drafts, receipts, users, config);
   const listDrafts = new ListDraftsUseCase(drafts, receipts);
-  const pull = new PullSnapshotsUseCase(sources, users);
+  const pull = new PullSnapshotsUseCase(sources, users, () => new Date(), snapshots);
 
   return {
     contract: {

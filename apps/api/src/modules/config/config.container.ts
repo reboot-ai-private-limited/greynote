@@ -5,6 +5,7 @@ import { GetPublicConfigUseCase } from './application/usecases/getPublicConfig.u
 import { ListConfigUseCase } from './application/usecases/listConfig.usecase.js';
 import { SeedDefaultConfigUseCase } from './application/usecases/seedDefaultConfig.usecase.js';
 import { UpdateConfigValueUseCase } from './application/usecases/updateConfigValue.usecase.js';
+import { CachedSystemConfigRepository } from './infrastructure/cachedSystemConfig.adapter.js';
 import { MongoSystemConfigAdapter } from './infrastructure/mongoSystemConfig.adapter.js';
 import { makeFinancialYearControllers, makeListConfigController, makePublicConfigController, makeUpdateConfigController } from './interface/config.controller.js';
 import { buildConfigRouter } from './interface/config.route.js';
@@ -18,7 +19,8 @@ export interface ConfigContainer {
 }
 
 export function buildConfigContainer(): ConfigContainer {
-  const repository = new MongoSystemConfigAdapter();
+  // Settings are read on nearly every request: one query, then memory for 30 s; a change here drops the copy (2026-11-27).
+  const repository = new CachedSystemConfigRepository(new MongoSystemConfigAdapter());
   const getConfigValue = new GetConfigValueUseCase(repository);
   const seedDefaultConfig = new SeedDefaultConfigUseCase(repository);
   const updateConfigValue = new UpdateConfigValueUseCase(repository);

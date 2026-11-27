@@ -5,6 +5,7 @@ import { refreshColleagues } from './colleagues';
 import { isOnline } from './connectivity';
 import { uploadPendingPhotos } from './doctor-photos';
 import { notifyOutboxChanged, queueRecord } from './outbox';
+import { backoffMs, pullDue, PULL_EVERY_MS, PULL_REUSE_MS } from './sync-pacing';
 import { orderForPush } from './order';
 import { getNumberSetting } from './settings';
 import { store } from './store';
@@ -255,7 +256,7 @@ function uploadPhotosQuietly(): void {
  * Forgets records the server has had for longer than the server would accept a resend of. Doctor calls and follow-ups stay
  * at least as long as the days between visits, so the phone can still grey out a doctor visited too recently (dcr.md rule 11).
  */
-export async function pruneSynced(): Promise<void> {
+export async function pruneSynced(): Promise<number> {
   const [keepDays, gapDays] = await Promise.all([getNumberSetting('SYNC_MAX_AGE_DAYS'), getNumberSetting('DOCTOR_VISIT_GAP_DAYS')]);
   const day = 24 * 60 * 60 * 1000;
   const cutoff = Date.now() - keepDays * day;
@@ -264,6 +265,7 @@ export async function pruneSynced(): Promise<void> {
     (r) => new Date(r.clientUpdatedAt).getTime() < (r.kind === 'DOCTOR_CALL' || r.kind === 'DOCTOR_FOLLOWUP' ? visitCutoff : cutoff),
   );
   await store.purgeRecords(old.map((r) => r.clientId));
+  return old.length;
 }
 
 /* ──────────────────────────────── draft backup ──────────────────────────────── */
@@ -418,27 +420,58 @@ async function sendStandalone(): Promise<void> {
 }
 
 let running: Promise<void> | null = null;
+let pulling: Promise<unknown> | null = null;
+/** Failed syncs in a row, and when the next background attempt may start (sync-pacing.ts `backoffMs`). */
+let failures = 0;
+let retryAfter = 0;
+
+/** One pull at a time: a second caller joins the one running. */
+function pullShared(): Promise<unknown> {
+  pulling ??= pull().finally(() => {
+    pulling = null;
+  });
+  return pulling;
+}
+
+export type RunSyncOptions = {
+  /** Pull only if the last pull is at least this old (ms); 0 = always. Default `PULL_EVERY_MS`. */
+  pullIfOlderThan?: number;
+  /** Ignore the back-off after errors (sign-in, reconnect, pull-to-refresh). */
+  force?: boolean;
+};
 
 /**
- * The background sync: refresh reference data, then back the unsent records up. One at a time.
- * Never submits — that is the MR tapping Submit. Safe to call from anywhere, any time.
+ * The background sync: send what was saved offline, refresh reference data when it is due, then back the unsent records up. One at a
+ * time. Never submits — that is the MR tapping Submit. Safe to call from anywhere, any time. It no longer tells the outbox it changed
+ * unless records really did (2026-11-27): that signal is what schedules the next sync, and firing it every time kept the phone syncing
+ * every few seconds for as long as it was open.
  */
-export function runSync(): Promise<void> {
+export function runSync(options: RunSyncOptions = {}): Promise<void> {
   if (!isOnline()) return Promise.resolve();
+  if (!options.force && Date.now() < retryAfter) return Promise.resolve();
+  const maxAge = options.pullIfOlderThan ?? PULL_EVERY_MS;
   running ??= (async () => {
     setStatus({ syncing: true, lastError: null });
+    let changed = false;
     try {
       await sendStandalone().catch(() => undefined); // what was saved offline goes first, so the pull below sees it
-      await pull();
-      await refreshColleagues();
-      await backupDrafts();
-      await pruneSynced();
+      if (pullDue(status.lastPullAt ?? (await store.getMeta('lastPullAt')), Date.now(), maxAge)) {
+        await pullShared();
+        await refreshColleagues();
+      }
+      const backup = await backupDrafts();
+      const pruned = await pruneSynced();
+      changed = backup.stored + backup.rejected + pruned > 0;
+      failures = 0;
+      retryAfter = 0;
       setStatus({ lastError: null });
     } catch (err) {
+      failures += 1;
+      retryAfter = Date.now() + backoffMs(failures);
       setStatus({ lastError: message(err) });
     } finally {
       setStatus({ syncing: false });
-      notifyOutboxChanged();
+      if (changed) notifyOutboxChanged();
     }
   })().finally(() => {
     running = null;
@@ -447,13 +480,14 @@ export function runSync(): Promise<void> {
 }
 
 /**
- * A pull right now. Unlike runSync it never joins a background sync already in flight — that one may
- * have started before the change the caller just made, and would hand back the old state.
+ * A pull right now, after the user changed something (a call, a plan, a request). It joins a pull already running, and reuses one that
+ * finished in the last few seconds (`PULL_REUSE_MS`), so a save never starts two.
  */
 export async function refreshNow(): Promise<void> {
   if (!isOnline()) return;
+  if (!pulling && !pullDue(status.lastPullAt, Date.now(), PULL_REUSE_MS)) return;
   try {
-    await pull();
+    await pullShared();
   } catch (err) {
     setStatus({ lastError: message(err) });
   }

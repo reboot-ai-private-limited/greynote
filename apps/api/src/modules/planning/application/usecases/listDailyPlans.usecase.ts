@@ -10,6 +10,6 @@ export class ListDailyPlansUseCase {
 
   async execute(userId: string, from: string, to: string): Promise<DailyPlanView[]> {
     const plans = await this.plans.listForUser(userId, from, to);
-    return Promise.all(plans.map((p) => this.views.daily(p)));
+    return this.views.dailyMany(plans);
   }
 }

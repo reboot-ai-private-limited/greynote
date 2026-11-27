@@ -62,7 +62,8 @@ export function notifyCacheChanged(change?: { updated: string[]; touched: string
       reads.delete(source); // still being read: read it again
     }
   }
-  for (const source of [...change.updated, ...change.touched]) listeners.get(source)?.forEach((l) => l());
+  // Only sources whose data changed wake their screens (2026-11-27): an unchanged pull just moves `fetchedAt` for the next read.
+  for (const source of change.updated) listeners.get(source)?.forEach((l) => l());
 }
 
 export function useCachedSource<T>(source: string): CachedValue<T> {

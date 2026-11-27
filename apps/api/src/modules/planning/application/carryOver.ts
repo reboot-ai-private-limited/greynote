@@ -83,12 +83,14 @@ export class CarryOver {
   }
 
   private async approvedPlans(userId: string, from: string, to: string): Promise<DailyPlan[]> {
-    const approved: DailyPlan[] = [];
-    for (const plan of await this.plans.listForUser(userId, from, to)) {
-      const status = planStatus(await this.approvals.getForRecord('DAILY_PLAN', plan.id));
-      if (status === 'MANAGER_APPROVED' || status === 'APPROVED') approved.push(plan);
-    }
-    return approved;
+    const plans = await this.plans.listForUser(userId, from, to);
+    if (plans.length === 0) return [];
+    // One query for every plan's approval (2026-11-27), not one each.
+    const requests = new Map((await this.approvals.listForRecords('DAILY_PLAN', plans.map((p) => p.id))).map((r) => [r.recordId, r]));
+    return plans.filter((plan) => {
+      const status = planStatus(requests.get(plan.id) ?? null);
+      return status === 'MANAGER_APPROVED' || status === 'APPROVED';
+    });
   }
 
   /** Doctors on approved plans in `from`–`to`, mapped to the day first planned, left out once called on or after that day (up to `to`). */

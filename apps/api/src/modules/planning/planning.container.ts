@@ -132,6 +132,8 @@ export function buildPlanningContainer(
       users,
       // Doctors still owed from earlier days, derived at every pull (a manager's include the downline's); never copied into a plan.
       owed: async (userId, today) => {
+        // A manager has no carry-over (2026-11-27): skip reading their whole team.
+        if (await scope.isManager(userId)) return [];
         const { people } = await scope.doctorScope(userId, []);
         return (await carryOver.pending(userId, today, people)).map((d) => ({ doctorId: d.doctorId, carriedFrom: d.carriedFrom ?? today }));
       },

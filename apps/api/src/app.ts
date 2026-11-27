@@ -2,6 +2,7 @@ import express from 'express';
 import type { Express } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import { env } from '@/config/env.js';
 import { buildContainers, type AppContainers } from './container.js';
@@ -28,6 +29,8 @@ export function createApp(options: CreateAppOptions = {}): Express {
     app.use(accessLogMiddleware());
     app.use(helmet());
     app.use(cors({ origin: env.CORS_ORIGINS, credentials: true }));
+    // gzip for JSON answers (2026-11-27): the phone's pulls and lists are repetitive JSON and shrink several times over.
+    app.use(compression());
     // 2 MB, not the 100 KB default: a day's report is one push of up to `SYNC_MAX_BATCH` records.
     app.use(express.json({ limit: '2mb' }));
     app.use(cookieParser());

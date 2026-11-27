@@ -276,6 +276,9 @@ export class FakeApprovals implements ApprovalsPort {
   async getForRecord(kind: string, recordId: string) {
     return this.requests.get(`${kind}:${recordId}`) ?? null;
   }
+  async listForRecords(kind: string, recordIds: string[]) {
+    return recordIds.flatMap((id) => this.requests.get(`${kind}:${id}`) ?? []);
+  }
   /** A decision at `at`; a rejection is appended to the history, where the resubmit window reads it. */
   setStatus(kind: string, recordId: string, status: ApprovalStatus, at = new Date()) {
     const request = this.requests.get(`${kind}:${recordId}`);

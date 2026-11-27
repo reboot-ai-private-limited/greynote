@@ -3,6 +3,7 @@ import { AppError } from '@/shared/errors/AppError.js';
 import { logger } from '@/shared/logging/logger.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import { canonicalize, versionOf } from '../snapshotVersion.js';
+import type { SnapshotCache } from '../snapshotCache.js';
 import type { SyncSourceRegistry } from '../syncSourceRegistry.js';
 
 export type SourceResult =
@@ -28,6 +29,8 @@ export class PullSnapshotsUseCase {
     private readonly sources: SyncSourceRegistry,
     private readonly users: UserDirectoryPort,
     private readonly now: () => Date = () => new Date(),
+    /** Reuses a snapshot built in the last minute (2026-11-27); left out, every pull builds afresh. */
+    private readonly cache?: SnapshotCache,
   ) {}
 
   async execute(actor: { id: string; role: RoleName }, have: Record<string, string>, only: string[] | null): Promise<PullResponse> {
@@ -42,8 +45,10 @@ export class PullSnapshotsUseCase {
     const entries = await Promise.all(
       names.map(async (name): Promise<[string, SourceResult]> => {
         try {
-          const canonical = canonicalize(await this.sources.find(name)!.snapshot(actor.id));
-          const version = versionOf(canonical);
+          const held = this.cache?.get(actor.id, name);
+          const canonical = held ? held.canonical : canonicalize(await this.sources.find(name)!.snapshot(actor.id));
+          const version = held ? held.version : versionOf(canonical);
+          if (!held) this.cache?.set(actor.id, name, { canonical, version });
           return [name, have[name] === version ? { version, unchanged: true } : { version, data: canonical }];
         } catch (err) {
           logger.error({ err: String(err), source: name }, 'sync source failed');
