@@ -16,6 +16,8 @@ export class SetUserHqUseCase {
     private readonly hqs: HqRepositoryPort,
     private readonly users: UserDirectoryPort,
     private readonly transactions: TransactionRunnerPort,
+    /** Told when someone's HQ changed, so a remembered answer about them is dropped at once (2026-11-27). */
+    private readonly onChanged?: (userId: string) => void,
   ) {}
 
   async execute(userId: string, hqId: string, actorId: string): Promise<UserHqAssignment> {
@@ -41,6 +43,7 @@ export class SetUserHqUseCase {
       return this.assignments.create({ userId, hqId, assignedBy: actorId }, ctx);
     });
     if (!created) throw AppError.conflict('This employee’s HQ was changed at the same time. Reload and try again.');
+    this.onChanged?.(userId);
     await this.users.recordUserTerritory(userId, { hqId, zoneId: hq.zoneId });
     return created;
   }

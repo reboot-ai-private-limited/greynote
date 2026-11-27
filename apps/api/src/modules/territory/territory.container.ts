@@ -137,8 +137,10 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
   const importHierarchy = new ImportHierarchyUseCase(zoneRepository, hqRepository, placeRoutes);
   const importRoutes = new ImportRoutesUseCase(hqRepository, placeRepository, routeRepository, placeRoutes);
   const searchPlaces = makeSearchPlacesController(new SearchPlacesUseCase(placeSearch));
+  // Where each person is based, remembered for a minute; dropped at once when their HQ changes (2026-11-27).
+  const userTerritory = new GetUserTerritoryUseCase(userHqRepository, hqRepository);
   const userHq = {
-    set: new SetUserHqUseCase(userHqRepository, hqRepository, users, transactions),
+    set: new SetUserHqUseCase(userHqRepository, hqRepository, users, transactions, (userId) => userTerritory.forget(userId)),
     get: new GetUserHqUseCase(userHqRepository, hqRepository),
   };
 
@@ -147,7 +149,7 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
   const managerCoverage = {
     get: getCoverage,
     set: setCoverage,
-    territory: new GetUserTerritoryUseCase(userHqRepository, hqRepository),
+    territory: userTerritory,
     extend: new ExtendManagerTerritoryUseCase(getCoverage),
     gaps: new GetTerritoryGapsUseCase(),
   };
