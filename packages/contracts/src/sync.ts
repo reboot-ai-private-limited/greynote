@@ -204,6 +204,8 @@ export const DCR_REFUSAL_CODES = [
   'DOCTOR_NOT_ASSIGNED',
   'CHEMIST_NOT_FOUND',
   'CHEMIST_ROUTE_NOT_ASSIGNED',
+  /** A chemist call away from the day's To place (2026-11-27): log a follow-up for that chemist instead. */
+  'CHEMIST_NOT_AT_PLACE',
   'NOT_AT_LOCATION',
   'CALL_NOT_ALLOWED_FOR_WORK_TYPE',
   'REMARKS_REQUIRED',

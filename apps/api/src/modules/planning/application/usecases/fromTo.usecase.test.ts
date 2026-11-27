@@ -65,6 +65,15 @@ describe('a Tour Plan day is one From → To along a typed route (2026-11-26)', 
     await expect(carryOver.compose(plan, ['d-jal'])).rejects.toMatchObject({ statusCode: 400 });
   });
 
+  it('a day at one place (From = To) can be saved with the doctors there, though it has no route (2026-11-27)', async () => {
+    const kit = setup();
+    kit.doctors.set('mr', [{ id: 'd-main', routeId: 'r-main', placeId: 'main' } as { id: string; routeId: string }]);
+    await kit.dailyPlans.createInherited('mr', '2026-12-02', day({ fromPlaceId: 'main', toPlaceId: 'main' }));
+    const saved = await kit.setDay.execute('mr', '2026-12-02', { workingType: 'FIELD_WORK', workWith: [], doctorIds: ['d-main'] });
+    expect(saved).toMatchObject({ routeIds: [], fromPlaceId: 'main', toPlaceId: 'main' });
+    expect(saved.doctors.map((d) => d.doctorId)).toEqual(['d-main']);
+  });
+
   it("the pickers: the places of the owner's HQ (a manager's team too), and from a place only where a typed route goes, plus staying", async () => {
     const { routes, users, scope } = setup();
     const useCase = new PlanPlacesUseCase(routes as never, users, scope);

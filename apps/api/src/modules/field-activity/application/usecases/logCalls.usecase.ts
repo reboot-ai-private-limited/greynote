@@ -102,6 +102,7 @@ export class LogChemistCallUseCase {
     const dcr = await this.gate.open(rec.userId, input.reportDate, rec.recordedAt);
     const chemist = await this.checks.chemist(rec.userId, input.chemistId);
     const day = await this.checks.day(rec.userId, input.reportDate);
+    this.checks.chemistAtPlace(day, chemist);
     const { routeId, routeType, routeNotInPlan } = await this.checks.route(day, chemist.routeId);
     const geofence = await this.geofence.requirePass('chemist', await this.master.getChemistLocation(input.chemistId), input.capturedLocation, input.accuracyMeters);
     const call = await this.calls.create(

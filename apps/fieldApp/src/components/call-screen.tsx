@@ -109,12 +109,14 @@ export function CallScreen({ subject }: { subject: Subject }) {
     return (isDoctor ? p.doctorId : p.chemistId) ?? '';
   };
 
-  // Doctors: today's plan (missed ones first, oldest first, then A to Z). Chemists: every chemist assigned to me. A doctor already on a call
-  // being edited stays pickable even if the plan has since changed.
+  // Doctors: today's plan (missed ones first, oldest first, then A to Z). Chemists: those at today's To place (2026-11-27; anywhere else is a
+  // follow-up), or every one I hold on an older day without places. One already on a call being edited stays pickable.
   const outlets = useMemo(() => {
-    const list: { id: string; routeId: string; name: string }[] = isDoctor ? callDoctors.filter((d) => plannedDoctorIds.has(d.id) || d.id === outletId) : (master.data?.chemists ?? []);
+    const list: { id: string; routeId: string; name: string }[] = isDoctor
+      ? callDoctors.filter((d) => plannedDoctorIds.has(d.id) || d.id === outletId)
+      : (master.data?.chemists ?? []).filter((c) => !plan?.toPlaceId || !c.placeId || c.placeId === plan.toPlaceId || c.id === outletId);
     return [...list].sort((a, b) => (carried.get(a.id) ?? '9999').localeCompare(carried.get(b.id) ?? '9999') || a.name.localeCompare(b.name));
-  }, [master.data, callDoctors, isDoctor, plannedDoctorIds, carried, outletId]);
+  }, [master.data, callDoctors, isDoctor, plannedDoctorIds, carried, outletId, plan]);
   const loc = useLocationReading();
   const outletById = useMemo(
     () => new Map([...callDoctors, ...(master.data?.chemists ?? [])].map((o) => [o.id, o])),

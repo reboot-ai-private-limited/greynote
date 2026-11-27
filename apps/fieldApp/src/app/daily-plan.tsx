@@ -314,7 +314,9 @@ export default function DailyPlanScreen() {
       return { ids, changed: !samePicks || !owed.every((o) => onServer.has(o.doctorId)) };
     }
     if (!master.data) return { ids: serverPicks, changed: false };
-    const onRoutes = new Set(master.data.doctors.filter((d) => existing.routeIds.includes(d.routeId)).map((d) => d.id));
+    // The day's doctors are those at its To place (2026-11-27, as the picker and the server); an older day without places goes by its routes.
+    const toPlaceId = existing.toPlaceId ?? null;
+    const onRoutes = new Set(master.data.doctors.filter((d) => (toPlaceId ? d.placeId === toPlaceId : existing.routeIds.includes(d.routeId))).map((d) => d.id));
     const ids = doctorIds.filter((id) => onRoutes.has(id));
     const samePicks = ids.length === serverPicks.length && ids.every((id) => serverPicks.includes(id));
     const onServer = new Set(savedOwed.map((d) => d.doctorId));

@@ -18,6 +18,8 @@ export interface DayContext {
   workingType: WorkingType;
   routeIds: string[];
   doctorIds: string[];
+  /** Where the day is spent (2026-11-26); null on older days and meetings. */
+  toPlaceId: string | null;
 }
 
 export class CallChecks {
@@ -77,6 +79,16 @@ export class CallChecks {
   }
 
   /**
+   * A chemist is called at the day's To place (2026-11-27); a chemist elsewhere gets a follow-up instead. An older day without places is not
+   * checked.
+   */
+  chemistAtPlace(day: DayContext, chemist: Pick<Chemist, 'placeId'>): void {
+    if (day.toPlaceId && chemist.placeId !== day.toPlaceId) {
+      throw new LogRefusal(LOG_CODES.chemistNotAtPlace, 'This chemist is not at today’s place. Log a follow-up for them instead.');
+    }
+  }
+
+  /**
    * The day's approved Plan, for stamping a record. Only a field work or doctor campaign day has doctors and chemists to see: on a
    * meeting, conference or strike day there is nothing to record. A day with no Plan row reads as plain field work (the gate has
    * already confirmed an approved Plan, so this is only a gap in test data or old rows).
@@ -87,7 +99,7 @@ export class CallChecks {
     if (!isFieldDay(workingType)) {
       throw new LogRefusal(LOG_CODES.callNotAllowedForWorkType, 'Today’s plan is not a field day, so there are no calls or follow-ups to record. Submit the report with your remarks.');
     }
-    return { workingType, routeIds: day?.routeIds ?? [], doctorIds: day?.doctorIds ?? [] };
+    return { workingType, routeIds: day?.routeIds ?? [], doctorIds: day?.doctorIds ?? [], toPlaceId: day?.toPlaceId ?? null };
   }
 
   /**

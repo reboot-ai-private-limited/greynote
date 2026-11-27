@@ -76,3 +76,5 @@ Show the work type and route type on every record in the day's list ("Field work
 - Dr Call, Chemist Call and Follow-up show a **Your location** card once a doctor or chemist is chosen: how far you are from them, the GPS accuracy against the limit, and when the reading was taken. **Refresh location** takes a new GPS reading now (GPS works without the internet, so it works offline). Save uses a reading under two minutes old for that doctor or chemist, otherwise it reads again itself; the existing refusals stay as the last check.
 - For a doctor or chemist with **no registered location**, **Check again** pulls the latest doctors and chemists from the server (needs the internet: offline it says "Connect to the internet first.").
 - Add Doctor and Add Chemist show the same card in capture mode ("It becomes the doctor's location when you save") with Refresh location.
+
+> **2026-11-27.** Chemist Call lists the chemists at today's To place (`placeId` in the chemist cache); the server refuses a chemist call elsewhere with `CHEMIST_NOT_AT_PLACE` (removable) — log a follow-up for that chemist instead. Days without places are unchanged.

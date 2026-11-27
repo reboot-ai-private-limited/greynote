@@ -132,7 +132,7 @@ export const PERMANENT_REFUSALS = new Set(['DCR_SUBMIT_LATE', 'PAYROLL_FINALIZED
  * Refusals where the record can never be accepted as it stands: nothing was stored on the server, so the screen offers "Remove this record"
  * (the day can't be submitted while a refused record is still on it).
  */
-export const REMOVABLE_REFUSALS = new Set(['NOT_AT_LOCATION', 'DOCTOR_NOT_ASSIGNED', 'CHEMIST_ROUTE_NOT_ASSIGNED', 'DOCTOR_NOT_FOUND', 'CHEMIST_NOT_FOUND']);
+export const REMOVABLE_REFUSALS = new Set(['CHEMIST_NOT_AT_PLACE', 'NOT_AT_LOCATION', 'DOCTOR_NOT_ASSIGNED', 'CHEMIST_ROUTE_NOT_ASSIGNED', 'DOCTOR_NOT_FOUND', 'CHEMIST_NOT_FOUND']);
 
 /** The two refusals that mean "this is no longer yours": the screen explains who to ask. */
 export const NOT_ASSIGNED_REFUSALS = new Set(['DOCTOR_NOT_ASSIGNED', 'CHEMIST_ROUTE_NOT_ASSIGNED']);

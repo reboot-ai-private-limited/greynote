@@ -3147,3 +3147,12 @@ The Secondary Sales performance sheet (Excel, shown on the web's Secondary sales
 - **Address is shown as "Area"** (the road or locality in the place) on the web and phone; the stored field stays `address`. Place comes first, then Area. The phone's add screens pick a **Place** (not a route) and send `placeId`; drafts saved with `routeId` still go through.
 
 **Needs a migration:** no (`migrate:manager-outlets` only reports).
+
+## 2026-11-27: MR daily plan at one place; chemists at the day's place
+
+**Decision.**
+- **A day at one place (From = To) can be saved** on the daily plan: it has no route and needs none (`SetDailyPlan.routesFor`). Before, it was refused as "no routes for this day".
+- **The phone keeps an MR's doctor picks at the day's To place**, as the picker and the server do; it used to drop every pick not on the plan's route, so a From = To day lost them all.
+- **A chemist call is made at the day's To place** (`CallChecks.chemistAtPlace`, refusal `CHEMIST_NOT_AT_PLACE`, which the phone lets the MR remove); the phone lists only those chemists. A chemist elsewhere gets a follow-up. Older days without places are not checked. The phone's chemist cache now reads `placeId`.
+
+**Needs a migration:** no.

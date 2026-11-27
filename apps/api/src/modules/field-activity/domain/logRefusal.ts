@@ -5,6 +5,8 @@ export const LOG_CODES = {
   doctorNotAssigned: 'DOCTOR_NOT_ASSIGNED',
   chemistNotFound: 'CHEMIST_NOT_FOUND',
   chemistRouteNotAssigned: 'CHEMIST_ROUTE_NOT_ASSIGNED',
+  /** 2026-11-27: a chemist call is made at the day's To place; anywhere else it is a follow-up. */
+  chemistNotAtPlace: 'CHEMIST_NOT_AT_PLACE',
   notAtLocation: 'NOT_AT_LOCATION',
   callNotAllowedForWorkType: 'CALL_NOT_ALLOWED_FOR_WORK_TYPE',
   invalidWorkWith: 'INVALID_WORK_WITH',

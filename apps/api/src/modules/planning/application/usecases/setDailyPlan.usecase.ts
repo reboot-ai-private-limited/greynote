@@ -115,6 +115,9 @@ export class SetDailyPlanUseCase {
     }
     if (!field) return [];
     const monthlyRoutes = (original ?? plan).routeIds;
+    // A day spent at one place (From = To) needs no route (2026-11-27).
+    const where = original ?? plan;
+    if (monthlyRoutes.length === 0 && where.fromPlaceId && where.fromPlaceId === where.toPlaceId) return [];
     if (monthlyRoutes.length === 0) {
       throw AppError.badRequest('The monthly plan has no routes for this day, so it can’t be a field work day.', { field: 'workingType' });
     }
