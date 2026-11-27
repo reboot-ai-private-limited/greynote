@@ -177,6 +177,8 @@ export interface DoctorCallsPort {
 
 export interface TerritoryPort {
   getRoute(routeId: string): Promise<{ id: string; name: string; routeType?: string } | null>;
+  /** Many routes at once (2026-11-27); optional so fakes of older reports need not add it. */
+  getRoutes?(routeIds: string[]): Promise<Array<{ id: string; name: string }>>;
   /** A place's name and type (2026-11-26), or `null`. Optional so fakes of older reports need not add it. */
   getPlace?(placeId: string): Promise<{ id: string; name: string; type: string } | null>;
 }

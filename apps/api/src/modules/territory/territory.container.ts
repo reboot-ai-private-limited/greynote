@@ -1,3 +1,4 @@
+import type { RouteSummary } from './domain/routeView.js';
 import { Router } from 'express';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import { RouteTypeRules } from './application/usecases/routeTypeRules.js';
@@ -156,10 +157,8 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
   const teamTerritory = new GetTeamTerritoryUseCase(users, getCoverage, hqRepository, zoneRepository, routeRepository);
   const managerCandidates = new ListManagerCandidatesUseCase(users, userHqRepository, hqRepository);
 
-  return {
-    contract: {
-      // A deleted item is still read by history (calls, plans, TA, reports) through its archive row, shown as inactive: reads work, new writes refuse it.
-      getRoute: async (routeId) => {
+  // A deleted item is still read by history (calls, plans, TA, reports) through its archive row, shown as inactive: reads work, new writes refuse it.
+  const getRoute = async (routeId: string): Promise<RouteSummary | null> => {
         const live = await getRouteSummary.execute(routeId);
         if (live) return live;
         const gone = await deletionStore.findArchived('ROUTE', routeId);
@@ -179,7 +178,20 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
               status: 'inactive',
             }
           : null;
-      },
+  };
+  /** Many routes in two queries (2026-11-27); any not found live (deleted) falls back to `getRoute`'s archive read. */
+  const getRoutes = async (routeIds: string[]): Promise<RouteSummary[]> => {
+    const ids = [...new Set(routeIds)].filter((id) => /^[a-f\d]{24}$/i.test(id));
+    const live = ids.length > 0 ? await toRouteSummaries(hqRepository, await routeRepository.findByIds(ids)) : [];
+    const found = new Set(live.map((r) => r.id));
+    const gone = (await Promise.all(ids.filter((id) => !found.has(id)).map(getRoute))).filter((r): r is RouteSummary => r !== null);
+    return [...live, ...gone];
+  };
+
+  return {
+    contract: {
+      getRoute,
+      getRoutes,
       listRoutesForUser: (userId) => listRoutesForUser.execute(userId),
       listRoutesForUsers: (userIds) => listRoutesForUsers.execute(userIds),
       listHoldersOfRoutes: (routeIds) => listRoutesForUsers.holders(routeIds),

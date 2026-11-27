@@ -23,6 +23,8 @@ export interface TerritoryPublicContract {
    * Use `distanceKm` as-is — it is never doubled for a return trip (sign-off D7).
    */
   getRoute(routeId: string): Promise<RouteSummary | null>;
+  /** Many routes at once (2026-11-27): live ones in two queries, deleted ones from the archive. Unknown ids are left out. */
+  getRoutes(routeIds: string[]): Promise<RouteSummary[]>;
   /** The active Routes an employee currently covers — what a Daily Plan may choose from. */
   listRoutesForUser(userId: string): Promise<RouteSummary[]>;
   /** The active Routes held by any of these employees, each once, in one query (a manager's whole downline). */

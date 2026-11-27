@@ -120,21 +120,33 @@ export class SalesDashboardReport {
 
     const pageCount = Math.max(1, Math.ceil(matching.length / input.pageSize));
     const slice = matching.slice((input.page - 1) * input.pageSize, input.page * input.pageSize);
-    const routeNames = new Map<string, string>();
-    const zoneNames = new Map<string, string>();
-    const nameOfRoute = async (id: string): Promise<string> => {
-      if (!routeNames.has(id)) routeNames.set(id, (await this.territory.getRoute(id))?.name ?? UNKNOWN);
+    // The pending read is remembered, not just the answer (2026-11-27): rows run in parallel, and each used to fetch the same name again.
+    const routeNames = new Map<string, Promise<string>>();
+    const zoneNames = new Map<string, Promise<string>>();
+    const nameOfRoute = (id: string): Promise<string> => {
+      if (!routeNames.has(id)) routeNames.set(id, this.territory.getRoute(id).then((r) => r?.name ?? UNKNOWN));
       return routeNames.get(id)!;
     };
     const nameOfZone = async (id: string | null): Promise<string | null> => {
       if (!id) return null;
-      if (!zoneNames.has(id)) zoneNames.set(id, (await this.territory.getZone(id))?.name ?? UNKNOWN);
+      if (!zoneNames.has(id)) zoneNames.set(id, this.territory.getZone(id).then((z) => z?.name ?? UNKNOWN));
       return zoneNames.get(id)!;
     };
 
-    const rows: SalesDashboardRowDto[] = await Promise.all(
+    // Each row's days first, then every route name in one read (2026-11-27), then the rows.
+    const perRow = await Promise.all(
       slice.map(async (p) => {
         const [working, plans, dcrs] = await Promise.all([this.workingDays(p.id, dates), dates.length ? this.planning.listDailyPlanDays(p.id, from, to) : [], dates.length ? this.fieldActivity.getDcrSummary(p.id, range) : []]);
+        return { p, working, plans, dcrs };
+      }),
+    );
+    if (this.territory.getRoutes) {
+      const allRouteIds = [...new Set(perRow.flatMap((r) => r.plans.flatMap((pl) => pl.routeIds)))].filter((id) => !routeNames.has(id));
+      const found = new Map((allRouteIds.length > 0 ? await this.territory.getRoutes(allRouteIds) : []).map((r) => [r.id, r.name]));
+      for (const id of allRouteIds) if (found.has(id)) routeNames.set(id, Promise.resolve(found.get(id)!));
+    }
+    const rows: SalesDashboardRowDto[] = await Promise.all(
+      perRow.map(async ({ p, working, plans, dcrs }) => {
         const count = (statusByDate: Map<string, string>): SalesDashboardComplianceDto => {
           let submitted = 0;
           let approved = 0;
