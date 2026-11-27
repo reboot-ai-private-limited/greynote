@@ -219,9 +219,11 @@ export function DoctorDetailsForm({ doctor, review = false }: { doctor?: DoctorD
       <FormField label="Visit frequency" htmlFor="doctor-frequency" error={shown['visitFrequency']} hint="How many times the MR should visit this doctor each month. Missed visits are tracked against it.">
         <Select
           id="doctor-frequency"
-          value={draft.visitFrequency || 'none'}
-          onValueChange={(v) => set('visitFrequency')(v === 'none' ? '' : v)}
-          options={[{ value: 'none', label: 'Choose…' }, ...FREQUENCY_OPTIONS]}
+          value={draft.visitFrequency}
+          onValueChange={(v) => set('visitFrequency')(v)}
+          placeholder="Choose…"
+          options={FREQUENCY_OPTIONS}
+          aria-invalid={invalid('visitFrequency')}
           disabled={locked}
         />
       </FormField>

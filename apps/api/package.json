@@ -59,6 +59,7 @@
         "migrate:outlet-places": "tsx src/scripts/migrate-outlet-places.ts",
         "migrate:drop-town-routes": "tsx src/scripts/migrate-drop-town-routes.ts",
         "migrate:manager-outlets": "tsx src/scripts/migrate-manager-outlets.ts",
+        "migrate:doctor-gaps": "tsx src/scripts/migrate-doctor-gaps.ts",
         "report:phone-gaps": "tsx src/scripts/report-phone-gaps.ts",
         "compliance:run": "tsx src/scripts/run-compliance.ts",
         "stock-check:run": "tsx src/scripts/run-stock-check.ts"
