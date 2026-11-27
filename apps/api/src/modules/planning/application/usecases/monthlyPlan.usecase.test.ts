@@ -212,6 +212,7 @@ describe('Monthly Plan', () => {
       await submit.execute(MR, plan.id);
       await kit.approvals.decide('MONTHLY_PLAN', plan.id, 'MANAGER_APPROVED');
       const inMonth = await seedDaily.execute(MR, '2026-10-06', day);
+      clock.set('2026-10-06T04:00:00Z'); // a Daily Plan is sent on its own day (2026-11-28)
       expect((await submitDaily.execute(MR, inMonth.id)).status).toBe('SUBMITTED');
       const otherMonth = await seedDaily.execute(MR, '2026-11-03', day);
       await expectError(submitDaily.execute(MR, otherMonth.id), 409, 'MONTHLY_PLAN_NOT_APPROVED');

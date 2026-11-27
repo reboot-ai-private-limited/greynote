@@ -123,6 +123,7 @@ describe('Daily Plan', () => {
     await expect(submit.execute(MR, plan.id)).resolves.toBeDefined();
 
     kit.users.add('ccccccccccccccccccccccc2'); // active, but in no line with MR
+    clock.set('2026-10-06T04:00:00Z'); // a Daily Plan is sent on its own day (2026-11-28)
     const second = await save.execute(MR, '2026-10-06', fieldDay({ workWith: ['ccccccccccccccccccccccc2'] }));
     const err = await expectError(submit.execute(MR, second.id), 400);
     expect(err.publicDetails).toMatchObject({ userIds: ['ccccccccccccccccccccccc2'] });

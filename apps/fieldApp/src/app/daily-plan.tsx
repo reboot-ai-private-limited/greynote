@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { Alert } from '@/lib/alert';
 
-import { ChoiceChips } from '@/components/choice-chips';
 import { FormField } from '@/components/form-field';
 import { Notice } from '@/components/notice';
 import { OutletPicker } from '@/components/outlet-picker';
@@ -42,10 +41,10 @@ import {
 import { dayWhere } from '@/lib/places';
 import { getTeamToday, type TeamDayRow } from '@/lib/team-section';
 import { WorkWithPicker } from '@/components/work-with-picker';
-import { refreshNow, useColleagues, useOnline } from '@/offline';
+import { refreshNow, useColleagues, useOnline, useRecords, type CallPayload } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
 import { useCachedFetch } from '@/offline/cached-fetch';
-import { addDays, formatWhen, monthOf, nowMs, prettyDay, prettyMonth } from '@/offline/day';
+import { formatWhen, monthOf, nowMs, prettyDay, prettyMonth } from '@/offline/day';
 import { clearLocalDraft, loadLocalDraft, saveLocalDraft } from '@/offline/local-draft';
 import type { ConfigSnapshot, FieldMasterDataSnapshot, PlanningSnapshot, TerritorySnapshot } from '@/types/sync';
 
@@ -97,7 +96,14 @@ export default function DailyPlanScreen() {
   const { today } = gate;
   const online = useOnline();
 
-  const [date, setDate] = useState(today);
+  // The business day only (2026-11-28): it follows DAY_START_TIME, so a later day's plan opens when that day starts.
+  const date = today;
+  // Doctors already called on this day (the phone's own call records, as the call screen reads them): they leave "Doctors to call".
+  const { records: callRecords } = useRecords(['DOCTOR_CALL']);
+  const calledIds = useMemo(
+    () => new Set(callRecords.filter((r) => !r.deleted && (r.payload as CallPayload).reportDate === date).map((r) => (r.payload as CallPayload).doctorId ?? '')),
+    [callRecords, date],
+  );
   // The doctors the MR ticked (not the owed ones) and the server's list of doctors owed from earlier days, kept with its date.
   const [doctorIds, setDoctorIds] = useState<string[]>([]);
   // The work-with being edited; null until the day is loaded (then the saved one shows).
@@ -263,14 +269,6 @@ export default function DailyPlanScreen() {
     }
   }, [rejectionKey, online]);
 
-  const dateOptions = useMemo(
-    () =>
-      Array.from({ length: 14 }, (_, i) => {
-        const d = addDays(today, i);
-        return { value: d, label: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : prettyDay(d) };
-      }),
-    [today],
-  );
 
   // The server's deadline only — never worked out on the phone (its clock may be wrong; the server decides at submit).
   const deadlineIso = detail?.submitDeadline ?? existing?.submitDeadline ?? null;
@@ -419,8 +417,7 @@ export default function DailyPlanScreen() {
       {existing && status === 'SUBMITTED' && fieldDay && tourRoutesDiffer ? <PrimaryButton label="Withdraw it" variant="text" loading={busy} onPress={withdraw} /> : null}
 
       <View style={[{ gap: 12, borderWidth: 1, borderRadius: 16, padding: 16 }, { backgroundColor: theme.background, borderColor: theme.border }]}>
-        <ThemedText type="smallBold">Date</ThemedText>
-        <ChoiceChips options={dateOptions} value={date} onChange={setDate} />
+        <ThemedText type="smallBold">{`Today · ${prettyDay(date)}`}</ThemedText>
         {existing ? (
           <>
             <ThemedText type="smallBold">Plan for the day</ThemedText>
@@ -549,10 +546,10 @@ export default function DailyPlanScreen() {
           <CardSection icon={sym('stethoscope', 'medical_services')} accent="blue" title="Doctors to call">
             {managerDay ? (
               // A manager's doctors are the ones the people they work with planned (2026-11-27): shown, not picked.
-              <PlanDoctorsPicker readOnly routeIds={existing.routeIds} picked={teamDoctorIds} owed={[]} onChange={setDoctorIds} />
+              <PlanDoctorsPicker readOnly routeIds={existing.routeIds} picked={teamDoctorIds} owed={[]} onChange={setDoctorIds} calledIds={calledIds} />
             ) : (
               <FormField form={fe} name="doctorIds">
-                <PlanDoctorsPicker routeIds={existing.routeIds} toPlaceId={existing.toPlaceId ?? null} picked={doctorIds} owed={owed} onChange={(ids) => { fe.clear('doctorIds'); setDoctorIds(ids); }} disabled={busy || blocked} tooSoon={visitGap} />
+                <PlanDoctorsPicker routeIds={existing.routeIds} toPlaceId={existing.toPlaceId ?? null} picked={doctorIds} owed={owed} onChange={(ids) => { fe.clear('doctorIds'); setDoctorIds(ids); }} disabled={busy || blocked} tooSoon={visitGap} calledIds={calledIds} />
               </FormField>
             )}
             {tooSoonPicked.length > 0 ? (
@@ -572,7 +569,7 @@ export default function DailyPlanScreen() {
           </CardSection>
         ) : (
           <CardSection icon={sym('stethoscope', 'medical_services')} accent="blue" title="Doctors to call">
-            <PlanDoctorsPicker readOnly routeIds={existing.routeIds} picked={plannedPicks(existing)} owed={savedOwed} onChange={setDoctorIds} />
+            <PlanDoctorsPicker readOnly routeIds={existing.routeIds} picked={plannedPicks(existing)} owed={savedOwed} onChange={setDoctorIds} calledIds={calledIds} />
           </CardSection>
         )
       ) : null}

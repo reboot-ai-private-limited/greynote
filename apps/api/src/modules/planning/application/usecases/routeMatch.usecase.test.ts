@@ -34,8 +34,9 @@ describe('A Daily Plan’s routes are its Tour Plan’s (decision-log 2026-11-19
   let kit: ReturnType<typeof planningKit>;
   let submit: SubmitDailyPlanUseCase;
 
+  let clock: Clock;
   beforeEach(async () => {
-    const clock = new Clock(new Date('2026-09-20T04:00:00Z'));
+    clock = new Clock(new Date('2026-09-20T04:00:00Z'));
     kit = planningKit(clock);
     kit.users.add(ASM, { level: 2 });
     kit.users.add(MR, { managerId: ASM });
@@ -63,8 +64,10 @@ describe('A Daily Plan’s routes are its Tour Plan’s (decision-log 2026-11-19
   });
 
   it('a day with the Tour Plan’s routes submits, and a meeting day (no routes) is not checked', async () => {
+    clock.set('2026-10-15T04:00:00Z'); // a Daily Plan is sent on its own day (2026-11-28)
     const field = (await kit.dailyPlans.findByUserAndDate(MR, '2026-10-15'))!;
     expect((await submit.execute(MR, field.id)).status).toBe('SUBMITTED');
+    clock.set('2026-10-16T04:00:00Z');
     const meeting = (await kit.dailyPlans.findByUserAndDate(MR, '2026-10-16'))!;
     kit.dailyPlans.rows.set(meeting.id, { ...meeting, workingType: 'MEETING', routeIds: [] });
     expect((await submit.execute(MR, meeting.id)).status).toBe('SUBMITTED');

@@ -1,3 +1,5 @@
+import { dayLabel } from '../domain/offDays.js';
+import { AppError } from '@/shared/errors/AppError.js';
 import {
   assertTimeZone,
   businessDate,
@@ -26,6 +28,18 @@ export class PlanDeadlines {
   async today(): Promise<string> {
     const { timeZone, dayStart } = await readBusinessDay(this.config);
     return businessDate(this.now(), timeZone, dayStart);
+  }
+
+  /**
+   * A Daily Plan is the owner's for the business day only (2026-11-28): a later day can't be changed or sent ahead of time. It opens when
+   * its business day starts (`DAY_START_TIME`). Earlier days stay under their own deadline and any reopen.
+   */
+  async assertNotAhead(planDate: string): Promise<void> {
+    const { timeZone, dayStart } = await readBusinessDay(this.config);
+    const today = businessDate(this.now(), timeZone, dayStart);
+    if (planDate > today) {
+      throw AppError.badRequest(`You can plan only today (${dayLabel(today)}). ${dayLabel(planDate)}'s plan opens when that day starts at ${dayStart}.`, { field: 'planDate' });
+    }
   }
 
   async daily(planDate: string): Promise<Date> {

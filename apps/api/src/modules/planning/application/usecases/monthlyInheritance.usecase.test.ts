@@ -70,6 +70,7 @@ describe('Daily Plans inherited from the Monthly Plan', () => {
 
   it('the employee submits an inherited day as it is', async () => {
     await kit.approvals.decide('MONTHLY_PLAN', monthlyId, 'APPROVED');
+    clock.set('2026-10-06T04:00:00Z'); // a Daily Plan is sent on its own day (2026-11-28)
     const request = await submitDaily.execute(MR, (await daily('2026-10-06'))!.id);
     expect(request.status).toBe('SUBMITTED');
   });
@@ -111,7 +112,9 @@ describe('Daily Plans inherited from the Monthly Plan', () => {
 
     it('leaves an already approved day approved, so the DCR gate stays open', async () => {
       const plan = (await daily('2026-10-06'))!;
+      clock.set('2026-10-06T04:00:00Z');
       await submitDaily.execute(MR, plan.id);
+      clock.set('2026-09-20T05:00:00Z'); // amended ahead of the day
       kit.approvals.setStatus('DAILY_PLAN', plan.id, 'APPROVED');
       await amend(ASM);
       expect((await kit.approvals.getForRecord('DAILY_PLAN', plan.id))?.status).toBe('APPROVED');

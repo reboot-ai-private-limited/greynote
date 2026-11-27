@@ -31,6 +31,7 @@ export class SubmitDailyPlanUseCase {
     if (!found || found.userId !== userId) throw AppError.notFound('No such plan.');
     await assertMonthlyApproved(this.monthlyApproved, userId, found.planDate);
     if (this.monthly) await assertRoutesMatchTourPlan(this.monthly, found.userId, found.planDate, found.routeIds, found.workingType);
+    await this.deadlines.assertNotAhead(found.planDate);
     let plan = found;
 
     // The list sent for approval is the whole list: the MR's picks plus every missed call still owed. Only a plan that can still

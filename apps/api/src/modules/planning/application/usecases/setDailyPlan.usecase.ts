@@ -49,6 +49,7 @@ export class SetDailyPlanUseCase {
   ) {}
 
   async execute(userId: string, planDate: string, input: DayInput): Promise<DailyPlanView> {
+    await this.views.assertNotAhead(planDate);
     const plan = await this.plans.findByUserAndDate(userId, planDate);
     if (!plan) throw AppError.notFound('There is no plan for this day. Your monthly plan has to cover it first.');
     await assertEditable(this.approvals, 'DAILY_PLAN', plan.id);

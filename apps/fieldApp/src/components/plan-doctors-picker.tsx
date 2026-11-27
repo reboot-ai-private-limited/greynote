@@ -13,6 +13,7 @@ import { DoctorAvatar } from './doctor-avatar';
 import { OutletPicker, type OutletOption } from './outlet-picker';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
+import { Pill } from './ui-cards';
 
 type Props = {
   /** The plan's routes: only the MR's doctors on these can be picked. A manager's picks are limited to them too when `limitToRoutes` is set (2026-11-17). */
@@ -35,6 +36,8 @@ type Props = {
    * greyed out and can't be ticked; one already ticked can still be unticked.
    */
   tooSoon?: (doctorId: string) => { short: string } | null;
+  /** Doctors already called on the plan's day (2026-11-28): left off the list, named in one line under it. The plan itself keeps them. */
+  calledIds?: Set<string>;
 };
 
 /**
@@ -45,7 +48,7 @@ type Props = {
  * A manager picks their own doctors or anyone's in their downline, but (2026-11-17, dailyplan.md §1b) only those on the day's chosen routes.
  * That list can be long, so it opens as a search (by doctor or MR), and what is picked shows below as rows that can be unticked.
  */
-export function PlanDoctorsPicker({ routeIds, toPlaceId, limitToRoutes, onlyIds, picked, owed, onChange, disabled, readOnly, tooSoon }: Props) {
+export function PlanDoctorsPicker({ routeIds, toPlaceId, limitToRoutes, onlyIds, picked, owed, onChange, disabled, readOnly, tooSoon, calledIds }: Props) {
   const theme = useTheme();
   const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
   const territory = useCachedSource<TerritorySnapshot>('territory');
@@ -100,6 +103,12 @@ export function PlanDoctorsPicker({ routeIds, toPlaceId, limitToRoutes, onlyIds,
 
   if (readOnly && owedRows.length === 0 && pickRows.length === 0) return null;
 
+  // Called already: off the list. The planned ones (carried in or ticked) are named below, so they don't seem lost.
+  const called = (id: string) => calledIds?.has(id) ?? false;
+  const shownOwed = owedRows.filter((r) => !called(r.id));
+  const shownPicks = pickRows.filter((r) => !called(r.id));
+  const calledNames = [...owedRows, ...pickRows.filter((r) => picked.includes(r.id))].filter((r) => called(r.id)).map((r) => r.name);
+
   const toggle = (id: string) => onChange(picked.includes(id) ? picked.filter((p) => p !== id) : [...picked, id]);
 
   // Its own column with a gap: inside a wrapper (such as a form field) the rows would otherwise sit flush against each other.
@@ -122,20 +131,22 @@ export function PlanDoctorsPicker({ routeIds, toPlaceId, limitToRoutes, onlyIds,
         />
       ) : null}
 
-      {owedRows.map((r) => (
+      {shownOwed.map((r) => (
         <ThemedView key={r.id} type="backgroundElement" style={[styles.row, { borderColor: theme.primary }]}>
-          <ThemedView type="primary" style={styles.box}>
-            <ThemedText type="small" themeColor="onPrimary">✓</ThemedText>
+          {/* Carried in (2026-11-28): locked, not a tick — it stays until called. */}
+          <ThemedView type="primary" style={styles.box} accessibilityLabel="Carried in, can't be removed">
+            <ThemedText type="small" themeColor="onPrimary">🔒</ThemedText>
           </ThemedView>
           <DoctorAvatar name={r.name} photoUrl={r.photoUrl} size={36} />
           <ThemedView type="backgroundElement" style={styles.text}>
             <ThemedText type="smallBold">{r.name}</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
-              {r.since ? `Not called since ${prettyDay(r.since)} — still owed` : 'Owed from an earlier day'}
+              {r.since ? `Missed on ${prettyDay(r.since)} — stays until you call them` : 'Missed on an earlier day — stays until you call them'}
               {tooSoon?.(r.id) ? ` · ${tooSoon(r.id)!.short}` : ''}
               {r.sub ? ` · ${r.sub}` : ''}
             </ThemedText>
           </ThemedView>
+          <Pill text={r.since ? `Carried in · ${prettyDay(r.since)}` : 'Carried in'} accent="amber" />
         </ThemedView>
       ))}
 
@@ -148,7 +159,7 @@ export function PlanDoctorsPicker({ routeIds, toPlaceId, limitToRoutes, onlyIds,
         </ThemedText>
       ) : null}
 
-      {pickRows.map((r) => {
+      {shownPicks.map((r) => {
         const selected = picked.includes(r.id);
         const soon = tooSoon?.(r.id) ?? null;
         // Too soon after a visit: can't be ticked, but a tick already there can be taken off.
@@ -187,6 +198,11 @@ export function PlanDoctorsPicker({ routeIds, toPlaceId, limitToRoutes, onlyIds,
           </Pressable>
         );
       })}
+      {calledNames.length > 0 ? (
+        <ThemedText type="small" themeColor="textSecondary">
+          {`${calledNames.length} already called ${readOnly ? 'that day' : 'today'}: ${calledNames.join(', ')}`}
+        </ThemedText>
+      ) : null}
     </View>
   );
 }

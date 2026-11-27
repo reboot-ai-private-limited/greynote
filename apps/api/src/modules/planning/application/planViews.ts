@@ -61,6 +61,11 @@ export class PlanViews {
     return Promise.all(plans.map((p) => this.daily(p, requests.get(p.id) ?? null)));
   }
 
+  /** See `PlanDeadlines.assertNotAhead`: a Daily Plan is changed or sent on its own business day or later, never ahead. */
+  assertNotAhead(planDate: string): Promise<void> {
+    return this.deadlines.assertNotAhead(planDate);
+  }
+
   /** A month's Tour Plan window whether or not a plan exists (2026-11-27): its deadline and any late-submission exception. */
   async monthWindow(userId: string, planMonth: string): Promise<{ submitDeadline: Date; lateSubmitAllowedUntil: Date | null }> {
     const [submitDeadline, grant] = await Promise.all([this.deadlines.monthly(planMonth), this.grants.findUsable(userId, 'MONTHLY_PLAN', planMonth, this.deadlines.now())]);

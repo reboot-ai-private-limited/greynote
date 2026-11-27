@@ -26,8 +26,10 @@ describe('Changing my own Daily Plan', () => {
   let kit: ReturnType<typeof planningKit>;
   let submit: SubmitDailyPlanUseCase;
 
+  let clock: Clock;
   beforeEach(async () => {
-    kit = planningKit(new Clock(new Date('2026-10-05T04:00:00Z')));
+    clock = new Clock(new Date('2026-10-05T04:00:00Z'));
+    kit = planningKit(clock);
     kit.users.add(ASM, { level: 2 });
     kit.users.add(MR, { managerId: ASM });
     kit.routes.byUser.set(MR, [ROUTE, ROUTE2, OUT]);
@@ -77,6 +79,7 @@ describe('Changing my own Daily Plan', () => {
 
   it('a trip’s stay and transit days cannot change type; their routes stay', async () => {
     await kit.dailyPlans.createInherited(MR, '2026-10-06', day({ dayKind: 'STAY', routeIds: [OUT] }));
+    clock.set('2026-10-06T04:00:00Z'); // a Daily Plan is changed on its own day (2026-11-28)
     await expectError(kit.setDay.execute(MR, '2026-10-06', edit({ workingType: 'MEETING' })), 400);
     const ok = await kit.setDay.execute(MR, '2026-10-06', edit({ workWith: [ASM] }));
     expect(ok).toMatchObject({ routeIds: [OUT], dayKind: 'STAY', workWith: [ASM] });
@@ -89,6 +92,10 @@ describe('Changing my own Daily Plan', () => {
   });
 
   it('is refused for a day the monthly plan did not cover', async () => {
-    await expectError(kit.setDay.execute(MR, '2026-10-20', edit()), 404);
+    await expectError(kit.setDay.execute(MR, '2026-10-04', edit()), 404);
+  });
+
+  it('is refused for a later day: a Daily Plan is planned on its own business day only (2026-11-28)', async () => {
+    await expect(kit.setDay.execute(MR, '2026-10-06', edit())).rejects.toMatchObject({ statusCode: 400, message: expect.stringMatching(/You can plan only today \(Mon, 5 Oct\).*starts at/) });
   });
 });

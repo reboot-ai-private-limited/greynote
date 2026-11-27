@@ -21,6 +21,7 @@ export class SetDailyPlanDoctorsUseCase {
   ) {}
 
   async execute(userId: string, planDate: string, doctorIds: string[]): Promise<DailyPlanView> {
+    await this.views.assertNotAhead(planDate);
     const plan = await this.plans.findByUserAndDate(userId, planDate);
     if (!plan) throw AppError.notFound('Save the plan for this day first, then choose its doctors.');
     if (!isFieldDay(plan.workingType) && doctorIds.length > 0) {
