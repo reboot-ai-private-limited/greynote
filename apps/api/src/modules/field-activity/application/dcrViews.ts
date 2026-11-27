@@ -18,9 +18,11 @@ export class DcrViews {
   constructor(private readonly approvals: ApprovalsPort) {}
 
   async many(dcrs: Dcr[]): Promise<DcrView[]> {
+    // Every DCR's approval in one query (2026-11-27), not one each.
+    const requests = new Map((dcrs.length > 0 ? await this.approvals.listForRecords(DCR_KIND, dcrs.map((d) => d.id)) : []).map((r) => [r.recordId, r]));
     return Promise.all(
       dcrs.map(async (d) => {
-        const request = await this.approvals.getForRecord(DCR_KIND, d.id);
+        const request = requests.get(d.id) ?? null;
         return {
           id: d.id,
           userId: d.userId,

@@ -26,14 +26,22 @@ export class LeaveLookups {
     return false;
   }
 
+  /** Each leave's approval status, in one query (2026-11-27) instead of one per leave. */
+  private async statusesOf(leaveIds: string[]): Promise<Map<string, string>> {
+    if (leaveIds.length === 0) return new Map();
+    return new Map((await this.approvals.listForRecords('LEAVE', leaveIds)).map((r) => [r.recordId, r.status]));
+  }
+
   /**
    * The days in a range covered by a Manager-Approved (or fully approved) leave — the same rule as `isOnLeave`, in one pass for a
    * calendar. Sorted, no duplicates.
    */
   async leaveDates(userId: string, from: string, to: string): Promise<string[]> {
     const dates = new Set<string>();
-    for (const leave of await this.leaves.listOverlapping(userId, from, to)) {
-      const status = (await this.approvals.getForRecord('LEAVE', leave.id))?.status;
+    const leaves = await this.leaves.listOverlapping(userId, from, to);
+    const statuses = await this.statusesOf(leaves.map((l) => l.id));
+    for (const leave of leaves) {
+      const status = statuses.get(leave.id);
       if (status !== 'MANAGER_APPROVED' && status !== 'APPROVED') continue;
       for (const day of leave.days) if (day.date >= from && day.date <= to) dates.add(day.date);
     }
@@ -48,8 +56,10 @@ export class LeaveLookups {
     const [probationEnd, types] = await Promise.all([this.probation.endsOn(userId), this.leaveTypes.list()]);
     const typeName = new Map(types.map((t) => [t.id, t.name as string]));
     const out: LeaveDay[] = [];
-    for (const leave of await this.leaves.listOverlapping(userId, from, to)) {
-      const status = (await this.approvals.getForRecord('LEAVE', leave.id))?.status;
+    const leaves = await this.leaves.listOverlapping(userId, from, to);
+    const statuses = await this.statusesOf(leaves.map((l) => l.id));
+    for (const leave of leaves) {
+      const status = statuses.get(leave.id);
       if (status !== 'MANAGER_APPROVED' && status !== 'APPROVED') continue;
       for (const day of leave.days) {
         if (day.date < from || day.date > to) continue;
@@ -82,9 +92,11 @@ export class LeaveLookups {
   async unpaidDays(userId: string, month: string): Promise<number> {
     let total = 0;
     const probationEnd = await this.probation.endsOn(userId);
-    for (const leave of await this.leaves.listOverlapping(userId, `${month}-01`, `${month}-31`)) {
+    const leaves = await this.leaves.listOverlapping(userId, `${month}-01`, `${month}-31`);
+    const statuses = await this.statusesOf(leaves.filter((l) => !l.isPaid).map((l) => l.id));
+    for (const leave of leaves) {
       if (leave.isPaid) continue;
-      if ((await this.approvals.getForRecord('LEAVE', leave.id))?.status !== 'APPROVED') continue;
+      if (statuses.get(leave.id) !== 'APPROVED') continue;
       total += leave.days.filter((d) => d.date.startsWith(`${month}-`) && !(probationEnd && d.date < probationEnd)).reduce((sum, d) => sum + d.portion, 0);
     }
     return total;

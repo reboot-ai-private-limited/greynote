@@ -15,7 +15,7 @@ export class HasQualifyingDcrUseCase {
   }
 }
 
-/** The days in a range (both ends inclusive) the user reported — `HasQualifyingDcr` for a whole calendar in two queries. Sorted. */
+/** The days in a range (both ends inclusive) the user reported — `HasQualifyingDcr` for a whole calendar in two queries (2026-11-27: really two). Sorted. */
 export class ListReportedDatesUseCase {
   constructor(
     private readonly dcrs: DcrRepositoryPort,
@@ -24,8 +24,10 @@ export class ListReportedDatesUseCase {
 
   async execute(userId: string, from: string, to: string): Promise<string[]> {
     const dates: string[] = [];
-    for (const dcr of await this.dcrs.listForUsers([userId], from, to)) {
-      if (isQualifyingDcr(dcrStatus(await this.approvals.getForRecord(DCR_KIND, dcr.id)))) dates.push(dcr.reportDate);
+    const dcrs = await this.dcrs.listForUsers([userId], from, to);
+    const requests = new Map((dcrs.length > 0 ? await this.approvals.listForRecords(DCR_KIND, dcrs.map((d) => d.id)) : []).map((r) => [r.recordId, r]));
+    for (const dcr of dcrs) {
+      if (isQualifyingDcr(dcrStatus(requests.get(dcr.id) ?? null))) dates.push(dcr.reportDate);
     }
     return [...new Set(dates)].sort();
   }

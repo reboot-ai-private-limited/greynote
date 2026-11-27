@@ -34,10 +34,12 @@ export class GetPlanStatusUseCase {
     to: string,
   ): Promise<Array<{ date: string; status: PlanApprovalStatus; workingType: WorkingType; routeIds: string[]; workWith: string[]; doctorIds: string[]; remarks: string | null; changedFromMonthly: boolean }>> {
     const plans = await this.dailyPlans.listForUser(userId, from, to);
+    // Every plan's approval in one query (2026-11-27), not one each.
+    const requests = new Map((plans.length > 0 ? await this.approvals.listForRecords('DAILY_PLAN', plans.map((p) => p.id)) : []).map((r) => [r.recordId, r]));
     return Promise.all(
       plans.map(async (p) => ({
         date: p.planDate,
-        status: planStatus(await this.approvals.getForRecord('DAILY_PLAN', p.id)),
+        status: planStatus(requests.get(p.id) ?? null),
         workingType: p.workingType,
         routeIds: p.routeIds,
         workWith: [...p.workWith],
