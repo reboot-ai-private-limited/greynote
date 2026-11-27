@@ -10,7 +10,7 @@ import type { TerritorySnapshot } from '@/types/sync';
 
 import { addDays, addMonths, datesInMonth, prettyMonth } from '@/offline/day';
 
-import { ChoiceChips } from './choice-chips';
+import { SelectField } from './select-field';
 import { DayPicker } from './day-picker';
 import { FromToField } from './from-to-field';
 import { OutletPicker } from './outlet-picker';
@@ -124,8 +124,7 @@ export function PlanDayForm({ value, onChange, disabled, date, errors, lockedDat
 
   return (
     <>
-      <ThemedText type="smallBold">Working type</ThemedText>
-      <ChoiceChips options={WORKING_TYPES} value={value.workingType} onChange={setType} disabled={disabled} />
+      <SelectField label="Working type" options={[...WORKING_TYPES]} value={value.workingType} onChange={setType} disabled={disabled} />
 
       {!needsRoute ? (
         <ThemedText type="small" themeColor="textSecondary">

@@ -61,6 +61,24 @@ export class PlanViews {
     return Promise.all(plans.map((p) => this.daily(p, requests.get(p.id) ?? null)));
   }
 
+  /** A month's Tour Plan window whether or not a plan exists (2026-11-27): its deadline and any late-submission exception. */
+  async monthWindow(userId: string, planMonth: string): Promise<{ submitDeadline: Date; lateSubmitAllowedUntil: Date | null }> {
+    const [submitDeadline, grant] = await Promise.all([this.deadlines.monthly(planMonth), this.grants.findUsable(userId, 'MONTHLY_PLAN', planMonth, this.deadlines.now())]);
+    return { submitDeadline, lateSubmitAllowedUntil: grant?.expiresAt ?? null };
+  }
+
+  /**
+   * Whether a month's Tour Plan may still be written (2026-11-27): before its deadline, or after it with a late-submission exception
+   * (Admin's, or a reopen's) or inside a rejected plan's resubmit window — what a submit would accept.
+   */
+  async monthOpen(userId: string, planMonth: string, existing: MonthlyPlan | null): Promise<boolean> {
+    const deadline = await this.deadlines.monthly(planMonth);
+    if (this.deadlines.now() <= deadline) return true;
+    if (!existing) return (await this.monthWindow(userId, planMonth)).lateSubmitAllowedUntil !== null;
+    const state = await this.state('MONTHLY_PLAN', existing, planMonth, deadline, await this.deadlines.monthlyResubmitPolicy(planMonth));
+    return state.resubmitAllowedUntil !== null || state.lateSubmitAllowedUntil !== null;
+  }
+
   async monthly(plan: MonthlyPlan): Promise<MonthlyPlanView> {
     const [deadline, policy, offDays] = await Promise.all([
       this.deadlines.monthly(plan.planMonth),

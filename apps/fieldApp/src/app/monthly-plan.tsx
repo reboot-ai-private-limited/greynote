@@ -132,8 +132,9 @@ export default function MonthlyPlanScreen() {
   // A day that is over, or whose own Daily Plan is approved (today), shows a lock; the server's list only names days that have an entry, so a past day is also locked by date.
   // Today's lock comes from the phone's own Daily Plan (approved or not), not from the saved `lockedDays`, which can be older than the last change.
   const todayApproved = (planning.data?.dailyPlans ?? []).some((p) => p.planDate === today && (p.status === 'APPROVED' || p.status === 'MANAGER_APPROVED'));
-  const dayLocked = (d: string) => d < today || (d === today ? todayApproved : workedDays.has(d));
-  const stillOpens = (d: string) => !dayLocked(d) || Boolean(entries[d]?.returnDate && entries[d]!.returnDate! >= today);
+  // Past the deadline with no late-submission exception the whole month is locked (2026-11-27): nothing to tap, save or send.
+  const dayLocked = (d: string) => monthClosed || d < today || (d === today ? todayApproved : workedDays.has(d));
+  const stillOpens = (d: string) => !monthClosed && (!dayLocked(d) || Boolean(entries[d]?.returnDate && entries[d]!.returnDate! >= today));
   const status = existing?.status ?? null;
   const editable = EDITABLE.includes(status);
   const days = useMemo(() => datesInMonth(month), [month]);
@@ -238,13 +239,16 @@ export default function MonthlyPlanScreen() {
 
   // The server's deadline only — never worked out on the phone (it ends with the business day, which follows DAY_START_TIME).
   // Before the first save there is none to show; the server still judges the submit.
-  const deadlineIso = detail?.submitDeadline ?? existing?.submitDeadline ?? null;
+  // A month with no plan yet takes its deadline from the snapshot's month windows (2026-11-27).
+  const monthWindow = planning.data?.monthWindows?.find((w) => w.planMonth === month) ?? null;
+  const deadlineIso = detail?.submitDeadline ?? existing?.submitDeadline ?? monthWindow?.submitDeadline ?? null;
   const deadlinePassed = deadlineIso !== null && nowMs() > Date.parse(deadlineIso);
   const resubmitUntil = detail?.resubmitAllowedUntil ?? null;
-  const lateUntil = detail?.lateSubmitAllowedUntil ?? null;
+  const lateUntil = detail?.lateSubmitAllowedUntil ?? monthWindow?.lateSubmitAllowedUntil ?? null;
   // A reopened plan can be sent again until the deadline the reopen set (it comes as a late-submission exception, decision-log 2026-11-19).
   const lateButAllowed = editable && deadlinePassed && (resubmitUntil !== null || lateUntil !== null);
   const lateAndRefused = editable && deadlinePassed && !lateButAllowed;
+  const monthClosed = lateAndRefused;
   const planned = Object.keys(entries).filter((d) => !offByDate.has(d)).length;
 
   // A stay or return day belongs to the trip on an earlier day: it can't be edited on its own.
@@ -429,7 +433,7 @@ export default function MonthlyPlanScreen() {
   const daysLeft =
     editable && !deadlinePassed && deadlineIso ? Math.max(0, Math.ceil((Date.parse(deadlineIso) - nowMs()) / 86_400_000)) : null;
 
-  const footer = editable ? (
+  const footer = editable && !monthClosed ? (
     <View style={styles.footer}>
       <Pressable
         disabled={busy}
@@ -470,7 +474,7 @@ export default function MonthlyPlanScreen() {
   const tapDay = (d: string) =>
     stillOpens(d)
       ? openDay(d)
-      : setMsg({ tone: 'info', text: d < today ? `${prettyDay(d)} is over, so it can’t be changed.` : `${prettyDay(d)} is already worked or sent for approval, so it can’t be changed.` });
+      : setMsg({ tone: 'info', text: monthClosed ? LATE_TEXT : d < today ? `${prettyDay(d)} is over, so it can’t be changed.` : `${prettyDay(d)} is already worked or sent for approval, so it can’t be changed.` });
 
   const calendar = (
     <PlanCalendar month={month} days={days} entries={entries} isOff={isOff} today={today} isLocked={editable ? dayLocked : undefined} onPressDay={editable ? tapDay : undefined} />

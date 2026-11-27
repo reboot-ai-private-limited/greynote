@@ -9,6 +9,8 @@ import type { ProductRepositoryPort } from '../domain/product.repository.port.js
 import type { SampleAllocationRepositoryPort } from '../domain/sampleAllocation.repository.port.js';
 import type { TerritoryPort } from '../domain/territory.port.js';
 import type { UserDirectoryPort } from '../domain/userDirectory.port.js';
+import type { ApprovalsPort } from '../domain/approvals.port.js';
+import { NEW_DOCTOR_KIND } from './doctorApproval.js';
 import type { DoctorVisibility } from './doctorVisibility.js';
 
 export const FIELD_MASTER_DATA_SYNC_SOURCE = 'fieldMasterData';
@@ -44,6 +46,8 @@ export function makeFieldMasterDataSource(deps: {
   visibility: DoctorVisibility;
   territory: TerritoryPort;
   users: UserDirectoryPort;
+  /** Where each added doctor's request stands (2026-11-27), so the phone shows a withdrawn or rejected one as such offline. */
+  approvals?: Pick<ApprovalsPort, 'getForRecord'>;
 }): SyncSourceDefinition {
   const byId = <T extends { id: string }>(rows: T[]) => [...rows].sort((a, b) => a.id.localeCompare(b.id));
   /**
@@ -89,7 +93,20 @@ export function makeFieldMasterDataSource(deps: {
           visitFrequency: d.visitFrequency,
           location: d.location,
         })),
-        pendingDoctors: byId(pending).map((d) => ({ id: d.id, routeId: d.routeId, placeId: d.placeId, name: d.name, address: d.address, specialty: d.specialty, qualification: d.qualification, location: d.location, photoUrl: d.photo?.url ?? null })),
+        pendingDoctors: await Promise.all(
+          byId(pending).map(async (d) => ({
+            id: d.id,
+            routeId: d.routeId,
+            placeId: d.placeId,
+            name: d.name,
+            address: d.address,
+            specialty: d.specialty,
+            qualification: d.qualification,
+            location: d.location,
+            photoUrl: d.photo?.url ?? null,
+            ...(deps.approvals ? { state: (await deps.approvals.getForRecord(NEW_DOCTOR_KIND, d.id))?.status ?? 'SUBMITTED' } : {}),
+          })),
+        ),
         chemists: byId(chemists).map((c) => ({ id: c.id, routeId: c.routeId, placeId: c.placeId, name: c.name, address: c.address, phone: c.phone, location: c.location })),
         distributors: byId(distributors).map((d) => ({
           id: d.id,

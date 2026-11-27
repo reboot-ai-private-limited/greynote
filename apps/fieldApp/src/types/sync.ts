@@ -45,6 +45,8 @@ export type PlanningSnapshot = {
     approvalRequestId: string | null;
     submitDeadline: string;
   }[];
+  /** This and next month's Tour Plan windows, whether or not a plan exists (2026-11-27). Absent from older servers. */
+  monthWindows?: { planMonth: string; submitDeadline: string; lateSubmitAllowedUntil: string | null }[];
   monthlyPlans: {
     id: string;
     planMonth: string;
@@ -156,6 +158,8 @@ export type FieldMasterDataSnapshot = {
     qualification: string;
     location: GeoPoint | null;
     photoUrl: string | null;
+    /** Where its request stands (2026-11-27); absent from older servers. */
+    state?: string;
   }[];
   /** `phone` is `null` when not set (absent from older servers). */
   chemists: { id: string; routeId: string; /** Where it sits (2026-11-26): chemist calls are made at the day's To place. Absent from older servers. */ placeId?: string; name: string; address: string; phone?: string | null; location: GeoPoint | null }[];

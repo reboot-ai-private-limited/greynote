@@ -33,6 +33,10 @@ export class SaveMonthlyPlanUseCase {
     const existing = await this.plans.findByUserAndMonth(userId, planMonth);
     const prepared = await this.writer.prepare(userId, planMonth, entries, async () => {
       if (existing) await assertEditable(this.approvals, 'MONTHLY_PLAN', existing.id);
+      // Past the deadline the month is locked until Admin allows a late submission or reopens it (2026-11-27).
+      if (!(await this.views.monthOpen(userId, planMonth, existing))) {
+        throw AppError.badRequest('The deadline has passed. Ask Admin for a late-submission exception.', { field: 'planMonth' });
+      }
     });
 
     await this.locks?.assertUnchanged(existing, prepared.entries);

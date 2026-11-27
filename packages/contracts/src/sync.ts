@@ -328,6 +328,8 @@ export interface FieldMasterDataSnapshot {
     qualification: string;
     location: GeoPoint | null;
     photoUrl: string | null;
+    /** Where its request stands (`SUBMITTED`, `WITHDRAWN`, `REJECTED`…) (2026-11-27). Absent from older servers. */
+    state?: string;
   }>;
   /** The active specialities, A–Z: the dropdown the app offers when adding a Doctor. A Doctor's speciality must be one of them. */
   specialties: string[];
@@ -466,6 +468,11 @@ export interface PlanningSnapshot {
    * since. They are callable today whatever route today's plan has. A manager's list includes their downline's doctors.
    */
   owedDoctors?: Array<{ doctorId: string; carriedFrom: string }>;
+  /**
+   * This month's and next month's Tour Plan windows (2026-11-27), known whether or not a plan exists: past `submitDeadline` the month is
+   * locked unless `lateSubmitAllowedUntil` (Admin's late-submission exception, or a reopen) is set. Older servers leave it out.
+   */
+  monthWindows?: Array<{ planMonth: string; submitDeadline: string; lateSubmitAllowedUntil: string | null }>;
   dailyPlans: Array<{
     id: string;
     planDate: string;

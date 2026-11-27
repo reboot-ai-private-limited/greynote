@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import http from 'node:http';
 import bcrypt from 'bcrypt';
 import mongoose, { Types } from 'mongoose';
@@ -126,11 +127,14 @@ async function main(): Promise<void> {
     { what: 'the DEMO people’s expenses', collection: 'expenses', filter: mine },
     { what: 'the DEMO people’s expense months', collection: 'expensemonths', filter: mine },
     { what: 'the DEMO people’s leave', collection: 'leaves', filter: mine },
+    { what: 'the DEMO people’s doctor service requests', collection: 'doctorservices', filter: { $or: [{ userId: { $in: demoIds } }, { createdBy: { $in: demoIds } }] } },
+    { what: 'the DEMO people’s doctor gifts', collection: 'doctorgifts', filter: { $or: [{ userId: { $in: demoIds } }, { createdBy: { $in: demoIds } }] } },
     { what: 'the DEMO people’s orders', collection: 'orders', filter: { $or: [{ userId: { $in: demoIds } }, { createdBy: { $in: demoIds } }] } },
     { what: 'requests the DEMO people sent', collection: 'approvalrequests', filter: { submitterId: { $in: demoIds } } },
     { what: 'demo distributors', collection: 'distributors', filter: { name: / \(DEMO\)$/ } },
     { what: 'demo visuals', collection: 'visuals', filter: { publicId: /^greynote\/demo-world\// } },
     { what: 'doctors on the old demo places, and the demo world’s own', collection: 'doctors', filter: { _id: { $in: oldDoctorIds } } },
+    { what: 'visuals chosen for those doctors', collection: 'doctorvisuals', filter: { doctorId: { $in: oldDoctorIds } } },
     { what: 'their doctor holdings', collection: 'doctorassignments', filter: { doctorId: { $in: oldDoctorIds } } },
     { what: 'chemists on the old demo places, and the demo world’s own', collection: 'chemists', filter: { _id: { $in: oldChemistIds } } },
     { what: 'their chemist holdings', collection: 'chemistassignments', filter: { chemistId: { $in: oldChemistIds } } },
@@ -411,6 +415,11 @@ async function main(): Promise<void> {
       // A holiday or day off can't be planned: the server names the day, and it is left out.
       let plan = entries;
       let reply = await call(code, 'POST', '/planning/monthly', { planMonth: PLAN_MONTH, entries: plan });
+      // Past the month's deadline the plan is locked (2026-11-27): Admin allows a late submission first, as in real use.
+      if (reply.status === 400 && /deadline has passed/.test(reply.message)) {
+        await must(`allow ${code} a late ${PLAN_MONTH} Tour Plan`, 'ADMIN01', 'POST', '/planning/late-grants', { userId: idOf.get(code), kind: 'MONTHLY_PLAN', planKey: PLAN_MONTH, reason: 'Demo world seed', duration: '1h' });
+        reply = await call(code, 'POST', '/planning/monthly', { planMonth: PLAN_MONTH, entries: plan });
+      }
       for (let tries = 0; reply.status === 400 && tries < 10; tries += 1) {
         const day = /\b(\d{1,2}) Dec\b/.exec(reply.message)?.[1];
         if (!day) break;
@@ -423,6 +432,31 @@ async function main(): Promise<void> {
       if (planId) await must(`send ${code}'s Tour Plan`, code, 'POST', `/planning/monthly/${planId}/submit`);
     }
   }
+  // ---- Two doctor service requests by DEMOMRA1, sent the way the phone sends them: one waits, one is approved below
+  const a1Doctors = (await db.collection('doctorassignments').find({ userId: oid(idOf.get('DEMOMRA1')!), status: 'active' }).sort({ _id: 1 }).limit(2).toArray()).map((a) => String(a.doctorId));
+  const services = [
+    { serviceType: 'HONORARIUM', amountPaise: 250_000, remarks: 'Talk at the Siliguri CME evening' },
+    { serviceType: 'CME', amountPaise: 1_000_000, remarks: 'Sponsor the clinic’s CME' },
+  ];
+  for (const [i, svc] of services.entries()) {
+    const doctorId = a1Doctors[i];
+    if (!doctorId) {
+      findings.push('DEMOMRA1 has no doctor for a service request');
+      break;
+    }
+    const r = await must('a doctor service request', 'DEMOMRA1', 'POST', '/sync/push', {
+      records: [{ clientId: randomUUID(), kind: 'DOCTOR_SERVICE', dependsOn: [], clientCreatedAt: new Date().toISOString(), payload: { doctorId, ...svc } }],
+    });
+    const result = r?.results?.[0];
+    if (result && !['OK', 'ALREADY_SYNCED', 'DUPLICATE', 'SYNCED'].includes(String(result.status))) findings.push(`a doctor service request: ${result.status} ${result.message ?? JSON.stringify(result).slice(0, 200)}`);
+  }
+  const serviceToApprove = await call('DEMOASM', 'GET', '/approvals/inbox?page=1&pageSize=100');
+  const cme = ((serviceToApprove.data?.items ?? []) as Array<{ id: string; kind: string; cycle: number; subject: { title: string; subtitle: string | null } | null }>).find(
+    (item) => item.kind === 'DOCTOR_SERVICE' && JSON.stringify(item.subject ?? {}).includes('CME'),
+  );
+  if (cme) await must('approve the CME service request', 'DEMOASM', 'POST', `/approvals/${cme.id}/approve`, { cycle: cme.cycle });
+  else findings.push('the CME service request is not in DEMOASM’s inbox');
+
   const approvers = ['DEMOMGR', 'DEMOASM', 'DEMOASM2', 'DEMORSM', 'DEMOZSM', 'ADMIN01'];
   for (let round = 0; round < 4; round += 1) {
     let approved = 0;

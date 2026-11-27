@@ -166,7 +166,7 @@ export function buildFieldMasterDataContainer(
   const addedChemists = new AddedChemists(chemists, territory, approvals, transactions, users, config);
   sync.registerHandler(makeNewChemistSyncHandler(addedChemists, (payload) => editAddedChemistBodySchema.parse(payload)));
   // …and what the phone caches of this module, as one snapshot of what the caller may see.
-  sync.registerSource(makeFieldMasterDataSource({ doctors, chemists, chemistAssignments, products, specialties, distributors, allocations: sampleAllocations, visibility, territory, users }));
+  sync.registerSource(makeFieldMasterDataSource({ doctors, chemists, chemistAssignments, products, specialties, distributors, allocations: sampleAllocations, visibility, territory, users, approvals }));
 
   const retirement = new DoctorRetirement(doctors, assignments, sampleAllocations, new MongoDoctorArchiveAdapter(), users, transactions, photoStorage);
   const updateDoctor = new UpdateDoctorUseCase(doctors, assignments, territory, views, specialtyCatalog, transactions, retirement);

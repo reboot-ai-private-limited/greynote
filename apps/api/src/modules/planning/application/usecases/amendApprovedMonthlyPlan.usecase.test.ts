@@ -151,6 +151,9 @@ describe('Admin deletes a Monthly Plan', () => {
 
   it('refuses a month that has started, and anyone but Admin', async () => {
     const save = new SaveMonthlyPlanUseCase(kit.monthlyPlans, kit.approvals, kit.views);
+    // This month is past its deadline: saving it needs a late-submission exception (2026-11-27).
+    const at = new Date('2026-10-10T04:00:00Z');
+    await kit.grants.create({ userId: MR, kind: 'MONTHLY_PLAN', planKey: '2026-10', reason: 'test', grantedBy: ADMIN, grantedByRole: 'ADMIN', grantedAt: at, expiresAt: new Date(at.getTime() + 86_400_000) }, at);
     const now = await save.execute(MR, '2026-10', [entry('2026-10-20')]);
     await expectError(del.execute(admin, now.id), 409);
     const later = await save.execute(MR, '2026-11', [entry('2026-11-03')]);

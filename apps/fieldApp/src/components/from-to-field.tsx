@@ -26,8 +26,8 @@ type Props = {
 };
 
 /**
- * A Tour Plan day's From → To (decision-log 2026-11-26). To lists only the places a route Admin typed reaches from From, with its km, and
- * "Stay at …" for a day spent there. No route, not offered: Admin adds it under Territory → Routes.
+ * A Tour Plan day's From → To (decision-log 2026-11-26). To lists only the places a route Admin typed reaches from From, by name and type,
+ * and From itself for a day spent there. No route, not offered: Admin adds it under Territory → Routes.
  */
 export function FromToField({ fromPlaceId, toPlaceId, onChange, disabled, source, error }: Props) {
   const territory = useCachedSource<TerritorySnapshot>('territory');
@@ -107,8 +107,9 @@ export function FromToField({ fromPlaceId, toPlaceId, onChange, disabled, source
         }}
         options={destinations.map((d) => ({
           id: d.place.id,
-          name: d.stay ? `Stay at ${d.place.name}` : d.place.name,
-          subtitle: d.stay ? 'A day at this place: no travel' : [d.distanceKm ? `${d.distanceKm} km` : 'km not set', routeTypeLabel(d.place.type)].filter(Boolean).join(' · '),
+          // Just the place (2026-11-27): no km, and a day spent at From is the place's own name.
+          name: d.place.name,
+          subtitle: d.stay ? 'No travel' : (routeTypeLabel(d.place.type) ?? ''),
         }))}
         disabled={disabled || !fromPlaceId}
         emptyText={fromPlaceId ? 'Loading…' : 'Choose From first.'}

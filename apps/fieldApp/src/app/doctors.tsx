@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useState, type ReactNode } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
 import { DoctorAvatar } from '@/components/doctor-avatar';
@@ -60,11 +60,20 @@ function MyDoctorsScreen() {
   const count = shown.term === term ? shown.count : PAGE; // a new search starts from the first 20 again
 
   const whereOf = (r: { placeId?: string | null; routeId?: string | null }) => placeName(outletPlaceId(r, territory.data), territory.data);
-  // Doctors I added and that are not active yet. Offline, the snapshot's pending ones stand in (all "waiting").
+  // Doctors I added and that are not active yet. Offline, the snapshot's pending ones stand in, with where each request stands.
   const notActive: { id: string; name: string; photoUrl?: string | null; specialty: string; clinicName?: string | null; placeId?: string | null; routeId?: string | null; state: string }[] = added.data
     ? added.data.filter((d) => d.status !== 'active').map((d) => ({ ...d, state: d.approval?.status ?? 'SUBMITTED' }))
-    : (master.data?.pendingDoctors ?? []).map((d) => ({ ...d, state: 'SUBMITTED' }));
+    : (master.data?.pendingDoctors ?? []).map((d) => ({ ...d, state: d.state ?? 'SUBMITTED' }));
   const unsent = records.filter((r) => !r.deleted && r.status !== 'SYNCED');
+  // Back from Add Doctor (a withdraw or a change), read where each request stands again (2026-11-27).
+  const focused = useRef(false);
+  const { reload: reloadAdded } = added;
+  useFocusEffect(
+    useCallback(() => {
+      if (focused.current && online) reloadAdded();
+      focused.current = true;
+    }, [reloadAdded, online]),
+  );
 
   const canAdd = mayAddDoctor(false, usePublicFlags());
   const loading = !master.loaded;

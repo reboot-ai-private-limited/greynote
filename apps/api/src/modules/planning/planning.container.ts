@@ -130,6 +130,7 @@ export function buildPlanningContainer(
       monthly: listMonthly,
       offDays,
       users,
+      windows: (userId, planMonth) => views.monthWindow(userId, planMonth),
       // Doctors still owed from earlier days, derived at every pull (a manager's include the downline's); never copied into a plan.
       owed: async (userId, today) => {
         // A manager has no carry-over (2026-11-27): skip reading their whole team.
