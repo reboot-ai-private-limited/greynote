@@ -3201,3 +3201,18 @@ A doctor not on today's plan, or a chemist not at today's place, is logged from 
 - **Distributors** show their places, not route names (`placeIds`; `routeIds` is sent empty). **Team doctors** carry their place (`placeName`; `routeName` holds the same for older phones). **Places** in the phone's cache carry their HQ name. Doctor Services' offline team list is cached per manager flag.
 
 **Needs a migration:** no.
+
+## 2026-11-27: HR runs Devices, Documents and Inbox; mail recipients; tidying the phone inbox
+
+- **HR** gets Devices (approvals), Documents (upload, delete, whole library) and Inbox messages (compose, sent list, take back) — sidebar, page and API.
+- **Who opened a mail:** `GET /inbox/messages/:id/recipients` (Admin, HR) lists each recipient with when they opened it, not opened first; the message dialog shows "Not opened yet" and "Opened", and the "n of m" cell opens it. A taken-back mail's copies are gone, so it lists nobody.
+- **Delete a mail** for good only after it was taken back (`DELETE /inbox/messages/:id/permanent`, 409 otherwise).
+- **Compose** says Send / Sending… (`FormDialog` `pendingLabel`).
+- **Phone inbox:** automatic notifications can be removed — one, several ticked (Select or long-press), or all (`POST /inbox/remove`, `/inbox/clear-notifications`); mail from the office is never removed: it is marked done and kept under Done (`POST /inbox/done`, `InboxReceipt.doneAt`, `GET /inbox?show=done`), and can be moved back. Items carry `source` (ADMIN / SYSTEM) and `done`.
+
+## 2026-11-27: Doctor details and the phone's carousel
+
+- **Doctors:** visit frequency, area, phone and qualification were already required on create and edit (API, web, phone). The web frequency picker shows "Choose…" only as a placeholder. `migrate:doctor-gaps` reports active doctors from before these rules that lack one (report only).
+- **Home carousel:** shows the active Campaign creative and Branding pictures when there are any, otherwise the product pictures (`carouselVisuals`). The web Visuals page filters by category and explains the rule. Visuals have no dates: a campaign's pictures show while Admin keeps them active.
+
+**Needs a migration:** no (`migrate:doctor-gaps` only reports).

@@ -5,7 +5,7 @@ import { FlatList, Pressable, StyleSheet, View, type NativeScrollEvent, type Nat
 
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { listVisuals } from '@/lib/marketing';
+import { carouselVisuals, listVisuals } from '@/lib/marketing';
 import { useCachedFetch } from '@/offline/cached-fetch';
 
 import { ThemedText } from './themed-text';
@@ -29,7 +29,8 @@ const perViewFor = (width: number) => (width >= 900 ? 3 : width >= 560 ? 2 : 1);
 export function VisualsSlider() {
   const theme = useTheme();
   const list = useCachedFetch('visuals', () => listVisuals());
-  const slides = (list.data ?? []).filter((v) => v.status === 'active' && v.mimeType.startsWith('image/'));
+  // Campaign and branding pictures first: only those while there are any, else the product pictures (2026-11-27).
+  const slides = carouselVisuals(list.data ?? []);
   const [width, setWidth] = useState(0);
   const [index, setIndex] = useState(0);
   const listRef = useRef<FlatList>(null);

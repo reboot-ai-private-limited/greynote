@@ -1,6 +1,6 @@
 'use client';
 
-import { VISUAL_CATEGORY_LABEL, type DoctorDto, type VisualDto } from '@greynote/contracts';
+import { VISUAL_CATEGORIES, VISUAL_CATEGORY_LABEL, type DoctorDto, type VisualDto } from '@greynote/contracts';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -11,6 +11,7 @@ import { DataTable, type Column } from '@/components/ui/DataTable';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { RowActions } from '@/components/ui/RowActions';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { Select } from '@/components/ui/Select';
 import { StatusFilter } from '@/components/ui/StatusFilter';
 import { StatusToggleDialog } from '@/components/ui/StatusToggleDialog';
 import { useActiveProducts } from '@/features/field-master-data/hooks/useProducts';
@@ -31,6 +32,7 @@ export function VisualsScreen() {
   const readOnly = useIsReadOnly();
   const [status, setStatus] = useState('');
   const [productFilter, setProductFilter] = useState(ANY);
+  const [category, setCategory] = useState<string>(ANY);
   const [form, setForm] = useState<{ visual?: VisualDto } | null>(null);
   const [preview, setPreview] = useState<VisualDto | null>(null);
   const [doctor, setDoctor] = useState<DoctorDto | null>(null);
@@ -46,7 +48,7 @@ export function VisualsScreen() {
     id ? (products.data?.find((p) => p.id === id)?.name ?? 'Inactive product') : 'General';
   // "General" has no API filter (a missing product id means any), so it is narrowed here.
   const rows = (visuals.data ?? []).filter(
-    (v) => productFilter !== GENERAL || v.productId === null,
+    (v) => (productFilter !== GENERAL || v.productId === null) && (category === ANY || v.category === category),
   );
 
   const columns: readonly Column<VisualDto>[] = [
@@ -101,7 +103,7 @@ export function VisualsScreen() {
     <>
       <PageHeader
         title="Visuals"
-        description="What MRs can show doctors: product visuals, plus general branding and campaign content. A deactivated visual disappears from the MR's list."
+        description="What MRs can show doctors: product visuals, plus general branding and campaign content. The phone's home carousel shows active Campaign creative and Branding visuals when there are any, and product visuals otherwise. A deactivated visual disappears from the MR's list."
         actions={
           <Button disabled={readOnly} onClick={() => setForm({})}>
             Upload visual
@@ -129,6 +131,14 @@ export function VisualsScreen() {
               { value: GENERAL, label: 'General only' },
               ...(products.data ?? []).map((p) => ({ value: p.id, label: p.name })),
             ]}
+          />
+        </div>
+        <div className="w-48">
+          <Select
+            aria-label="Category"
+            value={category}
+            onValueChange={setCategory}
+            options={[{ value: ANY, label: 'All categories' }, ...VISUAL_CATEGORIES.map((c) => ({ value: c, label: VISUAL_CATEGORY_LABEL[c] }))]}
           />
         </div>
         <StatusFilter value={status} onChange={setStatus} />

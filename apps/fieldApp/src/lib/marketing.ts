@@ -15,6 +15,16 @@ export type Visual = {
   mimeType: string;
   status: 'active' | 'inactive';
 };
+/**
+ * What the home carousel shows (2026-11-27): the active pictures in **Campaign creative** or **Branding** when there are any — a campaign
+ * runs while Admin keeps those visuals active — otherwise the active product pictures (E-detailing, Other, product-linked).
+ */
+export function carouselVisuals(visuals: readonly Visual[]): Visual[] {
+  const pictures = visuals.filter((v) => v.status === 'active' && v.mimeType.startsWith('image/'));
+  const campaign = pictures.filter((v) => v.category === 'CAMPAIGN_CREATIVE' || v.category === 'BRANDING');
+  return campaign.length > 0 ? campaign : pictures;
+}
+
 export const listVisuals = (productId?: string) =>
   apiGet<Visual[]>(`/marketing/visuals${productId ? `?productId=${productId}` : ''}`);
 
