@@ -3216,3 +3216,17 @@ A doctor not on today's plan, or a chemist not at today's place, is logged from 
 - **Home carousel:** shows the active Campaign creative and Branding pictures when there are any, otherwise the product pictures (`carouselVisuals`). The web Visuals page filters by category and explains the rule. Visuals have no dates: a campaign's pictures show while Admin keeps them active.
 
 **Needs a migration:** no (`migrate:doctor-gaps` only reports).
+
+## 2026-11-27: Web speed — batched reads instead of one query per record
+
+**Context.** Several pages made hundreds of single-row queries (one approval, HQ, route or holiday list per plan, report or person). Production talks to MongoDB Atlas over the network, so each is a round trip: the dashboard's 1,468 queries were seconds of waiting.
+
+**Decision.** Read many at once, never one per record; keep every single-item read beside the new batched one, and change no answer:
+- Approval statuses in one `listForRecords` query (plan days, DCR views, reported dates, leave lookups).
+- One holiday read per person per request (a second identical read joins the first); where a person is based is remembered for a minute and dropped when their HQ changes.
+- Territory `getRoutes(ids)`, `listPlacesByUser(ids)`; field master data `listAssignedDoctorsForUsers(ids)`; planning `listDailyPlanDaysForUsers(ids)`; field activity `listReportedDatesForUsers(ids)`. The dashboard, attendance calendar and the call average / doctor visits reports use them. Carry-over reads the approved plans once and "called since" in one read (the same result as the per-date loop).
+- A request over a second is logged as "slow request". `src/scripts/endpoint-snapshots.ts` records, compares and measures the heavy endpoints as an Admin, a manager and an MR; a guard test fails if plan statuses go back to one lookup each.
+
+Measured on local data (Admin, queries per request): dashboard 1,468 → 475; attendance 931 → 160; call average 710 → 100; doctor visits 292 → 106. Every recorded answer is byte-for-byte the same before and after.
+
+**Needs a migration:** no.

@@ -16,6 +16,8 @@ import { getRequestId } from './request-context.js';
  */
 const SILENT_PATHS = new Set(['/api/health']);
 const SILENT_PREFIXES: string[] = [];
+/** Over this, the access line says "slow request". */
+export const SLOW_REQUEST_MS = 1000;
 
 function isSilent(url: string): boolean {
   const path = url.split('?')[0] ?? url;
@@ -56,7 +58,8 @@ export function accessLogMiddleware(): RequestHandler {
       return 'info';
     },
 
-    customSuccessMessage: () => 'request',
+    // A request over a second is named so it is easy to find in production logs (2026-11-27: pages slowed by database round trips).
+    customSuccessMessage: (_req, _res, responseTime) => (responseTime > SLOW_REQUEST_MS ? 'slow request' : 'request'),
     customErrorMessage: () => 'request failed',
 
     /**
