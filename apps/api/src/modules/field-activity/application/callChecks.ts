@@ -32,7 +32,8 @@ export class CallChecks {
 
   /**
    * An active Doctor the caller is still assigned to — and can still see, when visibility follows the Route — or, for a manager, one
-   * assigned to anyone below them in the team.
+   * assigned to anyone below them in the team. Since 2026-11-28 that is the whole rule for a manager's call: any doctor of their team's
+   * MRs, whether or not the people they work with planned him (the "only planned doctors" rule is gone).
    */
   async doctor(userId: string, doctorId: string): Promise<Doctor> {
     const doctor = await this.master.getDoctor(doctorId);
@@ -41,16 +42,6 @@ export class CallChecks {
     const assigned = await this.master.getAssignedUserId(doctorId);
     if (assigned !== null && (await this.isAbove(userId, assigned))) return doctor;
     throw new LogRefusal(LOG_CODES.doctorNotAssigned, 'You are no longer assigned to this doctor, so the call can’t be recorded.');
-  }
-
-  /**
-   * A manager's doctor call (2026-11-27): only a doctor on that day's plan, which for a manager is the doctors their work-with people
-   * planned. Any other doctor of the team is a follow-up. An MR is not checked here (their calls follow assignment and the phone's list).
-   */
-  async managerCallOnPlan(userId: string, day: DayContext, doctorId: string): Promise<void> {
-    const [level] = await this.users.getDesignationLevels([userId]);
-    if ((level?.level ?? 1) <= 1 || day.doctorIds.includes(doctorId)) return;
-    throw new LogRefusal(LOG_CODES.doctorNotOnTeamPlan, 'This doctor is not on today’s plan of the people you work with. Log a follow-up instead.');
   }
 
   /**

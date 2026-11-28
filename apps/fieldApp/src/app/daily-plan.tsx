@@ -446,6 +446,7 @@ export default function DailyPlanScreen() {
           <ThemedText type="small" themeColor="textSecondary">
             {`${dayWhere(existing, territory.data) ?? 'Your Tour Plan’s place'}. You can work with the people below you whose plan for this day is approved and goes to the same place.`}
           </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">On your calls you can pick any doctor of your team’s MRs.</ThemedText>
           <FormField form={fe} name="workWith">
             <OutletPicker
               label="Who you work with"
@@ -463,7 +464,7 @@ export default function DailyPlanScreen() {
           </FormField>
           {workWithOptions.data && workWithOptions.data.people.length === 0 ? (
             <Notice tone="info" title="Nobody to work with here">
-              Nobody below you has an approved plan at this place for this day. You can still go: log follow-ups for the doctors and chemists you meet.
+              Nobody below you has an approved plan at this place for this day. You can still go: on your calls you can pick any doctor of your team’s MRs.
             </Notice>
           ) : null}
           {!workWithOptions.data && !workWithOptions.loading ? <Notice tone="info">Connect to the internet once to load who you can work with.</Notice> : null}
@@ -547,7 +548,8 @@ export default function DailyPlanScreen() {
         <Notice tone="info">You’re offline. You can change who you work with and the doctors and keep them on this phone; saving and submitting need the internet.</Notice>
       ) : null}
 
-      {existing && fieldDay ? (
+      {/* A manager picks no doctors (2026-11-28): they choose who they work with, and on a call pick any doctor of their team's MRs. */}
+      {existing && fieldDay && !isManager ? (
         editable ? (
           <CardSection icon={sym('stethoscope', 'medical_services')} accent="blue" title="Doctors to call">
             {managerDay ? (
