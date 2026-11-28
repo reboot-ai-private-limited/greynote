@@ -10,11 +10,12 @@ import { ScreenShell } from '@/components/screen-shell';
 import { Skeleton } from '@/components/skeleton';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
-import { Avatar, InfoCard, Meter, Pill, StatusBanner, SummaryStrip, sym } from '@/components/ui-cards';
+import { Avatar, InfoCard, Meter, Pill, SummaryStrip } from '@/components/ui-cards';
 import { Spacing, type Accent } from '@/constants/theme';
 import { getDoctorVisits, stageOf, type DoctorVisitMr, type DoctorVisitRow, type DoctorVisitsReport, type VisitStage } from '@/lib/doctor-visits';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useFinancialYear } from '@/lib/financial-year';
+import { getCallPerformance, type CallPerformance } from '@/lib/my-reports';
 import { listAllTeamMembers, type TeamMember } from '@/lib/team-section';
 import { useSessionUser } from '@/lib/session';
 import { useOnline } from '@/offline';
@@ -30,8 +31,17 @@ const STAGE: Record<VisitStage, { label: string; accent: Accent }> = {
   NOT_STARTED: { label: 'Not started', accent: 'red' },
 };
 
-/** The doctors in the server's order: most still to visit first. */
-function DoctorRows({ rows }: { rows: DoctorVisitRow[] }) {
+/**
+ * Most urgent first (2026-11-28): doctors not called at all this month (most visits needed first), then those called but still owed
+ * visits (most remaining first), then the ones done; A to Z within each.
+ */
+const URGENCY: Record<VisitStage, number> = { NOT_STARTED: 0, IN_PROGRESS: 1, COMPLETE: 2 };
+const byUrgency = (a: DoctorVisitRow, b: DoctorVisitRow) =>
+  URGENCY[stageOf(a)] - URGENCY[stageOf(b)] || b.missed - a.missed || a.doctor.name.localeCompare(b.doctor.name);
+
+/** The doctors, most urgent first (`byUrgency`). */
+function DoctorRows({ rows: unsorted }: { rows: DoctorVisitRow[] }) {
+  const rows = [...unsorted].sort(byUrgency);
   // The report carries no photo: an own doctor's comes from the phone's doctor list; a team member's shows initials.
   const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
   const photoOf = (id: string) => master.data?.doctors.find((d) => d.id === id)?.photoUrl ?? null;
@@ -87,6 +97,7 @@ function buildTree(rootId: string, members: TeamMember[], byId: Map<string, Doct
 }
 
 const remaining = (t: Totals) => t.quota - t.made;
+const pctText = (v: number | null | undefined) => (v == null ? '—' : `${v}%`);
 const rank = (m: TeamMember) => m.designation ?? (m.isManager ? 'Manager' : 'MR');
 
 /**
@@ -157,6 +168,9 @@ export default function MissedCallsScreen() {
   const month = clamp(picked ?? lastMonth);
 
   const report = useCachedFetch<DoctorVisitsReport>(`doctor-visits:${fy.year}:${month}`, () => getDoctorVisits(month));
+  // The month's KPIs from the same report the web and the Reports tab use, so the numbers agree (a manager's coverage is the team's).
+  const performance = useCachedFetch<CallPerformance>(`call-performance:${month}`, () => getCallPerformance(month));
+  const myPerformance = performance.data?.rows.find((r) => r.employee.id === me?.id) ?? null;
   const roster = useCachedFetch<TeamMember[]>(isManager ? 'visit-targets-roster' : 'visit-targets-roster:none', isManager ? async () => (await listAllTeamMembers()).items : async () => []);
   const data = report.data;
   const mine = data?.mrs.find((m) => m.mr.id === me?.id) ?? null;
@@ -196,7 +210,14 @@ export default function MissedCallsScreen() {
   const left = data ? data.totals.quota - data.totals.made : 0;
 
   return (
-    <ScreenShell title="Visit targets" subtitle="How many visits each doctor still needs this month" onRefresh={report.reload} refreshing={report.refreshing}>
+    <ScreenShell
+      title="Visit targets"
+      subtitle="How many visits each doctor still needs this month"
+      onRefresh={() => {
+        report.reload();
+        performance.reload();
+      }}
+      refreshing={report.refreshing}>
       <FyBanner />
       <InfoCard>
         <ThemedText type="smallBold">Month</ThemedText>
@@ -215,21 +236,16 @@ export default function MissedCallsScreen() {
 
       {data ? (
         <>
-          <StatusBanner
-            accent={left === 0 ? 'green' : 'amber'}
-            icon={sym('phone.arrow.up.right', 'call_made')}
-            title={`${prettyMonth(data.month)} · visits against targets`}
-            text={`${data.totals.made} of ${data.totals.quota} visits made · ${left} remaining`}
-          />
           <SummaryStrip
             items={[
-              { label: 'Made', value: data.totals.made, accent: 'green' },
-              { label: 'Remaining', value: left, accent: left === 0 ? 'slate' : 'red' },
-              { label: 'Target', value: data.totals.quota, accent: 'blue' },
-              { label: 'Doctors done', value: `${data.totals.completedDoctors}/${data.totals.doctors}`, accent: 'teal' },
-              ...(data.totals.notCalled !== undefined ? [{ label: 'Not called', value: data.totals.notCalled, accent: data.totals.notCalled > 0 ? ('red' as const) : ('slate' as const) }, { label: 'Carried', value: data.totals.carried ?? 0, accent: (data.totals.carried ?? 0) > 0 ? ('amber' as const) : ('slate' as const) }] : []),
+              { label: myPerformance?.scope === 'TEAM' ? 'Team coverage' : 'Coverage', value: pctText(myPerformance?.coverage.coveragePct), accent: 'blue' },
+              { label: 'Call average', value: myPerformance?.doctorCallAvg == null ? '—' : myPerformance.doctorCallAvg.toFixed(1), accent: 'teal' },
+              { label: 'Frequency cov.', value: pctText(myPerformance?.coverage.frequencyPct), accent: 'green' },
             ]}
           />
+          <ThemedText type="small" themeColor="textSecondary">
+            {`${prettyMonth(data.month)} · ${data.totals.made} of ${data.totals.quota} visits made${data.totals.notCalled ? ` · ${data.totals.notCalled} doctor${data.totals.notCalled === 1 ? '' : 's'} not called yet` : left === 0 ? ' · all done' : ''}`}
+          </ThemedText>
 
           {data.mrs.length === 0 ? (
             <Notice tone="info">{'No doctor has a visit target yet. Set “Visits a month” when you add a doctor, or ask your manager or Admin to set it.'}</Notice>
@@ -248,9 +264,12 @@ export default function MissedCallsScreen() {
                   setOpen(new Set());
                 }}
               />
-              <TextField label="Search a person or a doctor" value={search} onChangeText={setSearch} autoCapitalize="none" />
             </>
           ) : null}
+          {data.mrs.length > 0 ? (
+            <TextField label={isManager && tree.length > 0 ? 'Search a person or a doctor' : 'Search a doctor'} value={search} onChangeText={setSearch} autoCapitalize="none" autoCorrect={false} />
+          ) : null}
+          {!isManager && term && myRows.length === 0 && (mine?.rows.length ?? 0) > 0 ? <Notice tone="info">No doctor matches that search.</Notice> : null}
 
           {myRows.length > 0 ? (
             <>
