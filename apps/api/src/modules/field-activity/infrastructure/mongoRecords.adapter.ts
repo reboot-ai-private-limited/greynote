@@ -64,7 +64,6 @@ const toDoctorCall = (d: DoctorCallDoc & { _id: unknown }): DoctorCall => ({
   workWith: d.workWith.map(String),
   notInPlan: d.notInPlan ?? false,
   routeNotInPlan: d.routeNotInPlan ?? false,
-  extraVisitAfter: d.extraVisitAfter ?? null,
   samples: d.samples.map((s) => ({ allocationId: s.allocationId ? String(s.allocationId) : null, productId: String(s.productId), quantity: s.quantity })),
   lbl: (d.lbl ?? []).map((l) => ({ productId: String(l.productId) })),
 });
@@ -81,7 +80,6 @@ const toFollowup = (d: FollowupDoc & { _id: unknown }): Followup => ({
   routeId: d.routeId ? String(d.routeId) : null,
   routeType: d.routeType ?? null,
   notInPlan: d.notInPlan ?? false,
-  extraVisitAfter: d.extraVisitAfter ?? null,
   capturedLocation: d.capturedLatitude == null || d.capturedLongitude == null ? null : { latitude: d.capturedLatitude, longitude: d.capturedLongitude },
   accuracyMeters: d.accuracyMeters ?? null,
   geofence: d.geofenceStatus ? { status: d.geofenceStatus, distanceMeters: d.geofenceDistanceMeters ?? null, reason: (d.geofenceReason ?? null) as GeofenceOutcome['reason'], overriddenBy: null, overriddenAt: null, overrideComment: null } : null,
@@ -95,13 +93,10 @@ const overrideUpdate = (id: string, o: GeofenceOverride) => ({
   update: { $set: { geofenceStatus: 'OVERRIDE', geofenceOverriddenBy: oid(o.by), geofenceOverriddenAt: o.at, geofenceOverrideComment: o.comment } },
 });
 
-/** A doctor visit that counts: not an extra visit within `DOCTOR_VISIT_GAP_DAYS` (null also matches older calls without the field). */
-const COUNTED = { extraVisitAfter: null };
-
 /** Documents per DCR, for the reports — one aggregation, never a query per DCR. */
-async function countByDcr(model: { aggregate: (p: object[]) => Promise<Array<{ _id: Types.ObjectId; n: number }>> }, dcrIds: string[], extra: object = {}): Promise<Map<string, number>> {
+async function countByDcr(model: { aggregate: (p: object[]) => Promise<Array<{ _id: Types.ObjectId; n: number }>> }, dcrIds: string[]): Promise<Map<string, number>> {
   if (dcrIds.length === 0) return new Map();
-  const rows = await model.aggregate([{ $match: { dcrId: { $in: dcrIds.map(oid) }, ...extra } }, { $group: { _id: '$dcrId', n: { $sum: 1 } } }]);
+  const rows = await model.aggregate([{ $match: { dcrId: { $in: dcrIds.map(oid) } } }, { $group: { _id: '$dcrId', n: { $sum: 1 } } }]);
   return new Map(rows.map((r) => [String(r._id), r.n]));
 }
 
@@ -121,7 +116,7 @@ const countByGeofence = async (model: typeof DoctorCallModel | typeof ChemistCal
 
 export class MongoDoctorCallAdapter implements DoctorCallRepositoryPort {
   async listVisitDates(userId: string, doctorId: string, range: { from: string; to: string }, ctx?: TransactionContext): Promise<string[]> {
-    const q = DoctorCallModel.distinct('reportDate', { userId: oid(userId), doctorId: oid(doctorId), reportDate: { $gte: range.from, $lte: range.to }, ...COUNTED });
+    const q = DoctorCallModel.distinct('reportDate', { userId: oid(userId), doctorId: oid(doctorId), reportDate: { $gte: range.from, $lte: range.to } });
     return (await (ctx ? q.session(ctx as ClientSession) : q)) as string[];
   }
   async countNotInPlan(range: { from: string; to: string }): Promise<Array<{ dcrId: string; count: number }>> {
@@ -139,12 +134,12 @@ export class MongoDoctorCallAdapter implements DoctorCallRepositoryPort {
   }
   async distinctDoctorIds(dcrIds: string[]): Promise<string[]> {
     if (dcrIds.length === 0) return [];
-    return (await DoctorCallModel.distinct('doctorId', { dcrId: { $in: dcrIds.map(oid) }, ...COUNTED })).map(String);
+    return (await DoctorCallModel.distinct('doctorId', { dcrId: { $in: dcrIds.map(oid) } })).map(String);
   }
   async countByDoctor(dcrIds: string[]): Promise<Array<{ doctorId: string; count: number }>> {
     if (dcrIds.length === 0) return [];
     const rows = await DoctorCallModel.aggregate<{ _id: unknown; count: number }>([
-      { $match: { dcrId: { $in: dcrIds.map(oid) }, ...COUNTED } },
+      { $match: { dcrId: { $in: dcrIds.map(oid) } } },
       { $group: { _id: '$doctorId', count: { $sum: 1 } } },
     ]);
     return rows.map((r) => ({ doctorId: String(r._id), count: r.count }));
@@ -152,23 +147,20 @@ export class MongoDoctorCallAdapter implements DoctorCallRepositoryPort {
   async countByUserAndDoctor(dcrIds: string[]): Promise<Array<{ userId: string; doctorId: string; count: number }>> {
     if (dcrIds.length === 0) return [];
     const rows = await DoctorCallModel.aggregate<{ _id: { userId: unknown; doctorId: unknown }; count: number }>([
-      { $match: { dcrId: { $in: dcrIds.map(oid) }, ...COUNTED } },
+      { $match: { dcrId: { $in: dcrIds.map(oid) } } },
       { $group: { _id: { userId: '$userId', doctorId: '$doctorId' }, count: { $sum: 1 } } },
     ]);
     return rows.map((r) => ({ userId: String(r._id.userId), doctorId: String(r._id.doctorId), count: r.count }));
   }
   async create(input: Omit<DoctorCall, 'id'>, ctx: TransactionContext): Promise<DoctorCall> {
     const [doc] = await DoctorCallModel.create(
-      [{ ...callColumns(input), doctorId: oid(input.doctorId), workWith: input.workWith.map(oid), notInPlan: input.notInPlan, routeNotInPlan: input.routeNotInPlan, extraVisitAfter: input.extraVisitAfter ?? null, samples: input.samples.map((s) => ({ allocationId: s.allocationId ? oid(s.allocationId) : null, productId: oid(s.productId), quantity: s.quantity })), lbl: input.lbl.map((l) => ({ productId: oid(l.productId) })) }],
+      [{ ...callColumns(input), doctorId: oid(input.doctorId), workWith: input.workWith.map(oid), notInPlan: input.notInPlan, routeNotInPlan: input.routeNotInPlan, samples: input.samples.map((s) => ({ allocationId: s.allocationId ? oid(s.allocationId) : null, productId: oid(s.productId), quantity: s.quantity })), lbl: input.lbl.map((l) => ({ productId: oid(l.productId) })) }],
       session(ctx),
     );
     return toDoctorCall(doc!.toObject());
   }
   async countForDcrs(dcrIds: string[]): Promise<Map<string, number>> {
     return countByDcr(DoctorCallModel as never, dcrIds);
-  }
-  async countCountedForDcrs(dcrIds: string[]): Promise<Map<string, number>> {
-    return countByDcr(DoctorCallModel as never, dcrIds, COUNTED);
   }
   async listForDcr(dcrId: string): Promise<DoctorCall[]> {
     return (await DoctorCallModel.find({ dcrId: oid(dcrId) }).sort({ recordedAt: 1, _id: 1 }).lean()).map(toDoctorCall);
@@ -218,7 +210,7 @@ export class MongoChemistCallAdapter implements ChemistCallRepositoryPort {
 
 export class MongoFollowupAdapter implements FollowupRepositoryPort {
   async listDoctorVisitDates(userId: string, doctorId: string, range: { from: string; to: string }, ctx?: TransactionContext): Promise<string[]> {
-    const q = FollowupModel.distinct('reportDate', { userId: oid(userId), subject: 'DOCTOR', subjectId: oid(doctorId), reportDate: { $gte: range.from, $lte: range.to }, ...COUNTED });
+    const q = FollowupModel.distinct('reportDate', { userId: oid(userId), subject: 'DOCTOR', subjectId: oid(doctorId), reportDate: { $gte: range.from, $lte: range.to } });
     return (await (ctx ? q.session(ctx as ClientSession) : q)) as string[];
   }
   countNotInPlan(range: { from: string; to: string }): Promise<Array<{ dcrId: string; count: number }>> {
@@ -241,7 +233,6 @@ export class MongoFollowupAdapter implements FollowupRepositoryPort {
           routeId: input.routeId ? oid(input.routeId) : null,
           routeType: input.routeType,
           notInPlan: input.notInPlan,
-          extraVisitAfter: input.extraVisitAfter ?? null,
           capturedLatitude: input.capturedLocation?.latitude ?? null,
           capturedLongitude: input.capturedLocation?.longitude ?? null,
           accuracyMeters: input.accuracyMeters,

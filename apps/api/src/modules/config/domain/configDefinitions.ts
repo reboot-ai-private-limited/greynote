@@ -100,7 +100,7 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
   // ── Field activity ──
   integer('GEO_FENCE_RADIUS_METERS', 'FIELD_ACTIVITY', 'Geofence radius', 'Radius, in meters, a Dr/Chemist Call must be logged within.', 100, 1, 100_000, 'meters'),
   // At most 9: with up to 4 visits a month (a doctor's visit frequency), a 9-day gap still fits 4 visits in February (1, 10, 19, 28).
-  integer('DOCTOR_VISIT_GAP_DAYS', 'FIELD_ACTIVITY', 'Days between visits to a doctor', 'After an employee records a call or follow-up on a doctor, how many days until the next one counts. A sooner visit is still allowed, but flagged as an extra visit and left out of frequency, call average and coverage. 8: a visit on the 1st makes the next counted one from the 9th. 0 turns it off.', 8, 0, 9, 'days'),
+  integer('DOCTOR_VISIT_GAP_DAYS', 'FIELD_ACTIVITY', 'Days between visits to a doctor', 'After an employee records a call or follow-up on a doctor, how many days until they can record another on that doctor. 8: a visit on the 1st allows the next from the 9th. 0 turns it off.', 8, 0, 9, 'days'),
   integer('GEO_MAX_ACCURACY_METERS', 'FIELD_ACTIVITY', 'Least accurate GPS reading trusted', 'A GPS reading less accurate than this (in meters) can’t confirm or refute a call’s location: the check is UNVERIFIED.', 100, 1, 100_000, 'meters'),
   {
     ...toggle('DCR_MISS_BLOCK_ENABLED', 'FIELD_ACTIVITY', 'Block employees who miss daily reports', 'Whether missing DCR submissions triggers the compliance block.', true),

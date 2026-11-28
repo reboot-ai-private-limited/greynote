@@ -83,6 +83,7 @@ export function PlanDoctorsPicker({ routeIds, toPlaceId, limitToRoutes, onlyIds,
             id: d.id,
             name: d.name,
             photoUrl: d.photoUrl ?? null,
+            disabled: soon !== null,
             subtitle: [soon?.short, d.mrLabel ?? 'Your doctor', d.specialty].filter(Boolean).join(' · '),
           };
         });
@@ -164,8 +165,8 @@ export function PlanDoctorsPicker({ routeIds, toPlaceId, limitToRoutes, onlyIds,
       {shownPicks.map((r) => {
         const selected = picked.includes(r.id);
         const soon = tooSoon?.(r.id) ?? null;
-        // Too soon after a visit: it can be ticked, but the call will be an extra visit, not counted.
-        const locked = disabled;
+        // Too soon after a visit: can't be ticked, but a tick already there can be taken off.
+        const locked = disabled || (soon !== null && !selected);
         const sub = [soon?.short, r.sub].filter(Boolean).join(' · ');
         if (readOnly) {
           return (
@@ -187,7 +188,7 @@ export function PlanDoctorsPicker({ routeIds, toPlaceId, limitToRoutes, onlyIds,
             onPress={() => toggle(r.id)}>
             <ThemedView
               type="backgroundElement"
-              style={[styles.row, selected && { borderColor: theme.primary }, locked && styles.disabled]}>
+              style={[styles.row, selected && { borderColor: soon ? theme.danger : theme.primary }, (locked || soon) && styles.disabled]}>
               <ThemedView type={selected ? 'primary' : 'backgroundSelected'} style={styles.box}>
                 <ThemedText type="small" themeColor="onPrimary">{selected ? '✓' : ''}</ThemedText>
               </ThemedView>

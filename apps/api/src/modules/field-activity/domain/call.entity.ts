@@ -64,9 +64,6 @@ export interface DoctorCall extends CallBase {
   notInPlan: boolean;
   /** The Doctor's Route isn't one the day's plan lists (a flag, never a refusal). */
   routeNotInPlan: boolean;
-  /** The visit the call came too soon after (`DOCTOR_VISIT_GAP_DAYS`), or null. Such a call is kept and shown, but not counted in
-   *  frequency, call average or coverage (2026-11-28; it used to be refused). Absent on older calls: read as null. */
-  extraVisitAfter?: string | null;
 }
 
 export interface ChemistCall extends CallBase {
@@ -91,8 +88,6 @@ export interface Followup {
   routeType: RecordRouteType | null;
   /** A Doctor not on the day's list, or a Chemist whose Route the plan doesn't list: flagged for the report. */
   notInPlan: boolean;
-  /** As on a doctor call: the visit this follow-up came too soon after, or null. */
-  extraVisitAfter?: string | null;
   capturedLocation: GeoPoint | null;
   accuracyMeters: number | null;
   /** `null` on legacy follow-ups; every new one passed the geofence. */

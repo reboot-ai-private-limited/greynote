@@ -356,26 +356,17 @@ class FakeCalls<T extends { id: string; dcrId: string | null }> {
     }
     return [...by.values()];
   }
-  /** Rows that count (not an extra visit), as the Mongo adapter's `COUNTED`. */
-  protected get counted() {
-    return this.rows.filter((r) => !(r as unknown as { extraVisitAfter?: string | null }).extraVisitAfter);
-  }
-  async countCountedForDcrs(dcrIds: string[]) {
-    const m = new Map<string, number>();
-    for (const r of this.counted) if (r.dcrId && dcrIds.includes(r.dcrId)) m.set(r.dcrId, (m.get(r.dcrId) ?? 0) + 1);
-    return m;
-  }
   async distinctDoctorIds(dcrIds: string[]) {
-    return [...new Set((this.counted as unknown as Array<{ dcrId: string; doctorId: string }>).filter((r) => dcrIds.includes(r.dcrId)).map((r) => r.doctorId))];
+    return [...new Set((this.rows as unknown as Array<{ dcrId: string; doctorId: string }>).filter((r) => dcrIds.includes(r.dcrId)).map((r) => r.doctorId))];
   }
   async countByDoctor(dcrIds: string[]) {
     const by = new Map<string, number>();
-    for (const r of this.counted as unknown as Array<{ dcrId: string; doctorId: string }>) if (dcrIds.includes(r.dcrId)) by.set(r.doctorId, (by.get(r.doctorId) ?? 0) + 1);
+    for (const r of this.rows as unknown as Array<{ dcrId: string; doctorId: string }>) if (dcrIds.includes(r.dcrId)) by.set(r.doctorId, (by.get(r.doctorId) ?? 0) + 1);
     return [...by].map(([doctorId, count]) => ({ doctorId, count }));
   }
   async countByUserAndDoctor(dcrIds: string[]) {
     const by = new Map<string, number>();
-    for (const r of this.counted as unknown as Array<{ dcrId: string; userId: string; doctorId: string }>) if (dcrIds.includes(r.dcrId)) by.set(`${r.userId}|${r.doctorId}`, (by.get(`${r.userId}|${r.doctorId}`) ?? 0) + 1);
+    for (const r of this.rows as unknown as Array<{ dcrId: string; userId: string; doctorId: string }>) if (dcrIds.includes(r.dcrId)) by.set(`${r.userId}|${r.doctorId}`, (by.get(`${r.userId}|${r.doctorId}`) ?? 0) + 1);
     return [...by].map(([key, count]) => ({ userId: key.split('|')[0]!, doctorId: key.split('|')[1]!, count }));
   }
   async countByDcrRange(range: { from: string; to: string }) {
@@ -392,7 +383,7 @@ class FakeCalls<T extends { id: string; dcrId: string | null }> {
 }
 export class FakeDoctorCalls extends FakeCalls<DoctorCall> implements DoctorCallRepositoryPort {
   async listVisitDates(userId: string, doctorId: string, range: { from: string; to: string }) {
-    return [...new Set(this.rows.filter((r) => !r.extraVisitAfter && r.userId === userId && r.doctorId === doctorId && r.reportDate >= range.from && r.reportDate <= range.to).map((r) => r.reportDate))];
+    return [...new Set(this.rows.filter((r) => r.userId === userId && r.doctorId === doctorId && r.reportDate >= range.from && r.reportDate <= range.to).map((r) => r.reportDate))];
   }
   async countNotInPlan(range: { from: string; to: string }) {
     const by = new Map<string, number>();
@@ -410,7 +401,7 @@ export class FakeChemistCalls extends FakeCalls<ChemistCall> implements ChemistC
 }
 export class FakeFollowups extends FakeCalls<Followup> implements FollowupRepositoryPort {
   async listDoctorVisitDates(userId: string, doctorId: string, range: { from: string; to: string }) {
-    return [...new Set(this.rows.filter((r) => !r.extraVisitAfter && r.userId === userId && r.subject === 'DOCTOR' && r.subjectId === doctorId && r.reportDate >= range.from && r.reportDate <= range.to).map((r) => r.reportDate))];
+    return [...new Set(this.rows.filter((r) => r.userId === userId && r.subject === 'DOCTOR' && r.subjectId === doctorId && r.reportDate >= range.from && r.reportDate <= range.to).map((r) => r.reportDate))];
   }
   async countNotInPlan(range: { from: string; to: string }) {
     return this.countFlag('notInPlan', range);

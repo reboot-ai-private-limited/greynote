@@ -151,7 +151,7 @@ export class CountDoctorCallsByDayUseCase {
       const status = dcrStatus(requests.get(d.id) ?? null);
       return approvalRequired ? isApprovedDcr(status) : isQualifyingDcr(status);
     });
-    const counts = await this.doctorCalls.countCountedForDcrs(counted.map((d) => d.id));
+    const counts = await this.doctorCalls.countForDcrs(counted.map((d) => d.id));
     return counted.flatMap((d) => {
       const count = counts.get(d.id) ?? 0;
       return count > 0 ? [{ userId: d.userId, date: d.reportDate, count }] : [];
@@ -190,7 +190,7 @@ export class CallFiguresUseCase {
       return approvalRequired ? isApprovedDcr(status) : isQualifyingDcr(status);
     });
     const ids = counted.map((d) => d.id);
-    const [doctor, chemist, perDoctor] = await Promise.all([this.doctorCalls.countCountedForDcrs(ids), this.chemistCalls.countForDcrs(ids), this.doctorCalls.countByUserAndDoctor(ids)]);
+    const [doctor, chemist, perDoctor] = await Promise.all([this.doctorCalls.countForDcrs(ids), this.chemistCalls.countForDcrs(ids), this.doctorCalls.countByUserAndDoctor(ids)]);
     return {
       days: counted.map((d) => ({ userId: d.userId, date: d.reportDate, doctorCalls: doctor.get(d.id) ?? 0, chemistCalls: chemist.get(d.id) ?? 0 })),
       doctorCalls: perDoctor,

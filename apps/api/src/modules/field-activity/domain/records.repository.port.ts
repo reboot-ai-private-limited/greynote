@@ -35,8 +35,6 @@ export interface DoctorCallRepositoryPort {
   listVisitDates(userId: string, doctorId: string, range: { from: string; to: string }, ctx?: TransactionContext): Promise<string[]>;
   listForDcr(dcrId: string): Promise<DoctorCall[]>;
   countForDcrs(dcrIds: string[]): Promise<Map<string, number>>;
-  /** As `countForDcrs`, leaving out extra visits (`extraVisitAfter`): the calls that count towards call average. */
-  countCountedForDcrs(dcrIds: string[]): Promise<Map<string, number>>;
   findById(id: string): Promise<DoctorCall | null>;
   /** Removes the call; false if it is not there. */
   delete(id: string, ctx: TransactionContext): Promise<boolean>;

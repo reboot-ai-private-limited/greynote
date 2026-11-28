@@ -11,15 +11,15 @@ const parseGap = (raw: string | undefined) => {
   return Number.isInteger(n) && n >= 0 && n <= 9 ? n : 8;
 };
 
-/** `short` goes on the doctor's line in a picker ("Extra visit · counts from Sun 11 Oct"); `text` is the full reason. */
+/** `short` goes on the doctor's line in a picker ("Next visit from Sun 11 Oct"); `text` is the full reason. */
 export type VisitTooSoon = { lastVisit: string; nextAllowed: string; short: string; text: string };
 
 /**
- * The days between visits to a doctor (docs/mobile/dcr.md rule 11; allowed but not counted since 2026-11-28): after a counted doctor
- * call or follow-up on day D, another on that doctor before D + `DOCTOR_VISIT_GAP_DAYS` (counted both ways) is an extra visit. It is
- * saved and shown, but the server leaves it out of frequency, call average and coverage. Worked out from this phone's own doctor
- * calls and follow-ups (sent and unsent) so the employee is told before saving; the server decides, as it also sees another phone's
- * records. Returns why a visit on `day` would be extra, or `null` when it counts. The record being edited doesn't count against itself.
+ * The days between visits to a doctor (docs/mobile/dcr.md rule 11): after a doctor call or follow-up on day D, this employee
+ * can't record another on that doctor until D + `DOCTOR_VISIT_GAP_DAYS`, counted both ways. Worked out from this phone's own
+ * doctor calls and follow-ups (sent and unsent), so a visit the server would refuse (`DOCTOR_VISIT_TOO_SOON`) is greyed out
+ * before it is made. The server still decides: it also sees records from another phone. Returns why a doctor can't be
+ * visited on `day`, or `null` when it can. The record being edited doesn't count against itself.
  */
 export function useDoctorVisitGap(day: string, editing: OutboxRecord | 'new' | null): (doctorId: string) => VisitTooSoon | null {
   const config = useCachedSource<ConfigSnapshot>('config');
@@ -43,10 +43,7 @@ export function useDoctorVisitGap(day: string, editing: OutboxRecord | 'new' | n
     if (gap === 0) return null;
     const from = addDays(day, -(gap - 1));
     const to = addDays(day, gap - 1);
-    // Only counted visits hold the next one back: walking in date order, a visit within the gap of the last counted one is extra.
-    const counted: string[] = [];
-    for (const d of [...new Set(visitsByDoctor.get(doctorId) ?? [])].sort()) if (counted.length === 0 || d >= addDays(counted[counted.length - 1]!, gap)) counted.push(d);
-    const visits = counted.filter((d) => d >= from && d <= to);
+    const visits = [...new Set(visitsByDoctor.get(doctorId) ?? [])].filter((d) => d >= from && d <= to).sort();
     if (visits.length === 0) return null;
     // As the server explains it: the nearest visit on or before the day, failing that the first one after it.
     const earlier = visits.filter((d) => d <= day);
@@ -54,9 +51,9 @@ export function useDoctorVisitGap(day: string, editing: OutboxRecord | 'new' | n
     const nextAllowed = addDays(lastVisit, gap);
     const text =
       lastVisit <= day
-        ? `You visited this doctor on ${prettyDay(lastVisit)}. You can still call: it is saved, but not counted in frequency, call average or coverage. The next counted visit can be from ${prettyDay(nextAllowed)}.`
-        : `You have a visit to this doctor on ${prettyDay(lastVisit)}, less than ${gap} days after this one. You can still call: it is saved, but not counted.`;
-    const short = lastVisit <= day ? `Extra visit · counts from ${prettyDay(nextAllowed)}` : `Extra visit · not counted`;
+        ? `You visited this doctor on ${prettyDay(lastVisit)}. The next visit can be from ${prettyDay(nextAllowed)} (${gap} days apart).`
+        : `You already have a visit to this doctor on ${prettyDay(lastVisit)}, less than ${gap} days after this one.`;
+    const short = lastVisit <= day ? `Next visit from ${prettyDay(nextAllowed)}` : `Visit on ${prettyDay(lastVisit)} already`;
     return { lastVisit, nextAllowed, short, text };
   };
 }

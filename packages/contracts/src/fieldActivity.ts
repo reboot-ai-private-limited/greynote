@@ -80,8 +80,6 @@ export interface DoctorCallDto extends CallBaseDto {
   notInPlan: boolean;
   /** The Doctor's Route isn't one the day's plan lists. */
   routeNotInPlan: boolean;
-  /** Too soon after this counted visit (`DOCTOR_VISIT_GAP_DAYS`): an extra visit, shown but not counted. Absent or null: counted. */
-  extraVisitAfter?: string | null;
   samples: { allocationId?: string | null; productId: string; productName: string; quantity: number }[];
   /** LBL given in the call; absent from older servers. */
   lbl?: { productId: string; productName: string }[];
@@ -106,8 +104,6 @@ export interface FollowupDto {
   routeType: RecordRouteTypeDto | null;
   /** A Doctor not on the day's list, or a Chemist whose Route the plan doesn't list. */
   notInPlan: boolean;
-  /** As on a doctor call: an extra visit, shown but not counted. */
-  extraVisitAfter?: string | null;
   geofence: GeofenceOutcomeDto | null;
   recordedAt: string;
 }

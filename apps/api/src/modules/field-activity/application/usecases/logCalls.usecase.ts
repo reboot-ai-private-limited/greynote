@@ -34,7 +34,7 @@ const resultOf = (id: string, g: GeofenceOutcome): CallResult => ({ serverId: id
 /**
  * A Doctor Call (LLD field-activity.md, *Calls*). In order: the gate (blocked, the day, the Plan, the DCR not
  * already sent) → the Doctor is active and still assigned to this MR → the day is a field day → no other visit to the Doctor
- * by this employee within `DOCTOR_VISIT_GAP_DAYS` makes it an extra visit, kept but not counted (`DoctorVisitGap`) → the colleagues are real →
+ * by this employee within `DOCTOR_VISIT_GAP_DAYS` (`DoctorVisitGap`) → the colleagues are real →
  * the MR is at the Doctor's stored location (else refused, nothing stored) → each sample line draws its allocation down.
  * The work type and the Route's type are stamped from the plan and the Doctor, never taken from the phone; "not in plan"
  * and "route not in plan" are flags.
@@ -58,7 +58,7 @@ export class LogDoctorCallUseCase {
     const doctor = await this.checks.doctor(rec.userId, input.doctorId);
     const day = await this.checks.day(rec.userId, input.reportDate);
     await this.checks.managerCallOnPlan(rec.userId, day, doctor.id);
-    const extra = await this.visitGap.check(rec.userId, doctor.id, input.reportDate, ctx);
+    await this.visitGap.assertAllowed(rec.userId, doctor.id, input.reportDate, ctx);
     const { routeId, routeType, routeNotInPlan } = await this.checks.route(day, doctor.routeId);
     const notInPlan = this.checks.doctorNotInPlan(day, doctor.id, routeNotInPlan);
     await this.checks.workWith(rec.userId, input.workWith);
@@ -77,7 +77,7 @@ export class LogDoctorCallUseCase {
     }
 
     const call = await this.calls.create(
-      { dcrId: dcr.id, userId: rec.userId, reportDate: input.reportDate, doctorId: input.doctorId, workingType: day.workingType, routeId, routeType, routeNotInPlan, workWith: input.workWith, remarks: input.remarks, capturedLocation: input.capturedLocation, accuracyMeters: input.accuracyMeters, geofence, samples, lbl, notInPlan, extraVisitAfter: extra?.lastVisit ?? null, clientId: rec.clientId, recordedAt: rec.recordedAt },
+      { dcrId: dcr.id, userId: rec.userId, reportDate: input.reportDate, doctorId: input.doctorId, workingType: day.workingType, routeId, routeType, routeNotInPlan, workWith: input.workWith, remarks: input.remarks, capturedLocation: input.capturedLocation, accuracyMeters: input.accuracyMeters, geofence, samples, lbl, notInPlan, clientId: rec.clientId, recordedAt: rec.recordedAt },
       ctx,
     );
     return resultOf(call.id, geofence);
@@ -139,7 +139,7 @@ export class LogFollowupUseCase {
     const doctor = input.subject === 'DOCTOR' ? await this.checks.doctor(rec.userId, input.subjectId) : null;
     const chemist = input.subject === 'CHEMIST' ? await this.checks.chemist(rec.userId, input.subjectId) : null;
     const day = await this.checks.day(rec.userId, input.reportDate);
-    const extra = doctor ? await this.visitGap.check(rec.userId, doctor.id, input.reportDate, ctx) : null;
+    if (doctor) await this.visitGap.assertAllowed(rec.userId, doctor.id, input.reportDate, ctx);
     const { routeId, routeType, routeNotInPlan } = await this.checks.route(day, (doctor ?? chemist)!.routeId);
     const notInPlan = doctor ? this.checks.doctorNotInPlan(day, doctor.id, routeNotInPlan) : routeNotInPlan;
     const geofence = await this.geofence.requirePass(
@@ -149,7 +149,7 @@ export class LogFollowupUseCase {
       input.accuracyMeters,
     );
     const created: Followup = await this.followups.create(
-      { dcrId: dcr.id, userId: rec.userId, reportDate: input.reportDate, subject: input.subject, subjectId: input.subjectId, remarks: input.remarks, workingType: day.workingType, routeId, routeType, notInPlan, extraVisitAfter: extra?.lastVisit ?? null, capturedLocation: input.capturedLocation, accuracyMeters: input.accuracyMeters, geofence, clientId: rec.clientId, recordedAt: rec.recordedAt },
+      { dcrId: dcr.id, userId: rec.userId, reportDate: input.reportDate, subject: input.subject, subjectId: input.subjectId, remarks: input.remarks, workingType: day.workingType, routeId, routeType, notInPlan, capturedLocation: input.capturedLocation, accuracyMeters: input.accuracyMeters, geofence, clientId: rec.clientId, recordedAt: rec.recordedAt },
       ctx,
     );
     return resultOf(created.id, geofence);

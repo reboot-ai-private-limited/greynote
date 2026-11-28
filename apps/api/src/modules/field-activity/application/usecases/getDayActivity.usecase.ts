@@ -12,7 +12,7 @@ export interface DayActivity {
   date: string;
   /** `null` when nothing was logged and no report exists for the day. */
   reportStatus: DcrStatus | null;
-  doctorCalls: Array<{ doctorId: string; recordedAt: Date; remarks: string | null; geofence: string; /** Too soon after this visit: shown, not counted. */ extraVisitAfter?: string | null; samples: Array<{ productName: string; quantity: number }>; lbl: string[] }>;
+  doctorCalls: Array<{ doctorId: string; recordedAt: Date; remarks: string | null; geofence: string; samples: Array<{ productName: string; quantity: number }>; lbl: string[] }>;
   chemistCalls: Array<{ chemistId: string; recordedAt: Date }>;
   followups: number;
 }
@@ -39,7 +39,6 @@ export class GetDayActivityUseCase {
       recordedAt: c.recordedAt,
       remarks: c.remarks,
       geofence: c.geofence.status,
-      extraVisitAfter: c.extraVisitAfter ?? null,
       samples: await Promise.all(c.samples.map(async (s) => ({ productName: await name(s.productId), quantity: s.quantity }))),
       lbl: await Promise.all((c.lbl ?? []).map((l) => name(l.productId))),
     };
