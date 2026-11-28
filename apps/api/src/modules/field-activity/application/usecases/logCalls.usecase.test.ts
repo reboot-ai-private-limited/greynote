@@ -276,12 +276,12 @@ describe('logging the day’s calls and follow-ups', () => {
       kit.config.values['DOCTOR_VISIT_GAP_DAYS'] = '8';
     });
 
-    it('a second call, or a follow-up, on the same doctor the same day is refused and not stored; a chemist is not held back', async () => {
+    it('a second call on the same doctor the same day is refused and not stored; a follow-up and a chemist are not held back', async () => {
       await log();
       expect((await refusal(log({}, { ...REC, clientId: 'client-2' }))).code).toBe('DOCTOR_VISIT_TOO_SOON');
-      expect((await refusal(kit.logFollowup.execute({ ...REC, clientId: 'client-3' }, followup('DOCTOR', 'd1'), tx))).code).toBe('DOCTOR_VISIT_TOO_SOON');
       expect(kit.doctorCalls.rows).toHaveLength(1);
-      expect(kit.followups.rows).toHaveLength(0);
+      await kit.logFollowup.execute({ ...REC, clientId: 'client-3' }, followup('DOCTOR', 'd1'), tx);
+      expect(kit.followups.rows).toHaveLength(1);
       await kit.logChemistCall.execute({ ...REC, clientId: 'client-4' }, chemistCall(), tx);
       await kit.logFollowup.execute({ ...REC, clientId: 'client-5' }, followup('CHEMIST', 'c1'), tx);
       expect(kit.chemistCalls.rows).toHaveLength(1);

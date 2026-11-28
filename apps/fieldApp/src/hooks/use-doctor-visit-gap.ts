@@ -15,16 +15,16 @@ const parseGap = (raw: string | undefined) => {
 export type VisitTooSoon = { lastVisit: string; nextAllowed: string; short: string; text: string };
 
 /**
- * The days between visits to a doctor (docs/mobile/dcr.md rule 11): after a doctor call or follow-up on day D, this employee
- * can't record another on that doctor until D + `DOCTOR_VISIT_GAP_DAYS`, counted both ways. Worked out from this phone's own
- * doctor calls and follow-ups (sent and unsent), so a visit the server would refuse (`DOCTOR_VISIT_TOO_SOON`) is greyed out
+ * The days between calls on a doctor (docs/mobile/dcr.md rule 11): after a doctor call on day D, this employee can't record
+ * another call on that doctor until D + `DOCTOR_VISIT_GAP_DAYS`, counted both ways; follow-ups are neither held back nor counted
+ * (2026-11-28). Worked out from this phone's own doctor calls (sent and unsent), so a visit the server would refuse (`DOCTOR_VISIT_TOO_SOON`) is greyed out
  * before it is made. The server still decides: it also sees records from another phone. Returns why a doctor can't be
  * visited on `day`, or `null` when it can. The record being edited doesn't count against itself.
  */
 export function useDoctorVisitGap(day: string, editing: OutboxRecord | 'new' | null): (doctorId: string) => VisitTooSoon | null {
   const config = useCachedSource<ConfigSnapshot>('config');
   const gap = parseGap(config.data?.settings.DOCTOR_VISIT_GAP_DAYS);
-  const { records } = useRecords(['DOCTOR_CALL', 'DOCTOR_FOLLOWUP']);
+  const { records } = useRecords(['DOCTOR_CALL']);
   const editingId = editing && editing !== 'new' ? editing.clientId : null;
 
   const visitsByDoctor = useMemo(() => {

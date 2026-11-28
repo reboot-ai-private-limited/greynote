@@ -20,7 +20,7 @@ describe('days between visits to a doctor', () => {
     config.values['DOCTOR_VISIT_GAP_DAYS'] = '8';
     calls = new FakeDoctorCalls();
     followups = new FakeFollowups();
-    gap = new DoctorVisitGap(config, calls, followups);
+    gap = new DoctorVisitGap(config, calls);
   });
 
   it('with 8: a call on the 1st refuses the 1st to the 8th and allows the 9th, so 4 visits fit in a month', async () => {
@@ -42,10 +42,8 @@ describe('days between visits to a doctor', () => {
     });
   });
 
-  it('a follow-up is a visit too, both ways; a chemist follow-up is not', async () => {
+  it('a follow-up is not a visit: it neither holds a call back nor is held back', async () => {
     followupOn('2026-10-05');
-    expect((await refusal(check('2026-10-07')))?.code).toBe(LOG_CODES.doctorVisitTooSoon);
-    followups.rows = [];
     followupOn('2026-10-05', 'CHEMIST', 'd1');
     await expect(check('2026-10-07')).resolves.toBeUndefined();
   });

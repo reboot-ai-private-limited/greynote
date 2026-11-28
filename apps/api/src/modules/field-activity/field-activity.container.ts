@@ -161,12 +161,12 @@ export function buildFieldActivityContainer(
 
   // The day's calls and follow-ups, each checked against Field Master Data and Territory as they are at sync.
   const checks = new CallChecks(master, territory, users, planning);
-  const visitGap = new DoctorVisitGap(config, doctorCalls, followups);
+  const visitGap = new DoctorVisitGap(config, doctorCalls);
   const geofence = new GeofenceEvaluator(config);
   for (const definition of makeCallSyncHandlers({
     doctorCall: new LogDoctorCallUseCase(gate, checks, geofence, master, doctorCalls, visitGap),
     chemistCall: new LogChemistCallUseCase(gate, checks, geofence, master, chemistCalls),
-    followup: new LogFollowupUseCase(gate, checks, geofence, master, followups, visitGap),
+    followup: new LogFollowupUseCase(gate, checks, geofence, master, followups),
     parse: {
       doctorCall: (p) => doctorCallPayloadSchema.parse(p),
       chemistCall: (p) => chemistCallPayloadSchema.parse(p),

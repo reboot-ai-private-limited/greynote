@@ -57,8 +57,6 @@ export interface FollowupRepositoryPort {
   /** Follow-ups flagged `notInPlan`, per daily report, for report days in the range. */
   countNotInPlan(range: { from: string; to: string }): Promise<Array<{ dcrId: string; count: number }>>;
   create(input: Omit<Followup, 'id'>, ctx: TransactionContext): Promise<Followup>;
-  /** The days (both ends inclusive) this employee has a follow-up on this doctor. */
-  listDoctorVisitDates(userId: string, doctorId: string, range: { from: string; to: string }, ctx?: TransactionContext): Promise<string[]>;
   listForDcr(dcrId: string): Promise<Followup[]>;
   findById(id: string): Promise<Followup | null>;
   delete(id: string, ctx: TransactionContext): Promise<boolean>;

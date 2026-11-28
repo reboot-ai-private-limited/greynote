@@ -400,9 +400,6 @@ export class FakeChemistCalls extends FakeCalls<ChemistCall> implements ChemistC
   }
 }
 export class FakeFollowups extends FakeCalls<Followup> implements FollowupRepositoryPort {
-  async listDoctorVisitDates(userId: string, doctorId: string, range: { from: string; to: string }) {
-    return [...new Set(this.rows.filter((r) => r.userId === userId && r.subject === 'DOCTOR' && r.subjectId === doctorId && r.reportDate >= range.from && r.reportDate <= range.to).map((r) => r.reportDate))];
-  }
   async countNotInPlan(range: { from: string; to: string }) {
     return this.countFlag('notInPlan', range);
   }
@@ -662,10 +659,10 @@ export function faKit(nowIso = '2026-10-05T06:30:00Z') {
   const expenses = new FakeExpenses();
   const checks = new CallChecks(fmd, territory, users, planning);
   const geofence = new GeofenceEvaluator(config);
-  const visitGap = new DoctorVisitGap(config, doctorCalls, followups);
+  const visitGap = new DoctorVisitGap(config, doctorCalls);
   const logDoctorCall = new LogDoctorCallUseCase(gate, checks, geofence, fmd, doctorCalls, visitGap);
   const logChemistCall = new LogChemistCallUseCase(gate, checks, geofence, fmd, chemistCalls);
-  const logFollowup = new LogFollowupUseCase(gate, checks, geofence, fmd, followups, visitGap);
+  const logFollowup = new LogFollowupUseCase(gate, checks, geofence, fmd, followups);
   const logExpense = new LogExpenseUseCase(gate, expenses);
   const taDa = new TaDaLifecycle(dcrs, planning, territory, users, expenses, config);
   const submit = new SubmitDcrUseCase(gate, dcrs, approvals, taDa, config, planning);

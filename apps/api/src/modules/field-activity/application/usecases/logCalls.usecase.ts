@@ -118,7 +118,7 @@ export class LogChemistCallUseCase {
  * A follow-up note on a Doctor or a Chemist — remarks, attached to the day's DCR. The same gate, the same checks on who it's about,
  * and the same location rule as a call: the MR must be at the Doctor or Chemist. A Doctor not on the day's list, or a Chemist whose
  * Route the plan doesn't list, is flagged `notInPlan` for the report. There is no carry-forward: missed planned doctors already carry.
- * A follow-up on a Doctor is a visit too: it keeps the same days apart from this employee's other calls and follow-ups on that Doctor.
+ * The days between calls (`DOCTOR_VISIT_GAP_DAYS`) don't apply to a follow-up (2026-11-28): one can be added on a doctor any day.
  */
 export class LogFollowupUseCase {
   constructor(
@@ -127,7 +127,6 @@ export class LogFollowupUseCase {
     private readonly geofence: GeofenceEvaluator,
     private readonly master: FieldMasterDataPort,
     private readonly followups: FollowupRepositoryPort,
-    private readonly visitGap: DoctorVisitGap,
   ) {}
 
   async execute(
@@ -139,7 +138,6 @@ export class LogFollowupUseCase {
     const doctor = input.subject === 'DOCTOR' ? await this.checks.doctor(rec.userId, input.subjectId) : null;
     const chemist = input.subject === 'CHEMIST' ? await this.checks.chemist(rec.userId, input.subjectId) : null;
     const day = await this.checks.day(rec.userId, input.reportDate);
-    if (doctor) await this.visitGap.assertAllowed(rec.userId, doctor.id, input.reportDate, ctx);
     const { routeId, routeType, routeNotInPlan } = await this.checks.route(day, (doctor ?? chemist)!.routeId);
     const notInPlan = doctor ? this.checks.doctorNotInPlan(day, doctor.id, routeNotInPlan) : routeNotInPlan;
     const geofence = await this.geofence.requirePass(

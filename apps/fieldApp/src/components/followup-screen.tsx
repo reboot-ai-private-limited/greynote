@@ -13,7 +13,6 @@ import { CardSection, IconChip, InfoCard, sym } from '@/components/ui-cards';
 import { Spacing } from '@/constants/theme';
 import { useCallDoctors } from '@/hooks/use-call-doctors';
 import { useDayGate } from '@/hooks/use-day-gate';
-import { useDoctorVisitGap } from '@/hooks/use-doctor-visit-gap';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { useReportSent } from '@/hooks/use-report-sent';
 import { confirmRemove, removeDayRecord } from '@/lib/day-records';
@@ -65,9 +64,6 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: 'danger' | 'success' | 'info'; text: string } | null>(null);
   const fe = useFormErrors(FIELD_ORDER);
-  // Days between visits to a doctor (dcr.md rule 11): a follow-up counts as a visit; chemists have no gap.
-  const visitGap = useDoctorVisitGap(gate.today, editing);
-  const tooSoon = (id: string) => (isDoctor ? visitGap(id) : null);
 
   const plan =planning.data?.dailyPlans.find((p) => p.planDate === gate.today) ?? null;
   const fieldDay = plan ? isFieldDay(plan.workingType) : true;
@@ -107,13 +103,6 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
     if (!outletId || !remarks.trim()) {
       setMsg({ tone: 'danger', text: 'Fix the fields marked in red.' });
       fe.fail(problems);
-      return;
-    }
-    const soon = tooSoon(outletId);
-    if (soon) {
-      // The server would refuse it (DOCTOR_VISIT_TOO_SOON), so it isn't kept.
-      setMsg({ tone: 'danger', text: 'The followup was not saved.' });
-      fe.fail({ outlet: soon.text });
       return;
     }
     if (loc.busy) return setMsg({ tone: 'info', text: 'Still reading your location. Wait for the result, then save.' });
@@ -218,13 +207,12 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
         <OutletPicker
           label={isDoctor ? 'Doctor' : 'Chemist'}
           options={outlets.map((o) => {
-            const soon = tooSoon(o.id);
+            // A follow-up is never held back by the days between calls (2026-11-28).
             return {
               id: o.id,
               name: o.name,
               photoUrl: o.photoUrl,
-              disabled: soon !== null,
-              subtitle: `${soon ? `${soon.short} · ` : ''}${routeName.get(o.routeId) ? `(${routeName.get(o.routeId)}) · ` : ''}${o.mrLabel ? `${o.mrLabel} · ` : ''}${o.specialty ? `${o.specialty} · ${o.address}` : o.address}`,
+              subtitle: `${routeName.get(o.routeId) ? `(${routeName.get(o.routeId)}) · ` : ''}${o.mrLabel ? `${o.mrLabel} · ` : ''}${o.specialty ? `${o.specialty} · ${o.address}` : o.address}`,
             };
           })}
           value={outletId}
@@ -239,7 +227,6 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
           searchable
         />
         </FormField>
-        {picked && tooSoon(picked.id) ? <Notice tone="warning" title="Too soon for another visit">{tooSoon(picked.id)!.text}</Notice> : null}
         <ThemedText type="small" themeColor="textSecondary">
           {`You must be at the ${noun}’s place.`}
         </ThemedText>

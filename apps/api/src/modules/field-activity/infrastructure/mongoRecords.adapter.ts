@@ -209,10 +209,6 @@ export class MongoChemistCallAdapter implements ChemistCallRepositoryPort {
 }
 
 export class MongoFollowupAdapter implements FollowupRepositoryPort {
-  async listDoctorVisitDates(userId: string, doctorId: string, range: { from: string; to: string }, ctx?: TransactionContext): Promise<string[]> {
-    const q = FollowupModel.distinct('reportDate', { userId: oid(userId), subject: 'DOCTOR', subjectId: oid(doctorId), reportDate: { $gte: range.from, $lte: range.to } });
-    return (await (ctx ? q.session(ctx as ClientSession) : q)) as string[];
-  }
   countNotInPlan(range: { from: string; to: string }): Promise<Array<{ dcrId: string; count: number }>> {
     return countFlagged(FollowupModel as never, 'notInPlan', range);
   }
