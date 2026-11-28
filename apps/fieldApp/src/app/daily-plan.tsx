@@ -10,6 +10,7 @@ import { PlanDoctorsPicker } from '@/components/plan-doctors-picker';
 import { describeDay, PlanDaySummary } from '@/components/plan-day-summary';
 import { PrimaryButton } from '@/components/primary-button';
 import { ScreenShell } from '@/components/screen-shell';
+import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { CardSection, sym } from '@/components/ui-cards';
 import { useTheme } from '@/hooks/use-theme';
@@ -183,12 +184,20 @@ export default function DailyPlanScreen() {
     isManager && existing ? `plan-record:${existing.id}:${existing.status}:${existing.workWith.join(',')}` : 'plan-record:none',
     async () => (isManager && existing ? getDailyPlanRecord(existing.id) : null),
   );
+  // Called today: off the list, as on an MR's (named below it). A search narrows it by doctor or by the MR who planned them.
+  const [doctorSearch, setDoctorSearch] = useState('');
+  const term = doctorSearch.trim().toLowerCase();
+  const allTeamDoctors = managerDoctors.data?.doctors ?? [];
+  const toCall = allTeamDoctors.filter((d) => !calledIds.has(d.doctorId));
+  const calledTeamNames = allTeamDoctors.filter((d) => calledIds.has(d.doctorId)).map((d) => d.name ?? 'Doctor');
   const doctorGroups = Object.values(
-    (managerDoctors.data?.doctors ?? []).reduce<Record<string, { who: string; names: string[] }>>((acc, d) => {
-      const key = d.plannedBy?.id ?? '-';
-      (acc[key] ??= { who: d.plannedBy?.label ?? 'Others', names: [] }).names.push(d.name ?? 'Doctor');
-      return acc;
-    }, {}),
+    toCall
+      .filter((d) => !term || (d.name ?? '').toLowerCase().includes(term) || (d.plannedBy?.label ?? '').toLowerCase().includes(term))
+      .reduce<Record<string, { who: string; names: string[] }>>((acc, d) => {
+        const key = d.plannedBy?.id ?? '-';
+        (acc[key] ??= { who: d.plannedBy?.label ?? 'Others', names: [] }).names.push(d.name ?? 'Doctor');
+        return acc;
+      }, {}),
   );
   const showTeamToday = isManager && date === today;
   const teamToday = useCachedFetch<TeamDayRow[]>(showTeamToday ? `plan-team-today:${today}` : 'plan-team-today:none', async () =>
@@ -564,8 +573,11 @@ export default function DailyPlanScreen() {
 
       {/* A manager picks no doctors (2026-11-28): they see, read only, those the people they work with planned, by person. */}
       {existing && fieldDay && isManager && existing.workWith.length > 0 ? (
-        <CardSection icon={sym('stethoscope', 'medical_services')} accent="blue" title="Doctors to call" count={managerDoctors.data?.doctors?.length}>
+        <CardSection icon={sym('stethoscope', 'medical_services')} accent="blue" title="Doctors to call" count={managerDoctors.data ? toCall.length : undefined}>
           <ThemedText type="small" themeColor="textSecondary">From the people you work with. Any other doctor is a follow-up.</ThemedText>
+          {allTeamDoctors.length > 3 ? (
+            <TextField label="Search a doctor or an MR" value={doctorSearch} onChangeText={setDoctorSearch} autoCapitalize="none" autoCorrect={false} />
+          ) : null}
           {doctorGroups.length > 0 ? (
             doctorGroups.map((g) => (
               <ThemedText key={g.who} type="small">
@@ -575,9 +587,20 @@ export default function DailyPlanScreen() {
             ))
           ) : (
             <ThemedText type="small" themeColor="textSecondary">
-              {managerDoctors.data ? 'They planned no doctors for this day yet.' : online ? 'Loading…' : 'Connect to the internet to see their doctors.'}
+              {!managerDoctors.data
+                ? online
+                  ? 'Loading…'
+                  : 'Connect to the internet to see their doctors.'
+                : term
+                  ? 'No doctor or MR matches that search.'
+                  : allTeamDoctors.length === 0
+                    ? 'They planned no doctors for this day yet.'
+                    : 'Every doctor on the plan is called.'}
             </ThemedText>
           )}
+          {calledTeamNames.length > 0 ? (
+            <ThemedText type="small" themeColor="textSecondary">{`${calledTeamNames.length} already called today: ${calledTeamNames.join(', ')}`}</ThemedText>
+          ) : null}
         </CardSection>
       ) : null}
       {existing && fieldDay && !isManager ? (

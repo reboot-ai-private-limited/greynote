@@ -27,7 +27,8 @@ export const listPersonGifts = async (userId: string) => {
 };
 
 /** Ask for a gift for one of my doctors. Online only; Admin or Accounts answer it. */
-export const requestGift = (body: { doctorId: string; productName: string; note: string | null }) => apiPost<GiftView>('/field-activity/doctor-gifts/requests', body, { auth: true });
+/** `amountPaise`: the rough value (2026-11-28, optional); Admin or Accounts set the real one when accepting. */
+export const requestGift = (body: { doctorId: string; productName: string; note: string | null; amountPaise?: number | null }) => apiPost<GiftView>('/field-activity/doctor-gifts/requests', body, { auth: true });
 
 export const giftStatusText = (s: GiftView['status']): string => (s === 'REQUESTED' ? 'Requested' : s === 'PENDING' ? 'To give' : s === 'DONE' ? 'Done' : 'Rejected');
 

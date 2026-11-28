@@ -16,7 +16,7 @@ import { useDoctorPicker } from '@/hooks/use-doctor-picker';
 import { useDebounced } from '@/hooks/use-debounced';
 import { useWindowed } from '@/hooks/use-windowed';
 import { giftStatusText, listGifts, requestGift, type GiftView } from '@/lib/gifts';
-import { formatRupees } from '@/lib/money';
+import { formatRupees, rupeesToPaise } from '@/lib/money';
 import { useSessionUser } from '@/lib/session';
 import { createRecord, refreshNow, removeRecord, sendNow, useOnline, useRecords, type OutboxRecord } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
@@ -75,6 +75,7 @@ export default function GiftsScreen() {
   const [askDoctor, setAskDoctor] = useState<string | null>(null);
   const [askName, setAskName] = useState('');
   const [askNote, setAskNote] = useState('');
+  const [askAmount, setAskAmount] = useState('');
   const myDoctors = (master.data?.doctors ?? []).map((d) => ({ id: d.id, name: d.name, subtitle: d.address }));
   // The same picker as Doctor Services (2026-11-27): an MR's own doctors, a manager's team's (managers hold none), searched on the server.
   const picker = useDoctorPicker(isManager, [...myDoctors].sort((a, b) => a.name.localeCompare(b.name)));
@@ -82,15 +83,18 @@ export default function GiftsScreen() {
   const sendRequest = async () => {
     if (!askDoctor) return setMsg({ tone: 'danger', text: 'Choose the doctor the gift is for.' });
     if (!askName.trim()) return setMsg({ tone: 'danger', text: 'Name the gift you are asking for.' });
+    const amountPaise = askAmount.trim() ? rupeesToPaise(askAmount) : null;
+    if (askAmount.trim() && amountPaise === null) return setMsg({ tone: 'danger', text: 'Enter the value in rupees, for example 500 or 499.50 — or leave it empty.' });
     if (!online) return setMsg({ tone: 'info', text: 'Connect to the internet to send a request.' });
     setBusy('ask');
     setMsg(null);
     try {
-      await requestGift({ doctorId: askDoctor, productName: askName.trim(), note: askNote.trim() || null });
+      await requestGift({ doctorId: askDoctor, productName: askName.trim(), note: askNote.trim() || null, amountPaise });
       setAsking(false);
       setAskDoctor(null);
       setAskName('');
       setAskNote('');
+      setAskAmount('');
       setMsg({ tone: 'success', text: 'Request sent. Admin or Accounts will accept or reject it; you are told here and in your Inbox.' });
       server.reload();
     } catch (err) {
@@ -161,6 +165,7 @@ export default function GiftsScreen() {
             searchable
           />
           <TextField label="Gift" value={askName} onChangeText={setAskName} placeholder="e.g. Desk clock" maxLength={200} editable={busy === null} />
+          <TextField label="Approximate value (₹, optional)" value={askAmount} onChangeText={(t) => setAskAmount(t.replace(/[^0-9.]/g, ''))} keyboardType="decimal-pad" placeholder="e.g. 500" editable={busy === null} />
           <TextField label="Note (optional)" value={askNote} onChangeText={setAskNote} multiline maxLength={500} editable={busy === null} />
           <PrimaryButton label="Send request" loading={busy === 'ask'} onPress={() => void sendRequest()} />
           <PrimaryButton label="Cancel" variant="text" disabled={busy !== null} onPress={() => setAsking(false)} />
@@ -194,7 +199,7 @@ export default function GiftsScreen() {
               <View style={styles.spread}>
                 <View style={styles.grow}>
                   <ThemedText type="smallBold">{g.productName}</ThemedText>
-                  <ThemedText type="small">{`For ${g.doctorName || doctorName(g.doctorId)}${isManager ? ` (${mine ? 'Own' : (g.userName ?? 'Team')})` : ''} · ${g.status === 'REQUESTED' ? 'amount set when accepted' : formatRupees(g.amountPaise)}`}</ThemedText>
+                  <ThemedText type="small">{`For ${g.doctorName || doctorName(g.doctorId)}${isManager ? ` (${mine ? 'Own' : (g.userName ?? 'Team')})` : ''} · ${g.status === 'REQUESTED' ? (g.amountPaise > 0 ? `${formatRupees(g.amountPaise)} asked · set when accepted` : 'amount set when accepted') : formatRupees(g.amountPaise)}`}</ThemedText>
                 </View>
                 <Pill
                   text={rec && rec.status !== 'FAILED' && g.status === 'PENDING' ? 'Done' : giftStatusText(g.status)}

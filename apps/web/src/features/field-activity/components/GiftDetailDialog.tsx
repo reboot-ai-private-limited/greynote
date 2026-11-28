@@ -39,7 +39,7 @@ export function GiftDetailDialog({ gift, madeBy, onClose }: { gift: DoctorGiftDt
             </Link>
           </Field>
           <Field label="Gift">{gift.productName}</Field>
-          <Field label="Value">{gift.status === 'REQUESTED' ? '' : formatMoney(gift.amountPaise)}</Field>
+          <Field label="Value">{gift.status === 'REQUESTED' ? (gift.amountPaise > 0 ? `${formatMoney(gift.amountPaise)} asked` : '') : formatMoney(gift.amountPaise)}</Field>
           <Field label="Made by">{madeBy}</Field>
           <Field label="Status">{STATUS_LABEL[gift.status]}</Field>
           <Field label="Allocated">{formatDate(gift.allocatedAt)}</Field>

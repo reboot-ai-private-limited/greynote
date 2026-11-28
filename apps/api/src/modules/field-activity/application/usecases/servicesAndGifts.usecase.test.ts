@@ -254,6 +254,11 @@ describe('gift requests (2026-11)', () => {
     expect(g).toMatchObject({ status: 'REQUESTED', origin: 'EMPLOYEE', requestedBy: 'mr1', amountPaise: 0, requestNote: 'Birthday' });
   });
 
+  it('keeps the employee’s rough value until Admin accepts it with the real one (2026-11-28)', async () => {
+    const g = await request.execute('mr1', { doctorId: 'd1', productName: 'Desk clock', note: null, amountPaise: 50_000 });
+    expect(g).toMatchObject({ status: 'REQUESTED', amountPaise: 50_000 });
+  });
+
   it('a manager asks for a gift for a team doctor (2026-11-27); a stranger still cannot', async () => {
     const withTeam = new RequestGiftUseCase(kit.fmd, kit.gifts, () => new Date(), kit.users);
     expect(await withTeam.execute('asm', { doctorId: 'd1', productName: 'Desk clock', note: null })).toMatchObject({ status: 'REQUESTED', requestedBy: 'asm' });

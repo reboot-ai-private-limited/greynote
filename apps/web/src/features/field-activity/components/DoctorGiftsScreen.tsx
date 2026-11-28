@@ -38,7 +38,8 @@ const STATUS_LABEL = { REQUESTED: 'Requested', PENDING: 'To give', DONE: 'Done',
 
 /** Accept an employee's request with an amount, or reject it with a reason. */
 function ReviewDialog({ gift, mode, onClose }: { gift: DoctorGiftDto; mode: 'accept' | 'reject'; onClose: () => void }) {
-  const [value, setValue] = useState('');
+  // Accepting starts from the value the employee asked for (2026-11-28), when they gave one; it can still be changed.
+  const [value, setValue] = useState(mode === 'accept' && gift.amountPaise > 0 ? String(gift.amountPaise / 100) : '');
   const [error, setError] = useState<string | null>(null);
   const accept = useAcceptGift(onClose);
   const reject = useRejectGift(onClose);
@@ -59,7 +60,7 @@ function ReviewDialog({ gift, mode, onClose }: { gift: DoctorGiftDto; mode: 'acc
   return (
     <FormDialog
       title={mode === 'accept' ? 'Accept gift request' : 'Reject gift request'}
-      description={`${gift.requestedByName ?? 'An employee'} asked for “${gift.productName}” for ${gift.doctorName || 'a doctor'}${gift.requestNote ? ` (${gift.requestNote})` : ''}.`}
+      description={`${gift.requestedByName ?? 'An employee'} asked for “${gift.productName}” for ${gift.doctorName || 'a doctor'}${gift.amountPaise > 0 ? `, about ₹${(gift.amountPaise / 100).toLocaleString('en-IN')}` : ''}${gift.requestNote ? ` (${gift.requestNote})` : ''}.`}
       formId="gift-review-form"
       pending={accept.isPending || reject.isPending}
       onClose={onClose}

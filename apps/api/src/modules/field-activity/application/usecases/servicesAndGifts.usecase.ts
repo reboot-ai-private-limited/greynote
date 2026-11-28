@@ -227,7 +227,8 @@ export class AllocateGiftUseCase {
 
 /**
  * An employee asks for a gift for one of their own doctors (2026-11) — or, for a manager, one of their team's (2026-11-27: managers hold
- * no doctors). Admin or Accounts accept it with an amount, or reject it; until then it is `REQUESTED`.
+ * no doctors). The employee may give a rough value (2026-11-28), kept as the amount until Admin or Accounts accept it with the real one, or
+ * reject it; until then it is `REQUESTED`.
  */
 export class RequestGiftUseCase {
   constructor(
@@ -244,12 +245,12 @@ export class RequestGiftUseCase {
     return holder !== null && !!this.users && (await this.users.getManagerChain(holder)).some((u) => u.id === userId);
   }
 
-  async execute(userId: string, input: { doctorId: string; productName: string; note: string | null }): Promise<DoctorGift> {
+  async execute(userId: string, input: { doctorId: string; productName: string; note: string | null; amountPaise?: number | null }): Promise<DoctorGift> {
     const doctor = await this.master.getDoctor(input.doctorId);
     if (!doctor) throw AppError.notFound('No such doctor.');
     if (doctor.status !== 'active') throw AppError.conflict('This doctor is inactive, so it can’t be given a gift.');
     if (!(await this.mayAsk(userId, input.doctorId))) throw AppError.forbidden('This doctor is not yours or your team’s.');
-    return this.gifts.create({ doctorId: input.doctorId, allocatedBy: userId, productName: input.productName, amountPaise: 0, status: 'REQUESTED', origin: 'EMPLOYEE', requestedBy: userId, requestNote: input.note, rejectReason: null, completedBy: null, completedAt: null, allocatedAt: this.now() });
+    return this.gifts.create({ doctorId: input.doctorId, allocatedBy: userId, productName: input.productName, amountPaise: input.amountPaise ?? 0, status: 'REQUESTED', origin: 'EMPLOYEE', requestedBy: userId, requestNote: input.note, rejectReason: null, completedBy: null, completedAt: null, allocatedAt: this.now() });
   }
 }
 
