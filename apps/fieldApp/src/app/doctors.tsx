@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState, type ReactNode } from 'react';
-import { Linking, StyleSheet, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { DoctorAvatar } from '@/components/doctor-avatar';
 import { NumberedRow } from '@/components/numbered-row';
@@ -118,20 +118,24 @@ function MyDoctorsScreen() {
       key: d.id,
       pending: true,
       name: d.name,
+      // A tap opens it (2026-11-28): its form when it can be changed, otherwise where it can be withdrawn; Delete is there too.
       node: (
-        <InfoCard key={d.id}>
-          <View style={styles.row}>
-            <DoctorAvatar name={d.name} photoUrl={d.photoUrl} />
-            <View style={styles.grow}>
-              <ThemedText type="smallBold">{d.name}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                {[d.specialty, d.clinicName, whereOf(d)].filter(Boolean).join(' · ')}
-              </ThemedText>
+        <Pressable key={d.id} accessibilityRole="button" accessibilityHint={waiting ? 'Opens it, to withdraw' : 'Opens it, to change or delete'} onPress={() => router.push({ pathname: '/add-doctor', params: { edit: d.id } })}>
+          <InfoCard>
+            <View style={styles.row}>
+              <DoctorAvatar name={d.name} photoUrl={d.photoUrl} />
+              <View style={styles.grow}>
+                <ThemedText type="smallBold">{d.name}</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {[d.specialty, d.clinicName, whereOf(d)].filter(Boolean).join(' · ')}
+                </ThemedText>
+              </View>
+              <Pill text={waiting ? 'Pending' : 'Not approved'} accent="red" />
             </View>
-            <Pill text={waiting ? 'Pending' : 'Not approved'} accent="red" />
-          </View>
-          <ThemedText type="small" themeColor={waiting ? 'textSecondary' : 'danger'}>{STATE_TEXT[d.state] ?? d.state}</ThemedText>
-        </InfoCard>
+            <ThemedText type="small" themeColor={waiting ? 'textSecondary' : 'danger'}>{STATE_TEXT[d.state] ?? d.state}</ThemedText>
+            <ThemedText type="small" themeColor="primary">{waiting ? 'Tap to withdraw it →' : 'Tap to change or delete it →'}</ThemedText>
+          </InfoCard>
+        </Pressable>
       ),
     });
   }

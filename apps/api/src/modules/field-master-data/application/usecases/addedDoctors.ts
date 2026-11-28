@@ -1,5 +1,7 @@
 import { isEditableBySubmitter } from '@/modules/approval/approval.public.js';
 import type { TransactionContext, TransactionRunnerPort } from '@/shared/db/transaction.port.js';
+import { logger } from '@/shared/logging/logger.js';
+import type { PhotoStoragePort } from '@/shared/storage/photoStorage.port.js';
 import { parseBoolean, readConfigOr, type ConfigReader } from '@/shared/config/readConfig.js';
 import { resolveOwnPlace } from '../requireActiveRoute.js';
 import { AppError } from '@/shared/errors/AppError.js';
@@ -15,6 +17,9 @@ import type { SpecialtyCatalog } from '../specialtyCatalog.js';
 import { NEW_DOCTOR_KIND } from '../doctorApproval.js';
 import type { DoctorView, DoctorViews } from '../doctorViews.js';
 import { requireUniquePhone } from '../phoneUniqueness.js';
+
+/** The request states in which the employee may delete what they added: withdrawn, or not approved. */
+const DELETABLE = ['WITHDRAWN', 'REJECTED'];
 
 /** What an MR fills when adding a Doctor (sign-off C4): no status, no assignment — those come from the approval. */
 export interface AddedDoctorInput {
@@ -54,6 +59,7 @@ export class AddedDoctors {
     private readonly specialties: SpecialtyCatalog,
     private readonly users: UserDirectoryPort,
     private readonly config: ConfigReader,
+    private readonly photos: PhotoStoragePort | null = null,
   ) {}
 
   /** `created: false` means this was a retry of an earlier, successful create. */
@@ -127,6 +133,31 @@ export class AddedDoctors {
       return doctor;
     });
     return this.view(updated);
+  }
+
+  /**
+   * The MR deletes a doctor they added that was withdrawn or not approved (2026-11-28). It was never approved, so no call, plan or
+   * assignment can point at it: the doctor and its request go for good, and its photo is removed from storage (best effort).
+   */
+  async discard(mrId: string, doctorId: string): Promise<{ id: string }> {
+    const existing = await this.doctors.findById(doctorId);
+    if (!existing || existing.addedBy !== mrId || existing.clientRequestId === null) throw AppError.notFound('No such doctor.');
+    const request = await this.approvals.getForRecord(NEW_DOCTOR_KIND, existing.id);
+    if (existing.status === 'active' || !request || !DELETABLE.includes(request.status)) {
+      throw AppError.conflict(
+        request?.status === 'APPROVED' || existing.status === 'active'
+          ? 'This doctor is approved and can’t be deleted. Ask Admin.'
+          : 'Only a doctor that was withdrawn or not approved can be deleted. Withdraw it first.',
+      );
+    }
+    await this.transactions.run(async (ctx) => {
+      if (!(await this.doctors.deleteProposed(existing.id, ctx))) throw AppError.notFound('No such doctor.');
+      await this.approvals.deleteForRecord(NEW_DOCTOR_KIND, existing.id, ctx);
+    });
+    if (existing.photo && this.photos) {
+      await this.photos.remove(existing.photo.publicId).catch((err: unknown) => logger.error({ err, doctorId }, 'added doctor delete: photo not removed from storage'));
+    }
+    return { id: existing.id };
   }
 
   /** The Doctors this MR added, any status, newest first — with where each one is in its approval. */

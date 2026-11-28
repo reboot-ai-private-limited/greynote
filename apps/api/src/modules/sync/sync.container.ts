@@ -20,6 +20,8 @@ export interface SyncContainer {
   buildRouter: () => Router;
   /** For scripts and live checks; other modules only ever get `contract`. */
   push: PushRecordsUseCase;
+  /** Drops what was built for this user's phone, so their next pull is fresh (after they or someone else changed their records). */
+  forgetSnapshots: (userId: string) => void;
 }
 
 /** Identity's and Config's public contracts, passed in by the composition root. */
@@ -32,7 +34,8 @@ export function buildSyncContainer(users: UserDirectoryPort, config: ConfigReade
   const sources = new SyncSourceRegistry();
 
   // 2. Use cases
-  // A phone's pull within a minute reuses what was built (2026-11-27); a push clears that user's copies.
+  // A phone's pull within a minute reuses what was built (2026-11-27); a push clears that user's copies, and so does any other
+  // change (`forgetSnapshots`, wired in app.ts and container.ts).
   const snapshots = new SnapshotCache();
   const push = new PushRecordsUseCase(handlers, receipts, drafts, transactions, users, config, () => new Date(), (userId) => snapshots.forget(userId));
   const putDrafts = new PutDraftsUseCase(drafts, receipts, users, config);
@@ -46,5 +49,6 @@ export function buildSyncContainer(users: UserDirectoryPort, config: ConfigReade
     },
     buildRouter: () => buildSyncRouter(makeSyncControllers({ push, putDrafts, listDrafts, pull })),
     push,
+    forgetSnapshots: (userId) => snapshots.forget(userId),
   };
 }

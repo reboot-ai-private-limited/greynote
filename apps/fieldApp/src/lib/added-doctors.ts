@@ -1,6 +1,6 @@
 import type { GeoPoint } from '@/types/sync';
 
-import { apiGet, apiPatch, apiPut } from './api';
+import { apiDelete, apiGet, apiPatch, apiPut } from './api';
 
 /**
  * The doctors an MR added (docs/mobile/doctors.md): created `pending` and decided by the employee's manager or Admin — either
@@ -67,6 +67,11 @@ export const updateDoctorTargets = (id: string, body: DoctorTargetsBody) =>
 
 /** A doctor the owner can still change: sent back, withdrawn or reopened. */
 export const ADDED_EDITABLE = ['REJECTED', 'WITHDRAWN', 'REOPENED'];
+/** Withdrawn or not approved: the employee may delete it for good (2026-11-28). */
+export const ADDED_DELETABLE = ['REJECTED', 'WITHDRAWN'];
+
+/** Deletes a doctor I added that was withdrawn or not approved, with its request and photo. */
+export const deleteAddedDoctor = (id: string) => apiDelete<{ id: string }>(`/field-master-data/doctors/added/${id}`);
 
 
 /** What an approver may correct on a doctor that is waiting for approval. Send only what changed; `null` clears an optional detail. */

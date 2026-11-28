@@ -160,7 +160,7 @@ export class TeamMemberDaysUseCase {
     let missedDays = 0;
     for (const [d, r] of carryOf) {
       const act = activityOf.get(d);
-      if (act?.reportStatus && REPORT_IN.includes(act.reportStatus)) doctorCalls += act.doctorCalls.length;
+      if (act?.reportStatus && REPORT_IN.includes(act.reportStatus)) doctorCalls += act.doctorCalls.filter((c) => !c.extraVisitAfter).length; // extra visits aren't counted
       missedDays += r.missed.length;
     }
     return {

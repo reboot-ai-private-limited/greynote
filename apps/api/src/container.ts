@@ -188,6 +188,16 @@ export function buildContainers(): AppContainers {
   registerCompositionSyncSources({ sync: sync.contract, territory: territory.contract, config: config.contract });
 
   registerPushEvents(inbox.contract, config.contract);
+  // Someone else changed an employee's records (a decision, a reopen, an exception, an amend): their phone's next pull is fresh, not
+  // the copy saved up to a minute ago (2026-11-28).
+  const fresh = (userId: string) => sync.forgetSnapshots(userId);
+  appEvents.on('approval.decided', (e) => fresh(e.submitterId));
+  appEvents.on('approval.reopened', (e) => fresh(e.submitterId));
+  appEvents.on('submit.exception.granted', (e) => fresh(e.userId));
+  appEvents.on('monthly.plan.amended', (e) => fresh(e.userId));
+  appEvents.on('sample.request.done', (e) => fresh(e.userId));
+  appEvents.on('gift.request.reviewed', (e) => fresh(e.userId));
+  appEvents.on('user.unblocked', (e) => fresh(e.userId));
   // Whatever is still waiting for a late entry in a month that has just been settled is closed — it could no longer be used safely.
   appEvents.on('period.settled', async ({ userId, month, source }) => {
     const kinds = source === 'PAYROLL' ? (['DAILY_PLAN', 'MONTHLY_PLAN'] as const) : (['DAILY_PLAN', 'MONTHLY_PLAN', 'EXPENSE_SUBMIT', 'EXPENSE_APPROVE'] as const);

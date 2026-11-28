@@ -14,6 +14,9 @@ import type { TerritoryPort } from '../../domain/territory.port.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import { NEW_CHEMIST_KIND } from '../chemistApproval.js';
 
+/** The request states in which the employee may delete what they added: withdrawn, or not approved. */
+const DELETABLE = ['WITHDRAWN', 'REJECTED'];
+
 /** What an employee fills when adding a Chemist: no status — that comes from the approval. */
 export interface AddedChemistInput {
   /** The place (2026-11-26). The phone still sends a route: its To place is used. One of the two is needed. */
@@ -107,6 +110,25 @@ export class AddedChemists {
       return chemist;
     });
     return this.view(updated);
+  }
+
+  /** The employee deletes a chemist they added that was withdrawn or not approved (2026-11-28): it and its request go for good. */
+  async discard(userId: string, chemistId: string): Promise<{ id: string }> {
+    const existing = await this.chemists.findById(chemistId);
+    if (!existing || existing.addedBy !== userId || existing.clientRequestId === null) throw AppError.notFound('No such chemist.');
+    const request = await this.approvals.getForRecord(NEW_CHEMIST_KIND, existing.id);
+    if (existing.status === 'active' || !request || !DELETABLE.includes(request.status)) {
+      throw AppError.conflict(
+        request?.status === 'APPROVED' || existing.status === 'active'
+          ? 'This chemist is approved and can’t be deleted. Ask Admin.'
+          : 'Only a chemist that was withdrawn or not approved can be deleted. Withdraw it first.',
+      );
+    }
+    await this.transactions.run(async (ctx) => {
+      if (!(await this.chemists.deleteProposed(existing.id, ctx))) throw AppError.notFound('No such chemist.');
+      await this.approvals.deleteForRecord(NEW_CHEMIST_KIND, existing.id, ctx);
+    });
+    return { id: existing.id };
   }
 
   /** The Chemists this employee added, any status, newest first — with where each one is in its approval. */

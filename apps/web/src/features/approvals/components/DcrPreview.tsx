@@ -148,6 +148,7 @@ function DcrBody({ dcr }: { dcr: DcrDetailDto }) {
                     · {f.subject === 'DOCTOR' ? 'doctor' : 'chemist'}
                     {f.workingType ? ` · ${WORKING_TYPE_LABEL[f.workingType]}` : ''}
                     {f.routeType ? ` · ${ROUTE_TYPE_LABEL[f.routeType]}` : ''}
+                    {f.extraVisitAfter ? ' · extra visit, not counted' : ''}
                   </span>{' '}
                 </p>
                 <p className="mt-1 text-sm text-text-muted">{f.remarks}</p>

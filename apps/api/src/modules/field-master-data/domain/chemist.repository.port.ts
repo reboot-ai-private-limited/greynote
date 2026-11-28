@@ -35,6 +35,8 @@ export interface ChemistRepositoryPort {
   findByClientRequest(addedBy: string, clientRequestId: string): Promise<Chemist | null>;
   /** A pending or active Chemist with this phone number (any spelling of it), leaving out `excludeId`; `null` when the number is free. */
   findByPhone(phone: string, excludeId?: string): Promise<Chemist | null>;
+  /** Deletes a chemist that was never approved (not `active`), in the caller's transaction. False if there was none to delete. */
+  deleteProposed(id: string, ctx: TransactionContext): Promise<boolean>;
   /** Chemists this user added, in any status, newest first. */
   listAdded(addedBy: string, page: PageQuery): Promise<PaginatedResult<Chemist>>;
   update(id: string, change: Partial<Omit<Chemist, 'id'>>, ctx?: TransactionContext): Promise<Chemist | null>;

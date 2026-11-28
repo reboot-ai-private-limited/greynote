@@ -106,9 +106,11 @@ doc('delete', '/chemists/{id}/assignments/{userId}', 'Admin: take one MR off a c
 doc('get', '/chemists/added', 'Field staff: the chemists I added, with where each is in its approval', { query: listAddedChemistsQuerySchema });
 doc('post', '/chemists/added', 'Field staff: add a chemist with the phone’s location (offline-first) — it goes to my manager, then Admin', { body: addChemistBodySchema });
 doc('put', '/chemists/added/{id}', 'Field staff: change a rejected, withdrawn or reopened chemist — resubmits it', { params: idParamsSchema, body: editAddedChemistBodySchema });
+doc('delete', '/chemists/added/{id}', 'Field staff: delete a chemist I added that was withdrawn or not approved — it and its request go for good', { params: idParamsSchema });
 doc('get', '/doctors/added', 'Field staff: the doctors I added, with where each is in its approval', { query: listAddedDoctorsQuerySchema });
 doc('post', '/doctors/added', 'Field staff: add a doctor (offline-first) — it goes to my manager, then Admin', { body: addDoctorBodySchema });
 doc('put', '/doctors/added/{id}', 'Field staff: change a rejected, withdrawn or reopened doctor — resubmits it', { params: idParamsSchema, body: editAddedDoctorBodySchema });
+doc('delete', '/doctors/added/{id}', 'Field staff: delete a doctor I added that was withdrawn or not approved — it, its photo and its request go for good', { params: idParamsSchema });
 doc('put', '/doctors/added/{id}/photo', 'Field staff: set or replace the photo of a doctor I added (multipart `file`, JPG/PNG/WebP, 5 MB), until it is approved. Does not resubmit it', { params: idParamsSchema });
 doc('delete', '/doctors/added/{id}/photo', 'Field staff: remove the photo of a doctor I added, until it is approved', { params: idParamsSchema });
 doc('put', '/doctors/{id}/photo', 'Admin: set or replace a doctor’s photo (multipart `file`, JPG/PNG/WebP, 5 MB); the old file is deleted', { params: idParamsSchema });
@@ -182,6 +184,7 @@ function addedChemistsRouter(c: AddedChemistHandlers): Router {
   router.get('/', field, validate({ query: listAddedChemistsQuerySchema }), c.added);
   router.post('/', field, validate({ body: addChemistBodySchema }), c.add);
   router.put('/:id', field, validate({ params: idParamsSchema, body: editAddedChemistBodySchema }), c.edit);
+  router.delete('/:id', field, validate({ params: idParamsSchema }), c.discard);
   return router;
 }
 
@@ -197,6 +200,7 @@ function doctorsRouter(c: DoctorHandlers): Router {
   router.get('/added', field, validate({ query: listAddedDoctorsQuerySchema }), c.added);
   router.post('/added', field, validate({ body: addDoctorBodySchema }), c.addDoctor);
   router.put('/added/:id', field, validate({ params: idParamsSchema, body: editAddedDoctorBodySchema }), c.editAdded);
+  router.delete('/added/:id', field, validate({ params: idParamsSchema }), c.discardAdded);
   router.put('/added/:id/photo', field, validate({ params: idParamsSchema }), photoUpload, c.setPhoto);
   router.delete('/added/:id/photo', field, validate({ params: idParamsSchema }), c.removePhoto);
   router.put('/:id/photo', admin, validate({ params: idParamsSchema }), photoUpload, c.setPhoto);

@@ -107,6 +107,10 @@ export class MongoChemistAdapter implements ChemistRepositoryPort {
     return toChemist(doc.toObject());
   }
 
+  async deleteProposed(id: string, ctx: TransactionContext): Promise<boolean> {
+    if (!Types.ObjectId.isValid(id)) return false;
+    return (await ChemistModel.deleteOne({ _id: id, status: { $ne: 'active' } }, { session: ctx as ClientSession })).deletedCount === 1;
+  }
   async createProposed(input: Omit<Chemist, 'id'>, ctx: TransactionContext): Promise<Chemist> {
     try {
       const [doc] = await ChemistModel.create([toColumns(input)], { session: ctx as ClientSession });

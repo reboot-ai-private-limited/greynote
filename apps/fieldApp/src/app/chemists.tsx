@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Linking, StyleSheet, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { outletPlaceId, placeName } from '@/lib/places';
 import { FormField } from '@/components/form-field';
@@ -17,8 +17,9 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { useDebounced } from '@/hooks/use-debounced';
 import { useOnEndReached } from '@/hooks/use-end-reached';
 import { useFormErrors } from '@/hooks/use-form-errors';
-import { ADDED_EDITABLE } from '@/lib/added-doctors';
-import { editAddedChemist, listAddedChemists, type AddedChemist } from '@/lib/added-chemists';
+import { ADDED_DELETABLE, ADDED_EDITABLE } from '@/lib/added-doctors';
+import { Alert } from '@/lib/alert';
+import { deleteAddedChemist, editAddedChemist, listAddedChemists, type AddedChemist } from '@/lib/added-chemists';
 import { ApiError, NetworkError } from '@/lib/api';
 import { LocationCard } from '@/components/location-card';
 import { locationProblem, useLocationReading } from '@/hooks/use-location-reading';
@@ -237,6 +238,30 @@ function MyChemistsScreen() {
     }
   };
 
+  const remove = (c: AddedChemist) => {
+    if (!online) return setMsg({ tone: 'info', text: 'You’re offline. Connect to the internet to delete.' });
+    Alert.alert(`Delete ${c.name}?`, 'This can’t be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          setBusy(true);
+          try {
+            await deleteAddedChemist(c.id);
+            setTarget(null);
+            setMsg({ tone: 'success', text: `${c.name} deleted.` });
+            reload();
+          } catch (err) {
+            setMsg({ tone: 'danger', text: errorText(err) });
+          } finally {
+            setBusy(false);
+          }
+        },
+      },
+    ]);
+  };
+
   const withdraw = async (c: AddedChemist) => {
     if (!c.approval) return;
     if (!online) return setMsg({ tone: 'info', text: 'You’re offline. Connect to the internet to withdraw.' });
@@ -289,12 +314,15 @@ function MyChemistsScreen() {
     const editable = ADDED_EDITABLE.includes(state);
     // One stage: the manager's or Admin's decision is final, so only a request still waiting can be withdrawn.
     const waiting = state === 'SUBMITTED';
+    const deletable = ADDED_DELETABLE.includes(state);
     rows.push({
       key: c.id,
       pending: true,
       name: c.name,
+      // A tap on one that can be changed opens its form (2026-11-28), where it can also be deleted.
       node: (
-        <InfoCard key={c.id}>
+        <Pressable key={c.id} disabled={!editable || busy} accessibilityRole={editable ? 'button' : undefined} onPress={() => start({ server: c })}>
+        <InfoCard>
           <View style={styles.rowHead}>
             <View style={styles.grow}>
               <ThemedText type="smallBold">{c.name}</ThemedText>
@@ -309,9 +337,11 @@ function MyChemistsScreen() {
             <View style={styles.actions}>
               {editable ? <PrimaryButton label="Change" variant="text" disabled={busy} onPress={() => start({ server: c })} /> : null}
               {waiting ? <PrimaryButton label="Withdraw" variant="text" disabled={busy} onPress={() => withdraw(c)} /> : null}
+              {deletable ? <PrimaryButton label="Delete" variant="text" disabled={busy} onPress={() => remove(c)} /> : null}
             </View>
           ) : null}
         </InfoCard>
+        </Pressable>
       ),
     });
   }
@@ -348,6 +378,9 @@ function MyChemistsScreen() {
           <View style={styles.block}>
             <PrimaryButton label={typeof target === 'object' && 'server' in target ? 'Send again' : 'Save and send'} loading={busy} onPress={save} />
             <PrimaryButton label="Cancel" variant="text" disabled={busy} onPress={() => setTarget(null)} />
+            {typeof target === 'object' && 'server' in target && ADDED_DELETABLE.includes(target.server.approval?.status ?? '') ? (
+              <PrimaryButton label="Delete this chemist" variant="text" disabled={busy} onPress={() => remove(target.server)} />
+            ) : null}
           </View>
         }>
         {!online ? <Notice tone="info">You’re offline. It will be kept on this phone and sent when you’re back online.</Notice> : null}

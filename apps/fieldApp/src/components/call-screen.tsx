@@ -161,13 +161,6 @@ export function CallScreen({ subject }: { subject: Subject }) {
       fe.fail({ outlet: `Choose the ${noun} you visited.` });
       return;
     }
-    const soon = tooSoon(outletId);
-    if (soon) {
-      // The server would refuse it (DOCTOR_VISIT_TOO_SOON), so it isn't kept.
-      setMsg({ tone: 'danger', text: 'The call was not saved.' });
-      fe.fail({ outlet: soon.text });
-      return;
-    }
     if (loc.busy) return setMsg({ tone: 'info', text: 'Still reading your location. Wait for the result, then save.' });
     // The call is saved from a reading the user has seen (Refresh location, under two minutes old, for this doctor or chemist), never from a silent one.
     const locationIssue = callLocationProblem(loc.reading, outletId, noun);
@@ -287,7 +280,6 @@ export function CallScreen({ subject }: { subject: Subject }) {
               id: o.id,
               name: o.name,
               photoUrl: isDoctor ? (callDoctorById.get(o.id)?.photoUrl ?? null) : null,
-              disabled: soon !== null,
               subtitle: `${soon ? `${soon.short} · ` : ''}${missedFrom ? `Missed since ${prettyDay(missedFrom)} · ` : ''}${routeLabel ? `(${routeLabel}) · ` : ''}${full && 'mrLabel' in full && full.mrLabel ? `${full.mrLabel} · ` : ''}${full && 'specialty' in full ? `${full.specialty}${clinic} · ${full.address}` : (full?.address ?? '')}${
                 full && 'visitFrequency' in full && full.visitFrequency ? ` · ${madeBy.has(o.id) ? `${madeBy.get(o.id)} of ${full.visitFrequency}` : full.visitFrequency} visits${madeBy.has(o.id) ? ' this month' : ' a month'}` : ''
               }${calledIds.has(o.id) ? ' · called today' : ''}`,
@@ -308,7 +300,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
         />
         </FormField>
         {!isDoctor && picked?.phone ? <PrimaryButton label={picked.phone} variant="text" onPress={() => void Linking.openURL(`tel:${picked.phone}`)} style={styles.phone} /> : null}
-        {picked && tooSoon(picked.id) ? <Notice tone="warning" title="Too soon for another visit">{tooSoon(picked.id)!.text}</Notice> : null}
+        {picked && tooSoon(picked.id) ? <Notice tone="warning" title="Extra visit — not counted">{tooSoon(picked.id)!.text}</Notice> : null}
         {plan ? (
           <ThemedText type="small" themeColor="textSecondary">
             {`Work type: ${workingTypeLabel(plan.workingType)} (from today’s plan). You must be within reach of the ${noun}.`}

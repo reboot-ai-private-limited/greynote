@@ -33,6 +33,8 @@ export interface DoctorCallDoc extends CallDocBase {
   /** Absent on calls from before the rule: read as in plan. */
   notInPlan?: boolean;
   routeNotInPlan?: boolean;
+  /** Too soon after this visit (`DOCTOR_VISIT_GAP_DAYS`): kept, not counted. Absent or null: counted. */
+  extraVisitAfter?: string | null;
 }
 export interface ChemistCallDoc extends CallDocBase {
   chemistId: Types.ObjectId;
@@ -49,6 +51,7 @@ export interface FollowupDoc {
   routeId?: Types.ObjectId | null;
   routeType?: (typeof ROUTE_TYPES)[number] | null;
   notInPlan?: boolean;
+  extraVisitAfter?: string | null;
   capturedLatitude?: number | null;
   capturedLongitude?: number | null;
   accuracyMeters?: number | null;
@@ -87,6 +90,7 @@ const doctorCallSchema = new Schema<DoctorCallDoc>({
   workWith: { type: [Schema.Types.ObjectId], default: [], ref: 'User' },
   notInPlan: { type: Boolean, default: false },
   routeNotInPlan: { type: Boolean, default: false },
+  extraVisitAfter: { type: String, default: null },
   samples: {
     type: [new Schema({ allocationId: { type: Schema.Types.ObjectId, ref: 'SampleAllocation', default: null }, productId: ref('Product'), quantity: { type: Number, required: true, min: 1 } }, { _id: false })],
     default: [],
@@ -114,6 +118,7 @@ const followupSchema = new Schema<FollowupDoc>({
   routeId: { type: Schema.Types.ObjectId, default: null, ref: 'Route' },
   routeType: { type: String, enum: ROUTE_TYPES, default: null },
   notInPlan: { type: Boolean, default: false },
+  extraVisitAfter: { type: String, default: null },
   capturedLatitude: { type: Number, default: null },
   capturedLongitude: { type: Number, default: null },
   accuracyMeters: { type: Number, default: null },

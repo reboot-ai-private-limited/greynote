@@ -123,6 +123,27 @@ describe('An MR adds a Doctor', () => {
     expect((await withRequests.one({ ...doctor, status: 'active' })).approvalRequestId).toBeNull();
   });
 
+  it('can be deleted by the MR who added it once withdrawn or not approved, with its photo — never while waiting or once approved', async () => {
+    const removed: string[] = [];
+    const withPhotos = new AddedDoctors(doctors, territory, approvals, new FakeTransactions(), views, new SpecialtyCatalog(new FakeSpecialties(['ENT', 'Cardiologist'])), users, config, {
+      upload: async () => ({ url: '', publicId: '' }),
+      remove: async (id: string) => void removed.push(id),
+    } as never);
+    const { doctor } = await add();
+    doctors.rows[0]!.photo = { url: 'u', publicId: 'p1' } as never;
+    await expect(withPhotos.discard('mr1', doctor.id)).rejects.toMatchObject({ statusCode: 409 });
+    await approvals.decide(NEW_DOCTOR_KIND, doctor.id, 'WITHDRAWN');
+    await expect(withPhotos.discard('mr2', doctor.id)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(withPhotos.discard('mr1', doctor.id)).resolves.toEqual({ id: doctor.id });
+    expect(doctors.rows).toHaveLength(0);
+    expect(approvals.requests).toHaveLength(0);
+    expect(removed).toEqual(['p1']);
+
+    const approved = (await add({ clientRequestId: 'client-req-0002' })).doctor;
+    await approvals.decide(NEW_DOCTOR_KIND, approved.id, 'APPROVED');
+    await expect(withPhotos.discard('mr1', approved.id)).rejects.toMatchObject({ statusCode: 409 });
+  });
+
   it('only on a route the MR has', async () => {
     await expectStatus(add({ routeId: 'route-2' }), 400);
     expect(doctors.rows).toHaveLength(0);

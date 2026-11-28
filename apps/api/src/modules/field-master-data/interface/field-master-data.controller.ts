@@ -150,7 +150,7 @@ export function makeChemistAssignmentControllers(u: {
   };
 }
 
-export type AddedChemistHandlers = Record<'added' | 'add' | 'edit', RequestHandler>;
+export type AddedChemistHandlers = Record<'added' | 'add' | 'edit' | 'discard', RequestHandler>;
 
 /** The employee's own side of Chemists: the ones they added, adding one, and fixing a rejected one. */
 export function makeAddedChemistControllers(addedChemists: AddedChemists): AddedChemistHandlers {
@@ -167,11 +167,14 @@ export function makeAddedChemistControllers(addedChemists: AddedChemists): Added
     edit: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await addedChemists.edit(actorOf(req).id, requiredParam(req.params, 'id'), req.body), 'Chemist updated and resubmitted.', 200),
     ),
+    discard: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await addedChemists.discard(actorOf(req).id, requiredParam(req.params, 'id')), 'Chemist deleted.', 200),
+    ),
   };
 }
 
 export type DoctorHandlers = Record<
-  | 'list' | 'create' | 'get' | 'update' | 'impact' | 'remove' | 'review' | 'updateTargets' | 'mine' | 'team' | 'assignedTo' | 'listAssignments' | 'assign' | 'unassign' | 'added' | 'addDoctor' | 'editAdded' | 'setPhoto' | 'removePhoto' | 'listSamples' | 'issueSample' | 'adjustSample',
+  | 'list' | 'create' | 'get' | 'update' | 'impact' | 'remove' | 'review' | 'updateTargets' | 'mine' | 'team' | 'assignedTo' | 'listAssignments' | 'assign' | 'unassign' | 'added' | 'addDoctor' | 'editAdded' | 'discardAdded' | 'setPhoto' | 'removePhoto' | 'listSamples' | 'issueSample' | 'adjustSample',
   RequestHandler
 >;
 
@@ -268,6 +271,9 @@ export function makeDoctorControllers(u: {
     }),
     editAdded: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await u.addedDoctors.edit(actorOf(req).id, requiredParam(req.params, 'id'), req.body), 'Doctor updated and resubmitted.', 200),
+    ),
+    discardAdded: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await u.addedDoctors.discard(actorOf(req).id, requiredParam(req.params, 'id')), 'Doctor deleted.', 200),
     ),
     // Both routes (Admin's `/:id/photo`, the MR's `/added/:id/photo`) land here; the use case decides who may touch which doctor.
     setPhoto: asyncHandler(async (req, res) => {

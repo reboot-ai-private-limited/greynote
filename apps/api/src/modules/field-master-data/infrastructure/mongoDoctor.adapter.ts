@@ -119,6 +119,10 @@ export class MongoDoctorAdapter implements DoctorRepositoryPort {
     return toDoctor(doc.toObject());
   }
 
+  async deleteProposed(id: string, ctx: TransactionContext): Promise<boolean> {
+    if (!Types.ObjectId.isValid(id)) return false;
+    return (await DoctorModel.deleteOne({ _id: id, status: { $ne: 'active' } }, { session: ctx as ClientSession })).deletedCount === 1;
+  }
   async createProposed(input: Omit<Doctor, 'id'>, ctx: TransactionContext): Promise<Doctor> {
     try {
       const [doc] = await DoctorModel.create([toColumns(input)], { session: ctx as ClientSession });

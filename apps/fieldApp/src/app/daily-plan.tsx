@@ -167,8 +167,8 @@ export default function DailyPlanScreen() {
   // A manager has no carry-over (2026-11-27): they call what their team planned that day.
   const owed = isManager ? [] : owedState?.date === date ? owedState.list : savedOwed;
 
-  // Days between visits to a doctor (dcr.md rule 11), counted from this plan's date: a doctor visited too recently can't be
-  // called that day, so it isn't offered for the plan either. Ticked ones (from before) can still be unticked.
+  // Days between visits to a doctor (dcr.md rule 11), counted from this plan's date: a doctor visited too recently can still be planned
+  // and called, but that call is an extra visit, not counted (2026-11-28).
   const visitGap = useDoctorVisitGap(date, null);
   const tooSoonPicked = doctorIds
     .map((id) => ({ id, soon: visitGap(id) }))
@@ -396,7 +396,13 @@ export default function DailyPlanScreen() {
     run(async () => {
       if (!existing?.approvalRequestId) return null;
       if (!online) return { tone: 'warning', text: 'Connect to the internet to withdraw.' };
-      await withdrawPlan(existing.approvalRequestId);
+      try {
+        await withdrawPlan(existing.approvalRequestId);
+      } catch (err) {
+        // Already decided or withdrawn: show the plan as it really is, under the server's message.
+        if (err instanceof ApiError && err.status === 409) await refreshAll();
+        throw err;
+      }
       await refreshAll();
       return { tone: 'info', text: 'Plan withdrawn, so it can’t be approved as it was. Change the day and submit it again.' };
     });
@@ -553,8 +559,8 @@ export default function DailyPlanScreen() {
               </FormField>
             )}
             {tooSoonPicked.length > 0 ? (
-              <Notice tone="warning" title="Visited too recently">
-                {`${tooSoonPicked.join('; ')}. A call on this day would be refused. Untick to plan another doctor.`}
+              <Notice tone="info" title="Extra visits — not counted">
+                {`${tooSoonPicked.join('; ')}. A call on this day is allowed but won’t be counted.`}
               </Notice>
             ) : null}
             {teamMissing ? <Notice tone="info">Your team’s doctors haven’t loaded yet. Connect to the internet to pick them.</Notice> : null}

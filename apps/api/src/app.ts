@@ -41,7 +41,16 @@ export function createApp(options: CreateAppOptions = {}): Express {
     const containers = buildContainers();
     options.onContainers?.(containers);
 
-    // 2. Wire their routes into Express at /api
+    // 2. Wire their routes into Express at /api. After a successful change (anything but a read), the sender's saved sync data is
+    // dropped (2026-11-28): otherwise the phone's refresh right after a withdraw or submit got the minute-old copy back.
+    app.use('/api', (req, res, next) => {
+        if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
+            res.on('finish', () => {
+                if (res.statusCode < 400 && req.user?.sub) containers.sync.forgetSnapshots(req.user.sub);
+            });
+        }
+        next();
+    });
     app.use('/api', buildApiRouter(containers));
 
     // 3. Now every route's OpenAPI registration has run.

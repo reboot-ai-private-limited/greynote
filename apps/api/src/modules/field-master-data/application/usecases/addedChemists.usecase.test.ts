@@ -75,6 +75,25 @@ describe('An employee adds a Chemist', () => {
     expect((await chemists.findById(chemist.id))).toMatchObject({ status: 'pending', approvedAt: null });
   });
 
+  it('can be deleted by whoever added it once withdrawn or not approved — never while waiting, once approved, or by someone else', async () => {
+    const { chemist } = await add();
+    const status = (p: Promise<unknown>) => p.then(() => 200, (e: AppError) => e.statusCode);
+    expect(await status(added.discard('mr1', chemist.id))).toBe(409); // still waiting
+    await approvals.decide(NEW_CHEMIST_KIND, chemist.id, 'WITHDRAWN');
+    expect(await status(added.discard('mr2', chemist.id))).toBe(404);
+    await expect(added.discard('mr1', chemist.id)).resolves.toEqual({ id: chemist.id });
+    expect(chemists.rows).toHaveLength(0);
+    expect(approvals.requests).toHaveLength(0);
+
+    const other = (await add({ clientRequestId: 'client-req-0002' })).chemist;
+    await approvals.decide(NEW_CHEMIST_KIND, other.id, 'REJECTED');
+    await expect(added.discard('mr1', other.id)).resolves.toEqual({ id: other.id });
+
+    const approved = (await add({ clientRequestId: 'client-req-0003' })).chemist;
+    await approvals.decide(NEW_CHEMIST_KIND, approved.id, 'APPROVED');
+    expect(await status(added.discard('mr1', approved.id))).toBe(409);
+  });
+
   it('returns the earlier Chemist on a retry with the same clientRequestId', async () => {
     const first = await add();
     const again = await add({ name: 'Renamed' });

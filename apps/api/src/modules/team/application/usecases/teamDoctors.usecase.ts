@@ -132,7 +132,8 @@ export class TeamMemberDoctorsUseCase {
       for (const day of activity) {
         for (const c of day.doctorCalls) {
           const v = visits.get(c.doctorId) ?? { month: 0, last: null };
-          if (day.date >= range.from && day.date <= range.to) v.month += 1;
+          // An extra visit (too soon after the last counted one) shows as a visit but doesn't count towards the frequency.
+          if (day.date >= range.from && day.date <= range.to && !c.extraVisitAfter) v.month += 1;
           if (!v.last || day.date > v.last) v.last = day.date;
           visits.set(c.doctorId, v);
         }
@@ -191,13 +192,13 @@ export class TeamDoctorUseCase {
       this.fieldActivity.listGiftsForDoctors([doctorId]),
     ]);
     const calls = activity
-      .flatMap((a) => a.doctorCalls.filter((c) => c.doctorId === doctorId).map((c) => ({ date: a.date, at: c.recordedAt.toISOString(), remarks: c.remarks, geofence: c.geofence })))
+      .flatMap((a) => a.doctorCalls.filter((c) => c.doctorId === doctorId).map((c) => ({ date: a.date, at: c.recordedAt.toISOString(), remarks: c.remarks, geofence: c.geofence, extraVisitAfter: c.extraVisitAfter ?? null })))
       .sort((a, b) => b.date.localeCompare(a.date));
     return {
       doctor: { id: doctor.id, name: doctor.name, specialty: doctor.specialty, clinicName: doctor.clinicName, phone: doctor.phone, address: doctor.address, visitFrequency: doctor.visitFrequency, placeName: doctor.placeId ? ((await this.routes.getPlace?.(doctor.placeId))?.name ?? null) : null, routeName: doctor.placeId ? ((await this.routes.getPlace?.(doctor.placeId))?.name ?? null) : ((await this.routes.getRoute(doctor.routeId))?.name ?? null) },
       heldBy: { id: person.id, name: person.name, employeeCode: person.employeeCode },
       month,
-      visitsThisMonth: calls.filter((c) => c.date >= range.from && c.date <= range.to).length,
+      visitsThisMonth: calls.filter((c) => c.date >= range.from && c.date <= range.to && !c.extraVisitAfter).length,
       calls: calls.slice(0, 30),
       gifts: { totals: giftTotalsOf(gifts), items: gifts.map((g) => ({ id: g.id, productName: g.productName, amountPaise: g.amountPaise, status: g.status, allocatedAt: g.allocatedAt.toISOString(), completedAt: g.completedAt ? g.completedAt.toISOString() : null })) },
       services: { totals: totalsOf(services), items: services.map((s) => ({ id: s.id, serviceType: s.serviceType, amountPaise: s.amountPaise, remarks: s.remarks, status: s.status, doneAt: s.doneAt ? s.doneAt.toISOString() : null, askedBy: s.userName ?? '', createdAt: s.createdAt.toISOString() })) },

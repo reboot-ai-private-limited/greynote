@@ -21,7 +21,7 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { ApiError, NetworkError, type UploadFile } from '@/lib/api';
-import { ADDED_EDITABLE, editAddedDoctor, listAddedDoctors, type AddedDoctor } from '@/lib/added-doctors';
+import { ADDED_DELETABLE, ADDED_EDITABLE, deleteAddedDoctor, editAddedDoctor, listAddedDoctors, type AddedDoctor } from '@/lib/added-doctors';
 import { PhotoPickError, pickDoctorPhoto, removeAddedDoctorPhoto, setAddedDoctorPhoto } from '@/lib/doctor-photo';
 import { LocationCard } from '@/components/location-card';
 import { locationProblem, useLocationReading } from '@/hooks/use-location-reading';
@@ -81,7 +81,10 @@ export default function AddDoctorScreen() {
   const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
   const territory = useCachedSource<TerritorySnapshot>('territory');
   const { isManager } = useCurrentUser();
-  const openNew = useLocalSearchParams<{ new?: string }>().new === '1';
+  const params = useLocalSearchParams<{ new?: string; edit?: string }>();
+  const openNew = params.new === '1';
+  /** A tap on a doctor I added, on the Doctors list: open its form straight away when it can be changed. */
+  const openEdit = params.edit ?? null;
   const { records } = useRecords(['NEW_DOCTOR']);
   /** A manager may add only while Admin allows it; until the phone is told the setting, that reads as not allowed. */
   const canAdd = mayAddDoctor(isManager, usePublicFlags());
@@ -139,32 +142,6 @@ export default function AddDoctorScreen() {
     return r ? (pendingPhotos[r.clientId] ?? null) : null;
   };
 
-  // The doctors I added, with where each is in its approval (online).
-  useEffect(() => {
-    if (!online) return;
-    let alive = true;
-    (async () => {
-      try {
-        const list = await listAddedDoctors();
-        if (!alive) return;
-        setAdded(list);
-        setLoadError(null);
-        for (const d of list) {
-          if (d.approval?.status === 'REJECTED') {
-            getRejectionReason(d.approval.requestId)
-              .then((r) => alive && r && setReasons((prev) => ({ ...prev, [d.id]: r })))
-              .catch(() => undefined);
-          }
-        }
-      } catch (err) {
-        if (alive) setLoadError(errorText(err));
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [online, reloadKey, records.length]);
-
   const start = (t: Target) => {
     setMsg(null);
     if (t === 'new') {
@@ -200,6 +177,41 @@ export default function AddDoctorScreen() {
     }
     setTarget(t);
   };
+
+  const openedEdit = useRef(false);
+  // The doctors I added, with where each is in its approval (online).
+  useEffect(() => {
+    if (!online) return;
+    let alive = true;
+    (async () => {
+      try {
+        const list = await listAddedDoctors();
+        if (!alive) return;
+        setAdded(list);
+        setLoadError(null);
+        // Opened by a tap on the Doctors list: its form straight away when it can be changed (otherwise the list, to withdraw it).
+        const tapped = openEdit && !openedEdit.current ? list.find((x) => x.id === openEdit) : undefined;
+        if (tapped) {
+          openedEdit.current = true;
+          if (tapped.status !== 'active' && ADDED_EDITABLE.includes(tapped.approval?.status ?? 'SUBMITTED')) start({ server: tapped });
+        }
+        for (const d of list) {
+          if (d.approval?.status === 'REJECTED') {
+            getRejectionReason(d.approval.requestId)
+              .then((r) => alive && r && setReasons((prev) => ({ ...prev, [d.id]: r })))
+              .catch(() => undefined);
+          }
+        }
+      } catch (err) {
+        if (alive) setLoadError(errorText(err));
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `openEdit` is read once, on the first load
+  }, [online, reloadKey, records.length]);
+
 
   // "+ Add doctor" on the Doctors list lands here with the form already open.
   const openedNew = useRef(false);
@@ -338,6 +350,30 @@ export default function AddDoctorScreen() {
     }
   };
 
+  const remove = (d: AddedDoctor) => {
+    if (!online) return setMsg({ tone: 'info', text: 'You’re offline. Connect to the internet to delete.' });
+    Alert.alert(`Delete ${d.name}?`, 'This can’t be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          setBusy(true);
+          try {
+            await deleteAddedDoctor(d.id);
+            setTarget(null);
+            setMsg({ tone: 'success', text: `${d.name} deleted.` });
+            reload();
+          } catch (err) {
+            setMsg({ tone: 'danger', text: errorText(err) });
+          } finally {
+            setBusy(false);
+          }
+        },
+      },
+    ]);
+  };
+
   const withdraw = async (d: AddedDoctor) => {
     if (!d.approval) return;
     if (!online) return setMsg({ tone: 'info', text: 'You’re offline. Connect to the internet to withdraw.' });
@@ -362,6 +398,9 @@ export default function AddDoctorScreen() {
           <View style={styles.block}>
             <PrimaryButton label={typeof target === 'object' && 'server' in target ? 'Send again' : 'Save and send'} loading={busy} onPress={save} />
             <PrimaryButton label="Cancel" variant="text" disabled={busy} onPress={() => setTarget(null)} />
+            {typeof target === 'object' && 'server' in target && ADDED_DELETABLE.includes(target.server.approval?.status ?? '') ? (
+              <PrimaryButton label="Delete this doctor" variant="text" disabled={busy} onPress={() => remove(target.server)} />
+            ) : null}
           </View>
         }>
         {!online ? <Notice tone="info">You’re offline. It will be kept on this phone and sent when you’re back online.</Notice> : null}
@@ -601,6 +640,7 @@ export default function AddDoctorScreen() {
         const editable = ADDED_EDITABLE.includes(state);
         // One stage: the manager's or Admin's decision is final, so only a request still waiting can be withdrawn.
         const waiting = state === 'SUBMITTED';
+        const deletable = ADDED_DELETABLE.includes(state);
         return (
           <InfoCard key={d.id}>
             <View style={styles.head}>
@@ -628,6 +668,7 @@ export default function AddDoctorScreen() {
               <View style={styles.actions}>
                 {editable ? <PrimaryButton label="Change" variant="text" disabled={busy} onPress={() => start({ server: d })} /> : null}
                 {waiting ? <PrimaryButton label="Withdraw" variant="text" disabled={busy} onPress={() => withdraw(d)} /> : null}
+                {deletable ? <PrimaryButton label="Delete" variant="text" disabled={busy} onPress={() => remove(d)} /> : null}
               </View>
             ) : null}
             {/* Rule 10: the photo can be changed while the doctor waits or was sent back, without resubmitting; once approved only Admin can. */}

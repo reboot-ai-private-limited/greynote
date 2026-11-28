@@ -1,6 +1,6 @@
 import type { GeoPoint } from '@/types/sync';
 
-import { apiGet, apiPut } from './api';
+import { apiDelete, apiGet, apiPut } from './api';
 
 /**
  * The chemists an employee added (docs/mobile/chemists.md): created `pending` and decided by the employee's manager or Admin —
@@ -28,6 +28,9 @@ type Page<T> = { items: T[]; total: number };
 
 export const listAddedChemists = async () =>
   (await apiGet<Page<AddedChemist>>('/field-master-data/chemists/added?pageSize=50')).items;
+
+/** Deletes a chemist I added that was withdrawn or not approved, with its request. */
+export const deleteAddedChemist = (id: string) => apiDelete<{ id: string }>(`/field-master-data/chemists/added/${id}`);
 
 export const editAddedChemist = (id: string, body: AddedChemistBody) =>
   apiPut<AddedChemist>(`/field-master-data/chemists/added/${id}`, body);

@@ -2,7 +2,7 @@ import type { ChemistCallDto, DoctorCallDto } from '@greynote/contracts';
 import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { WorkWithName } from '@/features/people/components/EmployeePickerField';
-import { formatDateTime } from '@/lib/format';
+import { formatDate, formatDateTime } from '@/lib/format';
 import {
   GEOFENCE_LABEL,
   GEOFENCE_TONE,
@@ -40,12 +40,21 @@ export function CallCard({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {'extraVisitAfter' in call && call.extraVisitAfter ? (
+            <Badge tone="neutral">Extra visit — not counted</Badge>
+          ) : null}
           <Badge tone={GEOFENCE_TONE[call.geofence.status]}>
             {GEOFENCE_LABEL[call.geofence.status]}
           </Badge>
         </div>
       </div>
       <p className="mt-2 text-[13px] text-text-muted">{geofenceDetail(call.geofence)}</p>
+      {'extraVisitAfter' in call && call.extraVisitAfter ? (
+        <p className="text-xs text-text-subtle">
+          Visited on {formatDate(call.extraVisitAfter)}, within the days between visits: not counted in frequency, call
+          average or coverage.
+        </p>
+      ) : null}
       {call.capturedLocation && call.accuracyMeters !== null ? (
         <p className="text-xs text-text-subtle">
           Phone accuracy ±{Math.round(call.accuracyMeters)} m.

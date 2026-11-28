@@ -147,7 +147,7 @@ export interface TeamDayActivity {
   userId: string;
   date: string;
   reportStatus: string | null;
-  doctorCalls: Array<{ doctorId: string; recordedAt: Date; remarks: string | null; geofence: string; samples?: Array<{ productName: string; quantity: number }>; lbl?: string[] }>;
+  doctorCalls: Array<{ doctorId: string; recordedAt: Date; remarks: string | null; geofence: string; /** An extra visit (too soon after this one): shown, not counted. */ extraVisitAfter?: string | null; samples?: Array<{ productName: string; quantity: number }>; lbl?: string[] }>;
   chemistCalls: Array<{ chemistId: string; recordedAt: Date }>;
   followups: number;
 }

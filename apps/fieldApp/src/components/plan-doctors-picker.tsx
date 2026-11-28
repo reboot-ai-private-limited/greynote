@@ -83,7 +83,6 @@ export function PlanDoctorsPicker({ routeIds, toPlaceId, limitToRoutes, onlyIds,
             id: d.id,
             name: d.name,
             photoUrl: d.photoUrl ?? null,
-            disabled: soon !== null,
             subtitle: [soon?.short, d.mrLabel ?? 'Your doctor', d.specialty].filter(Boolean).join(' · '),
           };
         });
@@ -140,13 +139,16 @@ export function PlanDoctorsPicker({ routeIds, toPlaceId, limitToRoutes, onlyIds,
           <DoctorAvatar name={r.name} photoUrl={r.photoUrl} size={36} />
           <ThemedView type="backgroundElement" style={styles.text}>
             <ThemedText type="smallBold">{r.name}</ThemedText>
+            {/* The tag sits under the name, not beside it: beside it, a phone's width left the name one word a line. */}
+            <View style={styles.tag}>
+              <Pill text={r.since ? `Carried in · ${prettyDay(r.since)}` : 'Carried in'} accent="amber" />
+            </View>
             <ThemedText type="small" themeColor="textSecondary">
-              {r.since ? `Missed on ${prettyDay(r.since)} — stays until you call them` : 'Missed on an earlier day — stays until you call them'}
+              {'Stays until you call them'}
               {tooSoon?.(r.id) ? ` · ${tooSoon(r.id)!.short}` : ''}
               {r.sub ? ` · ${r.sub}` : ''}
             </ThemedText>
           </ThemedView>
-          <Pill text={r.since ? `Carried in · ${prettyDay(r.since)}` : 'Carried in'} accent="amber" />
         </ThemedView>
       ))}
 
@@ -162,8 +164,8 @@ export function PlanDoctorsPicker({ routeIds, toPlaceId, limitToRoutes, onlyIds,
       {shownPicks.map((r) => {
         const selected = picked.includes(r.id);
         const soon = tooSoon?.(r.id) ?? null;
-        // Too soon after a visit: can't be ticked, but a tick already there can be taken off.
-        const locked = disabled || (soon !== null && !selected);
+        // Too soon after a visit: it can be ticked, but the call will be an extra visit, not counted.
+        const locked = disabled;
         const sub = [soon?.short, r.sub].filter(Boolean).join(' · ');
         if (readOnly) {
           return (
@@ -185,7 +187,7 @@ export function PlanDoctorsPicker({ routeIds, toPlaceId, limitToRoutes, onlyIds,
             onPress={() => toggle(r.id)}>
             <ThemedView
               type="backgroundElement"
-              style={[styles.row, selected && { borderColor: soon ? theme.danger : theme.primary }, (locked || soon) && styles.disabled]}>
+              style={[styles.row, selected && { borderColor: theme.primary }, locked && styles.disabled]}>
               <ThemedView type={selected ? 'primary' : 'backgroundSelected'} style={styles.box}>
                 <ThemedText type="small" themeColor="onPrimary">{selected ? '✓' : ''}</ThemedText>
               </ThemedView>
@@ -220,5 +222,6 @@ const styles = StyleSheet.create({
   },
   disabled: { opacity: 0.6 },
   box: { width: 24, height: 24, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
-  text: { flex: 1 },
+  text: { flex: 1, gap: 2 },
+  tag: { flexDirection: 'row', marginVertical: 2 },
 });

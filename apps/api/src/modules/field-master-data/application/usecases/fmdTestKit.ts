@@ -123,6 +123,12 @@ export class FakeChemists implements ChemistRepositoryPort {
     this.rows.push(row);
     return row;
   }
+  async deleteProposed(id: string, _ctx: unknown) {
+    const i = this.rows.findIndex((c) => c.id === id && c.status !== 'active');
+    if (i < 0) return false;
+    this.rows.splice(i, 1);
+    return true;
+  }
   async createProposed(input: Omit<Chemist, 'id' | 'placeId'> & { placeId?: string }, _ctx: unknown) {
     if (this.rows.some((c) => c.addedBy === input.addedBy && c.clientRequestId !== null && c.clientRequestId === input.clientRequestId)) throw new DuplicateRecordError('client request');
     return this.create(input);
@@ -414,6 +420,12 @@ export class FakeDoctors implements DoctorRepositoryPort {
     return row;
   }
   /** Check and insert in one synchronous step, like the unique index does in Mongo. */
+  async deleteProposed(id: string, _ctx: unknown) {
+    const i = this.rows.findIndex((d) => d.id === id && d.status !== 'active');
+    if (i < 0) return false;
+    this.rows.splice(i, 1);
+    return true;
+  }
   async createProposed(input: Omit<Doctor, 'id' | 'placeId'> & { placeId?: string }) {
     if (this.rows.some((d) => d.addedBy === input.addedBy && d.clientRequestId !== null && d.clientRequestId === input.clientRequestId)) throw new DuplicateRecordError('client request');
     const row = { ...input, placeId: input.placeId ?? placeOf(input.routeId), id: `doctor-${this.rows.length + 1}` };
@@ -500,6 +512,9 @@ export class FakeApprovals implements ApprovalsPort {
   }
   async getForRecord(kind: string, recordId: string) {
     return this.requests.find((r) => r.kind === kind && r.recordId === recordId) ?? null;
+  }
+  async deleteForRecord(kind: string, recordId: string) {
+    this.requests = this.requests.filter((r) => !(r.kind === kind && r.recordId === recordId));
   }
   /** Moves the request to `status` and runs the kind's `onStatusChange`, as the approval module would. */
   async decide(kind: string, recordId: string, status: ApprovalStatus, actorId = 'admin') {
