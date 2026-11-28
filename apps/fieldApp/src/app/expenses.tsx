@@ -11,11 +11,15 @@ import { ScreenShell } from '@/components/screen-shell';
 import { Skeleton } from '@/components/skeleton';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
-import { CardSection, InfoCard, Pill, StatusBanner, SummaryStrip, sym } from '@/components/ui-cards';
-import { Spacing, type Accent } from '@/constants/theme';
+import { ChoiceChips } from '@/components/choice-chips';
+import { ExcelButton } from '@/components/report-kit';
+import { CardSection, CollapsibleSection, InfoCard, Pill, sym } from '@/components/ui-cards';
+import { Alert } from '@/lib/alert';
+import { rupees } from '@/lib/xlsx';
+import { Accents, Spacing, type Accent } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { ApiError, NetworkError } from '@/lib/api';
-import { deliverCsv } from '@/lib/csv';
 import {
   STATUS_TEXT,
   SUBMIT_LATE_TEXT,
@@ -33,11 +37,10 @@ import {
   type ExpenseProofFile,
   type ExpenseStatement,
 } from '@/lib/expense-months';
-import { exportFileName, expensesCsv } from '@/lib/exports';
 import { useFinancialYear } from '@/lib/financial-year';
 import { MAX_PROOF_FILES } from '@/lib/leave';
 import { formatRupees, rupeesToPaise } from '@/lib/money';
-import { formatSize, pickProofFile, type PickedProof } from '@/lib/proof-picker';
+import { formatSize, pickProofFile, takeProofPhoto, type PickedProof } from '@/lib/proof-picker';
 import { getRejectionReason } from '@/lib/planning';
 import { useSessionUser } from '@/lib/session';
 import { useOnline } from '@/offline';
@@ -93,7 +96,11 @@ export default function ExpensesScreen() {
   // The server's history starts at the current month; "previous" means the months before it (this month is the statement above).
   const history = (historyList.data ?? []).filter((h) => h.month < thisMonth);
 
+  const theme = useTheme();
   const [form, setForm] = useState<Form | null>(null);
+  // The days list (2026-11-28): every day, or only the days with your own expenses; one day opens to show its entries.
+  const [onlyMine, setOnlyMine] = useState(false);
+  const [openDay, setOpenDay] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Msg | null>(null);
   const fe = useFormErrors(FIELD_ORDER);
@@ -126,6 +133,18 @@ export default function ExpensesScreen() {
     if (picked.file) {
       setMsg(null);
       setForm({ ...form, files: [...form.files, picked.file] });
+    }
+  };
+
+  const photo = async () => {
+    if (!form) return;
+    if (form.existing.length + form.files.length >= MAX_PROOF_FILES) return setMsg({ tone: 'danger', text: `You can attach at most ${MAX_PROOF_FILES} files. Remove one first.` });
+    const taken = await takeProofPhoto();
+    if (!taken) return;
+    if (taken.error) return setMsg({ tone: 'danger', text: taken.error });
+    if (taken.file) {
+      setMsg(null);
+      setForm({ ...form, files: [...form.files, taken.file] });
     }
   };
 
@@ -185,10 +204,18 @@ export default function ExpensesScreen() {
     }
   };
 
-  const remove = async (id: string) => {
+  /** Deletes one of your expenses, after asking (it can't be undone). */
+  const remove = (entry: { id: string; amountPaise: number; remarks: string | null }) =>
+    Alert.alert(`Delete ${formatRupees(entry.amountPaise)}${entry.remarks ? ` · ${entry.remarks}` : ''}?`, 'This can’t be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => void removeNow(entry.id) },
+    ]);
+  const removeNow = async (id: string) => {
     setBusy(true);
     try {
       await removeOther(id);
+      setForm(null);
+      setMsg({ tone: 'success', text: 'Deleted.' });
       reloadAfterChange();
     } catch (err) {
       setMsg({ tone: 'danger', text: errorText(err) });
@@ -262,40 +289,62 @@ export default function ExpensesScreen() {
         </CardSection>
         <CardSection icon={sym('paperclip', 'attach_file')} accent="amber" title="Receipts (optional)">
           <ThemedText type="small" themeColor="textSecondary">{`Up to ${MAX_PROOF_FILES} files, PDF, JPG or PNG, 5 MB each. Your approver can open them.`}</ThemedText>
-          {form.existing.map((f) => (
-            <View key={f.id} style={styles.row}>
-              <ThemedText type="small" style={styles.grow} numberOfLines={1}>{`${f.fileName} · ${formatSize(f.sizeBytes)}`}</ThemedText>
-              <PrimaryButton label="Open" variant="text" disabled={busy} onPress={() => void Linking.openURL(f.url)} />
-              <PrimaryButton label="Remove" variant="text" disabled={busy} onPress={() => dropExisting(f)} />
+          <View style={styles.chips}>
+            {form.existing.map((f) => (
+              <View key={f.id} style={[styles.chip, { borderColor: theme.border }]}>
+                <Pressable accessibilityRole="link" accessibilityLabel={`Open ${f.fileName}`} onPress={() => void Linking.openURL(f.url)} style={styles.chipText}>
+                  <ThemedText type="small" themeColor="primary" numberOfLines={1}>{`📎 ${f.fileName}`}</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">{formatSize(f.sizeBytes)}</ThemedText>
+                </Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${f.fileName}`} hitSlop={8} disabled={busy} onPress={() => void dropExisting(f)}>
+                  <ThemedText type="smallBold" themeColor="danger">✕</ThemedText>
+                </Pressable>
+              </View>
+            ))}
+            {form.files.map((f) => (
+              <View key={f.uri} style={[styles.chip, { borderColor: theme.border }]}>
+                <View style={styles.chipText}>
+                  <ThemedText type="small" numberOfLines={1}>{`📎 ${f.name}`}</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">{`${formatSize(f.sizeBytes)} · goes up on Save`}</ThemedText>
+                </View>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${f.name}`} hitSlop={8} disabled={busy} onPress={() => setForm({ ...form, files: form.files.filter((x) => x.uri !== f.uri) })}>
+                  <ThemedText type="smallBold" themeColor="danger">✕</ThemedText>
+                </Pressable>
+              </View>
+            ))}
+          </View>
+          {form.existing.length + form.files.length < MAX_PROOF_FILES ? (
+            <View style={styles.actions}>
+              <View style={styles.grow}>
+                <PrimaryButton label="Add file" variant="text" disabled={busy} onPress={attach} />
+              </View>
+              <View style={styles.grow}>
+                <PrimaryButton label="Take photo" variant="text" disabled={busy} onPress={photo} />
+              </View>
             </View>
-          ))}
-          {form.files.map((f) => (
-            <View key={f.uri} style={styles.row}>
-              <ThemedText type="small" style={styles.grow} numberOfLines={1}>{`${f.name} · ${formatSize(f.sizeBytes)} · goes up when you save`}</ThemedText>
-              <PrimaryButton label="Remove" variant="text" disabled={busy} onPress={() => setForm({ ...form, files: form.files.filter((x) => x.uri !== f.uri) })} />
-            </View>
-          ))}
-          {form.existing.length + form.files.length < MAX_PROOF_FILES ? <PrimaryButton label="Attach a file" variant="text" disabled={busy} onPress={attach} /> : null}
+          ) : null}
         </CardSection>
+        {form.id ? <PrimaryButton label="Delete this expense" variant="text" disabled={busy} onPress={() => remove({ id: form.id!, amountPaise: rupeesToPaise(form.amount) ?? 0, remarks: form.remarks.trim() || null })} /> : null}
       </ScreenShell>
     );
   }
 
   const canSend = statement?.canSubmit && !statement.submitLate && canChange;
 
-  // The month on screen, one row per date and a total row; from the statement already loaded, so the last copy downloads offline too.
-  const downloadMonth = async () => {
-    if (!statement) return;
-    setBusy(true);
-    try {
-      const done = await deliverCsv(exportFileName('expenses', { name: me?.name, employeeCode: me?.employeeCode }, statement.month), expensesCsv(statement), `Expenses · ${prettyMonth(statement.month)}`);
-      if (done) setMsg({ tone: 'success', text: done });
-    } catch (err) {
-      setMsg({ tone: 'danger', text: err instanceof Error ? err.message : 'Couldn’t make the file. Please try again.' });
-    } finally {
-      setBusy(false);
+  /** Where the month stands against its deadlines, in one line for the month card (and the footer when it can't be sent). */
+  const deadlineLine = (st: ExpenseStatement): { tone: 'info' | 'warning' | 'danger'; text: string } | null => {
+    if (st.status === 'APPROVED') return null;
+    if (st.status === 'SUBMITTED') {
+      return st.deadlines && !st.exceptions.approveUntil && Date.parse(st.deadlines.approveBy) < nowMs() ? { tone: 'warning', text: 'Approval is late — your manager has to ask Admin.' } : null;
     }
+    if (!st.monthEnded) return { tone: 'info', text: `You can send it from the 1st of next month${st.deadlines ? `, by ${formatWhen(st.deadlines.submitBy, timeZone)}` : ''}.` };
+    if (st.exceptions.submitUntil) return { tone: 'warning', text: `Allowed late until ${formatWhen(st.exceptions.submitUntil, timeZone)}.` };
+    if (st.submitLate) return { tone: 'danger', text: SUBMIT_LATE_TEXT };
+    return st.deadlines ? { tone: 'info', text: `Send by ${formatWhen(st.deadlines.submitBy, timeZone)}.` } : null;
   };
+  const deadline = statement ? deadlineLine(statement) : null;
+  const days = (statement?.days ?? []).filter((d) => !onlyMine || d.others.length > 0);
+  const mineCount = (statement?.days ?? []).filter((d) => d.others.length > 0).length;
 
   return (
     <ScreenShell
@@ -303,132 +352,155 @@ export default function ExpensesScreen() {
       subtitle="Your month, date by date"
       onRefresh={list.reload}
       refreshing={list.refreshing}
-      footer={canSend ? <PrimaryButton label="Send for approval" loading={busy} onPress={send} /> : null}>
+      footer={
+        statement && !fy.isPast ? (
+          canSend ? (
+            <PrimaryButton label={`Send ${formatRupees(statement.totals.totalPaise)} for approval`} loading={busy} onPress={send} />
+          ) : deadline && (statement.status === 'DRAFT' || statement.status === 'REJECTED') ? (
+            <ThemedText type="small" themeColor="textSecondary" style={styles.center}>{deadline.text}</ThemedText>
+          ) : null
+        ) : null
+      }>
       <FyBanner />
       <InfoCard>
-        <ThemedText type="smallBold">Month</ThemedText>
-        <MonthStepper value={month} onChange={(m) => (setMonth(m), setMsg(null))} min={fy.firstMonth} max={lastMonth} />
+        <MonthStepper value={month} onChange={(m) => (setMonth(m), setMsg(null), setOpenDay(null))} min={fy.firstMonth} max={lastMonth} />
       </InfoCard>
       {!online ? <Notice tone="info">You’re offline. You can read the last copy; adding, changing and sending need the internet.</Notice> : null}
       {list.stale && list.fetchedAt && statement && (!online || list.error) ? <Notice tone="info">{`Showing the copy from ${formatWhen(list.fetchedAt)}.`}</Notice> : null}
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
       {list.error && online ? <Notice tone="danger">{list.error}</Notice> : null}
       {!statement && online && !list.error ? (
-        // Same shape as the loaded page: the month's summary card, then a card per day.
         <View style={styles.loading}>
           <Skeleton cards={1} lines={3} />
-          <Skeleton cards={3} lines={2} />
+          <Skeleton cards={3} lines={1} />
         </View>
       ) : null}
       {!statement && !online ? <Notice tone="info">Connect once to load this month.</Notice> : null}
 
       {statement ? (
         <>
-          <StatusBanner
-            accent={STATUS_ACCENT[statement.status]}
-            icon={sym('doc.text', 'receipt_long')}
-            title={`${prettyMonth(statement.month)} · ${STATUS_TEXT[statement.status]}`}
-            text={`Total ${formatRupees(statement.totals.totalPaise)}${statement.paidPaise > 0 ? ` · Paid so far ${formatRupees(statement.paidPaise)}` : ''}`}
-          />
-          <SummaryStrip
-            items={[
-              { label: 'TA', value: formatRupees(statement.totals.taPaise), accent: 'blue' },
-              { label: 'DA', value: formatRupees(statement.totals.daPaise), accent: 'teal' },
-              { label: 'Other', value: formatRupees(statement.totals.otherPaise), accent: 'purple' },
-            ]}
-          />
-          {statement.days.length > 0 ? <PrimaryButton label="Open, share or download expenses (CSV)" variant="text" disabled={busy} onPress={downloadMonth} /> : null}
-          {statement.submittedTotals && statement.submittedTotals.totalPaise !== statement.totals.totalPaise ? (
-            <Notice tone="warning">{`It was ${formatRupees(statement.submittedTotals.totalPaise)} when you sent it — TA/DA changed since.`}</Notice>
-          ) : null}
-
-          {statement.status === 'REJECTED' ? (
-            <Notice tone="danger" title="Sent back by your approver">
-              {rejectionText ?? 'No reason was given. Change what is needed and send it again.'}
-            </Notice>
-          ) : null}
+          {/* Everything about the month in one card (2026-11-28): status, total and its parts, paid, the deadline, why it was sent back. */}
+          <View style={[styles.monthCard, { backgroundColor: Accents[STATUS_ACCENT[statement.status]].bg, borderColor: Accents[STATUS_ACCENT[statement.status]].border }]}>
+            <View style={styles.row}>
+              <ThemedText type="smallBold" style={styles.grow}>{prettyMonth(statement.month)}</ThemedText>
+              <Pill text={STATUS_TEXT[statement.status].split(' — ')[0]!} accent={STATUS_ACCENT[statement.status]} />
+            </View>
+            <ThemedText type="title" style={[styles.total, { color: Accents[STATUS_ACCENT[statement.status]].solid }]}>{formatRupees(statement.totals.totalPaise)}</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              {`TA ${formatRupees(statement.totals.taPaise)} · DA ${formatRupees(statement.totals.daPaise)} · Other ${formatRupees(statement.totals.otherPaise)}${statement.paidPaise > 0 ? ` · Paid ${formatRupees(statement.paidPaise)}` : ''}`}
+            </ThemedText>
+            {deadline ? <ThemedText type="small" themeColor={deadline.tone === 'danger' ? 'danger' : deadline.tone === 'warning' ? 'warning' : 'textSecondary'}>{deadline.text}</ThemedText> : null}
+            {statement.submittedTotals && statement.submittedTotals.totalPaise !== statement.totals.totalPaise ? (
+              <ThemedText type="small" themeColor="warning">{`It was ${formatRupees(statement.submittedTotals.totalPaise)} when you sent it — TA/DA changed since.`}</ThemedText>
+            ) : null}
+            {statement.status === 'REJECTED' ? <ThemedText type="small" themeColor="danger">{`Sent back: ${rejectionText ?? 'no reason was given. Change what is needed and send it again.'}`}</ThemedText> : null}
+          </View>
 
           <View style={styles.row}>
-            <View style={styles.grow}>
-              <ThemedText type="smallBold" style={styles.sectionTitle}>Date by date</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">TA and DA are automatic; yours are “Other”</ThemedText>
-            </View>
-            {statement.editable && canChange ? <PrimaryButton label="+ Add expense" style={styles.newButton} disabled={busy} onPress={() => startForm()} /> : null}
+            {statement.editable && canChange ? (
+              <PrimaryButton label="+ Add expense" style={styles.newButton} disabled={busy} onPress={() => startForm()} />
+            ) : (
+              <ThemedText type="small" themeColor="textSecondary" style={styles.grow}>TA and DA are automatic; yours are “Other”.</ThemedText>
+            )}
+            <ExcelButton
+              fileName={`GREYNOTE EXPENSES ${statement.month} ${(me?.name ?? 'Me').replace(/[^\w .-]/g, '').trim()}.xlsx`}
+              disabled={statement.days.length === 0}
+              sheet={() => ({
+                sheet: `Expenses ${statement.month}`,
+                title: `${me?.name ?? ''} · Expenses · ${prettyMonth(statement.month)} · ${STATUS_TEXT[statement.status]}`,
+                header: ['Date', 'TA (₹)', 'DA (₹)', 'Other (₹)', 'Total (₹)', 'Your expenses'],
+                rows: statement.days.map((d) => [d.date, rupees(d.taPaise), rupees(d.daPaise), rupees(d.otherPaise), rupees(d.totalPaise), d.others.map((o) => `${o.amountPaise / 100} ${o.remarks ?? ''}`.trim()).join('; ')]),
+                totals: ['Total', rupees(statement.totals.taPaise), rupees(statement.totals.daPaise), rupees(statement.totals.otherPaise), rupees(statement.totals.totalPaise), ''],
+              })}
+            />
           </View>
+
+          {statement.days.length > 0 ? (
+            <ChoiceChips
+              options={[
+                { value: 'all', label: `All days · ${statement.days.length}` },
+                { value: 'mine', label: `Only my expenses · ${mineCount}` },
+              ]}
+              value={onlyMine ? 'mine' : 'all'}
+              onChange={(v) => setOnlyMine(v === 'mine')}
+            />
+          ) : null}
 
           {statement.days.length === 0 ? (
             <Notice tone="info">Nothing for this month yet.</Notice>
+          ) : days.length === 0 ? (
+            <ThemedText type="small" themeColor="textSecondary">You added no expenses of your own this month.</ThemedText>
           ) : (
-            statement.days.map((day) => (
-              <InfoCard key={day.date}>
-                <View style={styles.row}>
-                  <ThemedText type="smallBold">{prettyDay(day.date)}</ThemedText>
-                  <ThemedText type="smallBold">{formatRupees(day.totalPaise)}</ThemedText>
-                </View>
-                <ThemedText type="small" themeColor="textSecondary">{`TA ${formatRupees(day.taPaise)} · DA ${formatRupees(day.daPaise)} · Other ${formatRupees(day.otherPaise)}`}</ThemedText>
-                {day.others.map((o) => (
-                  <View key={o.id} style={styles.entry}>
-                    <View style={styles.row}>
-                      <ThemedText type="small" style={styles.grow}>{`${formatRupees(o.amountPaise)}${o.remarks ? ` · ${o.remarks}` : ''}`}</ThemedText>
-                      {statement.editable && canChange ? (
-                        <View style={styles.actions}>
-                          <PrimaryButton label="Edit" variant="text" disabled={busy} onPress={() => startForm(day, o)} />
-                          <PrimaryButton label="Remove" variant="text" disabled={busy} onPress={() => remove(o.id)} />
+            <View style={styles.days}>
+              {days.map((day) => {
+                const mine = day.others.length > 0;
+                const isOpen = openDay === day.date;
+                return (
+                  <View key={day.date} style={[styles.day, { borderColor: isOpen ? theme.primary : theme.border, backgroundColor: theme.background }]}>
+                    <Pressable
+                      accessibilityRole={mine ? 'button' : undefined}
+                      accessibilityState={mine ? { expanded: isOpen } : undefined}
+                      disabled={!mine}
+                      onPress={() => setOpenDay(isOpen ? null : day.date)}
+                      style={styles.dayHead}>
+                      <View style={styles.grow}>
+                        <View style={styles.inline}>
+                          <ThemedText type="smallBold">{prettyDay(day.date)}</ThemedText>
+                          {mine ? <Pill text={`${day.others.length} yours`} accent="purple" /> : null}
                         </View>
-                      ) : null}
-                    </View>
-                    {(o.attachments ?? []).map((a) => (
-                      <Pressable key={a.id} accessibilityRole="link" accessibilityLabel={`Open receipt ${a.fileName}`} onPress={() => void Linking.openURL(a.url)}>
-                        <ThemedText type="small" themeColor="primary" numberOfLines={1}>{`Receipt: ${a.fileName} (${formatSize(a.sizeBytes)})`}</ThemedText>
-                      </Pressable>
-                    ))}
+                        <ThemedText type="small" themeColor="textSecondary">{`TA ${formatRupees(day.taPaise)} · DA ${formatRupees(day.daPaise)}${day.otherPaise ? ` · Other ${formatRupees(day.otherPaise)}` : ''}`}</ThemedText>
+                      </View>
+                      <ThemedText type="smallBold">{formatRupees(day.totalPaise)}</ThemedText>
+                      {mine ? <ThemedText type="small" themeColor="textSecondary">{isOpen ? '▴' : '▾'}</ThemedText> : null}
+                    </Pressable>
+                    {isOpen
+                      ? day.others.map((o) => (
+                          <View key={o.id} style={[styles.entry, { borderTopColor: theme.border }]}>
+                            <View style={styles.row}>
+                              <ThemedText type="smallBold">{formatRupees(o.amountPaise)}</ThemedText>
+                              <ThemedText type="small" style={styles.grow} numberOfLines={2}>{o.remarks ?? ''}</ThemedText>
+                            </View>
+                            {(o.attachments ?? []).length > 0 ? (
+                              <View style={styles.chips}>
+                                {(o.attachments ?? []).map((a) => (
+                                  <Pressable key={a.id} accessibilityRole="link" accessibilityLabel={`Open receipt ${a.fileName}`} onPress={() => void Linking.openURL(a.url)} style={[styles.chip, { borderColor: theme.border }]}>
+                                    <ThemedText type="small" themeColor="primary" numberOfLines={1}>{`📎 ${a.fileName}`}</ThemedText>
+                                  </Pressable>
+                                ))}
+                              </View>
+                            ) : null}
+                            {statement.editable && canChange ? (
+                              <View style={styles.actions}>
+                                <PrimaryButton label="Edit" variant="text" disabled={busy} onPress={() => startForm(day, o)} />
+                                <PrimaryButton label="Delete" variant="text" disabled={busy} onPress={() => remove(o)} />
+                              </View>
+                            ) : null}
+                          </View>
+                        ))
+                      : null}
                   </View>
-                ))}
-              </InfoCard>
-            ))
+                );
+              })}
+            </View>
           )}
-
-          {statement.editable && !statement.monthEnded ? (
-            <Notice tone="info">{`You can send this month for approval from the 1st of next month${statement.deadlines ? `, by ${formatWhen(statement.deadlines.submitBy, timeZone)}` : ''}.`}</Notice>
-          ) : null}
-          {statement.monthEnded && statement.status !== 'APPROVED' && statement.deadlines ? (
-            statement.exceptions.submitUntil ? (
-              <Notice tone="warning" title="Allowed late">{`Allowed until ${formatWhen(statement.exceptions.submitUntil, timeZone)}.`}</Notice>
-            ) : statement.submitLate ? (
-              <Notice tone="danger" title="Deadline passed">{SUBMIT_LATE_TEXT}</Notice>
-            ) : statement.status === 'DRAFT' || statement.status === 'REJECTED' ? (
-              <Notice tone="info">{`Send by ${formatWhen(statement.deadlines.submitBy, timeZone)}.`}</Notice>
-            ) : null
-          ) : null}
-          {statement.status === 'SUBMITTED' && statement.deadlines && !statement.exceptions.approveUntil && Date.parse(statement.deadlines.approveBy) < nowMs() ? (
-            <Notice tone="warning">Approval is late — your manager has to ask Admin.</Notice>
-          ) : null}
-        </>
-      ) : null}
-
-      {historyList.loading && !historyList.data ? (
-        <>
-          <ThemedText type="smallBold">Previous months</ThemedText>
-          <Skeleton cards={2} lines={2} />
         </>
       ) : null}
 
       {history.length > 0 ? (
-        <>
-          <ThemedText type="smallBold">Previous months</ThemedText>
+        <CollapsibleSection icon={sym('clock.arrow.circlepath', 'history')} accent="slate" title="Previous months" count={history.length} summary={history.slice(0, 3).map((h) => `${prettyMonth(h.month)} ${formatRupees(h.totalPaise)}`).join(' · ')}>
           {history.map((h) => (
-            <Pressable key={h.month} accessibilityRole="button" onPress={() => (setMonth(h.month), setMsg(null))}>
-              <InfoCard>
-                <View style={styles.row}>
-                  <ThemedText type="smallBold">{prettyMonth(h.month)}</ThemedText>
-                  <ThemedText type="smallBold">{formatRupees(h.totalPaise)}</ThemedText>
-                </View>
+            <Pressable key={h.month} accessibilityRole="button" onPress={() => (setMonth(h.month), setMsg(null), setOpenDay(null))} style={[styles.day, styles.dayHead, { borderColor: theme.border }]}>
+              <View style={styles.grow}>
+                <ThemedText type="smallBold">{prettyMonth(h.month)}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">{`TA ${formatRupees(h.taPaise)} · DA ${formatRupees(h.daPaise)} · Other ${formatRupees(h.otherPaise)}`}</ThemedText>
-                <Pill text={STATUS_TEXT[h.status]} accent={STATUS_ACCENT[h.status]} />
-              </InfoCard>
+              </View>
+              <View style={styles.right}>
+                <ThemedText type="smallBold">{formatRupees(h.totalPaise)}</ThemedText>
+                <Pill text={STATUS_TEXT[h.status].split(' — ')[0]!} accent={STATUS_ACCENT[h.status]} />
+              </View>
             </Pressable>
           ))}
-        </>
+        </CollapsibleSection>
       ) : null}
     </ScreenShell>
   );
@@ -436,8 +508,19 @@ export default function ExpensesScreen() {
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.two },
+  inline: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   grow: { flex: 1 },
-  entry: { gap: Spacing.half },
+  right: { alignItems: 'flex-end', gap: 4 },
+  center: { textAlign: 'center' },
+  monthCard: { borderWidth: 1, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
+  total: { fontSize: 30, lineHeight: 36 },
+  days: { gap: Spacing.two },
+  day: { borderWidth: 1, borderRadius: Spacing.three, overflow: 'hidden' },
+  dayHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two + 2 },
+  entry: { gap: Spacing.one, borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, borderWidth: 1, borderRadius: Spacing.two, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one, maxWidth: '100%' },
+  chipText: { flexShrink: 1 },
   actionsCol: { gap: Spacing.two },
   sectionTitle: { fontSize: 18, lineHeight: 24 },
   newButton: { paddingHorizontal: Spacing.four, paddingVertical: Spacing.two + 2 },
