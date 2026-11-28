@@ -84,12 +84,14 @@ async function makeUser(
       dateOfJoining: new Date('2025-04-01T00:00:00.000Z'),
       hqId: hq._id,
       zoneId: zone._id,
-      mobileNumber: null,
+      // Every detail an Active field employee needs (2026-11-28): without them the next profile save turns the account Pending,
+      // and a pending person drops out of team lists, reports and payroll.
+      mobileNumber: '9000000000',
       guardianName: null,
-      dateOfBirth: null,
-      address: null,
+      dateOfBirth: new Date('1990-01-15T00:00:00.000Z'),
+      address: { line1: 'Demo address', line2: null, district: 'Darjeeling', state: 'West Bengal', pincode: '734001', country: 'India' },
       qualification: null,
-      bankDetails: null,
+      bankDetails: { bankName: 'DEMO Bank', ifsc: 'DEMO0000001', accountNumber: '999900000000', accountHolderName: user.name, branchName: 'Siliguri' },
       documents: [],
     });
     await UserHqAssignmentModel.create({ userId: user._id, hqId: hq._id, status: 'active', assignedAt: now, assignedBy: admin._id, unassignedAt: null, unassignedBy: null });

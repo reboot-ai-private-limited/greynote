@@ -89,8 +89,11 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                 role="status"
                 className="mb-6 rounded-lg border border-border bg-warning-bg p-4 text-sm text-warning-fg"
               >
-                <p className="font-medium">Still to fill in before this employee is active:</p>
+                {/* Already Active with details missing (e.g. made before these were required): the next save recomputes the status
+                    and sets them back to Pending, which takes them out of team lists, reports and payroll (2026-11-28). */}
+                <p className="font-medium">{user.status === 'active' ? 'Active, but these details are missing:' : 'Still to fill in before this employee is active:'}</p>
                 <p className="mt-1">{missing.join(' · ')}</p>
+                {user.status === 'active' ? <p className="mt-1">Saving any change to this profile sets them back to Pending until these are filled.</p> : null}
                 {user.role === 'FIELD' ? (
                   <p className="mt-2">
                     <Link href={`/employees/${user.id}/setup`} className="font-medium underline">

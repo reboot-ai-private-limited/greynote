@@ -5,6 +5,7 @@ import { DoctorAssignmentModel } from '@/modules/field-master-data/infrastructur
 import { DoctorModel } from '@/modules/field-master-data/infrastructure/doctor.schema.js';
 import { DesignationModel } from '@/modules/identity/infrastructure/designation.schema.js';
 import { EmployeeProfileModel } from '@/modules/identity/infrastructure/employeeProfile.schema.js';
+import { PayBandModel } from '@/modules/identity/infrastructure/payBand.schema.js';
 import { RoleModel } from '@/modules/identity/infrastructure/role.schema.js';
 import { UserModel } from '@/modules/identity/infrastructure/user.schema.js';
 import { HqModel } from '@/modules/territory/infrastructure/hq.schema.js';
@@ -154,6 +155,9 @@ export async function seedDemoHierarchy(password: string = DEMO_TEAM_PASSWORD): 
   ]);
   if (!field || !adminRole) throw new Error('No FIELD or ADMIN role: run the main seed first.');
   const designationId = new Map<string, Id>(designations.map((d) => [d.name, d._id as Id]));
+  // A pay grade is required for an Active field employee: the one named like the designation ("MR DISTRIC" for MR), else any.
+  const payBands = await PayBandModel.find({}).lean();
+  const payBandFor = (designation: string): Id | null => ((payBands.find((b) => b.name.toUpperCase().startsWith(designation)) ?? payBands[0])?._id as Id | undefined) ?? null;
   const missing = ['ZSM', 'RSM', 'ASM', 'MR'].filter((n) => !designationId.has(n));
   if (missing.length > 0) throw new Error(`The ${missing.join(', ')} designation(s) are missing: create them in the portal first.`);
   const admin = await UserModel.findOne({ roleId: adminRole._id }).lean();
@@ -183,17 +187,19 @@ export async function seedDemoHierarchy(password: string = DEMO_TEAM_PASSWORD): 
     await EmployeeProfileModel.create({
       userId: u._id,
       designationId: designationId.get(p.designation)!,
-      payBandId: null,
+      payBandId: payBandFor(p.designation),
       managerId: p.manager ? user.get(p.manager)! : null,
       dateOfJoining: new Date('2025-04-01T00:00:00.000Z'),
       hqId: mainHq,
       zoneId: zone._id,
-      mobileNumber: null,
+      // Every detail an Active field employee needs (2026-11-28): without them the next profile save turns the account Pending,
+      // and a pending person drops out of team lists, reports and payroll.
+      mobileNumber: '9000000000',
       guardianName: null,
-      dateOfBirth: null,
-      address: null,
+      dateOfBirth: new Date('1990-01-15T00:00:00.000Z'),
+      address: { line1: 'Demo address', line2: null, district: 'Darjeeling', state: 'West Bengal', pincode: '734001', country: 'India' },
       qualification: null,
-      bankDetails: null,
+      bankDetails: { bankName: 'DEMO Bank', ifsc: 'DEMO0000001', accountNumber: '999900000000', accountHolderName: p.name, branchName: 'Siliguri' },
       documents: [],
     });
     await UserHqAssignmentModel.create({ userId: u._id, hqId: mainHq, ...assigned });
