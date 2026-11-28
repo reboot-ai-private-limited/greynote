@@ -84,7 +84,8 @@ export type CallPerformanceRow = {
   scope: 'OWN' | 'TEAM';
   coverage: CallCoverage;
 };
-export type CallPerformance = { fromMonth: string; toMonth: string; rows: CallPerformanceRow[] };
+/** `totals`: over the MRs' own rows (a manager's team row is never counted twice). Absent from older servers. */
+export type CallPerformance = { fromMonth: string; toMonth: string; rows: CallPerformanceRow[]; totals?: Omit<CallPerformanceRow, 'employee' | 'isManager' | 'scope'> };
 
 /** You and everyone below you, for a month. */
 export const getCallPerformance = (month: string) => apiGet<CallPerformance>(`/reports/call-performance?fromMonth=${month}&toMonth=${month}`, { fy: true });
