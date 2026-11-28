@@ -2,7 +2,7 @@ import type { CallPerformanceReportDto, CallPerformanceRowDto, MissedDoctorDto }
 
 /** A percentage for a cell or tile: "94%", or "—" when there is nothing to divide by. */
 export const pctText = (v: number | null): string => (v === null ? '—' : `${v}%`);
-/** A call average: "9.4", or "—" with no field day. */
+/** A call average: "9.4", or "—" with no working day. */
 export const avgText = (v: number | null): string => (v === null ? '—' : v.toFixed(1));
 
 export const CALL_PERFORMANCE_HEADER = [
@@ -10,6 +10,7 @@ export const CALL_PERFORMANCE_HEADER = [
   'Code',
   'Designation',
   'Coverage of',
+  'Working days',
   'Field days',
   'Doctor calls',
   'Doctor call avg',
@@ -36,6 +37,7 @@ export function callPerformanceRows(report: CallPerformanceReportDto): Array<Arr
     code,
     designation,
     scope,
+    r.workingDays ?? '',
     r.fieldDays,
     r.doctorCalls,
     num(r.doctorCallAvg),

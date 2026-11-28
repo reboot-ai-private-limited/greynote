@@ -423,11 +423,14 @@ export interface CallCoverageDto {
 export interface CallPerformanceRowDto {
   employee: { id: string; name: string; employeeCode: string; designation: string | null };
   isManager: boolean;
-  /** Counted daily reports on a Field Work or Doctor Campaign day. */
+  /** Counted daily reports on a Field Work or Doctor Campaign day (no longer the call average's divisor; kept for older clients). */
   fieldDays: number;
+  /** Days due to work (2026-11-28): all but the weekly off, holidays and approved leave (half a day counts 0.5), from joining, up to
+   *  yesterday (today once its report counts). Absent from older servers. */
+  workingDays: number;
   doctorCalls: number;
   chemistCalls: number;
-  /** Calls ÷ field days, one decimal; `null` with no field day. */
+  /** Calls on counted reports ÷ working days, one decimal; `null` with no working day. */
   doctorCallAvg: number | null;
   chemistCallAvg: number | null;
   /** `OWN` for an MR (their doctors), `TEAM` for a manager (every doctor held below them, called by its holder). */

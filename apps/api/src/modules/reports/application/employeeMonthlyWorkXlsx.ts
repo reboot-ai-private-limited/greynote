@@ -160,8 +160,9 @@ export async function buildMonthlyWorkWorkbook(m: EmployeeMonthlyWorkModel): Pro
     // 2026-11-27: the month's call average and coverage, the same figures as the Call average & coverage report.
     const pctText = (v: number | null) => (v === null ? '—' : `${v}%`);
     section(cp.scope === 'TEAM' ? 'Call average & coverage (coverage: the team’s doctors)' : 'Call average & coverage');
-    line('Field working days (counted DCRs)', cp.fieldDays);
-    line('Doctor call average (per field day)', cp.doctorCallAvg ?? '—', undefined, true);
+    line('Working days (no weekly off, holiday or leave)', cp.workingDays);
+    line('Field days (counted DCRs)', cp.fieldDays);
+    line('Doctor call average (per working day)', cp.doctorCallAvg ?? '—', undefined, true);
     line('Chemist call average (per field day)', cp.chemistCallAvg ?? '—');
     line('Doctors held', cp.coverage.doctors);
     line('Doctors met at least once', cp.coverage.met, GREEN_FILL);

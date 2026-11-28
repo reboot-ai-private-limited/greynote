@@ -8,7 +8,7 @@ const pct = (v: number | null) => (v === null ? '—' : `${v}%`);
 const avg = (v: number | null) => (v === null ? '—' : v.toFixed(1));
 
 /**
- * One person's month (2026-11-27): doctor and chemist calls per field working day, and how their doctors were covered — met at least
+ * One person's month (2026-11-27): doctor and chemist calls per working day (not a weekly off, holiday or leave; 2026-11-28), and how their doctors were covered — met at least
  * once, met as often as their frequency, visits made of those owed. For a manager the coverage is their team's. Online; the last answer
  * is kept for offline.
  */
@@ -20,7 +20,7 @@ export function CallPerformanceCard({ userId, month }: { userId: string; month: 
   return (
     <InfoCard>
       <ThemedText type="smallBold">{`Call average: ${avg(row.doctorCallAvg)} doctors · ${avg(row.chemistCallAvg)} chemists a day`}</ThemedText>
-      <ThemedText type="small" themeColor="textSecondary">{`${row.doctorCalls} doctor and ${row.chemistCalls} chemist calls on ${row.fieldDays} field day${row.fieldDays === 1 ? '' : 's'}`}</ThemedText>
+      <ThemedText type="small" themeColor="textSecondary">{`${row.doctorCalls} doctor and ${row.chemistCalls} chemist calls over ${row.workingDays ?? row.fieldDays} working day${(row.workingDays ?? row.fieldDays) === 1 ? '' : 's'}`}</ThemedText>
       <ThemedText type="smallBold">{`${row.scope === 'TEAM' ? 'Team coverage' : 'Coverage'}: ${pct(c.coveragePct)} (${c.met} of ${c.doctors} doctors met)`}</ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
         {`Frequency coverage ${pct(c.frequencyPct)} (${c.metFully} of ${c.withFrequency}) · visits ${c.made} of ${c.required} (${pct(c.compliancePct)})${c.missed > 0 ? ` · ${c.missed} never met` : ''}`}

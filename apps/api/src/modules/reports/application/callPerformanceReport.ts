@@ -2,7 +2,8 @@ import type { CallCoverageDto, CallPerformanceReportDto, CallPerformanceRowDto, 
 import { isFieldDay, type WorkingType } from '@greynote/contracts';
 import { AppError } from '@/shared/errors/AppError.js';
 import { monthRange } from '@/shared/time/businessTime.js';
-import type { CallFiguresPort, DayTypesPort, DesignationLevelsPort, FieldRosterPort, HeldDoctorsPort, PlaceNamesPort } from '../domain/ports.js';
+import type { CallFiguresPort, DayTypesPort, DesignationLevelsPort, FieldRosterPort, HeldDoctorsPort, PlaceNamesPort, WorkingCalendarPort } from '../domain/ports.js';
+import { workingDays } from './workingDays.js';
 
 type Employee = Awaited<ReturnType<FieldRosterPort['listFieldEmployees']>>[number];
 type HeldDoctor = Awaited<ReturnType<HeldDoctorsPort['listAssignedDoctors']>>[number];
@@ -61,8 +62,10 @@ const sumCoverage = (list: CallCoverageDto[]): CallCoverageDto => {
 /**
  * Call average and coverage (decision-log 2026-11-27), per employee over whole months:
  *
- * - **Field days**: counted daily reports (final by the `DCR_APPROVAL_REQUIRED` rule) whose planned day is Field Work or Doctor Campaign; a
- *   report with no plan row counts when it has calls. **Call average** = calls on those days ÷ field days, one decimal.
+ * - **Call average** (2026-11-28) = calls on counted daily reports (final by the `DCR_APPROVAL_REQUIRED` rule) ÷ **working days**: every
+ *   day except the weekly off, holidays and approved leave (half a day for a half day), from joining, up to yesterday (today too once
+ *   its report counts) — `workingDays`. A day not worked, or not reported, still counts against it. One decimal.
+ * - **Field days** (kept for older clients): counted reports whose planned day is Field Work or Doctor Campaign.
  * - **Coverage** of the doctors held now (MCL): met at least once, met as often as frequency × months, and visits made of those owed
  *   (capped per doctor). An MR's own list; a manager holds none, so theirs is their team's, each doctor called by its holder.
  *
@@ -76,6 +79,7 @@ export class CallPerformanceReport {
     private readonly calls: CallFiguresPort,
     private readonly plans: DayTypesPort,
     private readonly doctors: HeldDoctorsPort,
+    private readonly calendar: WorkingCalendarPort,
     private readonly places?: PlaceNamesPort,
   ) {}
 
@@ -84,13 +88,14 @@ export class CallPerformanceReport {
     const rows = await this.rowsFor(await this.audience(input), input.fromMonth, input.toMonth);
     const own = rows.filter((r) => r.scope === 'OWN');
     const fieldDays = rows.reduce((n, r) => n + r.fieldDays, 0);
+    const working = Math.round(rows.reduce((n, r) => n + r.workingDays, 0) * 10) / 10;
     const doctorCalls = rows.reduce((n, r) => n + r.doctorCalls, 0);
     const chemistCalls = rows.reduce((n, r) => n + r.chemistCalls, 0);
     return {
       fromMonth: input.fromMonth,
       toMonth: input.toMonth,
       rows,
-      totals: { fieldDays, doctorCalls, chemistCalls, doctorCallAvg: avg(doctorCalls, fieldDays), chemistCallAvg: avg(chemistCalls, fieldDays), coverage: sumCoverage(own.map((r) => r.coverage)) },
+      totals: { fieldDays, workingDays: working, doctorCalls, chemistCalls, doctorCallAvg: avg(doctorCalls, working), chemistCallAvg: avg(chemistCalls, working), coverage: sumCoverage(own.map((r) => r.coverage)) },
     };
   }
 
@@ -120,12 +125,23 @@ export class CallPerformanceReport {
     const dayTypes = new Map<string, Array<{ date: string; workingType: string }>>();
     if (this.plans.listDailyPlanDaysForUsers && ids.length > 0) for (const u of await this.plans.listDailyPlanDaysForUsers(ids, range.from, range.to)) dayTypes.set(u.userId, u.days);
 
+    const today = await this.calendar.today();
+    // Each person's working days, read side by side (a few queries each).
+    const working = new Map(
+      await Promise.all(
+        employees.map(async (e) => [e.id, await workingDays(this.calendar, e.id, range, today, figures.days.some((d) => d.userId === e.id && d.date === today))] as const),
+      ),
+    );
+
     const rows: CallPerformanceRowDto[] = [];
     for (const e of employees) {
       const types = new Map((dayTypes.get(e.id) ?? (await this.plans.listDailyPlanDays(e.id, range.from, range.to))).map((d) => [d.date, d.workingType]));
-      const days = figures.days.filter((d) => d.userId === e.id && (types.has(d.date) ? isFieldDay(types.get(d.date) as WorkingType) : d.doctorCalls + d.chemistCalls > 0));
-      const doctorCalls = days.reduce((n, d) => n + d.doctorCalls, 0);
-      const chemistCalls = days.reduce((n, d) => n + d.chemistCalls, 0);
+      const fieldDays = figures.days.filter((d) => d.userId === e.id && (types.has(d.date) ? isFieldDay(types.get(d.date) as WorkingType) : d.doctorCalls + d.chemistCalls > 0)).length;
+      // Every counted report's calls, whatever kind of day it was planned as.
+      const reported = figures.days.filter((d) => d.userId === e.id);
+      const doctorCalls = reported.reduce((n, d) => n + d.doctorCalls, 0);
+      const chemistCalls = reported.reduce((n, d) => n + d.chemistCalls, 0);
+      const days = working.get(e.id) ?? 0;
       const isManager = managers.has(e.id);
       const team = isManager ? (await this.roster.getDownline(e.id)).map((d) => d.id) : [e.id];
       const list: Array<{ doctor: HeldDoctor; holderId: string }> = [];
@@ -137,11 +153,12 @@ export class CallPerformanceReport {
       rows.push({
         employee: { id: e.id, name: e.name, employeeCode: e.employeeCode, designation: e.designation },
         isManager,
-        fieldDays: days.length,
+        fieldDays,
+        workingDays: days,
         doctorCalls,
         chemistCalls,
-        doctorCallAvg: avg(doctorCalls, days.length),
-        chemistCallAvg: avg(chemistCalls, days.length),
+        doctorCallAvg: avg(doctorCalls, days),
+        chemistCallAvg: avg(chemistCalls, days),
         scope: isManager ? 'TEAM' : 'OWN',
         coverage: coverageOf(list, callMap, months),
       });

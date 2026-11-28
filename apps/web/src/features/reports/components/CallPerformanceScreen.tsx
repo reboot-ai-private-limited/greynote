@@ -64,7 +64,7 @@ export function CallPerformanceScreen() {
         </span>
       ),
     },
-    { key: 'days', header: 'Field days', numeric: true, render: (r) => r.fieldDays },
+    { key: 'days', header: 'Working days', numeric: true, render: (r) => r.workingDays ?? '—' },
     { key: 'dravg', header: 'Doctor call avg', numeric: true, render: (r) => <span className="font-medium">{avgText(r.doctorCallAvg)}</span> },
     { key: 'chavg', header: 'Chemist call avg', numeric: true, render: (r) => avgText(r.chemistCallAvg) },
     { key: 'held', header: 'Doctors', numeric: true, render: (r) => r.coverage.doctors },
@@ -143,7 +143,7 @@ export function CallPerformanceScreen() {
         <SearchInput value={search} onChange={setSearch} label="Search employees" placeholder="Search employee" />
       </div>
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatTile label="Doctor call average" value={avgText(t?.doctorCallAvg ?? null)} note={`${t?.doctorCalls ?? 0} calls · ${t?.fieldDays ?? 0} field days`} />
+        <StatTile label="Doctor call average" value={avgText(t?.doctorCallAvg ?? null)} note={`${t?.doctorCalls ?? 0} calls · ${t?.workingDays ?? 0} working days`} />
         <StatTile label="Chemist call average" value={avgText(t?.chemistCallAvg ?? null)} note={`${t?.chemistCalls ?? 0} calls`} />
         <StatTile label="Doctor coverage" value={pctText(t?.coverage.coveragePct ?? null)} note={`${t?.coverage.met ?? 0} of ${t?.coverage.doctors ?? 0} doctors met`} />
         <StatTile label="Frequency coverage" value={pctText(t?.coverage.frequencyPct ?? null)} note={`Visit compliance ${pctText(t?.coverage.compliancePct ?? null)}`} />

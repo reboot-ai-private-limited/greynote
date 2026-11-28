@@ -3230,3 +3230,11 @@ A doctor not on today's plan, or a chemist not at today's place, is logged from 
 Measured on local data (Admin, queries per request): dashboard 1,468 → 475; attendance 931 → 160; call average 710 → 100; doctor visits 292 → 106. Every recorded answer is byte-for-byte the same before and after.
 
 **Needs a migration:** no.
+
+## 2026-11-28: Call average is per working day, not per field day
+
+**Context.** The call average divided calls by *field days*: days with a counted daily report planned as Field Work or Doctor Campaign. A day not worked, or not reported, simply dropped out, so skipping days kept the average high.
+
+**Decision.** Call average = calls on counted daily reports ÷ **working days**: every day of the period except the person's weekly off, the holidays that apply to them and their approved leave (a half day counts 0.5), from the day they joined. In the current month the days run to yesterday, and include today once today's report counts, so the average does not drop every morning. Calls on every counted report count, whatever the day was planned as. A manager's own row follows the same rule; totals are total calls ÷ total working days. Chemist call average uses the same days. `workingDays` is added to `CallPerformanceRowDto`; `fieldDays` stays for older clients. The web Call Performance page, its export, the Monthly Work sheet and the phone (Reports card, Visit targets) read the new figure.
+
+**Needs a migration:** no.

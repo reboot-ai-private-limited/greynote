@@ -255,6 +255,18 @@ export interface LeaveDaysPort {
   listLeaveDays(userId: string, from: string, to: string): Promise<Array<{ date: string; portion: number; paid: boolean }>>;
 }
 
+/**
+ * An employee's working days (2026-11-28), for the call average: today in the business day, their weekly off and holidays, their
+ * approved leave (a half day is 0.5), and the day they joined. Built in the container from HR, Identity and Config.
+ */
+export interface WorkingCalendarPort {
+  today(): Promise<string>;
+  offDates(userId: string, from: string, to: string): Promise<string[]>;
+  leaveDays(userId: string, from: string, to: string): Promise<Array<{ date: string; portion: number }>>;
+  /** `YYYY-MM-DD`, or null when not recorded. */
+  joinedOn(userId: string): Promise<string | null>;
+}
+
 /** Call average and coverage (2026-11-27): Field Activity's counted daily reports with their calls, and each employee's calls per Doctor. */
 export interface CallFiguresPort {
   callFigures(

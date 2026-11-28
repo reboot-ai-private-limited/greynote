@@ -75,6 +75,8 @@ export type CallPerformanceRow = {
   employee: { id: string; name: string; employeeCode: string; designation: string | null };
   isManager: boolean;
   fieldDays: number;
+  /** Days due to work: all but the weekly off, holidays and leave (2026-11-28; absent from older servers). */
+  workingDays?: number;
   doctorCalls: number;
   chemistCalls: number;
   doctorCallAvg: number | null;

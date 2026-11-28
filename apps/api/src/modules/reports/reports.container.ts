@@ -1,5 +1,6 @@
 import type { Router } from 'express';
-import type { ConfigReader } from '@/shared/config/readConfig.js';
+import { readBusinessDay, type ConfigReader } from '@/shared/config/readConfig.js';
+import { businessDate } from '@/shared/time/businessTime.js';
 import { DoctorVisitsReport } from './application/doctorVisitsReport.js';
 import { CallPerformanceReport } from './application/callPerformanceReport.js';
 import { EmployeeSalesReport } from './application/employeeSalesReport.js';
@@ -16,7 +17,7 @@ import { StockReport } from './application/stockReport.js';
 import { TeamOverviewReport } from './application/teamOverviewReport.js';
 import { TaDaReport } from './application/taDaReport.js';
 import { MrStockFigures } from './application/mrStockFigures.js';
-import type { CallFiguresPort, PlaceNamesPort, LeaveDaysPort, DailyWorkActivityPort, DailyWorkPlanningPort, DoctorNamesPort, ExpenseStatementPort, SecondaryLinesPort, SecondaryRollupsPort, AttendancePort, DesignationLevelsPort, EmployeeSalesPort, StatementsPort, DoctorCallsPort, FieldActivityPort, FieldDaysPort, FieldRosterPort, IdentityPort, ManagerNamePort, MarketingPort, MasterPort, PayrollPort, PlanningPort, PlannedDoctorsPort, TourPlanExportPort, SalesPort, TerritoryPort, ZoneNamePort } from './domain/ports.js';
+import type { WorkingCalendarPort, CallFiguresPort, PlaceNamesPort, LeaveDaysPort, DailyWorkActivityPort, DailyWorkPlanningPort, DoctorNamesPort, ExpenseStatementPort, SecondaryLinesPort, SecondaryRollupsPort, AttendancePort, DesignationLevelsPort, EmployeeSalesPort, StatementsPort, DoctorCallsPort, FieldActivityPort, FieldDaysPort, FieldRosterPort, IdentityPort, ManagerNamePort, MarketingPort, MasterPort, PayrollPort, PlanningPort, PlannedDoctorsPort, TourPlanExportPort, SalesPort, TerritoryPort, ZoneNamePort } from './domain/ports.js';
 import type { ReportsPublicContract } from './reports.public.js';
 import { makeReportsControllers } from './interface/reports.controller.js';
 import { buildReportsRouter } from './interface/reports.route.js';
@@ -32,7 +33,7 @@ export interface ReportsContainer {
  * passed in by the composition root.
  */
 export function buildReportsContainer(
-  identity: IdentityPort & FieldRosterPort & DesignationLevelsPort & ManagerNamePort,
+  identity: IdentityPort & FieldRosterPort & DesignationLevelsPort & ManagerNamePort & { getEmploymentDetails(userId: string): Promise<{ dateOfJoining: Date | null } | null> },
   master: MasterPort & DoctorNamesPort,
   sales: SalesPort & StatementsPort & EmployeeSalesPort & SecondaryLinesPort & SecondaryRollupsPort,
   fieldActivity: FieldActivityPort & FieldDaysPort & DoctorCallsPort & DailyWorkActivityPort & ExpenseStatementPort & CallFiguresPort,
@@ -42,8 +43,23 @@ export function buildReportsContainer(
   attendance: AttendancePort,
   marketing: MarketingPort,
   config: ConfigReader,
-  hr: LeaveDaysPort,
+  hr: LeaveDaysPort & { listOffDates(userId: string, from: string, to: string): Promise<string[]> },
+  now: () => Date = () => new Date(),
 ): ReportsContainer {
+  // Working days for the call average (2026-11-28): HR's weekly offs, holidays and leave, Identity's joining date, Config's business day.
+  const calendar: WorkingCalendarPort = {
+    today: async () => {
+      const { timeZone, dayStart } = await readBusinessDay(config);
+      return businessDate(now(), timeZone, dayStart);
+    },
+    offDates: (userId, from, to) => hr.listOffDates(userId, from, to),
+    leaveDays: (userId, from, to) => hr.listLeaveDays(userId, from, to),
+    joinedOn: async (userId) => {
+      const joined = (await identity.getEmploymentDetails(userId))?.dateOfJoining;
+      // A date of record: read in the business timezone, not shifted by the day start.
+      return joined ? businessDate(joined, (await readBusinessDay(config)).timeZone, '00:00') : null;
+    },
+  };
   const achievement = new MrStockFigures(sales);
   const orders = new OrdersReport(sales, master, identity);
   const salesReport = new SalesReport(sales, master, config);
@@ -54,7 +70,7 @@ export function buildReportsContainer(
   const salesDashboard = new SalesDashboardReport(identity, planning, attendance, fieldActivity, marketing, master, territory, config, achievement);
   const employeeSales = new EmployeeSalesReport(sales, marketing, master, identity, identity, achievement);
   const secondarySheet = new SecondarySheetReport(marketing, master, identity, config, achievement);
-  const callPerformance = new CallPerformanceReport(identity, identity, fieldActivity, planning, master, territory);
+  const callPerformance = new CallPerformanceReport(identity, identity, fieldActivity, planning, master, calendar, territory);
   const monthlyWork = new EmployeeMonthlyWorkReport(planning, fieldActivity, attendance, sales, territory, identity, master, fieldActivity, hr, config, () => new Date(), callPerformance);
   const tourPlan = new TourPlanReport(planning, territory, identity);
   const salesBreakdown = new SalesBreakdownReport(salesDashboard, marketing, master, achievement, identity, config);
