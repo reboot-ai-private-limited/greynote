@@ -109,9 +109,9 @@ export default function TeamMemberScreen() {
               {chip ? <Pill text={chip.text.replace('Daily plan ', 'Plan ')} accent={chip.accent} /> : null}
             </View>
             <View style={styles.actions}>
-              {member.phone ? <PrimaryButton label={`📞 Call ${member.phone}`} variant="text" onPress={() => void Linking.openURL(`tel:${member.phone}`)} /> : null}
-              {blocked ? <PrimaryButton label="Unblock" variant="text" disabled={fy.isPast} onPress={() => router.push({ pathname: '/unblock', params: { userId: String(id) } })} /> : null}
-              <PrimaryButton label="Late exception" variant="text" disabled={fy.isPast} onPress={() => router.push({ pathname: '/late-grants', params: { userId: String(id) } })} />
+              {member.phone ? <PrimaryButton label={`📞 Call ${member.phone}`} variant="outline" onPress={() => void Linking.openURL(`tel:${member.phone}`)} /> : null}
+              {blocked ? <PrimaryButton label="🔓 Unblock" variant="outline" disabled={fy.isPast} onPress={() => router.push({ pathname: '/unblock', params: { userId: String(id) } })} /> : null}
+              <PrimaryButton label="⏱ Late exception" variant="outline" disabled={fy.isPast} onPress={() => router.push({ pathname: '/late-grants', params: { userId: String(id) } })} />
             </View>
             {blocked ? <ThemedText type="small" themeColor="danger">{`${member.name} missed a daily report and can’t log or submit anything until unblocked.`}</ThemedText> : null}
             <DayPicker value={day} onChange={(d) => setDay(d > tomorrow ? tomorrow : d)} min={fy.firstMonth ? `${fy.firstMonth}-01` : undefined} max={tomorrow} />
@@ -210,6 +210,6 @@ export default function TeamMemberScreen() {
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   grow: { flex: 1, gap: 2 },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.two },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.three, marginVertical: Spacing.two },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
 });

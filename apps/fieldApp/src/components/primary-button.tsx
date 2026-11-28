@@ -7,7 +7,8 @@ import { useTheme } from '@/hooks/use-theme';
 export type PrimaryButtonProps = Omit<PressableProps, 'children'> & {
   label: string;
   loading?: boolean;
-  variant?: 'filled' | 'text';
+  /** `outline` (2026-11-28): a bordered button for secondary actions that must still look like buttons (a profile's Call, Late exception). */
+  variant?: 'filled' | 'text' | 'outline';
 };
 
 export function PrimaryButton({
@@ -27,6 +28,7 @@ export function PrimaryButton({
       style={(state) => [
         variant === 'filled' && styles.filled,
         variant === 'filled' && { backgroundColor: theme.primary },
+        variant === 'outline' && [styles.outline, { borderColor: theme.primary, backgroundColor: theme.background }],
         isDisabled && styles.disabled,
         state.pressed && !isDisabled && styles.pressed,
         typeof style === 'function' ? style(state) : style,
@@ -47,6 +49,7 @@ export function PrimaryButton({
 }
 
 const styles = StyleSheet.create({
+  outline: { borderWidth: 1.5, borderRadius: 999, paddingVertical: Spacing.two, paddingHorizontal: Spacing.three, alignItems: 'center', justifyContent: 'center', minHeight: 40 },
   filled: {
     borderRadius: Spacing.two,
     paddingVertical: Spacing.three,
