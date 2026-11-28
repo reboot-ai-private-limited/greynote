@@ -480,6 +480,18 @@ export function runSync(options: RunSyncOptions = {}): Promise<void> {
 }
 
 /**
+ * The user asked for a sync (2026-11-28: the ↻ on every screen, pull-down, the Home sync line, an arriving notification): send what is
+ * unsent, then pull everything, whatever the pacing says. Waits for a sync already running first, since that one may have skipped its
+ * pull. Says what went wrong in plain words; `ok` is false offline.
+ */
+export async function syncNow(): Promise<{ ok: boolean; message: string | null }> {
+  if (!isOnline()) return { ok: false, message: 'You’re offline. Showing what’s saved on this phone.' };
+  if (running) await running.catch(() => undefined);
+  await runSync({ pullIfOlderThan: 0, force: true });
+  return status.lastError ? { ok: false, message: `Couldn’t sync: ${status.lastError}` } : { ok: true, message: null };
+}
+
+/**
  * A pull right now, after the user changed something (a call, a plan, a request). It joins a pull already running, and reuses one that
  * finished in the last few seconds (`PULL_REUSE_MS`), so a save never starts two.
  */

@@ -1,12 +1,13 @@
 import { router } from 'expo-router';
 import { useRef, useState, type ReactNode } from 'react';
-import { KeyboardAvoidingView, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MaxContentWidth, Spacing, WideContentWidth } from '@/constants/theme';
 import { EndReachedContext } from '@/hooks/use-end-reached';
 import { ScrollAreaContext } from '@/hooks/use-form-errors';
 import { useTheme } from '@/hooks/use-theme';
+import { useSyncNow } from '@/offline/hooks';
 
 import { PrimaryButton } from './primary-button';
 import { ThemedText } from './themed-text';
@@ -27,7 +28,8 @@ type Props = {
 
 /**
  * The frame every pushed screen shares: back button, title, centred and width-capped scroll area.
- * Pass `onRefresh` to let the list be pulled down to reload, and `footer` to pin the main actions at the bottom.
+ * Every screen can be synced by hand (2026-11-28): the ↻ beside Back, or pulling the screen down, sends what is unsent and pulls fresh
+ * data. A screen's own `onRefresh` (a list it loads itself) runs alongside. `footer` pins the main actions at the bottom.
  */
 export function ScreenShell({ title, children, onRefresh, refreshing = false, subtitle, wide, footer }: Props) {
   const theme = useTheme();
@@ -40,6 +42,11 @@ export function ScreenShell({ title, children, onRefresh, refreshing = false, su
   const viewport = useRef(0);
   const NEAR = 300;
   const [area] = useState(() => ({ ref: scrollRef, frame: frameRef, offset }));
+  const sync = useSyncNow();
+  const refreshAll = () => {
+    onRefresh?.();
+    void sync.run();
+  };
   return (
     <ThemedView style={styles.flex}>
       <SafeAreaView style={styles.flex}>
@@ -61,7 +68,7 @@ export function ScreenShell({ title, children, onRefresh, refreshing = false, su
             scrollEventThrottle={32}
             contentContainerStyle={[styles.content, { maxWidth }]}
             keyboardShouldPersistTaps="handled"
-            refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} /> : undefined}>
+            refreshControl={<RefreshControl refreshing={refreshing || sync.busy} onRefresh={refreshAll} />}>
             <View style={styles.header}>
               <View style={styles.flex}>
                 <ThemedText type="subtitle" style={styles.title} numberOfLines={1}>
@@ -73,8 +80,23 @@ export function ScreenShell({ title, children, onRefresh, refreshing = false, su
                   </ThemedText>
                 ) : null}
               </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Sync now"
+                accessibilityState={{ busy: sync.busy, disabled: sync.busy }}
+                disabled={sync.busy}
+                hitSlop={8}
+                onPress={refreshAll}
+                style={({ pressed }) => [styles.sync, { borderColor: theme.border }, pressed && styles.pressed]}>
+                {sync.busy ? <ActivityIndicator size="small" color={theme.primary} /> : <ThemedText type="smallBold" themeColor="primary" style={styles.syncIcon}>↻</ThemedText>}
+              </Pressable>
               <PrimaryButton label="Back" variant="text" onPress={() => router.back()} />
             </View>
+            {sync.message ? (
+              <ThemedText type="small" themeColor="textSecondary" accessibilityLiveRegion="polite">
+                {sync.message}
+              </ThemedText>
+            ) : null}
             <EndReachedContext.Provider value={endRef}>
               <ScrollAreaContext.Provider value={area}>{children}</ScrollAreaContext.Provider>
             </EndReachedContext.Provider>
@@ -101,6 +123,9 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  sync: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  syncIcon: { fontSize: 20, lineHeight: 22 },
+  pressed: { opacity: 0.6 },
   title: { fontSize: 28, lineHeight: 34 },
   footer: { borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
   footerInner: { width: '100%', alignSelf: 'center' },

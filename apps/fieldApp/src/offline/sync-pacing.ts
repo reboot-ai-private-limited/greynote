@@ -1,9 +1,11 @@
 /**
  * How often the phone refreshes its lists from the server (2026-11-27). The sync used to schedule itself again every 5 s, forever; now:
  * on sign-in and reconnect, on returning to the app after 15+ minutes away, every 15 minutes while open, and shortly after a save when the
- * last pull is over a minute old. After an error, attempts back off from 30 s up to 15 minutes. Pull-to-refresh always pulls.
+ * last pull is over a minute old; every minute while today's Daily Plan waits for approval. After an error, attempts back off from 30 s up to 15 minutes. Pull-to-refresh always pulls.
  */
 export const PULL_EVERY_MS = 15 * 60_000;
+/** While today's Daily Plan waits for approval (2026-11-28): a pull this often, so the day opens soon after the manager approves. */
+export const PULL_WHILE_WAITING_MS = 60_000;
 /** After a save: send at once, but pull again only if the last pull is older than this. */
 export const PULL_AFTER_SAVE_MS = 60_000;
 /** `refreshNow()` straight after another pull reuses it. */

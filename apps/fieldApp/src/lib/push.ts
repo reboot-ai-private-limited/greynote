@@ -7,6 +7,7 @@ import { ApiError, apiDelete, apiPut } from './api';
 import { getDeviceInfo } from './device';
 import { markInboxRead, nudgeInbox } from './inbox';
 import { storage } from './storage';
+import { syncNow } from '@/offline/engine';
 
 /**
  * Push notifications through Firebase (docs/mobile/notifications.md). The server sends to the phone's own FCM token; every push
@@ -194,9 +195,15 @@ const ROUTES: Record<string, Href> = {
 };
 export const screenFor = (route: unknown): Href => (typeof route === 'string' ? (ROUTES[route] ?? '/inbox') : '/inbox');
 
-/** A push arrived while the app is open: the unread count is read again. */
+/**
+ * A push arrived while the app is open: the unread count is read again, and the phone syncs (2026-11-28), so an approval it announces
+ * opens the day at once instead of at the next 15-minute pull.
+ */
 export function watchPushArrived(): () => void {
-  const sub = notifications()?.addNotificationReceivedListener(() => nudgeInbox());
+  const sub = notifications()?.addNotificationReceivedListener(() => {
+    nudgeInbox();
+    void syncNow();
+  });
   return () => sub?.remove();
 }
 
@@ -223,5 +230,6 @@ async function openFromPush(response: PushResponse | null | undefined) {
   const messageId = typeof data?.messageId === 'string' ? data.messageId : null;
   if (messageId) await markInboxRead(messageId).catch(() => undefined);
   nudgeInbox();
+  void syncNow(); // the screen it opens should show what the push announced
   router.push(screenFor(data?.route));
 }

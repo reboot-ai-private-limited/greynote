@@ -1,8 +1,8 @@
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 
 import { Spacing } from '@/constants/theme';
 import { useOnline } from '@/offline/connectivity';
-import { useOutboxCounts, useSyncStatus } from '@/offline/hooks';
+import { useOutboxCounts, useSyncNow, useSyncStatus } from '@/offline/hooks';
 
 import { ThemedText } from './themed-text';
 
@@ -15,12 +15,16 @@ function ago(iso: string | null): string {
   return hours < 24 ? `${hours} h ago` : `${Math.round(hours / 24)} d ago`;
 }
 
-/** The status strip at the bottom of the Home header: connection, unsent records, and when reference data last refreshed. Sits on the blue header, so it is white-on-translucent. */
+/**
+ * The status strip at the bottom of the Home header: connection, unsent records, and when reference data last refreshed. A tap syncs now
+ * (2026-11-28). Sits on the blue header, so it is white-on-translucent.
+ */
 export function SyncChip() {
   const online = useOnline();
   const counts = useOutboxCounts();
   const { syncing, lastPullAt, lastError } = useSyncStatus();
   const unsent = counts.DRAFT + counts.QUEUED + counts.FAILED;
+  const sync = useSyncNow();
 
   const parts = [
     syncing ? 'Syncing…' : online ? 'Online' : 'Offline',
@@ -28,10 +32,22 @@ export function SyncChip() {
     `Updated ${ago(lastPullAt)}`,
   ];
   return (
-    <View style={styles.chip}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${parts.join(', ')}. Sync now`}
+      accessibilityState={{ busy: syncing, disabled: sync.busy }}
+      disabled={sync.busy}
+      onPress={() => void sync.run()}
+      style={({ pressed }) => [styles.chip, pressed && styles.pressed]}>
       <ThemedText type="small" style={styles.text}>
         {parts.join('  |  ')}
+        {syncing ? '' : '  ·  ↻ Sync'}
       </ThemedText>
+      {sync.message && !lastError ? (
+        <ThemedText type="small" style={styles.warning}>
+          {sync.message}
+        </ThemedText>
+      ) : null}
       {counts.FAILED > 0 ? (
         <ThemedText type="small" style={styles.alert}>
           {counts.FAILED} record{counts.FAILED === 1 ? '' : 's'} failed — open Summary to fix.
@@ -42,7 +58,7 @@ export function SyncChip() {
           {lastError}
         </ThemedText>
       ) : null}
-    </View>
+    </Pressable>
   );
 }
 
@@ -55,6 +71,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.18)',
     alignSelf: 'stretch',
   },
+  pressed: { opacity: 0.7 },
   text: { color: '#FFFFFF', fontSize: 12, lineHeight: 18 },
   alert: { color: '#FFD9D9', fontSize: 12, lineHeight: 18 },
   warning: { color: '#FFE9B8', fontSize: 12, lineHeight: 18 },

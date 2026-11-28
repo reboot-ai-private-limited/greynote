@@ -1,11 +1,15 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { AppState } from 'react-native';
 
 import { useSessionUser } from '@/lib/session';
 
+import type { ConfigSnapshot, PlanningSnapshot } from '@/types/sync';
+
+import { useCachedSource } from './cache';
 import { onReconnect, startConnectivityWatch } from './connectivity';
-import { getSyncStatus, runSync, subscribeSyncStatus } from './engine';
-import { PULL_AFTER_SAVE_MS, PULL_EVERY_MS } from './sync-pacing';
+import { businessToday } from './day';
+import { getSyncStatus, runSync, subscribeSyncStatus, syncNow } from './engine';
+import { PULL_AFTER_SAVE_MS, PULL_EVERY_MS, PULL_WHILE_WAITING_MS } from './sync-pacing';
 import { countByStatus, listRecords, subscribeOutbox } from './outbox';
 import type { OutboxRecord, OutboxStatus, SyncKind } from './types';
 
@@ -37,12 +41,26 @@ export function useSyncStatus() {
 /**
  * Keeps the phone current while a user is signed in (2026-11-27 pacing, sync-pacing.ts): a full sync at sign-in and when the phone comes
  * back online; on returning to the app when the last pull is 15+ minutes old; every 15 minutes while the app is open; and 5 s after the
- * outbox changes (sends at once, pulls only if the last pull is over a minute old). Mount once, in the root layout.
+ * outbox changes (sends at once, pulls only if the last pull is over a minute old). While today's Daily Plan waits for approval, a pull
+ * every minute instead (2026-11-28), so the day opens soon after the manager approves. Mount once, in the root layout.
  */
 export function useAutoSync() {
   const user = useSessionUser();
   // The /sync endpoints are FIELD-only; the other roles use the web portal and would get a 403.
   const signedIn = user?.role === 'FIELD';
+  const planning = useCachedSource<PlanningSnapshot>('planning');
+  const config = useCachedSource<ConfigSnapshot>('config');
+  const today = businessToday(config.data?.settings.BUSINESS_TIMEZONE, new Date(), config.data?.settings.DAY_START_TIME);
+  const todayStatus = planning.data?.dailyPlans.find((p) => p.planDate === today)?.status ?? null;
+  const waiting = todayStatus === 'SUBMITTED' || todayStatus === 'MANAGER_APPROVED';
+
+  useEffect(() => {
+    if (!signedIn || !waiting) return;
+    const every = setInterval(() => {
+      if (AppState.currentState === 'active') void runSync({ pullIfOlderThan: PULL_WHILE_WAITING_MS });
+    }, PULL_WHILE_WAITING_MS);
+    return () => clearInterval(every);
+  }, [signedIn, waiting]);
 
   useEffect(() => {
     const stopWatch = startConnectivityWatch();
@@ -94,4 +112,27 @@ export function useRecords(kinds: SyncKind[]): { records: OutboxRecord[]; loaded
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
   return state;
+}
+
+/**
+ * A sync the user started (2026-11-28): `run()` sends, pulls and, when it can't, leaves a short message for a few seconds. `busy` is only
+ * this sync, not a background one, so a pull-down spinner doesn't spin for syncs the user didn't ask for.
+ */
+export function useSyncNow(): { run: () => Promise<void>; busy: boolean; message: string | null } {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  useEffect(() => {
+    if (!message) return;
+    const t = setTimeout(() => setMessage(null), 5000);
+    return () => clearTimeout(t);
+  }, [message]);
+  const run = useCallback(async () => {
+    setBusy(true);
+    try {
+      setMessage((await syncNow()).message);
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+  return { run, busy, message };
 }
