@@ -10,6 +10,9 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ApprovalsPanel } from '@/components/team/approvals-panel';
 import { PeoplePanel } from '@/components/team/people-panel';
+import { useFinancialYear } from '@/lib/financial-year';
+import { getAllTeamDay, type TeamBoard } from '@/lib/team-section';
+import { useCachedFetch } from '@/offline/cached-fetch';
 import { ReportsPanel } from '@/components/team/reports-panel';
 import { BottomTabInset, Gradients, Spacing, WideContentWidth } from '@/constants/theme';
 import { useApprovalSummary } from '@/lib/team-section';
@@ -45,6 +48,11 @@ export default function TeamScreen() {
   };
 
   const waiting = badge.summary?.total ?? null;
+  // Today in one line under the title (2026-11-28), from the same read (and saved copy) as the Team section.
+  const fy = useFinancialYear();
+  const todayRows = useCachedFetch<TeamBoard>(`team-board:${fy.year}:${fy.effectiveToday}`, () => getAllTeamDay({ date: fy.effectiveToday, scope: 'all' }));
+  const t = todayRows.data?.totals;
+  const todayLine = t ? `${t.people} ${t.people === 1 ? 'person' : 'people'} · ${t.plansSubmitted ?? t.people - t.planNotApproved} plans in · ${t.reportsIn} reports in${t.onLeave ? ` · ${t.onLeave} on leave` : ''}` : 'Approvals, team and reports';
   const sections: { value: Section; label: string; badge?: number | null }[] = [
     { value: 'approvals', label: 'Approvals', badge: waiting },
     { value: 'people', label: 'Team' },
@@ -61,7 +69,7 @@ export default function TeamScreen() {
                 Team
               </ThemedText>
               <ThemedText type="small" style={styles.headerSub}>
-                Approvals, team and reports
+                {todayLine}
               </ThemedText>
             </View>
             <View style={styles.waiting}>
@@ -77,7 +85,7 @@ export default function TeamScreen() {
           <PillToggle options={sections} value={section} onChange={setSection} />
 
           {section === 'approvals' ? <ApprovalsPanel key={`a${round}`} summary={badge.summary} refreshSummary={refreshBadge} /> : null}
-          {section === 'people' ? <PeoplePanel key={`p${round}`} onShowApprovals={() => setSection('approvals')} /> : null}
+          {section === 'people' ? <PeoplePanel key={`p${round}`} /> : null}
           {section === 'reports' ? <ReportsPanel /> : null}
         </ScrollView>
       </SafeAreaView>
