@@ -96,7 +96,8 @@ export default function SummaryScreen() {
   const ofKind = (...kinds: SyncKind[]) => dayRecords.filter((r) => kinds.includes(r.kind));
   const doctorCalls = ofKind('DOCTOR_CALL');
   const chemistCalls = ofKind('CHEMIST_CALL');
-  const followups = ofKind('DOCTOR_FOLLOWUP', 'CHEMIST_FOLLOWUP');
+  const doctorFollowups = ofKind('DOCTOR_FOLLOWUP');
+  const chemistFollowups = ofKind('CHEMIST_FOLLOWUP');
   const expenses = ofKind('EXPENSE');
   const productName = (id: string) => master.data?.products.find((p) => p.id === id)?.name ?? 'Product';
   const outletName = (o: DayOrder) =>
@@ -241,10 +242,17 @@ export default function SummaryScreen() {
           ))}
         </CollapsibleSection>
       ) : null}
-      {followups.length > 0 ? (
-        <CollapsibleSection icon={sym('text.bubble', 'chat')} accent="indigo" title="Follow-ups" count={followups.length} summary={followups.map(describe).join(', ')} alert={notAccepted(followups)}>
-          {followups.map((r) => (
-            <RecordRow key={r.clientId} r={r} title={`${r.kind === 'DOCTOR_FOLLOWUP' ? 'Doctor' : 'Chemist'} · ${describe(r)}`} lines={[(r.payload as DayCall).remarks ? `“${(r.payload as DayCall).remarks}”` : null]} onError={setMsg} />
+      {doctorFollowups.length > 0 ? (
+        <CollapsibleSection icon={sym('text.bubble', 'chat')} accent="indigo" title="Doctor follow-ups" count={doctorFollowups.length} summary={doctorFollowups.map(describe).join(', ')} alert={notAccepted(doctorFollowups)}>
+          {doctorFollowups.map((r) => (
+            <RecordRow key={r.clientId} r={r} title={describe(r)} lines={[(r.payload as DayCall).remarks ? `“${(r.payload as DayCall).remarks}”` : null]} onError={setMsg} />
+          ))}
+        </CollapsibleSection>
+      ) : null}
+      {chemistFollowups.length > 0 ? (
+        <CollapsibleSection icon={sym('text.bubble', 'chat')} accent="teal" title="Chemist follow-ups" count={chemistFollowups.length} summary={chemistFollowups.map(describe).join(', ')} alert={notAccepted(chemistFollowups)}>
+          {chemistFollowups.map((r) => (
+            <RecordRow key={r.clientId} r={r} title={describe(r)} lines={[(r.payload as DayCall).remarks ? `“${(r.payload as DayCall).remarks}”` : null]} onError={setMsg} />
           ))}
         </CollapsibleSection>
       ) : null}
