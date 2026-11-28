@@ -15,8 +15,11 @@ import { Pill, SummaryStrip } from './ui-cards';
  * everywhere, so each reads the same way and downloads exactly what it shows.
  */
 
-/** "Excel ⤓": builds the sheet from what is on screen and hands it to the phone. Says where it went, or why it didn't. */
-export function ExcelButton({ fileName, sheet, disabled }: { fileName: string; sheet: () => XlsxSheet; disabled?: boolean }) {
+/**
+ * A green download button: `run` makes the file (on the phone, or the server's own sheet) and hands it over; the line under it says
+ * where it went, or why it didn't. `label` defaults to "Excel ⤓"; `hint` is a grey line under a wider button.
+ */
+export function DownloadButton({ run: make, label = 'Excel ⤓', hint, disabled, wide }: { run: () => Promise<string | null>; label?: string; hint?: string; disabled?: boolean; wide?: boolean }) {
   const theme = useTheme();
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
@@ -24,7 +27,7 @@ export function ExcelButton({ fileName, sheet, disabled }: { fileName: string; s
     setBusy(true);
     setNote(null);
     try {
-      const done = await downloadXlsx(fileName, sheet());
+      const done = await make();
       if (done) setNote({ ok: true, text: done });
     } catch (err) {
       setNote({ ok: false, text: err instanceof Error ? err.message : 'Couldn’t make the file. Try again.' });
@@ -33,14 +36,21 @@ export function ExcelButton({ fileName, sheet, disabled }: { fileName: string; s
     }
   };
   return (
-    <View style={styles.excelWrap}>
+    <View style={wide ? styles.wideWrap : styles.excelWrap}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Download as Excel"
+        accessibilityLabel={`Download ${label.replace(' ⤓', '')}${hint ? `, ${hint}` : ''}`}
         disabled={busy || disabled}
         onPress={() => void run()}
-        style={({ pressed }) => [styles.excel, { borderColor: Accents.green.border, backgroundColor: Accents.green.bg }, (pressed || disabled) && styles.dim]}>
-        {busy ? <ActivityIndicator size="small" color={Accents.green.solid} /> : <ThemedText type="smallBold" style={{ color: Accents.green.solid }}>Excel ⤓</ThemedText>}
+        style={({ pressed }) => [wide ? styles.wide : styles.excel, { borderColor: Accents.green.border, backgroundColor: Accents.green.bg }, (pressed || disabled) && styles.dim]}>
+        {busy ? (
+          <ActivityIndicator size="small" color={Accents.green.solid} />
+        ) : (
+          <>
+            <ThemedText type="smallBold" style={{ color: Accents.green.solid }} numberOfLines={1}>{label}</ThemedText>
+            {hint ? <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>{hint}</ThemedText> : null}
+          </>
+        )}
       </Pressable>
       {note ? (
         <ThemedText type="small" style={{ color: note.ok ? theme.textSecondary : theme.danger }} numberOfLines={2}>
@@ -49,6 +59,11 @@ export function ExcelButton({ fileName, sheet, disabled }: { fileName: string; s
       ) : null}
     </View>
   );
+}
+
+/** "Excel ⤓" for a list: builds the sheet on the phone from exactly the rows on screen. */
+export function ExcelButton({ fileName, sheet, disabled }: { fileName: string; sheet: () => XlsxSheet; disabled?: boolean }) {
+  return <DownloadButton run={() => downloadXlsx(fileName, sheet())} disabled={disabled} />;
 }
 
 /** One record: a bold title and a grey line on the left; a figure and a status pill on the right; a chevron when it opens. */
@@ -105,6 +120,7 @@ export function ReportList<R>({
   render,
   fileName,
   sheet,
+  download,
 }: {
   title: string;
   rows: R[];
@@ -114,8 +130,10 @@ export function ReportList<R>({
   note?: ReactNode;
   empty: string;
   render: (row: R, index: number) => ReactNode;
-  fileName: string;
-  sheet: () => XlsxSheet;
+  fileName?: string;
+  sheet?: () => XlsxSheet;
+  /** The server's own sheet for this report (the one Admin downloads), used instead of a phone-made one. */
+  download?: () => Promise<string | null>;
 }) {
   return (
     <View style={styles.stack}>
@@ -125,7 +143,11 @@ export function ReportList<R>({
       {note}
       <View style={styles.head}>
         <ThemedText type="smallBold" style={styles.grow}>{`${title}${hasData ? ` · ${rows.length}` : ''}`}</ThemedText>
-        <ExcelButton fileName={fileName} sheet={sheet} disabled={!hasData || rows.length === 0} />
+        {download ? (
+          <DownloadButton run={download} disabled={!hasData} />
+        ) : fileName && sheet ? (
+          <ExcelButton fileName={fileName} sheet={sheet} disabled={!hasData || rows.length === 0} />
+        ) : null}
       </View>
       {!hasData ? (
         state.loading ? (
@@ -150,6 +172,8 @@ const styles = StyleSheet.create({
   right: { alignItems: 'flex-end', gap: 4 },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, borderWidth: 1, borderRadius: Spacing.three, paddingVertical: Spacing.two + 2, paddingHorizontal: Spacing.three },
   excelWrap: { alignItems: 'flex-end', gap: 4, maxWidth: 200 },
+  wideWrap: { flexGrow: 1, flexBasis: 150, gap: 4 },
+  wide: { borderWidth: 1, borderRadius: Spacing.three, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, minHeight: 52, justifyContent: 'center' },
   excel: { borderWidth: 1, borderRadius: 999, paddingHorizontal: Spacing.three, paddingVertical: Spacing.one + 2, minWidth: 84, alignItems: 'center' },
   dim: { opacity: 0.6 },
 });

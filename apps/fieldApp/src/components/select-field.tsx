@@ -15,13 +15,15 @@ type Props<T extends string> = {
   value: T;
   onChange: (value: T) => void;
   disabled?: boolean;
+  /** The list floats over what is below instead of pushing it down (2026-11-28, the Reports year). The parent needs a zIndex. */
+  overlay?: boolean;
 };
 
 /**
  * A compact dropdown for a short list (a filter). The closed field shows the caption and the choice; opened, the options list under it.
  * Several can sit in one row: each takes an equal share (`flex: 1`).
  */
-export function SelectField<T extends string>({ label, options, value, onChange, disabled }: Props<T>) {
+export function SelectField<T extends string>({ label, options, value, onChange, disabled, overlay }: Props<T>) {
   const theme = useTheme();
   const [open, setOpen] = useState(false);
   const picked = options.find((o) => o.value === value);
@@ -41,7 +43,7 @@ export function SelectField<T extends string>({ label, options, value, onChange,
         <ThemedText type="small" themeColor="textSecondary">{open ? '▲' : '▼'}</ThemedText>
       </Pressable>
       {open ? (
-        <View style={[styles.panel, { backgroundColor: theme.background, borderColor: theme.border }]}>
+        <View style={[styles.panel, overlay && styles.floating, { backgroundColor: theme.background, borderColor: theme.border }]}>
           {options.map((o) => (
             <Pressable
               key={o.value}
@@ -68,6 +70,7 @@ const styles = StyleSheet.create({
   text: { flex: 1 },
   caption: { fontSize: 11, lineHeight: 14 },
   panel: { borderWidth: 1, borderRadius: Spacing.three, overflow: 'hidden' },
+  floating: { position: 'absolute', top: 56, left: 0, right: 0, zIndex: 10, elevation: 8, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
   option: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderBottomWidth: StyleSheet.hairlineWidth },
   dim: { opacity: 0.5 },
 });

@@ -4,7 +4,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChoiceChips } from '@/components/choice-chips';
-import { DownloadMenu } from '@/components/download-menu';
+import { DownloadButton } from '@/components/report-kit';
 import { FyBanner } from '@/components/fy-banner';
 import { MonthStepper } from '@/components/month-stepper';
 import { DcrReport, ExpensesReport, PlansReport } from '@/components/reports';
@@ -16,7 +16,10 @@ import { BottomTabInset, Spacing, WideContentWidth } from '@/constants/theme';
 import { selectFinancialYear, useFinancialYear } from '@/lib/financial-year';
 import { downloadSecondarySheet } from '@/lib/secondary-sheet';
 import { useSessionUser } from '@/lib/session';
-import { downloadMonthlyWorkReport } from '@/lib/work-reports';
+import { downloadMonthlyWorkReport, downloadTourPlan } from '@/lib/work-reports';
+import { apiGet } from '@/lib/api';
+import type { MonthlyPlanDetail } from '@/lib/planning';
+import { useCachedFetch } from '@/offline/cached-fetch';
 import { monthOf, prettyMonth } from '@/offline/day';
 
 type Tab = 'dcr' | 'plans' | 'expenses' | 'more';
@@ -55,6 +58,10 @@ export default function ReportsScreen() {
   const month = clamp(picked ?? start);
   const person = me ? { id: me.id, name: me.name } : null;
   const fyLabel = fy.label.replace(/^FY /, '');
+  // The Tour Plan downloads once approved; the same read the Plans tab uses.
+  const tourPlans = useCachedFetch<MonthlyPlanDetail[]>(`rep-tpm:${fy.year}:${month}`, () => apiGet<MonthlyPlanDetail[]>(`/planning/monthly?from=${month}&to=${month}`, { auth: true, fy: true }));
+  const tourPlan = (tourPlans.data ?? []).find((p) => p.planMonth === month) ?? null;
+  const tourApproved = tourPlan?.status === 'APPROVED' || tourPlan?.status === 'MANAGER_APPROVED';
 
   return (
     <ThemedView style={styles.container}>
@@ -67,6 +74,7 @@ export default function ReportsScreen() {
                 label="Financial year"
                 options={fy.options.map((o) => ({ value: String(o.year), label: o.year === fy.current ? `${o.label} · current` : o.label }))}
                 value={String(fy.year)}
+                overlay
                 onChange={(y) => {
                   if (!me) return;
                   setPicked(null);
@@ -79,6 +87,20 @@ export default function ReportsScreen() {
           <InfoCard>
             <MonthStepper value={month} onChange={setPicked} min={fy.firstMonth} max={fy.lastMonth} />
           </InfoCard>
+          {/* The server's detailed sheets, the same Admin downloads (2026-11-28): the main thing here, so above the tabs. */}
+          {person ? (
+            <View style={styles.downloads}>
+              <DownloadButton wide label="Monthly work ⤓" hint={`${prettyMonth(month)} · every day`} run={() => downloadMonthlyWorkReport(person, month, prettyMonth(month))} />
+              <DownloadButton wide label="Secondary sales ⤓" hint={`FY ${fyLabel}`} run={() => downloadSecondarySheet(person, fy.year, fyLabel)} />
+              <DownloadButton
+                wide
+                label="Tour Plan ⤓"
+                hint={tourPlan ? (tourApproved ? prettyMonth(month) : 'once approved') : 'none this month'}
+                disabled={!tourApproved}
+                run={() => downloadTourPlan(person, month, prettyMonth(month))}
+              />
+            </View>
+          ) : null}
           <ChoiceChips options={TABS} value={tab} onChange={setTab} />
 
           {tab === 'dcr' ? <DcrReport month={month} year={fy.year} /> : null}
@@ -100,27 +122,6 @@ export default function ReportsScreen() {
                   />
                 ))}
               </View>
-              {person ? (
-                <>
-                  <ThemedText type="smallBold">Detailed downloads</ThemedText>
-                  <DownloadMenu
-                    items={[
-                      {
-                        key: 'monthly-work',
-                        label: `Monthly work report (Excel) · ${prettyMonth(month)}`,
-                        hint: 'Every day: plan, DCR, doctors, calls, orders, TA / DA / other, leave',
-                        build: async () => ({ delivered: await downloadMonthlyWorkReport(person, month, prettyMonth(month)) }),
-                      },
-                      {
-                        key: 'secondary',
-                        label: `Secondary sales (Excel) · ${fyLabel}`,
-                        hint: 'Your targets and approved secondary by product and month',
-                        build: async () => ({ delivered: await downloadSecondarySheet(person, fy.year, fyLabel) }),
-                      },
-                    ]}
-                  />
-                </>
-              ) : null}
             </>
           ) : null}
         </ScrollView>
@@ -140,7 +141,8 @@ const styles = StyleSheet.create({
     paddingBottom: BottomTabInset + Spacing.six,
     gap: Spacing.three,
   },
-  head: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, zIndex: 2 },
+  head: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, zIndex: 10 },
+  downloads: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   title: { flex: 1 },
   year: { width: 190 },
   list: { gap: Spacing.two },

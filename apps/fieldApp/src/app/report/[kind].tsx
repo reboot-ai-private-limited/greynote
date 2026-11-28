@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, type Href } from 'expo-router';
 import { useState } from 'react';
 
 import { FyBanner } from '@/components/fy-banner';
@@ -8,9 +8,11 @@ import { ReportList, ReportRow } from '@/components/report-kit';
 import { STATUS_ACCENT } from '@/components/reports';
 import { ScreenShell } from '@/components/screen-shell';
 import { InfoCard } from '@/components/ui-cards';
+import { ThemedText } from '@/components/themed-text';
 import { STATUS_LABEL, type ApprovalStatus } from '@/lib/approvals';
 import { getDoctorVisits, stageOf, type DoctorVisitsReport, type VisitStage } from '@/lib/doctor-visits';
 import { useFinancialYear } from '@/lib/financial-year';
+import { downloadSecondarySheet } from '@/lib/secondary-sheet';
 import { listGifts, type GiftView } from '@/lib/gifts';
 import { listMyLeaves, type LeaveView } from '@/lib/leave';
 import { listOrders, orderValue, type OrderView } from '@/lib/marketing';
@@ -237,9 +239,21 @@ function TargetsReport({ month, year }: Props) {
       state={report}
       hasData={report.data !== null}
       tiles={t ? [{ label: 'Target', value: formatRupees(t.targetPaise), accent: 'blue' }, { label: 'Achieved', value: formatRupees(t.secondaryPaise), accent: 'green' }, { label: 'Achievement', value: pct(t.achievementPercent), accent: (t.achievementPercent ?? 0) >= 100 ? 'green' : 'amber' }] : undefined}
+      note={
+        rows.some((r) => r.targetQty !== null) ? (
+          <ThemedText type="small" themeColor="textSecondary">
+            {`In units: target ${rows.reduce((n, r) => n + (r.targetQty ?? 0), 0)} · achieved ${rows.reduce((n, r) => n + r.achievedQty, 0)}`}
+          </ThemedText>
+        ) : null
+      }
       empty="No target is set for this month."
       render={(r) => (
-        <ReportRow key={r.id} title={r.product?.name ?? 'All products'} subtitle={`Target ${formatRupees(r.amountPaise)} · achieved ${formatRupees(r.achievedPaise)}`} value={pct(r.achievementPercent)} />
+        <ReportRow
+          key={r.id}
+          title={r.product?.name ?? 'All products'}
+          subtitle={`Target ${formatRupees(r.amountPaise)}${r.targetQty !== null ? ` · ${r.targetQty} units` : ''} — achieved ${formatRupees(r.achievedPaise)} · ${r.achievedQty} units`}
+          value={pct(r.achievementPercent)}
+        />
       )}
       fileName={fileOf('TARGETS', month, me?.name)}
       sheet={() => ({
@@ -255,6 +269,7 @@ function TargetsReport({ month, year }: Props) {
 
 function SecondaryReport({ month, year }: Props) {
   const me = useSessionUser();
+  const fy = useFinancialYear();
   const counts = useCachedFetch<StockCountsMonth>(`rep-secondary:${year}:${month}`, () => getStockCounts(me?.id ?? '', month));
   const rows = (counts.data?.distributors ?? []).filter((d) => d.totals.issuedQty > 0 || d.totals.openingQty > 0 || d.totals.primaryQty > 0);
   const t = counts.data?.totals;
@@ -267,16 +282,10 @@ function SecondaryReport({ month, year }: Props) {
       tiles={t && counts.data ? [{ label: 'Value', value: formatRupees(t.issuedAmountPaise), accent: 'green' }, { label: 'Units', value: t.issuedQty, accent: 'blue' }, { label: 'Status', value: STOCK_COUNT_STATUS_TEXT[counts.data.status], accent: STOCK_COUNT_STATUS_ACCENT[counts.data.status] }] : undefined}
       empty="No secondary entered this month."
       render={(d) => (
-        <ReportRow key={d.distributorId} title={d.name} subtitle={`Opening ${d.totals.openingQty} · Primary ${d.totals.primaryQty} · Secondary ${d.totals.issuedQty} · Closing ${d.totals.closingQty}`} value={formatRupees(d.totals.issuedAmountPaise)} pill={{ text: STOCK_COUNT_STATUS_TEXT[d.status], accent: STOCK_COUNT_STATUS_ACCENT[d.status] }} />
+        <ReportRow key={d.distributorId} title={d.name} subtitle={`Opening ${d.totals.openingQty} · Primary ${d.totals.primaryQty} · Secondary ${d.totals.issuedQty} · Closing ${d.totals.closingQty}`} value={formatRupees(d.totals.issuedAmountPaise)} pill={{ text: STOCK_COUNT_STATUS_TEXT[d.status], accent: STOCK_COUNT_STATUS_ACCENT[d.status] }} onPress={() => router.push({ pathname: '/report/secondary-distributor', params: { month, distributorId: d.distributorId } } as unknown as Href)} />
       )}
-      fileName={fileOf('SECONDARY', month, me?.name)}
-      sheet={() => ({
-        sheet: `Secondary ${month}`,
-        title: `${me?.name ?? ''} · Secondary sales · ${prettyMonth(month)}`,
-        header: ['Distributor', 'Opening', 'Primary', 'Secondary', 'Closing', 'Value (₹)', 'Status'],
-        rows: rows.map((d) => [d.name, d.totals.openingQty, d.totals.primaryQty, d.totals.issuedQty, d.totals.closingQty, rupees(d.totals.issuedAmountPaise), STOCK_COUNT_STATUS_TEXT[d.status]]),
-        totals: t ? ['Total', t.openingQty, t.primaryQty, t.issuedQty, t.closingQty, rupees(t.issuedAmountPaise), ''] : undefined,
-      })}
+      // The Excel is Admin's Secondary sales sheet for the year (2026-11-28), not just these rows.
+      download={me ? () => downloadSecondarySheet({ id: me.id, name: me.name ?? 'Me' }, fy.year, fy.label.replace(/^FY /, '')) : undefined}
     />
   );
 }

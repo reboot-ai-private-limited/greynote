@@ -10,7 +10,7 @@ import { formatRupees } from '@/lib/money';
 import { getMyTaDaDays, getMyTaDaYear, type TaDaDay } from '@/lib/my-reports';
 import { getRejectionReason, workingTypeLabel, type DailyPlanDetail, type MonthlyPlanDetail } from '@/lib/planning';
 import { useSessionUser } from '@/lib/session';
-import { downloadTourPlan } from '@/lib/work-reports';
+import { downloadMonthlyWorkReport, downloadTourPlan } from '@/lib/work-reports';
 import { rupees } from '@/lib/xlsx';
 import { useCachedFetch } from '@/offline/cached-fetch';
 import { datesInMonth, prettyDay, prettyMonth } from '@/offline/day';
@@ -48,7 +48,6 @@ export function DcrReport({ month, year }: { month: string; year: number }) {
   const { from, to } = bounds(month);
   const list = useCachedFetch<DcrRow[]>(`rep-dcr:${year}:${month}`, () => apiGet<DcrRow[]>(`/field-activity/dcr?from=${from}&to=${to}`, { auth: true, fy: true }));
   const rows = [...(list.data ?? [])].sort((a, b) => b.reportDate.localeCompare(a.reportDate));
-  const calls = (r: DcrRow) => (r.doctorCalls ?? 0) + (r.chemistCalls ?? 0);
   const approved = rows.filter((r) => r.status === 'APPROVED' || r.status === 'MANAGER_APPROVED').length;
   const sentBack = rows.filter((r) => r.status === 'REJECTED').length;
 
@@ -73,14 +72,8 @@ export function DcrReport({ month, year }: { month: string; year: number }) {
           onPress={() => router.push({ pathname: '/dcr-report/[id]', params: { id: r.id } })}
         />
       )}
-      fileName={`GREYNOTE DCR ${month} ${who(me?.name)}.xlsx`}
-      sheet={() => ({
-        sheet: `DCR ${month}`,
-        title: `${me?.name ?? ''} · Daily reports · ${prettyMonth(month)}`,
-        header: ['Date', 'Doctor calls', 'Chemist calls', 'Follow-ups', 'Status'],
-        rows: rows.map((r) => [r.reportDate, r.doctorCalls ?? null, r.chemistCalls ?? null, r.followups ?? null, statusText(r.status)]),
-        totals: ['Total', rows.reduce((n, r) => n + (r.doctorCalls ?? 0), 0), rows.reduce((n, r) => n + (r.chemistCalls ?? 0), 0), rows.reduce((n, r) => n + (r.followups ?? 0), 0), `${rows.length} reports · ${rows.reduce((n, r) => n + calls(r), 0)} calls`],
-      })}
+      // The DCR's detailed Excel is Admin's Monthly work sheet: every day's plan, report, doctors and calls (2026-11-28).
+      download={me ? () => downloadMonthlyWorkReport({ id: me.id, name: me.name ?? 'Me' }, month, prettyMonth(month)) : undefined}
     />
   );
 }
