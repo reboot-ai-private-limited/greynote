@@ -163,7 +163,7 @@ export async function buildMonthlyWorkWorkbook(m: EmployeeMonthlyWorkModel): Pro
     line('Working days (no weekly off, holiday or leave)', cp.workingDays);
     line('Field days (counted DCRs)', cp.fieldDays);
     line('Doctor call average (per working day)', cp.doctorCallAvg ?? '—', undefined, true);
-    line('Chemist call average (per field day)', cp.chemistCallAvg ?? '—');
+    line('Chemist call average (per working day)', cp.chemistCallAvg ?? '—');
     line('Doctors held', cp.coverage.doctors);
     line('Doctors met at least once', cp.coverage.met, GREEN_FILL);
     line('Doctor coverage', pctText(cp.coverage.coveragePct), undefined, true);

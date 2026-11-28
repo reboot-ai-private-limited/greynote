@@ -331,7 +331,8 @@ export function SummaryStrip({ items }: { items: { label: string; value: string 
           <ThemedText type="smallBold" style={{ color: Accents[i.accent].solid, fontSize: 22, lineHeight: 28 }} numberOfLines={1} adjustsFontSizeToFit>
             {i.value}
           </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.small} numberOfLines={1}>
+          {/* Two lines, so a label like "Frequency cov." is read in full when four tiles share a phone's width (2026-11-28). */}
+          <ThemedText type="small" themeColor="textSecondary" style={styles.small} numberOfLines={2}>
             {i.label}
           </ThemedText>
         </View>
