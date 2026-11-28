@@ -22,7 +22,7 @@ function setup(people: P[], coverage: Record<string, { hqIds: string[]; zoneIds:
     list: async (q: { zoneId?: string }) => ({ items: HQS.filter((h) => h.status === 'active' && (!q.zoneId || h.zoneId === q.zoneId)), total: 0 }),
   } as never;
   const zones = { findById: async (id: string) => ZONES.find((z) => z.id === id) ?? null, list: async () => ({ items: ZONES, total: 2 }) } as never;
-  const routes = { list: async (q: { hqId: string }) => ({ items: [{ id: `r-${q.hqId}` }], total: 1 }) } as never;
+  const routes = { list: async (q: { hqId: string }) => ({ items: [{ id: `r-${q.hqId}` }], total: 1 }), listActiveWithinHqs: async (ids: string[]) => ids.map((id) => ({ id: `r-${id}` })) } as never;
   return new GetTeamTerritoryUseCase(users, cov, hqs, zones, routes);
 }
 
@@ -71,5 +71,20 @@ describe('a manager’s territory is computed from their team and what they own'
     // a ZSM who names no HQ owns every HQ of their Zone, found through their own level, not the all-staff list
     const zsm = await setup(demoTeam, { zsm: { hqIds: [], zoneIds: ['z1'] } }, new Set(demoTeam.map((p) => p.id))).execute('zsm');
     expect(zsm.zones[0]!.hqs.map((h) => [h.name, h.owned])).toEqual([['A', true], ['B', true]]);
+  });
+});
+
+describe('Admin’s view of a person’s HQs (2026-11-28)', () => {
+  it('a manager: their own HQ first, then the team’s, each with who is based there (not the manager) and its route count', async () => {
+    const { hqs } = await setup(company, { asm: { hqIds: ['hqA'], zoneIds: ['z1'] } }).forPerson('asm');
+    expect(hqs.map((h) => [h.name, h.own, h.people.map((p) => p.id), h.activeRoutes, h.zoneName])).toEqual([
+      ['A', true, ['mr1'], 1, 'North'],
+      ['B', false, ['mr2'], 1, 'North'],
+    ]);
+  });
+
+  it('an MR: just their own HQ', async () => {
+    const { hqs } = await setup(company).forPerson('mr2');
+    expect(hqs.map((h) => [h.name, h.own, h.people.length])).toEqual([['B', true, 0]]);
   });
 });

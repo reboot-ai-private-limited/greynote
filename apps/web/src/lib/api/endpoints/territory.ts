@@ -150,6 +150,18 @@ export interface UserRouteDto {
 export const userRoutesApi = {
   list: (token: string, userId: string, signal?: AbortSignal) =>
     request<UserRouteDto[]>(`/territory/users/${userId}/routes`, { token, signal }),
+  /** Their own HQ and their team's HQs (2026-11-28), with who is based in each and the active route count. Admin and HR. */
+  teamHqs: (token: string, userId: string, signal?: AbortSignal) => request<{ hqs: PersonTeamHqDto[] }>(`/territory/users/${userId}/team-hqs`, { token, signal }),
+};
+
+/** One HQ on a person's page: theirs (`own`) or a team member's, with the people based there (the person left out). */
+export type PersonTeamHqDto = {
+  id: string;
+  name: string;
+  zoneName: string;
+  own: boolean;
+  people: { id: string; name: string; employeeCode: string; designation: string | null }[];
+  activeRoutes: number;
 };
 
 /** Who can be an employee's manager (higher designation, covering their HQ), and the HQs and Zones a manager covers. Admin and HR; the Accountant may read candidates. */

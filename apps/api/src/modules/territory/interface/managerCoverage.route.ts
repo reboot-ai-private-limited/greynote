@@ -74,6 +74,14 @@ openApiRegistry.registerPath({
 });
 
 /** Mounted at `/users` (coverage of one manager) and `/manager-candidates`. */
+/** `GET /territory/users/:userId/team-hqs` — Admin and HR: a person's own HQ and their team's HQs, with who is based there and the route counts. */
+export function buildPersonTeamHqsRouter(team: GetTeamTerritoryUseCase): Router {
+  const router = Router();
+  router.use(authenticate(), requireRole('ADMIN', 'HR'));
+  router.get('/:userId/team-hqs', validate({ params: userIdParamsSchema }), asyncHandler(async (req, res) => sendSuccess(req, res, await team.forPerson(requiredParam(req.params, 'userId')), 'Their HQ and their team’s HQs.', 200)));
+  return router;
+}
+
 export function buildManagerCoverageRouter(useCases: { get: GetManagerCoverageUseCase; set: SetManagerCoverageUseCase; extend: ExtendManagerTerritoryUseCase; gaps: GetTerritoryGapsUseCase }): Router {
   const get: RequestHandler = asyncHandler(async (req, res) => sendSuccess(req, res, await useCases.get.execute(requiredParam(req.params, 'userId')), 'Manager coverage.', 200));
   const set: RequestHandler = asyncHandler(async (req, res) => {

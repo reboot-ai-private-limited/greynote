@@ -19,6 +19,15 @@ export interface TeamHq {
   /** The manager owns it (coverage, or a Zone they own whole) — so it shows even with nobody of theirs in it. */
   owned: boolean;
 }
+/** An HQ on Admin's view of a person's page (2026-11-28): who of the team is based there, and how many active routes it has. */
+export interface PersonTeamHq extends TeamHq {
+  /** It is the person's own main HQ. */
+  own: boolean;
+  /** Team members (the person left out) whose main HQ this is. */
+  people: Array<{ id: string; name: string; employeeCode: string; designation: string | null }>;
+  activeRoutes: number;
+}
+
 export interface TeamZone {
   id: string;
   name: string;
@@ -59,6 +68,30 @@ export class GetTeamTerritoryUseCase {
         }))
         .sort((a, b) => a.name.localeCompare(b.name)),
     };
+  }
+
+  /**
+   * Admin and HR, on a person's page (2026-11-28): the same HQs as their own Team view, each with who of the team is based there and its
+   * active routes count. Their own HQ comes first. Someone with nobody below them gets just their own HQ.
+   */
+  async forPerson(userId: string): Promise<{ hqs: Array<PersonTeamHq & { zoneName: string }> }> {
+    const { zones } = await this.execute(userId);
+    const downline = (await this.users.getDownline(userId)).map((u) => u.id);
+    const people = await this.users.listFieldEmployees([userId, ...downline]);
+    const ownHq = people.find((p) => p.id === userId)?.hqId ?? null;
+    const hqs = await Promise.all(
+      zones.flatMap((z) =>
+        z.hqs.map(async (h) => ({
+          ...h,
+          zoneName: z.name,
+          own: h.id === ownHq,
+          people: people.filter((p) => p.id !== userId && p.hqId === h.id).map((p) => ({ id: p.id, name: p.name, employeeCode: p.employeeCode, designation: p.designation })).sort((a, b) => a.name.localeCompare(b.name)),
+          // Both ends in this HQ — the same rule as the HQ's own route list, so the counts agree (a route into another HQ is left out).
+          activeRoutes: (await this.routes.listActiveWithinHqs([h.id])).length,
+        })),
+      ),
+    );
+    return { hqs: hqs.sort((a, b) => Number(b.own) - Number(a.own) || a.name.localeCompare(b.name)) };
   }
 
   /** The active routes of one HQ in the manager's view, paged and searched; an HQ outside it is a 403, never an empty list. */

@@ -3,6 +3,7 @@
 import type { UserDetailDto } from '@greynote/contracts';
 import { useState } from 'react';
 import { useAllHqs } from '@/features/territory/hooks/useHqs';
+import { useTeamHqs } from '@/features/territory/hooks/useTeamHqs';
 import { useManagerCoverage, useSetTerritory } from '@/features/territory/hooks/useManagerCoverage';
 import { useAllZones } from '@/features/territory/hooks/useZones';
 import { territoryErrors, territoryRule } from '../lib/territoryRules';
@@ -20,6 +21,8 @@ export function TerritoryCard({ user, readOnly }: { user: UserDetailDto; readOnl
   const hqId = coverage.data?.hqIds[0];
   const hq = hqs.data?.find((h) => h.id === hqId);
   const zone = zones.data?.find((z) => z.id === hq?.zoneId);
+  // A manager's team is based in these too (2026-11-28); their own HQ stays the one above.
+  const teamHqs = (useTeamHqs(user.id).data ?? []).filter((h) => !h.own);
 
   return (
     <SectionCard
@@ -38,6 +41,7 @@ export function TerritoryCard({ user, readOnly }: { user: UserDetailDto; readOnl
             )}
           </Field>
           <Field label="Zone">{zone?.name ?? null}</Field>
+          {teamHqs.length > 0 ? <Field label="Team HQs">{teamHqs.map((h) => h.name).join(', ')}</Field> : null}
         </FieldList>
       }
       renderForm={(close) => <HqForm user={user} initial={hqId ? [hqId] : []} onDone={close} />}

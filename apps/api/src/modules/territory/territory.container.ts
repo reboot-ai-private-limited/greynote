@@ -35,7 +35,7 @@ import { GetManagerCoverageUseCase, SetManagerCoverageUseCase } from './applicat
 import { ListManagerCandidatesUseCase } from './application/usecases/listManagerCandidates.usecase.js';
 import { MongoManagerCoverageAdapter } from './infrastructure/mongoManagerCoverage.adapter.js';
 import { GetTeamTerritoryUseCase } from './application/usecases/getTeamTerritory.usecase.js';
-import { buildManagerCandidatesRouter, buildManagerCoverageRouter, buildTeamGapsRouter, buildTeamTerritoryRouter } from './interface/managerCoverage.route.js';
+import { buildManagerCandidatesRouter, buildManagerCoverageRouter, buildPersonTeamHqsRouter, buildTeamGapsRouter, buildTeamTerritoryRouter } from './interface/managerCoverage.route.js';
 import type { ManagerDirectoryPort } from './domain/managerDirectory.port.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
 import { SearchPlacesUseCase } from './application/usecases/searchPlaces.usecase.js';
@@ -300,6 +300,7 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
       router.use('/my-routes', buildMyRoutesRouter(makeMyRoutesController(listRoutesForUser)));
       router.use('/users', buildUserHqRouter({ ...userHq, routes: makeUserRoutesController(listRoutesForUser) }));
       router.use('/users', buildManagerCoverageRouter(managerCoverage));
+      router.use('/users', buildPersonTeamHqsRouter(teamTerritory));
       router.use('/manager-candidates', buildManagerCandidatesRouter(managerCandidates));
       router.use('/team-gaps', buildTeamGapsRouter(managerCoverage.gaps));
       router.use('/team', buildTeamTerritoryRouter(teamTerritory));
