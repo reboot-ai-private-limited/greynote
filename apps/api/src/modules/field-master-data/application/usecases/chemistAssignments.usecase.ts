@@ -113,15 +113,18 @@ export class ReviewChemistUseCase {
     private readonly chemists: ChemistRepositoryPort,
     private readonly assignments: ChemistAssignmentRepositoryPort,
     private readonly users: UserDirectoryPort,
+    private readonly places?: { getPlace(placeId: string): Promise<{ name: string } | null> },
   ) {}
 
-  async execute(actor: Actor, id: string): Promise<Chemist> {
+  /** The chemist, with its place's name (2026-11-28) for the approval preview. */
+  async execute(actor: Actor, id: string): Promise<Chemist & { placeName?: string | null }> {
     const chemist = await this.chemists.findById(id);
     if (!chemist) throw AppError.notFound('No such chemist.');
     const below = new Set((await this.users.getDownline(actor.id)).map((u) => u.id));
     const addedBelow = chemist.addedBy !== null && below.has(chemist.addedBy);
     const heldBelow = addedBelow || (await this.assignments.listActiveForChemist(id)).some((a) => below.has(a.userId));
     if (!addedBelow && !heldBelow) throw AppError.notFound('No such chemist.');
-    return chemist;
+    if (!this.places) return chemist;
+    return { ...chemist, placeName: chemist.placeId ? ((await this.places.getPlace(chemist.placeId))?.name ?? null) : null };
   }
 }

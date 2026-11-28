@@ -22,9 +22,10 @@ export class GetDailyPlanUseCase {
   /**
    * `routes`: the plan's routes named and typed, for a reader (a manager) who doesn't hold them. `workWithPeople`: the
    * colleagues of `workWith`, as `Name (Designation)`. `doctors`: each doctor to call with their name, so a reviewer reads who is planned
-   * (a doctor that is not there any more reads "Removed doctor").
+   * (a doctor that is not there any more reads "Removed doctor"), and `plannedBy`: which of the work-with people planned them, for a
+   * manager's day, whose doctors are theirs (2026-11-28; null when the doctor is on nobody's plan, e.g. an MR's own day).
    */
-  async execute(actor: Actor, planId: string): Promise<Omit<DailyPlanView, 'doctors'> & { doctors: Array<PlannedDoctor & { name: string }>; routes: PlanRoute[]; workWithPeople: PlanPerson[] }> {
+  async execute(actor: Actor, planId: string): Promise<Omit<DailyPlanView, 'doctors'> & { doctors: Array<PlannedDoctor & { name: string; plannedBy: PlanPerson | null }>; routes: PlanRoute[]; workWithPeople: PlanPerson[] }> {
     const plan = await this.plans.findById(planId);
     if (!plan) throw AppError.notFound('No such plan.');
     await assertCanRead(this.users, actor, plan.userId);
@@ -34,7 +35,16 @@ export class GetDailyPlanUseCase {
       makePlanPeopleNamer(this.users, [plan]),
     ]);
     const names = new Map((await this.doctorDirectory().getDoctorNames(plan.doctors.map((d) => d.doctorId))).map((d) => [d.id, d.name]));
-    const doctors = plan.doctors.map((d) => ({ ...d, name: names.get(d.doctorId) ?? 'Removed doctor' }));
+    // Who planned each doctor, among the people this day is spent with (their own plans for the same date).
+    const plannedBy = new Map<string, PlanPerson>();
+    if (plan.workWith.length > 0) {
+      const people = new Map(peopleOf(plan.workWith).map((p) => [p.id, p]));
+      for (const theirs of await this.plans.listForUsersOnDate(plan.workWith, plan.planDate)) {
+        const person = people.get(theirs.userId);
+        if (person) for (const d of theirs.doctors) if (!plannedBy.has(d.doctorId)) plannedBy.set(d.doctorId, person);
+      }
+    }
+    const doctors = plan.doctors.map((d) => ({ ...d, name: names.get(d.doctorId) ?? 'Removed doctor', plannedBy: plannedBy.get(d.doctorId) ?? null }));
     return { ...withPeople(view, peopleOf), doctors, routes };
   }
 }

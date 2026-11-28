@@ -115,6 +115,12 @@ describe('a manager reads a chemist to decide a new-chemist request', () => {
     expect((await review.execute(field('asm'), 'held')).name).toBe('Held Pharmacy');
   });
 
+  it('names the chemist’s place for the preview (2026-11-28)', async () => {
+    const withPlaces = new ReviewChemistUseCase(chemists, assignments, new FakeUsers(), { getPlace: async (id: string) => ({ name: `Place ${id}` }) });
+    const c = await withPlaces.execute(field('asm'), 'added');
+    expect(c.placeName).toBe(`Place ${chemists.rows.find((x) => x.id === 'added')!.placeId}`);
+  });
+
   it('anyone else gets the same 404 as an id that does not exist', async () => {
     await expectStatus(review.execute(field('asm'), 'other'), 404);
     await expectStatus(review.execute(field('stranger'), 'added'), 404);

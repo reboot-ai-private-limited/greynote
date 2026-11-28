@@ -110,7 +110,7 @@ export default function ReviewDoctorScreen() {
   const save = async () => {
     if (!doctor) return;
     if (!name.trim()) return setMsg({ tone: 'danger', text: 'Enter the doctor’s name.' });
-    if (!address.trim()) return setMsg({ tone: 'danger', text: 'Enter the doctor’s address.' });
+    if (!address.trim()) return setMsg({ tone: 'danger', text: 'Enter the area (road name).' });
     if (!specialty) return setMsg({ tone: 'danger', text: 'Choose the speciality.' });
     if (!qualification.trim()) return setMsg({ tone: 'danger', text: 'Enter the qualification.' });
     if (email.trim() && !EMAIL.test(email.trim())) return setMsg({ tone: 'danger', text: 'That email doesn’t look right.' });
@@ -178,7 +178,7 @@ export default function ReviewDoctorScreen() {
           <Notice tone="info">Change only what is wrong, then approve or reject the request as usual. The route stays as the employee chose it.</Notice>
           <CardSection icon={sym('stethoscope', 'medical_services')} accent="teal" title="Doctor">
             <TextField label="Name" value={name} onChangeText={setName} editable={!busy} maxLength={150} />
-            <TextField label="Address" value={address} onChangeText={setAddress} multiline editable={!busy} maxLength={500} />
+            <TextField label="Area (road name)" placeholder="e.g. Hill Cart Road" value={address} onChangeText={setAddress} multiline editable={!busy} maxLength={500} />
             <OutletPicker
               label="Speciality"
               options={specialties.map((s) => ({ id: s, name: s }))}

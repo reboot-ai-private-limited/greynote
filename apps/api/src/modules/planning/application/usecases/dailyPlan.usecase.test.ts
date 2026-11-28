@@ -160,6 +160,17 @@ describe('Daily Plan', () => {
     });
   });
 
+  it('says which of the work-with people planned each doctor on a manager’s day (2026-11-28)', async () => {
+    const mine = await save.execute(MR, DATE, fieldDay());
+    await kit.dailyPlans.saveDoctors(mine.id, mine.revision, [{ doctorId: 'doctor-1', carriedFrom: null }]);
+    const theirs = await save.execute(ASM, DATE, fieldDay({ workWith: [MR] }));
+    await kit.dailyPlans.saveDoctors(theirs.id, theirs.revision, [{ doctorId: 'doctor-1', carriedFrom: null }, { doctorId: 'doctor-9', carriedFrom: null }]);
+    const read = await get.execute({ id: ASM, role: 'FIELD' }, theirs.id);
+    expect(read.doctors.map((d) => [d.doctorId, d.plannedBy?.id ?? null])).toEqual([['doctor-1', MR], ['doctor-9', null]]);
+    // An MR's own day names nobody.
+    expect((await get.execute({ id: MR, role: 'FIELD' }, mine.id)).doctors.map((d) => d.plannedBy)).toEqual([null]);
+  });
+
   it('opens the DCR gate only once the plan is past the manager', async () => {
     expect(await status.isDailyPlanApproved(MR, DATE)).toBe(false); // no plan
     const plan = await save.execute(MR, DATE, fieldDay());

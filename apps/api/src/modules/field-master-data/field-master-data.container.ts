@@ -153,7 +153,7 @@ export function buildFieldMasterDataContainer(
     unassign: new UnassignChemistUseCase(chemistAssignments),
     listAssignments: new ListChemistAssignmentsUseCase(chemistAssignments, users),
     team: new ListTeamChemistsUseCase(chemists, chemistAssignments, users),
-    review: new ReviewChemistUseCase(chemists, chemistAssignments, users),
+    review: new ReviewChemistUseCase(chemists, chemistAssignments, users, territory),
   };
 
   const visibility = new DoctorVisibility(assignments, territory, users, config);
@@ -175,7 +175,7 @@ export function buildFieldMasterDataContainer(
   const doctorUseCases = {
     list: new ListDoctorsUseCase(doctors, views, users, assignments, territory),
     create: new CreateDoctorUseCase(doctors, territory, views, specialtyCatalog, (id, userId, adminId) => assignDoctor.execute(id, userId, adminId)),
-    get: new GetDoctorUseCase(doctors, visibility, views),
+    get: new GetDoctorUseCase(doctors, visibility, views, territory),
     update: updateDoctor,
     review: new ReviewPendingDoctorUseCase(doctors, users, updateDoctor),
     updateTargets: new UpdateDoctorTargetsUseCase(doctors, visibility, views),

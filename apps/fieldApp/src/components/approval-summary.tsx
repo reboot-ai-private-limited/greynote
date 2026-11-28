@@ -104,23 +104,44 @@ function DailyPlanSummary({ recordId }: { recordId: string }) {
         <>
           {dayLines(data, data.routes)}
           {isFieldDay(data.workingType) && data.doctors ? (
-            <>
-              <Line
-                label="Doctors to call"
-                value={
-                  data.doctors.length === 0
-                    ? 'No doctors were chosen for this plan'
-                    : `${data.doctors.length} doctor${data.doctors.length === 1 ? '' : 's'}${
-                        data.doctors.some((d) => d.carriedFrom) ? ` (${data.doctors.filter((d) => d.carriedFrom).length} missed earlier)` : ''
-                      }`
-                }
-              />
-              {data.doctors.map((d, i) => (
-                <ThemedText key={d.doctorId} type="small">
-                  {`${i + 1}. ${d.name ?? 'Doctor'}${d.carriedFrom ? ` — missed since ${prettyDay(d.carriedFrom)}` : ''}`}
-                </ThemedText>
-              ))}
-            </>
+            data.doctors.some((d) => d.plannedBy) ? (
+              // A manager's day (2026-11-28): the doctors are the ones the people they work with planned, shown by person.
+              <>
+                <Line label="Doctors to call" value={`${data.doctors.length} · from the people they work with`} />
+                {Object.values(
+                  data.doctors.reduce<Record<string, { who: string; names: string[] }>>((acc, d) => {
+                    const key = d.plannedBy?.id ?? '-';
+                    (acc[key] ??= { who: d.plannedBy?.label ?? 'Others', names: [] }).names.push(d.name ?? 'Doctor');
+                    return acc;
+                  }, {}),
+                ).map((g) => (
+                  <ThemedText key={g.who} type="small">
+                    <ThemedText type="smallBold">{`${g.who}: `}</ThemedText>
+                    {g.names.join(', ')}
+                  </ThemedText>
+                ))}
+              </>
+            ) : (
+              <>
+                <Line
+                  label="Doctors to call"
+                  value={
+                    data.doctors.length === 0
+                      ? data.workWith.length > 0
+                        ? 'The people they work with planned no doctors yet'
+                        : 'No doctors were chosen for this plan'
+                      : `${data.doctors.length} doctor${data.doctors.length === 1 ? '' : 's'}${
+                          data.doctors.some((d) => d.carriedFrom) ? ` (${data.doctors.filter((d) => d.carriedFrom).length} missed earlier)` : ''
+                        }`
+                  }
+                />
+                {data.doctors.map((d, i) => (
+                  <ThemedText key={d.doctorId} type="small">
+                    {`${i + 1}. ${d.name ?? 'Doctor'}${d.carriedFrom ? ` — missed since ${prettyDay(d.carriedFrom)}` : ''}`}
+                  </ThemedText>
+                ))}
+              </>
+            )
           ) : null}
           {data.source === 'MONTHLY' ?<ThemedText type="small" themeColor="textSecondary">From the approved Tour Plan.</ThemedText> : null}
         </>
@@ -176,32 +197,60 @@ function LeaveSummary({ recordId }: { recordId: string }) {
   );
 }
 
-function NewDoctorSummary({ recordId, canCorrect, who }: { recordId: string; canCorrect: boolean; who?: string }) {
+/** A date of record ("1980-05-12") as "12 May 1980". */
+const dateOfRecord = (iso: string | null | undefined) =>
+  iso ? new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${iso.slice(0, 10)}T00:00:00Z`)) : null;
+
+/** Where the phone was, with a link to a map, or that it wasn't captured. */
+function WhereLine({ where }: { where: { latitude: number; longitude: number } | null }) {
+  return (
+    <>
+      <Line label="Location" value={where ? `${where.latitude.toFixed(5)}, ${where.longitude.toFixed(5)} (where the phone was)` : 'Not captured'} />
+      {where ? (
+        <PrimaryButton label="Open in Maps" variant="text" onPress={() => void Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${where.latitude},${where.longitude}`)} />
+      ) : null}
+    </>
+  );
+}
+
+/** A heading inside a preview, matching the form's sections. */
+const Heading = ({ text }: { text: string }) => (
+  <ThemedText type="smallBold" themeColor="textSecondary" style={styles.heading}>
+    {text}
+  </ThemedText>
+);
+
+/** A new doctor waiting for a decision (2026-11-28): exactly what the form asked, in its order — where, the doctor, the location, who sent it. */
+function NewDoctorSummary({ request, canCorrect }: { request: ApprovalDetail; canCorrect: boolean }) {
+  const recordId = request.recordId;
   const { data, error } = useRecord(() => getDoctorRecord(recordId), 0);
   const where = data?.capturedLocation ?? data?.location ?? null;
+  const who = request.submitter ? `${request.submitter.name} (${request.submitter.employeeCode})` : null;
   return (
     <Frame title="New doctor" error={error} loading={!data}>
       {data ? (
         <>
+          <Heading text="Where" />
+          <Line label="Place" value={data.placeName ?? '—'} />
+          <Line label="Area (road name)" value={data.address || '—'} />
+          <Heading text="Doctor" />
           <DoctorAvatar name={data.name} photoUrl={data.photoUrl} size={64} />
           <Line label="Name" value={data.name} />
           <Line label="Speciality" value={data.specialty} />
           <Line label="Qualification" value={data.qualification} />
-          <Line label="Address" value={data.address} />
-          {data.clinicName ? <Line label="Clinic" value={data.clinicName} /> : null}
-          {data.phone ? <Line label="Phone" value={data.phone} /> : null}
-          {data.email ? <Line label="Email" value={data.email} /> : null}
-          {data.visitFrequency ? <Line label="Visits a month" value={String(data.visitFrequency)} /> : null}
-          <Line label="Location" value={where ? `${where.latitude.toFixed(5)}, ${where.longitude.toFixed(5)} (where the phone was)` : 'Not captured'} />
-          {where ? (
-            <PrimaryButton
-              label="Open in Maps"
-              variant="text"
-              onPress={() => void Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${where.latitude},${where.longitude}`)}
-            />
-          ) : null}
+          <Line label="Clinic" value={data.clinicName || '—'} />
+          <Line label="Phone" value={data.phone || '—'} />
+          <Line label="Email" value={data.email || '—'} />
+          <Line label="Date of birth" value={dateOfRecord(data.dateOfBirth) ?? '—'} />
+          <Line label="Anniversary" value={dateOfRecord(data.anniversary) ?? '—'} />
+          <Line label="Visits a month" value={data.visitFrequency ? String(data.visitFrequency) : '—'} />
+          <Heading text="Location" />
+          <WhereLine where={where} />
+          <Heading text="Sent" />
+          {who ? <Line label="Added by" value={who} /> : null}
+          <Line label="Sent" value={formatWhen(request.submittedAt)} />
           {canCorrect && data.status === 'pending' ? (
-            <PrimaryButton label="Correct details or location" variant="text" onPress={() => router.push({ pathname: '/review-doctor', params: { id: recordId, who: who ?? '' } })} />
+            <PrimaryButton label="Correct details or location" variant="text" onPress={() => router.push({ pathname: '/review-doctor', params: { id: recordId, who: request.submitter?.name ?? '' } })} />
           ) : null}
         </>
       ) : null}
@@ -239,22 +288,23 @@ function NewChemistSummary({ request }: { request: ApprovalDetail }) {
   const where = data?.capturedLocation ?? data?.location ?? null;
   return (
     <Frame title="New chemist" error={null} loading={false}>
+      <Heading text="Where" />
+      <Line label="Place" value={data?.placeName ?? subject?.subtitle ?? '—'} />
+      <Line label="Area (road name)" value={data?.address || '—'} />
+      <Heading text="Chemist" />
       <Line label="Name" value={data?.name ?? subject?.title ?? '—'} />
-      {subject?.subtitle ? <Line label="HQ · Route" value={subject.subtitle} /> : null}
-      {data?.address ? <Line label="Address" value={data.address} /> : null}
-      {data?.phone ? <Line label="Phone" value={data.phone} /> : null}
-      {who ? <Line label="Added by" value={who} /> : null}
-      <Line label="Sent" value={formatWhen(request.submittedAt)} />
+      <Line label="Phone" value={data?.phone || '—'} />
       {data ? (
         <>
-          <Line label="Location" value={where ? `${where.latitude.toFixed(5)}, ${where.longitude.toFixed(5)} (where the phone was)` : 'Not captured'} />
-          {where ? (
-            <PrimaryButton label="Open in Maps" variant="text" onPress={() => void Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${where.latitude},${where.longitude}`)} />
-          ) : null}
+          <Heading text="Location" />
+          <WhereLine where={where} />
         </>
       ) : error ? (
         <Notice tone="info">The address and location couldn’t be loaded here. To check them on a map before deciding, open this request in the web portal.</Notice>
       ) : null}
+      <Heading text="Sent" />
+      {who ? <Line label="Added by" value={who} /> : null}
+      <Line label="Sent" value={formatWhen(request.submittedAt)} />
     </Frame>
   );
 }
@@ -396,7 +446,7 @@ export function ApprovalSummary({ request, aside }: { request: ApprovalDetail; a
       record = <LeaveSummary recordId={request.recordId} />;
       break;
     case 'NEW_DOCTOR':
-      record = <NewDoctorSummary recordId={request.recordId} canCorrect={request.canAct} who={request.submitter?.name} />;
+      record = <NewDoctorSummary request={request} canCorrect={request.canAct} />;
       break;
     case 'NEW_CHEMIST':
       record = <NewChemistSummary request={request} />;
@@ -437,7 +487,8 @@ const styles = StyleSheet.create({
   stack: { gap: Spacing.three },
   frame: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   line: { flexDirection: 'row', gap: Spacing.two },
-  lineLabel: { width: 110 },
+  lineLabel: { width: 120 },
+  heading: { marginTop: Spacing.two, fontSize: 12, letterSpacing: 0.5, textTransform: 'uppercase' },
   lineValue: { flex: 1 },
   entry: { gap: Spacing.one, paddingTop: Spacing.two },
   day: { gap: Spacing.one, paddingTop: Spacing.two },

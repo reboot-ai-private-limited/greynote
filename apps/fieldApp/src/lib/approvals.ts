@@ -269,8 +269,9 @@ export type DailyPlanRecord = PlanDayView & {
   id: string;
   planDate: string;
   source: 'MANUAL' | 'MONTHLY';
-  /** The doctors to call (`carriedFrom` = a missed call still owed). Absent from older servers. */
-  doctors?: { doctorId: string; carriedFrom: string | null; /** Absent from older servers. */ name?: string }[];
+  /** The doctors to call (`carriedFrom` = a missed call still owed). Absent from older servers. `plannedBy`: on a manager's day, which of
+   *  the people they work with planned the doctor (2026-11-28); null otherwise. */
+  doctors?: { doctorId: string; carriedFrom: string | null; /** Absent from older servers. */ name?: string; plannedBy?: { id: string; label: string } | null }[];
   /** The plan's routes named and typed. Absent from older servers. */
   routes?: NamedRoute[];
 };
@@ -309,6 +310,8 @@ export type DoctorRecord = {
   location: { latitude: number; longitude: number } | null;
   capturedLocation: { latitude: number; longitude: number } | null;
   status: string;
+  /** Where the doctor sits, named (2026-11-28). Absent from older servers. */
+  placeName?: string | null;
 };
 export const getDoctorRecord = (id: string) => apiGet<DoctorRecord>(`/field-master-data/doctors/${id}`);
 
@@ -321,6 +324,8 @@ export type ChemistRecord = {
   location: { latitude: number; longitude: number } | null;
   capturedLocation: { latitude: number; longitude: number } | null;
   status: string;
+  /** Where the chemist sits, named (2026-11-28). Absent from older servers. */
+  placeName?: string | null;
 };
 export const getChemistReview = (id: string) => apiGet<ChemistRecord>(`/field-master-data/chemists/${id}/review`);
 

@@ -428,7 +428,8 @@ export default function AddDoctorScreen() {
           )}
           <FormField form={form} name="address" outline={false}>
             <TextField
-              label="Area"
+              label="Area (road name)"
+              placeholder="e.g. Hill Cart Road"
               value={address}
               onChangeText={(v) => {
                 setAddress(v);
