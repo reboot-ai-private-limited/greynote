@@ -75,18 +75,21 @@ export function CollapsibleSection({
   count,
   summary,
   alert,
+  defaultOpen = false,
   children,
 }: {
   icon: SymbolViewProps['name'];
   accent: Accent;
   title: string;
-  count: number;
+  count: number | string;
   summary?: string;
   alert?: string | null;
+  /** Open when it first appears (e.g. a section the user has just added). */
+  defaultOpen?: boolean;
   children: ReactNode;
 }) {
   const theme = useTheme();
-  const [opened, setOpened] = useState(false);
+  const [opened, setOpened] = useState(defaultOpen);
   const open = opened || Boolean(alert);
   return (
     <View style={[styles.card, { backgroundColor: theme.background, borderColor: alert ? Accents.red.border : theme.border }]}>

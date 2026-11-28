@@ -8,7 +8,7 @@ import { ScreenShell } from '@/components/screen-shell';
 import { Skeleton } from '@/components/skeleton';
 import { ThemedText } from '@/components/themed-text';
 import { TeamReportCard } from '@/components/team-report-card';
-import { InfoCard, SummaryStrip } from '@/components/ui-cards';
+import { CollapsibleSection, InfoCard, SummaryStrip, sym } from '@/components/ui-cards';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useFinancialYear } from '@/lib/financial-year';
@@ -93,28 +93,32 @@ export function SecondaryReportScreen() {
             ]}
           />
           {data.distributors.length === 0 ? <Notice tone="info">No approved secondary for this month yet.</Notice> : null}
-          {data.distributors.map((d) => (
-            <InfoCard key={d.distributorId}>
-              <View style={styles.between}>
-                <ThemedText type="smallBold" style={styles.grow}>{d.name}</ThemedText>
-                <ThemedText type="smallBold">{formatRupees(d.totals.issuedAmountPaise)}</ThemedText>
-              </View>
-              {d.lines
-                .filter((l) => l.openingQty > 0 || l.primaryQty > 0 || l.issuedQty > 0)
-                .map((l) => (
+          {/* Each distributor a card that opens on a tap (2026-11-28); a product opens to the MRs behind it. */}
+          {data.distributors.map((d) => {
+            const lines = d.lines.filter((l) => l.openingQty > 0 || l.primaryQty > 0 || l.issuedQty > 0);
+            return (
+              <CollapsibleSection
+                key={d.distributorId}
+                icon={sym('building.2', 'store')}
+                accent="blue"
+                title={d.name}
+                count={lines.length}
+                summary={`${formatRupees(d.totals.issuedAmountPaise)} · ${d.totals.issuedQty} units`}>
+                {lines.map((l) => (
                   <ProductRow key={l.product.id} line={l} />
                 ))}
-              <View style={[styles.total, { backgroundColor: theme.backgroundSelected, borderColor: theme.primary }]}>
-                <View style={styles.between}>
-                  <ThemedText type="smallBold" themeColor="primary" style={styles.grow}>Total</ThemedText>
-                  <ThemedText type="smallBold" themeColor="primary">{formatRupees(d.totals.issuedAmountPaise)}</ThemedText>
+                <View style={[styles.total, { backgroundColor: theme.backgroundSelected, borderColor: theme.primary }]}>
+                  <View style={styles.between}>
+                    <ThemedText type="smallBold" themeColor="primary" style={styles.grow}>Total</ThemedText>
+                    <ThemedText type="smallBold" themeColor="primary">{formatRupees(d.totals.issuedAmountPaise)}</ThemedText>
+                  </View>
+                  <ThemedText type="smallBold">
+                    {`Opening ${d.totals.openingQty} · Primary ${d.totals.primaryQty} · Secondary ${d.totals.issuedQty} · Closing ${d.totals.closingQty}`}
+                  </ThemedText>
                 </View>
-                <ThemedText type="smallBold">
-                  {`Opening ${d.totals.openingQty} · Primary ${d.totals.primaryQty} · Secondary ${d.totals.issuedQty} · Closing ${d.totals.closingQty}`}
-                </ThemedText>
-              </View>
-            </InfoCard>
-          ))}
+              </CollapsibleSection>
+            );
+          })}
         </>
       ) : null}
     </ScreenShell>

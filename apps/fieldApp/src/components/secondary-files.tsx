@@ -4,7 +4,7 @@ import { Image, Linking, Pressable, StyleSheet, View } from 'react-native';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { ApiError, NetworkError } from '@/lib/api';
-import { formatSize, pickProofFiles } from '@/lib/proof-picker';
+import { formatSize, pickProofFiles, takeProofPhoto, type PickedProof } from '@/lib/proof-picker';
 import { addSecondaryFile, removeSecondaryFile, type SecondaryAttachment } from '@/lib/sales';
 
 import { Notice } from './notice';
@@ -60,16 +60,12 @@ export function SecondaryFiles({
   const [problems, setProblems] = useState<string[]>([]);
   const [done, setDone] = useState<string | null>(null);
 
-  const add = async () => {
-    setProblems([]);
-    setDone(null);
-    if (!online) return setProblems(['You’re offline. Connect to the internet to attach files.']);
-    const picked = await pickProofFiles();
-    if (!picked) return;
-    const failed = [...picked.errors];
+  /** Sends the chosen files one after another; a file that fails is named, the rest still go. */
+  const upload = async (files: PickedProof[], errors: string[]) => {
+    const failed = [...errors];
     let sent = 0;
     setBusy(true);
-    for (const f of picked.files) {
+    for (const f of files) {
       try {
         await addSecondaryFile(month, f, forUserId);
         sent += 1;
@@ -81,6 +77,22 @@ export function SecondaryFiles({
     setProblems(failed);
     if (sent > 0) setDone(sent === 1 ? '1 file attached.' : `${sent} files attached.`);
     onChanged();
+  };
+
+  const add = async () => {
+    setProblems([]);
+    setDone(null);
+    if (!online) return setProblems(['You’re offline. Connect to the internet to attach files.']);
+    const picked = await pickProofFiles();
+    if (picked) await upload(picked.files, picked.errors);
+  };
+
+  const photo = async () => {
+    setProblems([]);
+    setDone(null);
+    if (!online) return setProblems(['You’re offline. Connect to the internet to attach files.']);
+    const taken = await takeProofPhoto();
+    if (taken) await upload(taken.file ? [taken.file] : [], taken.error ? [taken.error] : []);
   };
 
   const remove = async (f: SecondaryAttachment) => {
@@ -98,37 +110,61 @@ export function SecondaryFiles({
     }
   };
 
+  // A grid of thumbnails, each with its size and a ✕ (2026-11-28); two ways to add: several files at once, or a photo.
   return (
     <InfoCard>
-      <ThemedText type="smallBold">Proof files for this month</ThemedText>
-      {files.length === 0 && canEdit ? <Notice tone="warning">Required before submitting: attach at least one file.</Notice> : null}
+      <ThemedText type="smallBold">{`Proof files${files.length > 0 ? ` (${files.length})` : ''}`}</ThemedText>
+      {files.length === 0 && canEdit ? (
+        <ThemedText type="small" themeColor="danger">
+          At least one file is needed to submit.
+        </ThemedText>
+      ) : null}
       {files.length === 0 && !canEdit ? <ThemedText type="small" themeColor="textSecondary">No files.</ThemedText> : null}
-      {files.map((f) => (
-        <View key={f.id} style={styles.row}>
-          <Thumb file={f} />
-          <View style={styles.grow}>
-            <ThemedText type="small" numberOfLines={1}>{f.fileName}</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">{formatSize(f.sizeBytes)}</ThemedText>
-          </View>
-          {canEdit ? <PrimaryButton label="Remove" variant="text" disabled={busy} onPress={() => remove(f)} /> : null}
+      {files.length > 0 ? (
+        <View style={styles.grid}>
+          {files.map((f) => (
+            <View key={f.id} style={styles.tile}>
+              <Thumb file={f} />
+              <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+                {f.fileName}
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">{formatSize(f.sizeBytes)}</ThemedText>
+              {canEdit ? (
+                <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${f.fileName}`} disabled={busy} hitSlop={6} onPress={() => void remove(f)} style={styles.remove}>
+                  <ThemedText type="smallBold" themeColor="danger">✕</ThemedText>
+                </Pressable>
+              ) : null}
+            </View>
+          ))}
         </View>
-      ))}
+      ) : null}
       {done ? <Notice tone="success">{done}</Notice> : null}
       {problems.map((p) => (
         <Notice key={p} tone="danger">{p}</Notice>
       ))}
       {canEdit ? (
-        <PrimaryButton label="Attachment File" loading={busy} disabled={!online} onPress={add} />
+        <View style={styles.buttons}>
+          <View style={styles.grow}>
+            <PrimaryButton label="Add files" loading={busy} disabled={!online} onPress={add} />
+          </View>
+          <View style={styles.grow}>
+            <PrimaryButton label="Take photo" variant="text" disabled={!online || busy} onPress={photo} />
+          </View>
+        </View>
       ) : (
         <ThemedText type="small" themeColor="textSecondary">Files can’t be changed while the month is waiting, approved or closed.</ThemedText>
       )}
+      {canEdit ? <ThemedText type="small" themeColor="textSecondary">PDF, JPG or PNG, up to 5 MB each. Choose several at once.</ThemedText> : null}
     </InfoCard>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  grow: { flex: 1, gap: 2 },
-  thumb: { width: 56, height: 56, borderRadius: Spacing.two },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  tile: { width: 96, gap: 2 },
+  remove: { position: 'absolute', top: 2, right: 2, width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.9)' },
+  buttons: { flexDirection: 'row', gap: Spacing.two },
+  grow: { flex: 1 },
+  thumb: { width: 96, height: 96, borderRadius: Spacing.two },
   doc: { alignItems: 'center', justifyContent: 'center' },
 });
