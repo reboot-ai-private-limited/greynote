@@ -34,6 +34,7 @@ const toGift = (d: DoctorGiftDoc & { _id: unknown }): DoctorGift => ({
   completedBy: d.completedBy ? String(d.completedBy) : null,
   completedAt: d.completedAt,
   allocatedAt: d.allocatedAt,
+  requestedAt: d._id instanceof Types.ObjectId ? d._id.getTimestamp() : undefined,
 });
 
 export class MongoDoctorServiceAdapter implements DoctorServiceRepositoryPort {
@@ -68,8 +69,9 @@ export class MongoDoctorGiftAdapter implements DoctorGiftRepositoryPort {
     const doc = await DoctorGiftModel.findById(id).lean();
     return doc ? toGift(doc) : null;
   }
-  async list(filter: { doctorIds?: string[]; status?: DoctorGift['status']; statuses?: DoctorGift['status'][] }, limit: number): Promise<DoctorGift[]> {
+  async list(filter: { doctorIds?: string[]; status?: DoctorGift['status']; statuses?: DoctorGift['status'][]; involving?: string }, limit: number): Promise<DoctorGift[]> {
     const q: FilterQuery<DoctorGiftDoc> = {};
+    if (filter.involving) q.$or = [{ requestedBy: oid(filter.involving) }, { completedBy: oid(filter.involving) }];
     if (filter.doctorIds) q.doctorId = { $in: filter.doctorIds.map(oid) };
     if (filter.status) q.status = filter.status;
     else if (filter.statuses) q.status = { $in: filter.statuses };

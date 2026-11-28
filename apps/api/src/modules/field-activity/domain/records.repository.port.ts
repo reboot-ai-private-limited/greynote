@@ -189,7 +189,8 @@ export interface DoctorGiftRepositoryPort {
   create(input: Omit<DoctorGift, 'id'>): Promise<DoctorGift>;
   findById(id: string): Promise<DoctorGift | null>;
   /** Newest first, at most `limit`; `doctorIds` narrows to those Doctors (an MR's own). */
-  list(filter: { doctorIds?: string[]; status?: DoctorGift['status']; statuses?: DoctorGift['status'][] }, limit: number): Promise<DoctorGift[]>;
+  /** `involving`: gifts this employee asked for or handed over. */
+  list(filter: { doctorIds?: string[]; status?: DoctorGift['status']; statuses?: DoctorGift['status'][]; involving?: string }, limit: number): Promise<DoctorGift[]>;
   /** One conditional update: only a still-`REQUESTED` gift becomes `PENDING`, with its amount and who accepted it. False if it no longer is. */
   accept(id: string, by: string, amountPaise: number, at: Date): Promise<boolean>;
   /** One conditional update: only a still-`REQUESTED` gift becomes `REJECTED`, with the reason. False if it no longer is. */

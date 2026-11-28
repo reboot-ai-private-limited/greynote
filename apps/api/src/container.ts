@@ -121,6 +121,7 @@ export function buildContainers(): AppContainers {
   const sales = buildSalesContainer(identity.contract, fieldMasterData.contract, sync.contract, approval.contract, config.contract, { hasUsable: async (userId, kind, month) => (await lateGrants.contract.gate.findUsable(userId, kind, month)) !== null });
 
   // Tier 5 — Attendance: each day of a field employee's month as holiday, off, leave, strike, present or absent. Reads Identity, HR, Planning, Field Activity and Config; owns no data.
+  fieldActivity.bindDayOrders((userId, date) => sales.contract.listOrders({ userId, from: date, to: date, limit: 200 }));
   const attendance = buildAttendanceContainer(identity.contract, hr.contract, planning.contract, fieldActivity.contract, config.contract);
 
   // Tier 6 — Marketing: Visuals, Campaigns and Targets. Reads the downline (Identity), Products (Field Master Data) and order totals (Sales).

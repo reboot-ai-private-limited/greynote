@@ -27,7 +27,47 @@ const ICON = {
   travel: sym('car', 'directions_car'),
   meal: sym('fork.knife', 'restaurant'),
   other: sym('doc.text', 'receipt_long'),
+  order: sym('cart', 'shopping_cart'),
+  gift: sym('gift', 'redeem'),
+  service: sym('person.2.wave.2', 'volunteer_activism'),
+  sample: sym('shippingbox', 'inventory_2'),
 };
+
+/** A status word and colour for the day's other records (orders, gifts, services, sample/LBL requests). */
+const STATUS: Record<string, { text: string; accent: Accent }> = {
+  PLACED: { text: 'Placed', accent: 'amber' },
+  DONE: { text: 'Done', accent: 'green' },
+  CANCELLED: { text: 'Cancelled', accent: 'slate' },
+  REQUESTED: { text: 'Requested', accent: 'amber' },
+  PENDING: { text: 'Accepted', accent: 'blue' },
+  REJECTED: { text: 'Rejected', accent: 'red' },
+  SUBMITTED: { text: 'Waiting', accent: 'amber' },
+  MANAGER_APPROVED: { text: 'Manager approved', accent: 'blue' },
+  APPROVED: { text: 'Approved', accent: 'green' },
+  WITHDRAWN: { text: 'Withdrawn', accent: 'slate' },
+};
+const statusOf = (s: string) => STATUS[s] ?? { text: s.charAt(0) + s.slice(1).toLowerCase().replace(/_/g, ' '), accent: 'slate' as Accent };
+const serviceTitle = (t: string) => (t === 'CME' ? 'CME' : t.charAt(0) + t.slice(1).toLowerCase().replace(/_/g, ' '));
+
+/** One record of the rest of the day: who/what, a detail line, an amount and a status. */
+function ExtraRow({ name, title, detail, amount, status, accent }: { name: string; title: string; detail?: string | null; amount?: number; status?: string; accent: Accent }) {
+  const theme = useTheme();
+  return (
+    <View style={[styles.call, { backgroundColor: theme.background, borderColor: theme.border }]}>
+      <View style={styles.callHead}>
+        <Avatar name={name} accent={accent} />
+        <View style={styles.flex}>
+          <ThemedText type="smallBold" numberOfLines={1}>{title}</ThemedText>
+          {detail ? <ThemedText type="small" themeColor="textSecondary" style={styles.subtle}>{detail}</ThemedText> : null}
+        </View>
+        <View style={styles.extraRight}>
+          {amount !== undefined && amount > 0 ? <ThemedText type="smallBold">{formatRupees(amount)}</ThemedText> : null}
+          {status ? <Pill text={statusOf(status).text} accent={statusOf(status).accent} /> : null}
+        </View>
+      </View>
+    </View>
+  );
+}
 
 const errorText = (err: unknown) =>
   err instanceof ApiError || err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.';
@@ -294,6 +334,11 @@ export function DcrSummary({ recordId, canAct, aside, submitterId }: { recordId:
 
   const flagged = [...data.doctorCalls, ...data.chemistCalls].filter((c) => c.geofence.status !== 'PASS' && !c.geofence.overriddenAt).length;
   const total = data.expenses.reduce((sum, e) => sum + e.amountPaise, 0);
+  const orders = data.orders ?? [];
+  const giftsGiven = data.giftsGiven ?? [];
+  const giftRequests = data.giftRequests ?? [];
+  const services = data.services ?? [];
+  const sampleRequests = data.sampleRequests ?? [];
 
   const main = (
     <View style={styles.stack}>
@@ -342,6 +387,43 @@ export function DcrSummary({ recordId, canAct, aside, submitterId }: { recordId:
               </View>
               <ThemedText type="small">{f.remarks}</ThemedText>
             </View>
+          ))}
+        </Card>
+      ) : null}
+
+      {/* The rest of the day (2026-11-28): what else they did or asked for on it, read only. */}
+      {orders.length > 0 ? (
+        <Card icon={ICON.order} accent="indigo" title="Orders" count={orders.length}>
+          {orders.map((o) => (
+            <ExtraRow key={o.id} name={o.outletName} accent="indigo" title={o.outletName} detail={[o.outletType === 'DISTRIBUTOR' ? 'Distributor' : 'Chemist', o.items.map((i) => `${i.productName} × ${i.quantity}`).join(', '), o.remarks].filter(Boolean).join(' · ')} amount={o.totalAmountPaise} status={o.status} />
+          ))}
+        </Card>
+      ) : null}
+      {giftsGiven.length > 0 ? (
+        <Card icon={ICON.gift} accent="pink" title="Gifts given" count={giftsGiven.length}>
+          {giftsGiven.map((g) => (
+            <ExtraRow key={g.id} name={g.doctorName} accent="pink" title={g.doctorName} detail={g.productName} amount={g.amountPaise} status="DONE" />
+          ))}
+        </Card>
+      ) : null}
+      {giftRequests.length > 0 ? (
+        <Card icon={ICON.gift} accent="purple" title="Gift requests" count={giftRequests.length}>
+          {giftRequests.map((g) => (
+            <ExtraRow key={g.id} name={g.doctorName} accent="purple" title={g.doctorName} detail={[g.productName, g.note].filter(Boolean).join(' · ')} amount={g.amountPaise} status={g.status} />
+          ))}
+        </Card>
+      ) : null}
+      {services.length > 0 ? (
+        <Card icon={ICON.service} accent="orange" title="Service requests" count={services.length}>
+          {services.map((s) => (
+            <ExtraRow key={s.id} name={s.doctorName} accent="orange" title={s.doctorName} detail={[serviceTitle(s.serviceType), s.remarks].filter(Boolean).join(' · ')} amount={s.amountPaise} status={s.status} />
+          ))}
+        </Card>
+      ) : null}
+      {sampleRequests.length > 0 ? (
+        <Card icon={ICON.sample} accent="lime" title="Sample / LBL requests" count={sampleRequests.length}>
+          {sampleRequests.map((r) => (
+            <ExtraRow key={r.id} name={r.kind === 'LBL' ? 'L B' : 'S A'} accent="lime" title={r.kind === 'LBL' ? 'LBL request' : 'Sample request'} detail={[r.lines.map((l) => `${l.productName} × ${l.quantity}`).join(', '), r.remarks].filter(Boolean).join(' · ')} status={r.status} />
           ))}
         </Card>
       ) : null}
@@ -394,6 +476,7 @@ export function DcrSummary({ recordId, canAct, aside, submitterId }: { recordId:
         <Stat icon={ICON.chemist} accent="green" value={String(data.chemistCalls.length)} label="Chemist calls" />
         <Stat icon={ICON.followup} accent="sky" value={String(data.followups.length)} label="Followups" />
         <Stat icon={ICON.money} accent="amber" value={formatRupees(total)} label="Expenses" />
+        {orders.length > 0 ? <Stat icon={ICON.order} accent="indigo" value={String(orders.length)} label="Orders" /> : null}
       </View>
 
       {flagged > 0 ? (
@@ -431,6 +514,7 @@ export function DcrSummary({ recordId, canAct, aside, submitterId }: { recordId:
 export const dcrTitle = (reportDate: string) => `Daily report · ${prettyDay(reportDate)}`;
 
 const styles = StyleSheet.create({
+  extraRight: { alignItems: 'flex-end', gap: 2 },
   flex: { flex: 1 },
   stack: { gap: Spacing.three },
   stats: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },

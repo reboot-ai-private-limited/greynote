@@ -55,6 +55,8 @@ export interface DoctorGift {
   completedBy: string | null;
   completedAt: Date | null;
   allocatedAt: Date;
+  /** When it was created — the request's day for an employee request (2026-11-28); absent where the store can't tell. */
+  requestedAt?: Date | undefined;
 }
 
 /** A service type as a row title: `ONLINE_PROMOTION` → `Online promotion`, `CME` → `CME`. */

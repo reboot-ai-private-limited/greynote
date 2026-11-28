@@ -241,6 +241,12 @@ export type DcrDetail = {
   chemistCalls: DcrChemistCall[];
   followups: DcrFollowup[];
   expenses: DcrExpense[];
+  /** The rest of the day (2026-11-28). Absent from older servers: read as empty. */
+  orders?: { id: string; outletType: 'CHEMIST' | 'DISTRIBUTOR'; outletName: string; status: string; totalAmountPaise: number; remarks: string | null; items: { productName: string; quantity: number; amountPaise: number }[] }[];
+  giftsGiven?: { id: string; doctorName: string; productName: string; amountPaise: number }[];
+  giftRequests?: { id: string; doctorName: string; productName: string; amountPaise: number; status: string; note: string | null }[];
+  services?: { id: string; doctorName: string; serviceType: string; amountPaise: number; remarks: string | null; status: string }[];
+  sampleRequests?: { id: string; kind: string; status: string; remarks: string | null; lines: { productName: string; quantity: number }[] }[];
 };
 export const getDcr = (id: string) => apiGet<DcrDetail>(`/field-activity/dcr/${id}`);
 

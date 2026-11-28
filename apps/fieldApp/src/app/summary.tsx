@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { DcrSummary } from '@/components/dcr-review';
 import { Notice } from '@/components/notice';
 import { PrimaryButton } from '@/components/primary-button';
 import { ScreenShell } from '@/components/screen-shell';
@@ -122,6 +123,7 @@ export default function SummaryScreen() {
   const expenseTotal = expenses.reduce((n, r) => n + ((r.payload as { amountPaise?: number }).amountPaise ?? 0), 0);
   const dcr = activity.data?.dcrs?.find((d) => d.reportDate === today) ?? null;
   const alreadySent = useReportSent(today);
+  const showSent = dcr !== null && dcr.status !== 'DRAFT' && dcr.status !== 'REJECTED';
 
   const failed = dayRecords.filter((r) => r.status === 'FAILED');
 
@@ -207,107 +209,116 @@ export default function SummaryScreen() {
       {!online ? <Notice tone="info">You’re offline. Your report is kept on this phone; Final Submission needs the internet.</Notice> : null}
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
 
-      <SummaryStrip
-        items={[
-          { label: 'Calls', value: count(['DOCTOR_CALL', 'CHEMIST_CALL']), accent: 'blue' },
-          { label: 'Follow-ups', value: count(['DOCTOR_FOLLOWUP', 'CHEMIST_FOLLOWUP']), accent: 'teal' },
-          { label: 'To fix', value: failed.length, accent: failed.length > 0 ? 'red' : 'slate' },
-        ]}
-      />
+      {/* Once the day is sent (waiting or approved), show what the server holds — the same read-only detail the manager sees — not this
+          phone's copy, which is empty after a reinstall or on another phone (2026-11-28). Sent back: the phone's records, to fix and resend. */}
+      {showSent && online ? (
+        <DcrSummary recordId={dcr!.id} canAct={false} />
+      ) : (
+        <>
+          {showSent && dayRecords.length === 0 ? <Notice tone="info">Connect to the internet to see the report you sent.</Notice> : null}
+          <SummaryStrip
+            items={[
+              { label: 'Calls', value: count(['DOCTOR_CALL', 'CHEMIST_CALL']), accent: 'blue' },
+              { label: 'Follow-ups', value: count(['DOCTOR_FOLLOWUP', 'CHEMIST_FOLLOWUP']), accent: 'teal' },
+              { label: 'To fix', value: failed.length, accent: failed.length > 0 ? 'red' : 'slate' },
+            ]}
+          />
 
-      {/* The day in stacks (2026-11-28): each closed until tapped; one holding a record to fix opens by itself. */}
-      {dayRecords.length + orders.length + services.length + gifts.length === 0 ? (
-        <ThemedText type="small" themeColor="textSecondary">
-          Nothing logged yet. Add calls, followups or expenses from Home.
-        </ThemedText>
-      ) : null}
-      {doctorCalls.length > 0 ? (
-        <CollapsibleSection icon={sym('stethoscope', 'medical_services')} accent="blue" title="Doctor calls" count={doctorCalls.length} summary={doctorCalls.map(describe).join(', ')} alert={notAccepted(doctorCalls)}>
-          {doctorCalls.map((r) => {
-            const c = r.payload as DayCall;
-            const extra = [
-              c.samples?.length ? `Samples: ${c.samples.map((x) => `${productName(x.productId)} × ${x.quantity}`).join(', ')}` : null,
-              c.lbl?.length ? `LBL: ${c.lbl.map((x) => productName(x.productId)).join(', ')}` : null,
-              c.workWith?.length ? `With ${plural(c.workWith.length, 'colleague')}` : null,
-              c.remarks ? `“${c.remarks}”` : null,
-            ];
-            return <RecordRow key={r.clientId} r={r} title={describe(r)} lines={extra} onError={setMsg} />;
-          })}
-        </CollapsibleSection>
-      ) : null}
-      {chemistCalls.length > 0 ? (
-        <CollapsibleSection icon={sym('cross.case', 'local_pharmacy')} accent="teal" title="Chemist calls" count={chemistCalls.length} summary={chemistCalls.map(describe).join(', ')} alert={notAccepted(chemistCalls)}>
-          {chemistCalls.map((r) => (
-            <RecordRow key={r.clientId} r={r} title={describe(r)} lines={[(r.payload as DayCall).remarks ? `“${(r.payload as DayCall).remarks}”` : null]} onError={setMsg} />
-          ))}
-        </CollapsibleSection>
-      ) : null}
-      {doctorFollowups.length > 0 ? (
-        <CollapsibleSection icon={sym('text.bubble', 'chat')} accent="indigo" title="Doctor follow-ups" count={doctorFollowups.length} summary={doctorFollowups.map(describe).join(', ')} alert={notAccepted(doctorFollowups)}>
-          {doctorFollowups.map((r) => (
-            <RecordRow key={r.clientId} r={r} title={describe(r)} lines={[(r.payload as DayCall).remarks ? `“${(r.payload as DayCall).remarks}”` : null]} onError={setMsg} />
-          ))}
-        </CollapsibleSection>
-      ) : null}
-      {chemistFollowups.length > 0 ? (
-        <CollapsibleSection icon={sym('text.bubble', 'chat')} accent="teal" title="Chemist follow-ups" count={chemistFollowups.length} summary={chemistFollowups.map(describe).join(', ')} alert={notAccepted(chemistFollowups)}>
-          {chemistFollowups.map((r) => (
-            <RecordRow key={r.clientId} r={r} title={describe(r)} lines={[(r.payload as DayCall).remarks ? `“${(r.payload as DayCall).remarks}”` : null]} onError={setMsg} />
-          ))}
-        </CollapsibleSection>
-      ) : null}
-      {samples.length > 0 ? (
-        <CollapsibleSection icon={sym('shippingbox', 'inventory_2')} accent="amber" title="Samples given" count={sampleUnits} summary={samples.map((x) => `${productName(x.productId)} × ${x.total}`).join(', ')}>
-          {samples.map((x) => (
-            <Line key={x.productId} title={`${productName(x.productId)} × ${x.total}`} text={x.who.map((w) => `${w.name} ${w.n}`).join(', ')} />
-          ))}
-        </CollapsibleSection>
-      ) : null}
-      {lbl.length > 0 ? (
-        <CollapsibleSection icon={sym('doc.richtext', 'article')} accent="purple" title="LBL given" count={lblCount} summary={lbl.map((x) => productName(x.productId)).join(', ')}>
-          {lbl.map((x) => (
-            <Line key={x.productId} title={`${productName(x.productId)} · ${x.total}`} text={x.who.map((w) => w.name).join(', ')} />
-          ))}
-        </CollapsibleSection>
-      ) : null}
-      {orders.length > 0 ? (
-        <CollapsibleSection icon={sym('cart', 'shopping_cart')} accent="green" title="Orders" count={orders.length} summary={formatRupees(orders.reduce((n, r) => n + (r.payload as DayOrder).lines.reduce((m, l) => m + l.quantity * l.unitPricePaise, 0), 0))} alert={notAccepted(orders)}>
-          {orders.map((r) => {
-            const o = r.payload as DayOrder;
-            const total = o.lines.reduce((m, l) => m + l.quantity * l.unitPricePaise, 0);
-            return <RecordRow key={r.clientId} r={r} title={outletName(o)} lines={[`${plural(o.lines.length, 'item')} · ${formatRupees(total)}`]} onError={setMsg} removable={false} />;
-          })}
-        </CollapsibleSection>
-      ) : null}
-      {services.length > 0 ? (
-        <CollapsibleSection icon={sym('hand.raised', 'volunteer_activism')} accent="indigo" title="Doctor services requested" count={services.length} summary={services.map((r) => names.get((r.payload as DayService).doctorId) ?? 'Doctor').join(', ')} alert={notAccepted(services)}>
-          {services.map((r) => {
-            const v = r.payload as DayService;
-            return <RecordRow key={r.clientId} r={r} title={names.get(v.doctorId) ?? 'Doctor'} lines={[`${SERVICE_TYPE_LABEL[v.serviceType] ?? v.serviceType} · ${formatRupees(v.amountPaise)}`, v.remarks ? `“${v.remarks}”` : null]} onError={setMsg} removable={false} />;
-          })}
-        </CollapsibleSection>
-      ) : null}
-      {gifts.length > 0 ? (
-        <CollapsibleSection icon={sym('gift', 'redeem')} accent="amber" title="Gifts given" count={gifts.length} alert={notAccepted(gifts)}>
-          {gifts.map((r) => {
-            const g = activity.data?.pendingGifts?.find((x) => x.id === (r.payload as { giftId: string }).giftId);
-            return <RecordRow key={r.clientId} r={r} title={g ? `${names.get(g.doctorId) ?? 'Doctor'} · ${g.productName}` : 'Gift'} lines={[]} onError={setMsg} removable={false} />;
-          })}
-        </CollapsibleSection>
-      ) : null}
-      {expenses.length > 0 ? (
-        <CollapsibleSection icon={sym('indianrupeesign', 'currency_rupee')} accent="purple" title="Expenses" count={expenses.length} summary={`Total ${formatRupees(expenseTotal)}`} alert={notAccepted(expenses)}>
-          {expenses.map((r) => (
-            <RecordRow key={r.clientId} r={r} title={describe(r)} lines={[(r.payload as { remarks?: string | null }).remarks ? `“${(r.payload as { remarks?: string | null }).remarks}”` : null]} onError={setMsg} removable={false} />
-          ))}
-        </CollapsibleSection>
-      ) : null}
+          {/* The day in stacks (2026-11-28): each closed until tapped; one holding a record to fix opens by itself. */}
+          {dayRecords.length + orders.length + services.length + gifts.length === 0 && !showSent ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              Nothing logged yet. Add calls, followups or expenses from Home.
+            </ThemedText>
+          ) : null}
+          {doctorCalls.length > 0 ? (
+            <CollapsibleSection icon={sym('stethoscope', 'medical_services')} accent="blue" title="Doctor calls" count={doctorCalls.length} summary={doctorCalls.map(describe).join(', ')} alert={notAccepted(doctorCalls)}>
+              {doctorCalls.map((r) => {
+                const c = r.payload as DayCall;
+                const extra = [
+                  c.samples?.length ? `Samples: ${c.samples.map((x) => `${productName(x.productId)} × ${x.quantity}`).join(', ')}` : null,
+                  c.lbl?.length ? `LBL: ${c.lbl.map((x) => productName(x.productId)).join(', ')}` : null,
+                  c.workWith?.length ? `With ${plural(c.workWith.length, 'colleague')}` : null,
+                  c.remarks ? `“${c.remarks}”` : null,
+                ];
+                return <RecordRow key={r.clientId} r={r} title={describe(r)} lines={extra} onError={setMsg} />;
+              })}
+            </CollapsibleSection>
+          ) : null}
+          {chemistCalls.length > 0 ? (
+            <CollapsibleSection icon={sym('cross.case', 'local_pharmacy')} accent="teal" title="Chemist calls" count={chemistCalls.length} summary={chemistCalls.map(describe).join(', ')} alert={notAccepted(chemistCalls)}>
+              {chemistCalls.map((r) => (
+                <RecordRow key={r.clientId} r={r} title={describe(r)} lines={[(r.payload as DayCall).remarks ? `“${(r.payload as DayCall).remarks}”` : null]} onError={setMsg} />
+              ))}
+            </CollapsibleSection>
+          ) : null}
+          {doctorFollowups.length > 0 ? (
+            <CollapsibleSection icon={sym('text.bubble', 'chat')} accent="indigo" title="Doctor follow-ups" count={doctorFollowups.length} summary={doctorFollowups.map(describe).join(', ')} alert={notAccepted(doctorFollowups)}>
+              {doctorFollowups.map((r) => (
+                <RecordRow key={r.clientId} r={r} title={describe(r)} lines={[(r.payload as DayCall).remarks ? `“${(r.payload as DayCall).remarks}”` : null]} onError={setMsg} />
+              ))}
+            </CollapsibleSection>
+          ) : null}
+          {chemistFollowups.length > 0 ? (
+            <CollapsibleSection icon={sym('text.bubble', 'chat')} accent="teal" title="Chemist follow-ups" count={chemistFollowups.length} summary={chemistFollowups.map(describe).join(', ')} alert={notAccepted(chemistFollowups)}>
+              {chemistFollowups.map((r) => (
+                <RecordRow key={r.clientId} r={r} title={describe(r)} lines={[(r.payload as DayCall).remarks ? `“${(r.payload as DayCall).remarks}”` : null]} onError={setMsg} />
+              ))}
+            </CollapsibleSection>
+          ) : null}
+          {samples.length > 0 ? (
+            <CollapsibleSection icon={sym('shippingbox', 'inventory_2')} accent="amber" title="Samples given" count={sampleUnits} summary={samples.map((x) => `${productName(x.productId)} × ${x.total}`).join(', ')}>
+              {samples.map((x) => (
+                <Line key={x.productId} title={`${productName(x.productId)} × ${x.total}`} text={x.who.map((w) => `${w.name} ${w.n}`).join(', ')} />
+              ))}
+            </CollapsibleSection>
+          ) : null}
+          {lbl.length > 0 ? (
+            <CollapsibleSection icon={sym('doc.richtext', 'article')} accent="purple" title="LBL given" count={lblCount} summary={lbl.map((x) => productName(x.productId)).join(', ')}>
+              {lbl.map((x) => (
+                <Line key={x.productId} title={`${productName(x.productId)} · ${x.total}`} text={x.who.map((w) => w.name).join(', ')} />
+              ))}
+            </CollapsibleSection>
+          ) : null}
+          {orders.length > 0 ? (
+            <CollapsibleSection icon={sym('cart', 'shopping_cart')} accent="green" title="Orders" count={orders.length} summary={formatRupees(orders.reduce((n, r) => n + (r.payload as DayOrder).lines.reduce((m, l) => m + l.quantity * l.unitPricePaise, 0), 0))} alert={notAccepted(orders)}>
+              {orders.map((r) => {
+                const o = r.payload as DayOrder;
+                const total = o.lines.reduce((m, l) => m + l.quantity * l.unitPricePaise, 0);
+                return <RecordRow key={r.clientId} r={r} title={outletName(o)} lines={[`${plural(o.lines.length, 'item')} · ${formatRupees(total)}`]} onError={setMsg} removable={false} />;
+              })}
+            </CollapsibleSection>
+          ) : null}
+          {services.length > 0 ? (
+            <CollapsibleSection icon={sym('hand.raised', 'volunteer_activism')} accent="indigo" title="Doctor services requested" count={services.length} summary={services.map((r) => names.get((r.payload as DayService).doctorId) ?? 'Doctor').join(', ')} alert={notAccepted(services)}>
+              {services.map((r) => {
+                const v = r.payload as DayService;
+                return <RecordRow key={r.clientId} r={r} title={names.get(v.doctorId) ?? 'Doctor'} lines={[`${SERVICE_TYPE_LABEL[v.serviceType] ?? v.serviceType} · ${formatRupees(v.amountPaise)}`, v.remarks ? `“${v.remarks}”` : null]} onError={setMsg} removable={false} />;
+              })}
+            </CollapsibleSection>
+          ) : null}
+          {gifts.length > 0 ? (
+            <CollapsibleSection icon={sym('gift', 'redeem')} accent="amber" title="Gifts given" count={gifts.length} alert={notAccepted(gifts)}>
+              {gifts.map((r) => {
+                const g = activity.data?.pendingGifts?.find((x) => x.id === (r.payload as { giftId: string }).giftId);
+                return <RecordRow key={r.clientId} r={r} title={g ? `${names.get(g.doctorId) ?? 'Doctor'} · ${g.productName}` : 'Gift'} lines={[]} onError={setMsg} removable={false} />;
+              })}
+            </CollapsibleSection>
+          ) : null}
+          {expenses.length > 0 ? (
+            <CollapsibleSection icon={sym('indianrupeesign', 'currency_rupee')} accent="purple" title="Expenses" count={expenses.length} summary={`Total ${formatRupees(expenseTotal)}`} alert={notAccepted(expenses)}>
+              {expenses.map((r) => (
+                <RecordRow key={r.clientId} r={r} title={describe(r)} lines={[(r.payload as { remarks?: string | null }).remarks ? `“${(r.payload as { remarks?: string | null }).remarks}”` : null]} onError={setMsg} removable={false} />
+              ))}
+            </CollapsibleSection>
+          ) : null}
 
-      {failed.length > 0 ? (
-        <Notice tone="danger" title="Fix before submitting">
-          {'Open the screen for each record marked “Not accepted”, correct it (or remove it where it says so), and submit again.'}
-        </Notice>
-      ) : null}
+          {failed.length > 0 ? (
+            <Notice tone="danger" title="Fix before submitting">
+              {'Open the screen for each record marked “Not accepted”, correct it (or remove it where it says so), and submit again.'}
+            </Notice>
+          ) : null}
+        </>
+      )}
 
       {alreadySent ? null : (
         <>

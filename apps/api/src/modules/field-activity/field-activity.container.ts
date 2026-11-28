@@ -1,3 +1,4 @@
+import type { DayOrdersPort } from './domain/dayOrders.port.js';
 import { monthRange } from '@/shared/time/businessTime.js';
 import type { Router } from 'express';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
@@ -81,6 +82,8 @@ export interface FieldActivityContainer {
   runMissedDcrCheck: (options?: { dryRun?: boolean; userIds?: string[] }) => ReturnType<RunMissedDcrCheckUseCase['execute']>;
   /** Payroll sits above Field Activity, so the composition root hands it the question "is this employee's salary for the month finalized?" once Payroll exists. */
   bindPayrollLock(check: PayrollFinalizedCheck): void;
+  /** Sales sits above: the daily report's Orders (2026-11-28). */
+  bindDayOrders(orders: DayOrdersPort): void;
   buildRouter: () => Router;
 }
 
@@ -196,11 +199,13 @@ export function buildFieldActivityContainer(
       gifts: new ListGiftsUseCase(gifts, master),
     }),
   );
+  const dcrDetail = new GetDcrDetailUseCase(new GetDcrUseCase(dcrs, users, views), doctorCalls, chemistCalls, followups, expenses, master, { services, gifts, sampleRequests, approvals, clock });
   const missedDcrCheck = new RunMissedDcrCheckUseCase(users, leave, (userId, date) => hasQualifyingDcr.execute(userId, date), clock, config);
 
   return {
     runMissedDcrCheck: (options) => missedDcrCheck.execute(options),
     bindPayrollLock: (check) => monthLock.bind(check),
+    bindDayOrders: (orders) => dcrDetail.bindOrders(orders),
     contract: {
       countDoctorRecords: async (doctorId) => {
         if (!Types.ObjectId.isValid(doctorId)) return { calls: 0, openGifts: 0, openServices: 0 };
@@ -307,7 +312,7 @@ export function buildFieldActivityContainer(
           payExpenses: new PayMonthExpensesUseCase(expenses, config),
           deleteRecord: new DeleteDcrRecordUseCase(dcrs, approvals, doctorCalls, chemistCalls, followups, master, new MongooseTransactionRunner(), monthLock),
           override: new OverrideGeofenceUseCase(dcrs, users, views, doctorCalls, chemistCalls),
-          get: new GetDcrDetailUseCase(new GetDcrUseCase(dcrs, users, views), doctorCalls, chemistCalls, followups, expenses, master),
+          get: dcrDetail,
         }),
       ),
   };

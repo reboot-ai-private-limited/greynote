@@ -260,6 +260,9 @@ export class FakeFmd implements FieldMasterDataPort {
   async getDoctor(id: string) {
     return (this.doctors.get(id) as never) ?? null;
   }
+  async getDistributor(_id: string) {
+    return null;
+  }
   async getChemist(id: string) {
     return (this.chemists.get(id) as never) ?? null;
   }
