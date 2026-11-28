@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { DateField, EMPTY_PARTS, isoFromParts, partsFromIso, type DateParts } from '@/components/date-field';
-import { ChoiceChips } from '@/components/choice-chips';
 import { Notice } from '@/components/notice';
 import { OutletPicker } from '@/components/outlet-picker';
 import { PrimaryButton } from '@/components/primary-button';
@@ -28,7 +27,6 @@ const errorText = (err: unknown) =>
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE = /^\+?\d{10,15}$/;
 const cleanPhone = (s: string) => s.replace(/[\s-]/g, '');
-const FREQUENCIES = [1, 2, 3, 4].map((n) => ({ value: String(n), label: String(n) }));
 
 const sameDay = (a: string | null | undefined, b: string | null) => (a ?? null) === b;
 const coordinate = (text: string, limit: number): number | null => {
@@ -80,7 +78,7 @@ export default function ReviewDoctorScreen() {
         setClinicName(d.clinicName ?? '');
         setPhone(d.phone ?? '');
         setEmail(d.email ?? '');
-        setFrequency(d.visitFrequency && d.visitFrequency <= 4 ? String(d.visitFrequency) : null);
+        setFrequency(d.visitFrequency ? String(d.visitFrequency) : null);
         setBirth(partsFromIso(d.dateOfBirth));
         setAnniversary(partsFromIso(d.anniversary));
         const where = d.location ?? d.capturedLocation;
@@ -116,7 +114,6 @@ export default function ReviewDoctorScreen() {
     if (email.trim() && !EMAIL.test(email.trim())) return setMsg({ tone: 'danger', text: 'That email doesn’t look right.' });
     if (!phone.trim()) return setMsg({ tone: 'danger', text: 'Enter the doctor’s phone number.' });
     if (!PHONE.test(cleanPhone(phone))) return setMsg({ tone: 'danger', text: 'Enter a phone number of 10 to 15 digits.' });
-    if (!frequency) return setMsg({ tone: 'danger', text: 'Choose how many times a month to visit this doctor.' });
     const dob = isoFromParts(birth, today);
     if (dob.error) return setMsg({ tone: 'danger', text: `Date of birth: ${dob.error}` });
     const wedding = isoFromParts(anniversary, today);
@@ -139,8 +136,6 @@ export default function ReviewDoctorScreen() {
     if ((email.trim() || null) !== (doctor.email ?? null)) body.email = email.trim() || null;
     if (!sameDay(doctor.dateOfBirth, dob.iso)) body.dateOfBirth = dob.iso;
     if (!sameDay(doctor.anniversary, wedding.iso)) body.anniversary = wedding.iso;
-    const newFrequency = Number(frequency);
-    if (newFrequency !== (doctor.visitFrequency ?? null)) body.visitFrequency = newFrequency;
     const was = doctor.location ?? doctor.capturedLocation;
     if (lat !== null && lng !== null && (!was || was.latitude !== lat || was.longitude !== lng)) body.location = { latitude: lat, longitude: lng };
     if (Object.keys(body).length === 0) return setMsg({ tone: 'info', text: 'Nothing was changed.' });
@@ -193,10 +188,10 @@ export default function ReviewDoctorScreen() {
             <TextField label="Email (optional)" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" editable={!busy} maxLength={150} />
           </CardSection>
           <CardSection icon={sym('calendar', 'event')} accent="purple" title="Visits and dates">
+            {/* The visit frequency is Admin's alone (2026-11-28): the MR's suggestion is shown, not changed here. */}
             <ThemedText type="small" themeColor="textSecondary">
-              Visits a month
+              {`Visits a month: ${frequency ?? 'not set'} (the MR’s suggestion) · only Admin can change it`}
             </ThemedText>
-            <ChoiceChips options={FREQUENCIES} value={frequency} onChange={setFrequency} disabled={busy} />
             <DateField label="Date of birth (optional)" value={birth} onChange={setBirth} disabled={busy} />
             <DateField label="Anniversary (optional)" value={anniversary} onChange={setAnniversary} disabled={busy} />
           </CardSection>

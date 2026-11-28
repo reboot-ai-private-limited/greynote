@@ -322,5 +322,9 @@ describe('A manager or Admin corrects a pending Doctor before approving', () => 
     expect((await review.execute(admin, doctor.id, { address: '1 New Rd' })).address).toBe('1 New Rd');
     await expectStatus(review.execute(field('stranger'), doctor.id, { address: 'x' }), 404);
     await expectStatus(review.execute(field('mr1'), doctor.id, { address: 'x' }), 404);
+    // The visit frequency is Admin's alone (2026-11-28): the MR's suggestion stands; the same number again is fine.
+    await expectStatus(review.execute(field('asm'), doctor.id, { visitFrequency: 4 }), 403);
+    await expect(review.execute(field('asm'), doctor.id, { visitFrequency: doctor.visitFrequency ?? null })).resolves.toBeTruthy();
+    expect((await review.execute(admin, doctor.id, { visitFrequency: 4 })).visitFrequency).toBe(4);
   });
 });

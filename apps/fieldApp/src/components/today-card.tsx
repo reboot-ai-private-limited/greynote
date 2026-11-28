@@ -3,6 +3,7 @@ import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Accents, Spacing } from '@/constants/theme';
+import { useCurrentUser } from '@/hooks/use-current-user';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useTheme } from '@/hooks/use-theme';
 import { dayWhere } from '@/lib/places';
@@ -65,8 +66,9 @@ function Detail({ label, value }: { label: string; value: string }) {
 }
 
 /**
- * What today holds: work type, routes, who with, and (once approved) doctors. Until the Daily Plan is approved this is
- * the Tour Plan's day; after, the Daily Plan's. All from the phone's last pull, so it works offline.
+ * What today holds: work type, place, who with, and doctors. Once a Daily Plan exists (2026-11-28: waiting or approved, not only
+ * approved) it is the Daily Plan's day, so who you work with is what you chose; before that, the Tour Plan's. A manager's doctors are
+ * the ones the people they work with planned. All from the phone's last pull, so it works offline.
  */
 function TodayPlanDetails({ today }: { today: string }) {
   const theme = useTheme();
@@ -76,10 +78,11 @@ function TodayPlanDetails({ today }: { today: string }) {
 
   const daily = planning.data?.dailyPlans.find((p) => p.planDate === today);
   const approved = daily?.status === 'APPROVED' || daily?.status === 'MANAGER_APPROVED';
+  const { isManager } = useCurrentUser();
   const tourDay = planning.data?.monthlyPlans
     .find((m) => m.planMonth === monthOf(today))
     ?.entries.find((e) => e.planDate === today);
-  const plan = approved ? daily : tourDay;
+  const plan = daily ?? tourDay;
   if (!plan) return null;
 
   const fieldDay = isFieldDay(plan.workingType);
@@ -90,7 +93,7 @@ function TodayPlanDetails({ today }: { today: string }) {
     if (!c) return 'Colleague';
     return c.designation ? `${c.name} (${c.designation})` : c.name;
   });
-  const doctors = approved ? daily.doctors : undefined;
+  const doctors = daily?.doctors;
   const carried = doctors?.filter((d) => d.carriedFrom !== null).length ?? 0;
 
   return (
@@ -100,7 +103,7 @@ function TodayPlanDetails({ today }: { today: string }) {
       accessibilityLabel="Open today’s Daily Plan"
       style={({ pressed }) => [styles.details, { borderColor: theme.border }, pressed && styles.pressed]}>
       <ThemedText type="small" themeColor="textSecondary" style={styles.source}>
-        {approved ? 'Today’s approved Daily Plan' : 'From your Tour Plan'}
+        {!daily ? 'From your Tour Plan' : approved ? 'Today’s approved Daily Plan' : `Today’s Daily Plan · ${(STATUS_TEXT[daily.status] ?? daily.status).toLowerCase()}`}
       </ThemedText>
       <Detail label="Work type" value={`${workingTypeLabel(plan.workingType)}${trip}`} />
       {fieldDay && dayWhere(plan, territory.data) ? (
@@ -112,7 +115,7 @@ function TodayPlanDetails({ today }: { today: string }) {
       {fieldDay && doctors ? (
         <Detail
           label="Doctors"
-          value={`${doctorCountText(doctors.length)} planned${carried > 0 ? ` · ${carried} carried over` : ''}`}
+          value={isManager ? `${doctorCountText(doctors.length)} · from the people you work with` : `${doctorCountText(doctors.length)} planned${carried > 0 ? ` · ${carried} carried over` : ''}`}
         />
       ) : null}
       {plan.remarks ? <Detail label="Remarks" value={plan.remarks} /> : null}

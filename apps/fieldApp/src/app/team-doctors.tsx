@@ -2,7 +2,6 @@ import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
-import { ChoiceChips } from '@/components/choice-chips';
 import {
   DateField,
   EMPTY_PARTS,
@@ -40,16 +39,10 @@ const errorText = (err: unknown) =>
     ? err.message
     : 'Something went wrong. Please try again.';
 
-const NO_TARGET = 'NONE';
-const FREQUENCIES = [
-  ...[1, 2, 3, 4].map((n) => ({ value: String(n), label: String(n) })),
-  { value: NO_TARGET, label: 'No target' },
-];
-
 /**
- * Team doctors (managers): pick someone in your team to see their doctors. "Set visit target" on a doctor sets how many times
- * a month they should visit (1–4, or none), plus the doctor's date of birth and anniversary. Only a manager above the employee, or Admin, may;
- * the server says so otherwise. Needs a connection and the current financial year.
+ * Team doctors (managers): pick someone in your team to see their doctors, with each one's visits a month. A manager can set a
+ * doctor's date of birth and anniversary; the visit frequency is Admin's alone (2026-11-28), so it is shown, never changed here.
+ * Needs a connection and the current financial year.
  */
 export default function TeamDoctorsScreen() {
   const online = useOnline();
@@ -68,7 +61,6 @@ export default function TeamDoctorsScreen() {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [editing, setEditing] = useState<TeamDoctor | null>(null);
-  const [frequency, setFrequency] = useState<string | null>(null);
   const [birth, setBirth] = useState<DateParts>(EMPTY_PARTS);
   const [anniversary, setAnniversary] = useState<DateParts>(EMPTY_PARTS);
   const [busy, setBusy] = useState(false);
@@ -117,7 +109,6 @@ export default function TeamDoctorsScreen() {
   const open = (d: TeamDoctor) => {
     setMsg(null);
     setEditing(d);
-    setFrequency(d.visitFrequency ? String(d.visitFrequency) : NO_TARGET);
     setBirth(partsFromIso(d.dateOfBirth));
     setAnniversary(partsFromIso(d.anniversary));
   };
@@ -128,11 +119,9 @@ export default function TeamDoctorsScreen() {
     if (dob.error) return setMsg({ tone: 'danger', text: `Date of birth: ${dob.error}` });
     const wedding = isoFromParts(anniversary, today);
     if (wedding.error) return setMsg({ tone: 'danger', text: `Anniversary: ${wedding.error}` });
-    const newFrequency = frequency && frequency !== NO_TARGET ? Number(frequency) : null;
 
     // Only what changed goes up; the server refuses an empty change.
     const body: DoctorTargetsBody = {};
-    if (newFrequency !== (editing.visitFrequency ?? null)) body.visitFrequency = newFrequency;
     if ((dob.iso ?? null) !== (editing.dateOfBirth ?? null)) body.dateOfBirth = dob.iso;
     if ((wedding.iso ?? null) !== (editing.anniversary ?? null)) body.anniversary = wedding.iso;
     if (Object.keys(body).length === 0)
@@ -218,14 +207,8 @@ export default function TeamDoctorsScreen() {
             {[editing.specialty, editing.clinicName].filter(Boolean).join(' · ')}
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            Visits a month
+            {`Visits a month: ${editing.visitFrequency ?? 'no target'} · only Admin can change it`}
           </ThemedText>
-          <ChoiceChips
-            options={FREQUENCIES}
-            value={frequency}
-            onChange={setFrequency}
-            disabled={busy || readOnly}
-          />
           <DateField
             label="Date of birth (optional)"
             value={birth}
@@ -308,7 +291,7 @@ export default function TeamDoctorsScreen() {
               />
             ) : null}
             <PrimaryButton
-              label="Set visit target →"
+              label="Birthday & anniversary →"
               variant="text"
               disabled={busy || readOnly}
               onPress={() => open(d)}

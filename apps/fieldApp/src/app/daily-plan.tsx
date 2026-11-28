@@ -44,6 +44,7 @@ import { WorkWithPicker } from '@/components/work-with-picker';
 import { refreshNow, useColleagues, useOnline, useRecords, type CallPayload } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
 import { useCachedFetch } from '@/offline/cached-fetch';
+import { getDailyPlanRecord, type DailyPlanRecord } from '@/lib/approvals';
 import { formatWhen, monthOf, nowMs, prettyDay, prettyMonth } from '@/offline/day';
 import { clearLocalDraft, loadLocalDraft, saveLocalDraft } from '@/offline/local-draft';
 import type { ConfigSnapshot, FieldMasterDataSnapshot, PlanningSnapshot, TerritorySnapshot } from '@/types/sync';
@@ -176,6 +177,19 @@ export default function DailyPlanScreen() {
     .map((p) => `${callDoctorById.get(p.id)?.name ?? 'A doctor'}: ${p.soon!.short.toLowerCase()}`);
 
   // The team's day (dailyplan.md section 1b). The server only answers for today or earlier, so it can't say who is away on a later day.
+  // A manager's doctors, read only, by who planned them (2026-11-28): the plan read by id says which work-with person planned each.
+  // Read again whenever the plan's people or status change.
+  const managerDoctors = useCachedFetch<DailyPlanRecord | null>(
+    isManager && existing ? `plan-record:${existing.id}:${existing.status}:${existing.workWith.join(',')}` : 'plan-record:none',
+    async () => (isManager && existing ? getDailyPlanRecord(existing.id) : null),
+  );
+  const doctorGroups = Object.values(
+    (managerDoctors.data?.doctors ?? []).reduce<Record<string, { who: string; names: string[] }>>((acc, d) => {
+      const key = d.plannedBy?.id ?? '-';
+      (acc[key] ??= { who: d.plannedBy?.label ?? 'Others', names: [] }).names.push(d.name ?? 'Doctor');
+      return acc;
+    }, {}),
+  );
   const showTeamToday = isManager && date === today;
   const teamToday = useCachedFetch<TeamDayRow[]>(showTeamToday ? `plan-team-today:${today}` : 'plan-team-today:none', async () =>
     showTeamToday ? (await getTeamToday({ date: today })).items : [],
@@ -548,7 +562,24 @@ export default function DailyPlanScreen() {
         <Notice tone="info">You’re offline. You can change who you work with and the doctors and keep them on this phone; saving and submitting need the internet.</Notice>
       ) : null}
 
-      {/* A manager picks no doctors (2026-11-28): they choose who they work with, and on a call pick any doctor of their team's MRs. */}
+      {/* A manager picks no doctors (2026-11-28): they see, read only, those the people they work with planned, by person. */}
+      {existing && fieldDay && isManager && existing.workWith.length > 0 ? (
+        <CardSection icon={sym('stethoscope', 'medical_services')} accent="blue" title="Doctors to call" count={managerDoctors.data?.doctors?.length}>
+          <ThemedText type="small" themeColor="textSecondary">From the people you work with. On a call you can also pick any other doctor of your team’s MRs.</ThemedText>
+          {doctorGroups.length > 0 ? (
+            doctorGroups.map((g) => (
+              <ThemedText key={g.who} type="small">
+                <ThemedText type="smallBold">{`${g.who}: `}</ThemedText>
+                {g.names.join(', ')}
+              </ThemedText>
+            ))
+          ) : (
+            <ThemedText type="small" themeColor="textSecondary">
+              {managerDoctors.data ? 'They planned no doctors for this day yet.' : online ? 'Loading…' : 'Connect to the internet to see their doctors.'}
+            </ThemedText>
+          )}
+        </CardSection>
+      ) : null}
       {existing && fieldDay && !isManager ? (
         editable ? (
           <CardSection icon={sym('stethoscope', 'medical_services')} accent="blue" title="Doctors to call">

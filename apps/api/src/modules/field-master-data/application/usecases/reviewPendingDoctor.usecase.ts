@@ -23,6 +23,10 @@ export class ReviewPendingDoctorUseCase {
     if (actor.role !== 'ADMIN') {
       const isManager = actor.role === 'FIELD' && actor.id !== doctor.addedBy && (await this.users.getDownline(actor.id)).some((u) => u.id === doctor.addedBy);
       if (!isManager) throw AppError.notFound('No such doctor waiting for approval.');
+      // The visit frequency is Admin's alone (2026-11-28): the MR's suggestion stands until Admin changes it.
+      if (change.visitFrequency !== undefined && change.visitFrequency !== doctor.visitFrequency) {
+        throw AppError.forbidden('Only Admin can change a doctor’s visit frequency.');
+      }
     }
     return this.update.execute(id, change);
   }
