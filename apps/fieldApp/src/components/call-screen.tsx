@@ -109,20 +109,15 @@ export function CallScreen({ subject }: { subject: Subject }) {
     return (isDoctor ? p.doctorId : p.chemistId) ?? '';
   };
 
-  // Doctors: an MR's are today's plan (missed ones first, oldest first, then A to Z). A manager's are every doctor of their team's MRs
-  // (2026-11-28), the ones held by the people they work with today first. Chemists: those at today's To place (2026-11-27; anywhere else is
-  // a follow-up), or every one I hold on an older day without places. One already on a call being edited stays pickable.
-  const workingWith = useMemo(() => new Set(plan?.workWith ?? []), [plan]);
+  // Doctors: today's plan (missed ones first, oldest first, then A to Z). For a manager that is the doctors the people they work with
+  // planned (2026-11-28), each showing whose it is; any other doctor is a follow-up. Chemists: those at today's To place (2026-11-27;
+  // anywhere else is a follow-up), or every one I hold on an older day without places. One already on a call being edited stays pickable.
   const outlets = useMemo(() => {
-    if (isDoctor && isManager) {
-      const withToday = (d: { heldBy?: string | null }) => (d.heldBy && workingWith.has(d.heldBy) ? 0 : 1);
-      return [...callDoctors].sort((a, b) => withToday(a) - withToday(b) || a.name.localeCompare(b.name));
-    }
     const list: { id: string; routeId: string; name: string }[] = isDoctor
       ? callDoctors.filter((d) => plannedDoctorIds.has(d.id) || d.id === outletId)
       : (master.data?.chemists ?? []).filter((c) => !plan?.toPlaceId || !c.placeId || c.placeId === plan.toPlaceId || c.id === outletId);
     return [...list].sort((a, b) => (carried.get(a.id) ?? '9999').localeCompare(carried.get(b.id) ?? '9999') || a.name.localeCompare(b.name));
-  }, [master.data, callDoctors, isDoctor, isManager, workingWith, plannedDoctorIds, carried, outletId, plan]);
+  }, [master.data, callDoctors, isDoctor, plannedDoctorIds, carried, outletId, plan]);
   const loc = useLocationReading();
   const outletById = useMemo(
     () => new Map([...callDoctors, ...(master.data?.chemists ?? [])].map((o) => [o.id, o])),
@@ -294,7 +289,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
               name: o.name,
               photoUrl: isDoctor ? (callDoctorById.get(o.id)?.photoUrl ?? null) : null,
               disabled: soon !== null,
-              subtitle: `${isManager && workingWith.has(callDoctorById.get(o.id)?.heldBy ?? '') ? 'With you today · ' : ''}${soon ? `${soon.short} · ` : ''}${missedFrom ? `Missed since ${prettyDay(missedFrom)} · ` : ''}${routeLabel ? `(${routeLabel}) · ` : ''}${full && 'mrLabel' in full && full.mrLabel ? `${full.mrLabel} · ` : ''}${full && 'specialty' in full ? `${full.specialty}${clinic} · ${full.address}` : (full?.address ?? '')}${
+              subtitle: `${soon ? `${soon.short} · ` : ''}${missedFrom ? `Missed since ${prettyDay(missedFrom)} · ` : ''}${routeLabel ? `(${routeLabel}) · ` : ''}${full && 'mrLabel' in full && full.mrLabel ? `${full.mrLabel} · ` : ''}${full && 'specialty' in full ? `${full.specialty}${clinic} · ${full.address}` : (full?.address ?? '')}${
                 full && 'visitFrequency' in full && full.visitFrequency ? ` · ${madeBy.has(o.id) ? `${madeBy.get(o.id)} of ${full.visitFrequency}` : full.visitFrequency} visits${madeBy.has(o.id) ? ' this month' : ' a month'}` : ''
               }${calledIds.has(o.id) ? ' · called today' : ''}`,
             };
@@ -309,7 +304,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
             fe.clear('outlet');
           }}
           disabled={busy}
-          emptyText={isDoctor ? (isManager ? 'Your team’s doctors haven’t loaded yet. Connect to the internet once.' : 'No doctors planned today. Use Follow-up for another doctor, or ask your manager or Admin to change the plan.') : `No ${noun}s at today’s place. Use Follow-up for one elsewhere.`}
+          emptyText={isDoctor ? (isManager ? 'No doctors on your plan today. Choose who you work with on your Daily Plan; any other doctor is a follow-up.' : 'No doctors planned today. Use Follow-up for another doctor, or ask your manager or Admin to change the plan.') : `No ${noun}s at today’s place. Use Follow-up for one elsewhere.`}
           avatars={isDoctor}
         />
         </FormField>

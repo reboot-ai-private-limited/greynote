@@ -460,7 +460,7 @@ export default function DailyPlanScreen() {
           <ThemedText type="small" themeColor="textSecondary">
             {`${dayWhere(existing, territory.data) ?? 'Your Tour Plan’s place'}. You can work with the people below you whose plan for this day is approved and goes to the same place.`}
           </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">On your calls you can pick any doctor of your team’s MRs.</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">You call the doctors the people you work with planned. Any other doctor is a follow-up.</ThemedText>
           <FormField form={fe} name="workWith">
             <OutletPicker
               label="Who you work with"
@@ -478,7 +478,7 @@ export default function DailyPlanScreen() {
           </FormField>
           {workWithOptions.data && workWithOptions.data.people.length === 0 ? (
             <Notice tone="info" title="Nobody to work with here">
-              Nobody below you has an approved plan at this place for this day. You can still go: on your calls you can pick any doctor of your team’s MRs.
+              Nobody below you has an approved plan at this place for this day. You can still go: log follow-ups for the doctors and chemists you meet.
             </Notice>
           ) : null}
           {!workWithOptions.data && !workWithOptions.loading ? <Notice tone="info">Connect to the internet once to load who you can work with.</Notice> : null}
@@ -565,7 +565,7 @@ export default function DailyPlanScreen() {
       {/* A manager picks no doctors (2026-11-28): they see, read only, those the people they work with planned, by person. */}
       {existing && fieldDay && isManager && existing.workWith.length > 0 ? (
         <CardSection icon={sym('stethoscope', 'medical_services')} accent="blue" title="Doctors to call" count={managerDoctors.data?.doctors?.length}>
-          <ThemedText type="small" themeColor="textSecondary">From the people you work with. On a call you can also pick any other doctor of your team’s MRs.</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">From the people you work with. Any other doctor is a follow-up.</ThemedText>
           {doctorGroups.length > 0 ? (
             doctorGroups.map((g) => (
               <ThemedText key={g.who} type="small">

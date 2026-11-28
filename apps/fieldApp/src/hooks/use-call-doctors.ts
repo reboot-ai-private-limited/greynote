@@ -22,8 +22,6 @@ export type CallDoctor = {
   visitFrequency?: number | null;
   /** Who a team doctor is assigned to, "Name (code)". Not set on the employee's own doctors. */
   mrLabel?: string | null;
-  /** That person's user id (2026-11-28: a manager's call list puts the doctors of the people they work with first). */
-  heldBy?: string | null;
 };
 
 const noTeam = async (): Promise<TeamDoctor[]> => [];
@@ -44,7 +42,7 @@ export function useCallDoctors() {
     const ownIds = new Set(own.map((d) => d.id));
     const below = (team.data ?? [])
       .filter((t) => !ownIds.has(t.id))
-      .map<CallDoctor>((t) => ({ ...t, mrLabel: t.assignedTo ? `${t.assignedTo.name} (${t.assignedTo.employeeCode})` : null, heldBy: t.assignedTo?.userId ?? null }));
+      .map<CallDoctor>((t) => ({ ...t, mrLabel: t.assignedTo ? `${t.assignedTo.name} (${t.assignedTo.employeeCode})` : null }));
     return [...own, ...below];
   }, [master.data, team.data]);
   const byId = useMemo(() => new Map(doctors.map((d) => [d.id, d])), [doctors]);
