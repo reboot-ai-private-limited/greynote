@@ -599,7 +599,7 @@ export default function DailyPlanScreen() {
             </ThemedText>
           )}
           {calledTeamNames.length > 0 ? (
-            <ThemedText type="small" themeColor="textSecondary">{`${calledTeamNames.length} already called today: ${calledTeamNames.join(', ')}`}</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">{`Already called: ${calledTeamNames.length}`}</ThemedText>
           ) : null}
         </CardSection>
       ) : null}

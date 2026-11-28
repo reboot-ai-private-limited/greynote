@@ -203,7 +203,7 @@ export function PlanDoctorsPicker({ routeIds, toPlaceId, limitToRoutes, onlyIds,
       })}
       {calledNames.length > 0 ? (
         <ThemedText type="small" themeColor="textSecondary">
-          {`${calledNames.length} already called ${readOnly ? 'that day' : 'today'}: ${calledNames.join(', ')}`}
+          {`Already called: ${calledNames.length}`}
         </ThemedText>
       ) : null}
     </View>
