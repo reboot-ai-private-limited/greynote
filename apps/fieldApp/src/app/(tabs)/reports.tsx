@@ -4,7 +4,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChoiceChips } from '@/components/choice-chips';
-import { DownloadButton } from '@/components/report-kit';
+import { DownloadsCard } from '@/components/report-kit';
 import { FyBanner } from '@/components/fy-banner';
 import { MonthStepper } from '@/components/month-stepper';
 import { DcrReport, ExpensesReport, PlansReport } from '@/components/reports';
@@ -89,17 +89,19 @@ export default function ReportsScreen() {
           </InfoCard>
           {/* The server's detailed sheets, the same Admin downloads (2026-11-28): the main thing here, so above the tabs. */}
           {person ? (
-            <View style={styles.downloads}>
-              <DownloadButton wide label="Monthly work ⤓" hint={`${prettyMonth(month)} · every day`} run={() => downloadMonthlyWorkReport(person, month, prettyMonth(month))} />
-              <DownloadButton wide label="Secondary sales ⤓" hint={`FY ${fyLabel}`} run={() => downloadSecondarySheet(person, fy.year, fyLabel)} />
-              <DownloadButton
-                wide
-                label="Tour Plan ⤓"
-                hint={tourPlan ? (tourApproved ? prettyMonth(month) : 'once approved') : 'none this month'}
-                disabled={!tourApproved}
-                run={() => downloadTourPlan(person, month, prettyMonth(month))}
-              />
-            </View>
+            <DownloadsCard
+              files={[
+                { key: 'work', title: 'Monthly work report', about: `${prettyMonth(month)} · every day’s plan, DCR, calls, expenses`, run: () => downloadMonthlyWorkReport(person, month, prettyMonth(month)) },
+                { key: 'secondary', title: 'Secondary sales', about: `FY ${fyLabel} · by product and month`, run: () => downloadSecondarySheet(person, fy.year, fyLabel) },
+                {
+                  key: 'tour',
+                  title: 'Tour Plan',
+                  about: prettyMonth(month),
+                  run: () => downloadTourPlan(person, month, prettyMonth(month)),
+                  unavailable: tourApproved ? null : tourPlan ? 'Once approved' : 'None yet',
+                },
+              ]}
+            />
           ) : null}
           <ChoiceChips options={TABS} value={tab} onChange={setTab} />
 
@@ -142,7 +144,6 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   head: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, zIndex: 10 },
-  downloads: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   title: { flex: 1 },
   year: { width: 190 },
   list: { gap: Spacing.two },

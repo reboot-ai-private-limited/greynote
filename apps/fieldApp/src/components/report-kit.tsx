@@ -16,10 +16,10 @@ import { Pill, SummaryStrip } from './ui-cards';
  */
 
 /**
- * A green download button: `run` makes the file (on the phone, or the server's own sheet) and hands it over; the line under it says
- * where it went, or why it didn't. `label` defaults to "Excel ⤓"; `hint` is a grey line under a wider button.
+ * A small green download pill for a list's header: `run` makes the file (on the phone, or the server's own sheet) and hands it over;
+ * the line under it says where it went, or why it didn't.
  */
-export function DownloadButton({ run: make, label = 'Excel ⤓', hint, disabled, wide }: { run: () => Promise<string | null>; label?: string; hint?: string; disabled?: boolean; wide?: boolean }) {
+export function DownloadButton({ run: make, label = '⤓ Excel', hint, disabled }: { run: () => Promise<string | null>; label?: string; hint?: string; disabled?: boolean }) {
   const theme = useTheme();
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
@@ -36,13 +36,13 @@ export function DownloadButton({ run: make, label = 'Excel ⤓', hint, disabled,
     }
   };
   return (
-    <View style={wide ? styles.wideWrap : styles.excelWrap}>
+    <View style={styles.excelWrap}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Download ${label.replace(' ⤓', '')}${hint ? `, ${hint}` : ''}`}
+        accessibilityLabel={`Download ${label.replace(/⤓ ?| ?⤓/g, '')}${hint ? `, ${hint}` : ''}`}
         disabled={busy || disabled}
         onPress={() => void run()}
-        style={({ pressed }) => [wide ? styles.wide : styles.excel, { borderColor: Accents.green.border, backgroundColor: Accents.green.bg }, (pressed || disabled) && styles.dim]}>
+        style={({ pressed }) => [styles.excel, { borderColor: Accents.green.border, backgroundColor: Accents.green.bg }, (pressed || disabled) && styles.dim]}>
         {busy ? (
           <ActivityIndicator size="small" color={Accents.green.solid} />
         ) : (
@@ -61,7 +61,75 @@ export function DownloadButton({ run: make, label = 'Excel ⤓', hint, disabled,
   );
 }
 
-/** "Excel ⤓" for a list: builds the sheet on the phone from exactly the rows on screen. */
+/** One file in a `DownloadsCard`: an XLS badge, the name and what it holds, and a Download pill (or why it can't be had yet). */
+function DownloadRow({ title, about, run: make, unavailable, last }: { title: string; about: string; run: () => Promise<string | null>; unavailable?: string | null; last: boolean }) {
+  const theme = useTheme();
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
+  const run = async () => {
+    setBusy(true);
+    setNote(null);
+    try {
+      const done = await make();
+      if (done) setNote({ ok: true, text: done });
+    } catch (err) {
+      setNote({ ok: false, text: err instanceof Error ? err.message : 'Couldn’t make the file. Try again.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const off = Boolean(unavailable);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Download ${title}, ${about}${unavailable ? `, ${unavailable}` : ''}`}
+      accessibilityState={{ disabled: off || busy, busy }}
+      disabled={off || busy}
+      onPress={() => void run()}
+      style={({ pressed }) => [styles.fileRow, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.border }, pressed && styles.dim]}>
+      <View style={[styles.badge, { backgroundColor: off ? theme.backgroundElement : Accents.green.bg, borderColor: off ? theme.border : Accents.green.border }]}>
+        <ThemedText type="smallBold" style={[styles.badgeText, { color: off ? theme.textSecondary : Accents.green.solid }]}>XLS</ThemedText>
+      </View>
+      <View style={[styles.grow, off && styles.dim]}>
+        <ThemedText type="smallBold" numberOfLines={1}>{title}</ThemedText>
+        <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>{about}</ThemedText>
+        {note ? (
+          <ThemedText type="small" style={{ color: note.ok ? theme.textSecondary : theme.danger }} numberOfLines={2}>
+            {note.text}
+          </ThemedText>
+        ) : null}
+      </View>
+      {off ? (
+        <ThemedText type="small" themeColor="textSecondary">{unavailable}</ThemedText>
+      ) : (
+        <View style={[styles.pill, { backgroundColor: Accents.green.solid }]}>
+          {busy ? <ActivityIndicator size="small" color="#FFFFFF" /> : null}
+          <ThemedText type="smallBold" style={styles.pillText}>{busy ? 'Making…' : '⤓ Download'}</ThemedText>
+        </View>
+      )}
+    </Pressable>
+  );
+}
+
+/**
+ * The server's detailed Excel sheets as a list of files (2026-11-28): one card, one row each, an XLS badge and a Download pill, so it
+ * reads as something to download. A row that can't be had yet is greyed and says why.
+ */
+export function DownloadsCard({ title = 'Downloads · Excel', files }: { title?: string; files: { key: string; title: string; about: string; run: () => Promise<string | null>; unavailable?: string | null }[] }) {
+  const theme = useTheme();
+  return (
+    <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.background }]}>
+      <ThemedText type="smallBold">{title}</ThemedText>
+      <View>
+        {files.map((f, i) => (
+          <DownloadRow key={f.key} title={f.title} about={f.about} run={f.run} unavailable={f.unavailable} last={i === files.length - 1} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+/** "⤓ Excel" for a list: builds the sheet on the phone from exactly the rows on screen. */
 export function ExcelButton({ fileName, sheet, disabled }: { fileName: string; sheet: () => XlsxSheet; disabled?: boolean }) {
   return <DownloadButton run={() => downloadXlsx(fileName, sheet())} disabled={disabled} />;
 }
@@ -172,8 +240,12 @@ const styles = StyleSheet.create({
   right: { alignItems: 'flex-end', gap: 4 },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, borderWidth: 1, borderRadius: Spacing.three, paddingVertical: Spacing.two + 2, paddingHorizontal: Spacing.three },
   excelWrap: { alignItems: 'flex-end', gap: 4, maxWidth: 200 },
-  wideWrap: { flexGrow: 1, flexBasis: 150, gap: 4 },
-  wide: { borderWidth: 1, borderRadius: Spacing.three, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, minHeight: 52, justifyContent: 'center' },
   excel: { borderWidth: 1, borderRadius: 999, paddingHorizontal: Spacing.three, paddingVertical: Spacing.one + 2, minWidth: 84, alignItems: 'center' },
   dim: { opacity: 0.6 },
+  card: { borderWidth: 1, borderRadius: Spacing.three, paddingHorizontal: Spacing.three, paddingTop: Spacing.three, paddingBottom: Spacing.one, gap: Spacing.one },
+  fileRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.three, minHeight: 64 },
+  badge: { width: 40, height: 46, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  badgeText: { fontSize: 12, lineHeight: 16, letterSpacing: 0.5 },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: Spacing.three, paddingVertical: Spacing.one + 2 },
+  pillText: { color: '#FFFFFF', fontSize: 13, lineHeight: 18 },
 });
