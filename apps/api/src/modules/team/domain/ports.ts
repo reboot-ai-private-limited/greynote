@@ -15,6 +15,8 @@ export interface FieldEmployeeInfo {
   designation: string | null;
   hqId: string | null;
   zoneId: string | null;
+  /** Their mobile; absent where the directory doesn't give it. */
+  phone?: string | null;
 }
 
 /** A colleague as a plan names them. */
@@ -147,6 +149,8 @@ export interface TeamDayActivity {
   userId: string;
   date: string;
   reportStatus: string | null;
+  /** The report's id (2026-11-28), absent from older readers. */
+  dcrId?: string | null;
   doctorCalls: Array<{ doctorId: string; recordedAt: Date; remarks: string | null; geofence: string; samples?: Array<{ productName: string; quantity: number }>; lbl?: string[] }>;
   chemistCalls: Array<{ chemistId: string; recordedAt: Date }>;
   followups: number;

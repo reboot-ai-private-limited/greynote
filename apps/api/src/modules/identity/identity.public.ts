@@ -27,6 +27,8 @@ export interface FieldEmployeeRow {
   hqId: string | null;
   zoneId: string | null;
   managerId: string | null;
+  /** Their mobile (2026-11-28), for a manager's "Call" on their page. */
+  phone?: string | null;
 }
 
 /** An active user as an Inbox audience is resolved: role, and (FIELD only) the HQ and Zone copied onto the profile. */

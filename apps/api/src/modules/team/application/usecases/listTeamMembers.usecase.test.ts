@@ -34,6 +34,7 @@ const directory: TeamDirectoryPort = {
       designation: id.startsWith('asm') ? 'ASM' : 'MR',
       hqId: 'hq1',
       zoneId: 'z1',
+      phone: id === 'mr1' ? '9800000001' : null,
     })),
 };
 const territory: TeamTerritoryPort = {
@@ -53,6 +54,11 @@ describe('ListTeamMembers', () => {
       hq: { name: 'Pune' },
       zone: { name: 'West' },
     });
+  });
+
+  it('gives each person’s mobile for "Call" on their page (2026-11-28), null when none', async () => {
+    const page = await useCase.execute('rsm', base);
+    expect(page.items.map((m) => [m.id, m.phone])).toEqual([['asm1', null], ['asm2', null], ['mr1', '9800000001']]);
   });
 
   it('marks who has a team of their own', async () => {

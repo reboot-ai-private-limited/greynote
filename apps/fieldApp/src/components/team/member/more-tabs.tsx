@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { Spacing } from '@/constants/theme';
 import { useWindowed } from '@/hooks/use-windowed';
@@ -24,7 +24,7 @@ import { holdersText, listTeamChemistsPage, listTeamDistributorsPage, type TeamC
 import { PagedList } from './../paged-list';
 import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
-import { monthOf, prettyDay } from '@/offline/day';
+import { prettyDay } from '@/offline/day';
 
 import { ChoiceChips } from '../../choice-chips';
 import { Notice } from '../../notice';
@@ -184,28 +184,8 @@ const DOCTOR_FILTERS: { value: DoctorFilter; label: string }[] = [
   { value: 'CARRIED', label: 'Carried over' },
 ];
 
-/** The person's month in doctors, in one line; tapping it opens the page of numbers (calls, missed, remaining, carried; total and doctor-wise). */
-export function DoctorsMonthCard({ userId, month, doctorCalls, onOpen }: { userId: string; month: string; doctorCalls?: number | undefined; onOpen: () => void }) {
-  const fy = useFinancialYear();
-  const q = useCachedFetch<MemberDoctors>(`team-member-doctors:${fy.year}:${userId}:${month}`, () => getMemberDoctors(userId, month));
-  const t = q.data?.totals;
-  if (!t) return null;
-  const now = month >= monthOf(fy.today);
-  return (
-    <Pressable accessibilityRole="button" accessibilityLabel="Doctors this month: open the numbers" onPress={onOpen}>
-      <CardSection icon={sym('stethoscope', 'medical_services')} accent="teal" title={`Doctors this month${now ? ' (so far)' : ''}`}>
-        {t.withTarget === 0 ? (
-          <ThemedText type="small" themeColor="textSecondary">No doctor has a visit target yet.</ThemedText>
-        ) : (
-          <ThemedText type="small">{`${t.made} of ${t.quota} visits made · ${t.missed} ${now ? 'remaining' : 'missed'} · ${t.notCalled} not called at all · ${t.carried} ${now ? 'carried over' : 'carried at month end'}${doctorCalls !== undefined ? ` · ${doctorCalls} doctor calls` : ''}`}</ThemedText>
-        )}
-        <ThemedText type="small" themeColor="primary">See the numbers →</ThemedText>
-      </CardSection>
-    </Pressable>
-  );
-}
 
-/** The doctors held by the person (a manager: by the people below them, each marked "held by"): visits against target, the last visit, services asked for each in ₹. */
+
 export function DoctorsTab({ userId, month, filter, onFilter }: { userId: string; month: string; filter: DoctorFilter; onFilter: (f: DoctorFilter) => void }) {
   const online = useOnline();
   const fy = useFinancialYear();

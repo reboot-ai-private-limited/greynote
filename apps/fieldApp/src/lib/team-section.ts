@@ -71,6 +71,8 @@ export type TeamMember = {
   managerId: string | null;
   hq: { id: string; name: string } | null;
   zone: { id: string; name: string } | null;
+  /** Their mobile (2026-11-28), for "Call" on their page. Absent from older servers. */
+  phone?: string | null;
 };
 
 export const listTeamMembers = (p: { scope?: TeamScopeFilter; search?: string; page?: number; pageSize?: number } = {}) =>
@@ -145,7 +147,8 @@ export type TeamMemberDay = {
   date: string;
   plan: { status: string; workingType: string; routes: NamedRoute[]; workWith: PlanPerson[]; remarks: string | null; changedFromMonthly: boolean } | null;
   doctors: { planned: DoctorLine[]; alsoVisited: DoctorLine[] };
-  report: { status: string; doctorCalls: number; chemistCalls: number; followups: number } | null;
+  /** `id` (2026-11-28): the report, to open it; absent from older servers. */
+  report: { id?: string | null; status: string; doctorCalls: number; chemistCalls: number; followups: number } | null;
   summary: { planned: number; visited: number; missed: number };
   /** Doctors carried in, missed that day and carried on; `null` for a day after today. Absent from older servers. */
   carry?: { carriedIn: number; missed: number; carriedOn: number; final: boolean } | null;

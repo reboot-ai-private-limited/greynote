@@ -19,7 +19,7 @@ export interface TeamMemberDay {
   } | null;
   doctors: { planned: TeamDoctorLine[]; alsoVisited: TeamDoctorLine[] };
   /** The day's report: status and what it holds. `null` when nothing was logged. */
-  report: { status: string; doctorCalls: number; chemistCalls: number; followups: number } | null;
+  report: { /** The report's id (2026-11-28), to open it. */ id?: string | null; status: string; doctorCalls: number; chemistCalls: number; followups: number } | null;
   summary: { planned: number; visited: number; missed: number };
   /** Doctors carried in (owed when the day started), missed that day and carried on to the next day; `null` for a day after today. On today the figures are so far. */
   carry: { carriedIn: number; missed: number; carriedOn: number; final: boolean } | null;
@@ -102,7 +102,7 @@ export class TeamMemberDaysUseCase {
         date,
         plan: p ? { status: p.status, workingType: p.workingType, routes: await routesOf(p.routeIds), workWith: await this.directory.namePeople(p.workWith), remarks: p.remarks, changedFromMonthly: p.changedFromMonthly } : null,
         doctors: { planned, alsoVisited },
-        report: a?.reportStatus ? { status: a.reportStatus, doctorCalls: a.doctorCalls.length, chemistCalls: a.chemistCalls.length, followups: a.followups } : null,
+        report: a?.reportStatus ? { id: a.dcrId ?? null, status: a.reportStatus, doctorCalls: a.doctorCalls.length, chemistCalls: a.chemistCalls.length, followups: a.followups } : null,
         summary: { planned: planned.length, visited, missed: date < today ? planned.length - visited : 0 },
         carry: carryOf.has(date) ? { carriedIn: carryOf.get(date)!.carriedIn.length, missed: carryOf.get(date)!.missed.length, carriedOn: carryOf.get(date)!.carriedOn.length, final: date < today } : null,
       });

@@ -15,6 +15,8 @@ export interface TeamMemberRow {
   managerId: string | null;
   hq: { id: string; name: string } | null;
   zone: { id: string; name: string } | null;
+  /** Their mobile (2026-11-28), for "Call" on their page; null when none is recorded. */
+  phone: string | null;
 }
 
 export interface TeamMembersQuery {
@@ -90,6 +92,7 @@ export class ListTeamMembersUseCase {
         managerId: m.managerId,
         hq: (e?.hqId && hqs.get(e.hqId)) || null,
         zone: (e?.zoneId && zones.get(e.zoneId)) || null,
+        phone: e?.phone ?? null,
       };
     });
     return buildPaginatedResult(rows, matches.length, query);

@@ -19,11 +19,13 @@ import { prettyMonth } from '@/offline/day';
  * Opening · Primary · Secondary · Closing and the value at PTS, with that distributor's totals and an Excel of these rows.
  */
 export default function SecondaryDistributorScreen() {
-  const { month, distributorId } = useLocalSearchParams<{ month: string; distributorId: string }>();
+  // `userId`: a team member's (2026-11-28, opened from their page); otherwise your own.
+  const { month, distributorId, userId } = useLocalSearchParams<{ month: string; distributorId: string; userId?: string }>();
   const me = useSessionUser();
   const fy = useFinancialYear();
   // The same read (and saved copy) as the Secondary sales report it was opened from.
-  const counts = useCachedFetch<StockCountsMonth>(`rep-secondary:${fy.year}:${month}`, () => getStockCounts(me?.id ?? '', month));
+  const whose = userId || me?.id || '';
+  const counts = useCachedFetch<StockCountsMonth>(userId ? `secondary-stock:${fy.year}:${userId}:${month}` : `rep-secondary:${fy.year}:${month}`, () => getStockCounts(whose, month));
   const d = counts.data?.distributors.find((x) => x.distributorId === distributorId) ?? null;
   const rows = (d?.lines ?? []).filter((l) => l.openingQty > 0 || l.primaryQty > 0 || l.issuedQty > 0).sort((a, b) => b.issuedQty - a.issuedQty || a.product.name.localeCompare(b.product.name));
   const value = (paise: number | null, units: number) => (paise === null ? null : units * paise);

@@ -12,6 +12,8 @@ export interface DayActivity {
   date: string;
   /** `null` when nothing was logged and no report exists for the day. */
   reportStatus: DcrStatus | null;
+  /** The report's id (2026-11-28), so a manager's phone can open it; absent when there is none. */
+  dcrId?: string | null;
   doctorCalls: Array<{ doctorId: string; recordedAt: Date; remarks: string | null; geofence: string; samples: Array<{ productName: string; quantity: number }>; lbl: string[] }>;
   chemistCalls: Array<{ chemistId: string; recordedAt: Date }>;
   followups: number;
@@ -57,6 +59,7 @@ export class GetDayActivityUseCase {
           userId,
           date,
           reportStatus: dcr.status,
+          dcrId: dcr.id,
           doctorCalls: await Promise.all(dc.map((c) => this.callView(c))),
           chemistCalls: cc.map((c) => ({ chemistId: c.chemistId, recordedAt: c.recordedAt })),
           followups: fu.length,
@@ -75,6 +78,7 @@ export class GetDayActivityUseCase {
           userId,
           date: dcr.reportDate,
           reportStatus: dcr.status,
+          dcrId: dcr.id,
           doctorCalls: await Promise.all(dc.map((c) => this.callView(c))),
           chemistCalls: cc.map((c) => ({ chemistId: c.chemistId, recordedAt: c.recordedAt })),
           followups: fu.length,

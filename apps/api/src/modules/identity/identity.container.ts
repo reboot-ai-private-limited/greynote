@@ -493,7 +493,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
         return users
           .map((u) => {
             const p = profileOf.get(u.id);
-            return { id: u.id, employeeCode: u.employeeCode, name: u.name, designation: (p?.designationId && designationName.get(p.designationId)) || null, designationId: p?.designationId ?? null, designationLevel: (p?.designationId && designationLevel.get(p.designationId)) || null, hqId: p?.hqId ?? null, zoneId: p?.zoneId ?? null, managerId: p?.managerId ?? null };
+            return { id: u.id, employeeCode: u.employeeCode, name: u.name, designation: (p?.designationId && designationName.get(p.designationId)) || null, designationId: p?.designationId ?? null, designationLevel: (p?.designationId && designationLevel.get(p.designationId)) || null, hqId: p?.hqId ?? null, zoneId: p?.zoneId ?? null, managerId: p?.managerId ?? null, phone: u.phone ?? null };
           })
           .sort((a, b) => a.name.localeCompare(b.name));
       },
