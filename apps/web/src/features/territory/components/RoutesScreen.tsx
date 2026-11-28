@@ -20,7 +20,7 @@ import { useZoneOptions } from '../hooks/useParentOptions';
 import { usePlaceDirectory } from '../hooks/usePlaces';
 import { useRoutes } from '../hooks/useRoutes';
 import { ROUTE_TYPE_LABEL } from '../lib/draft';
-import { kmLabel } from '../lib/routeDraft';
+import { fixedTaText, kmLabel } from '../lib/routeDraft';
 import { hqFilterOptions, pickHq, pickZone } from '../lib/routeFilters';
 import { AddRouteDialog } from './AddRouteDialog';
 import { DeleteTerritoryDialog } from './DeleteTerritoryDialog';
@@ -84,7 +84,7 @@ export function RoutesScreen({ embedded = false }: { embedded?: boolean } = {}) 
       numeric: true,
       render: (r) =>
         r.taFixedPaise != null ? (
-          `₹${paiseToRupees(r.taFixedPaise)} fixed`
+          fixedTaText(r.taFixedPaise)
         ) : r.taPerKmRateOverridePaise === null ? (
           <span className="text-text-subtle">Grade rate</span>
         ) : (

@@ -62,6 +62,11 @@ describe('From → To TA/DA, measured against the HQ the employee is based in (2
     expect(calc(J, mainaguri, 'J', route('r', '20', { taPerKmRateOverridePaise: 500 }))).toEqual(['TA:20000', 'DA:20000']);
   });
 
+  it('a fixed TA of 0 pays no TA for the day; DA is paid as usual (2026-11-28)', () => {
+    expect(calc(J, dhupguri, 'J', route('r', '45', { taFixedPaise: 0 }))).toEqual(['DA:50000']);
+    expect(calc(J, mainaguri, 'J', route('r', '200', { taFixedPaise: 0 }))).toEqual(['DA:20000']);
+  });
+
   it('a route with no km is a flagged zero; a day at one home-side place is paid on the route that reaches it', () => {
     expect(calc(J, dhupguri, 'J', route('r', null))).toEqual(['TA:0!', 'DA:50000']);
     expect(calc(mainaguri, mainaguri, 'J', null, { homeRoute: route('r-main', '20') })).toEqual(['TA:12000', 'DA:20000']);

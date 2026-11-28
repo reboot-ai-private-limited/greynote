@@ -16,14 +16,14 @@ import { usePlaceDirectory, useUpdatePlace } from '../hooks/usePlaces';
 import { useUpdateRoute } from '../hooks/useRouteMutations';
 import { useRoute } from '../hooks/useRoutes';
 import { ROUTE_TYPE_LABEL } from '../lib/draft';
-import { kmLabel, placeRouteChanges, taModeOf, type TaMode } from '../lib/routeDraft';
+import { fixedTaText, kmLabel, placeRouteChanges, taModeOf, type TaMode } from '../lib/routeDraft';
 import { RoutePayPreview } from './RoutePayPreview';
 import { TaChoiceFields } from './TaChoiceFields';
 
 export type DialogMode = 'view' | 'edit';
 
 export const taText = (r: Pick<RouteDto, 'taFixedPaise' | 'taPerKmRateOverridePaise'>) =>
-  r.taFixedPaise != null ? `₹${paiseToRupees(r.taFixedPaise)} fixed` : r.taPerKmRateOverridePaise != null ? `₹${paiseToRupees(r.taPerKmRateOverridePaise)} / km` : 'Grade rate';
+  r.taFixedPaise != null ? fixedTaText(r.taFixedPaise) : r.taPerKmRateOverridePaise != null ? `₹${paiseToRupees(r.taPerKmRateOverridePaise)} / km` : 'Grade rate';
 
 /**
  * One place's route, or any route, in one compact dialog (2026-11-27): it opens read-only (View) with an Edit button, or straight in edit

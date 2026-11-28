@@ -43,7 +43,7 @@ export function TaChoiceFields({
           <Input id={`${idPrefix}-rate`} inputMode="decimal" value={rate} onChange={(e) => onRateChange(e.target.value)} disabled={disabled} aria-invalid={errors['rate'] ? true : undefined} />
         </FormField>
       ) : taMode === 'FIXED' ? (
-        <FormField label="Fixed TA (₹)" htmlFor={`${idPrefix}-fixed`} error={errors['fixed']} hint="Paid as typed for a day on this route, e.g. a bus fare: never doubled or capped.">
+        <FormField label="Fixed TA (₹)" htmlFor={`${idPrefix}-fixed`} error={errors['fixed']} hint="Paid as typed for a day on this route, e.g. a bus fare: never doubled or capped. 0 = no TA for the day.">
           <Input id={`${idPrefix}-fixed`} inputMode="decimal" value={fixed} onChange={(e) => onFixedChange(e.target.value)} disabled={disabled} aria-invalid={errors['fixed'] ? true : undefined} />
         </FormField>
       ) : (

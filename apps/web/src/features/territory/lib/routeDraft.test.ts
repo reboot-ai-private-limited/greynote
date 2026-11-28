@@ -1,6 +1,6 @@
 import type { RouteDto } from '@greynote/contracts';
 import { describe, expect, it } from 'vitest';
-import { buildNewPlace, buildPlaceRoute, buildRoute, changedPlaceRouteFields, changedRouteFields, kmLabel, parseKm, placeRouteChanges, routeTypeBetween, suggestedType, taModeOf, typeForKm } from './routeDraft';
+import { buildNewPlace, buildPlaceRoute, fixedTaText, buildRoute, changedPlaceRouteFields, changedRouteFields, kmLabel, parseKm, placeRouteChanges, routeTypeBetween, suggestedType, taModeOf, typeForKm } from './routeDraft';
 
 const route = (over: Partial<RouteDto> = {}): RouteDto => ({
   id: 'r1',
@@ -107,6 +107,14 @@ describe('kmLabel', () => {
 
 describe('routes between places (2026-11-26)', () => {
   const base = { fromPlaceId: 'a', toPlaceId: 'b', distanceKm: '25', taMode: 'GRADE' as const, rate: '', fixed: '' };
+
+  it('accepts a fixed TA of 0 (no TA for the day) but not a rate of 0 per km', () => {
+    expect(buildPlaceRoute({ ...base, taMode: 'FIXED', fixed: '0' })).toMatchObject({ ok: true, body: { taFixedPaise: 0 } });
+    expect(buildPlaceRoute({ ...base, taMode: 'RATE', rate: '0' })).toMatchObject({ ok: false });
+    expect(buildPlaceRoute({ ...base, taMode: 'FIXED', fixed: '-5' })).toMatchObject({ ok: false });
+    expect(fixedTaText(0)).toBe('No TA (fixed ₹0)');
+    expect(fixedTaText(35000)).toBe('₹350 fixed');
+  });
 
   it('builds the body for each TA choice, sending only the one chosen', () => {
     expect(buildPlaceRoute(base)).toEqual({ ok: true, body: { fromPlaceId: 'a', toPlaceId: 'b', distanceKm: '25' } });

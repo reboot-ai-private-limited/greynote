@@ -112,6 +112,11 @@ export function kmLabel(route: Pick<RouteDto, 'distanceKm'>): string {
 export type TaMode = 'GRADE' | 'RATE' | 'FIXED';
 export const TA_MODE_LABEL: Record<TaMode, string> = { GRADE: "Each grade's rate per km", RATE: 'Own rate per km', FIXED: 'Fixed amount for the day' };
 
+/** How a route's TA reads in a list: "No TA (fixed ₹0)", "₹350 fixed", "₹7.50 / km" or "Grade rate". */
+export function fixedTaText(paise: number): string {
+  return paise === 0 ? 'No TA (fixed ₹0)' : `₹${(paise / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })} fixed`;
+}
+
 export function taModeOf(route: Pick<RouteDto, 'taPerKmRateOverridePaise' | 'taFixedPaise'>): TaMode {
   if (route.taFixedPaise != null) return 'FIXED';
   return route.taPerKmRateOverridePaise != null ? 'RATE' : 'GRADE';
@@ -124,7 +129,8 @@ function parseTa(draft: { taMode: TaMode; rate: string; fixed: string }):
   if (draft.taMode === 'GRADE') return { ok: true, taPerKmRateOverridePaise: null, taFixedPaise: null };
   const raw = draft.taMode === 'RATE' ? draft.rate : draft.fixed;
   const paise = raw.trim() === '' ? null : rupeesToPaise(raw.trim());
-  if (paise === null || paise <= 0) {
+  // A fixed amount may be 0 (2026-11-28): no TA for a day there (DA is still paid). A rate per km must be above 0.
+  if (paise === null || paise < 0 || (draft.taMode === 'RATE' && paise === 0)) {
     return { ok: false, errors: draft.taMode === 'RATE' ? { rate: RATE_HINT } : { fixed: 'Enter the amount in rupees, like 350.' } };
   }
   return draft.taMode === 'RATE' ? { ok: true, taPerKmRateOverridePaise: paise, taFixedPaise: null } : { ok: true, taPerKmRateOverridePaise: null, taFixedPaise: paise };

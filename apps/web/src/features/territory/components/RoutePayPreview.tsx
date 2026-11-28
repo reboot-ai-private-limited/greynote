@@ -112,7 +112,9 @@ export function RoutePayPreview({
         </div>
         <p className="text-[13px] text-text-muted">
           {fixedPaise !== null
-            ? `A fixed TA of ${formatMoney(fixedPaise)} (*) is paid for the day, for every grade, whatever the km.`
+            ? fixedPaise === 0
+              ? 'No TA is paid for a day here (fixed ₹0), for every grade. DA is paid as usual.'
+              : `A fixed TA of ${formatMoney(fixedPaise)} (*) is paid for the day, for every grade, whatever the km.`
             : overridePaise !== null
               ? `Your rate of ${formatMoney(overridePaise)} per km (*) replaces every grade's own TA rate.`
               : "No rate set here, so each grade's own TA rate is used."}
