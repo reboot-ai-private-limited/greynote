@@ -64,6 +64,63 @@ export function CardSection({
   );
 }
 
+/**
+ * A `CardSection` that starts closed and opens with a tap on its header (2026-11-28, the day's Summary). The header carries the count
+ * and a one-line `summary`; `alert` puts a red badge on it and keeps it open, so a problem inside is never hidden.
+ */
+export function CollapsibleSection({
+  icon,
+  accent,
+  title,
+  count,
+  summary,
+  alert,
+  children,
+}: {
+  icon: SymbolViewProps['name'];
+  accent: Accent;
+  title: string;
+  count: number;
+  summary?: string;
+  alert?: string | null;
+  children: ReactNode;
+}) {
+  const theme = useTheme();
+  const [opened, setOpened] = useState(false);
+  const open = opened || Boolean(alert);
+  return (
+    <View style={[styles.card, { backgroundColor: theme.background, borderColor: alert ? Accents.red.border : theme.border }]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        accessibilityLabel={`${title}, ${count}${summary ? `, ${summary}` : ''}${alert ? `, ${alert}` : ''}`}
+        disabled={Boolean(alert)}
+        onPress={() => setOpened((o) => !o)}
+        style={styles.cardHead}>
+        <IconChip icon={icon} accent={accent} />
+        <View style={styles.collapsibleText}>
+          <ThemedText type="smallBold" style={styles.cardTitle}>
+            {title}
+          </ThemedText>
+          {summary ? (
+            <ThemedText type="small" themeColor="textSecondary" numberOfLines={open ? undefined : 1}>
+              {summary}
+            </ThemedText>
+          ) : null}
+        </View>
+        {alert ? <Pill text={alert} accent="red" /> : null}
+        <View style={[styles.count, { backgroundColor: theme.backgroundElement }]}>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.countText}>
+            {count}
+          </ThemedText>
+        </View>
+        <ThemedText type="small" themeColor="textSecondary">{open ? '▴' : '▾'}</ThemedText>
+      </Pressable>
+      {open ? children : null}
+    </View>
+  );
+}
+
 export function Avatar({ name, accent = 'blue', size = 40 }: { name: string; accent?: Accent; size?: number }) {
   return (
     <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2, backgroundColor: Accents[accent].bg }]}>
@@ -315,6 +372,7 @@ const styles = StyleSheet.create({
   card: { borderRadius: Spacing.three, borderWidth: 1, padding: Spacing.three, gap: Spacing.two },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   cardTitle: { flex: 1, fontSize: 16, lineHeight: 22 },
+  collapsibleText: { flex: 1 },
   count: { minWidth: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
   countText: { fontSize: 12, lineHeight: 16 },
   avatar: { alignItems: 'center', justifyContent: 'center' },

@@ -8,26 +8,19 @@ import { ScreenShell } from '@/components/screen-shell';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { CardSection, Pill, StatusBanner, SummaryStrip, sym } from '@/components/ui-cards';
+import { CardSection, CollapsibleSection, Pill, StatusBanner, SummaryStrip, sym } from '@/components/ui-cards';
 import { Accents, Spacing, type Accent } from '@/constants/theme';
 import { confirmRemove, removeDayRecord } from '@/lib/day-records';
 import { formatRupees } from '@/lib/money';
+import { SERVICE_TYPE_LABEL } from '@/lib/services';
 import { isFieldDay, needsDayNote, workingTypeLabel } from '@/lib/planning';
 import { useCallDoctors } from '@/hooks/use-call-doctors';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useReportSent } from '@/hooks/use-report-sent';
 import { DAY_KINDS, finalSubmit, NOT_ASSIGNED_REFUSALS, prettyDay, REMOVABLE_REFUSALS, useOnline, useRecords, type OutboxRecord, type SyncKind } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
-import { addDays, monthOf } from '@/offline/day';
-import type { ConfigSnapshot, FieldActivitySnapshot, FieldMasterDataSnapshot, PlanningSnapshot } from '@/types/sync';
-
-const KIND_LABEL: Partial<Record<SyncKind, string>> = {
-  DOCTOR_CALL: 'Dr call',
-  CHEMIST_CALL: 'Chemist call',
-  DOCTOR_FOLLOWUP: 'Dr followup',
-  CHEMIST_FOLLOWUP: 'Chemist followup',
-  EXPENSE: 'Expense',
-};
+import { addDays, businessToday, monthOf } from '@/offline/day';
+import type { ConfigSnapshot, DoctorServiceType, FieldActivitySnapshot, FieldMasterDataSnapshot, PlanningSnapshot } from '@/types/sync';
 
 const STATUS_TEXT: Record<OutboxRecord['status'], string> = {
   DRAFT: 'Not sent yet',
@@ -37,6 +30,17 @@ const STATUS_TEXT: Record<OutboxRecord['status'], string> = {
 };
 
 const EXPENSE_LABEL: Record<string, string> = { TRAVEL: 'Travel', MEAL: 'Meal', MISC: 'Other' };
+
+/** What the day's records carry, as far as the Summary reads them. */
+type DayCall = { doctorId?: string; chemistId?: string; remarks?: string | null; workWith?: string[]; samples?: { productId: string; quantity: number }[]; lbl?: { productId: string }[] };
+type DayOrder = { outletType: 'CHEMIST' | 'DISTRIBUTOR'; outletId: string; orderDate: string; lines: { productId: string; quantity: number; unitPricePaise: number }[] };
+type DayService = { doctorId: string; serviceType: DoctorServiceType; amountPaise: number; remarks: string | null };
+
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const notAccepted = (rows: OutboxRecord[]) => {
+  const n = rows.filter((r) => r.status === 'FAILED').length;
+  return n > 0 ? `${n} to fix` : null;
+};
 
 const DCR_TEXT: Record<string, string> = {
   SUBMITTED: 'Submitted — waiting for your manager',
@@ -83,6 +87,38 @@ export default function SummaryScreen() {
   const dayRecords = records.filter(
     (r) => !r.deleted && DAY_KINDS.includes(r.kind) && (r.payload as { reportDate?: string }).reportDate === today,
   );
+  // Sent on their own, not with the report, but part of the day (2026-11-28): orders, doctor services and gifts given today.
+  const { records: standalone } = useRecords(['ORDER', 'DOCTOR_SERVICE', 'GIFT_DONE']);
+  const madeToday = (r: OutboxRecord) => businessToday(config.data?.settings.BUSINESS_TIMEZONE, new Date(r.clientCreatedAt), config.data?.settings.DAY_START_TIME) === today;
+  const orders = standalone.filter((r) => !r.deleted && r.kind === 'ORDER' && (r.payload as DayOrder).orderDate === today);
+  const services = standalone.filter((r) => !r.deleted && r.kind === 'DOCTOR_SERVICE' && madeToday(r));
+  const gifts = standalone.filter((r) => !r.deleted && r.kind === 'GIFT_DONE' && madeToday(r));
+  const ofKind = (...kinds: SyncKind[]) => dayRecords.filter((r) => kinds.includes(r.kind));
+  const doctorCalls = ofKind('DOCTOR_CALL');
+  const chemistCalls = ofKind('CHEMIST_CALL');
+  const followups = ofKind('DOCTOR_FOLLOWUP', 'CHEMIST_FOLLOWUP');
+  const expenses = ofKind('EXPENSE');
+  const productName = (id: string) => master.data?.products.find((p) => p.id === id)?.name ?? 'Product';
+  const outletName = (o: DayOrder) =>
+    (o.outletType === 'DISTRIBUTOR' ? master.data?.distributors?.find((d) => d.id === o.outletId)?.name : names.get(o.outletId)) ?? (o.outletType === 'DISTRIBUTOR' ? 'Distributor' : 'Chemist');
+  // Samples and LBL, per product, with who got them (from the day's doctor calls).
+  const given = (pick: (c: DayCall) => { productId: string; quantity: number }[]) => {
+    const byProduct = new Map<string, Map<string, number>>();
+    for (const r of doctorCalls) {
+      const c = r.payload as DayCall;
+      for (const line of pick(c)) {
+        const who = byProduct.get(line.productId) ?? new Map<string, number>();
+        who.set(c.doctorId ?? '', (who.get(c.doctorId ?? '') ?? 0) + line.quantity);
+        byProduct.set(line.productId, who);
+      }
+    }
+    return [...byProduct].map(([productId, who]) => ({ productId, total: [...who.values()].reduce((a, b) => a + b, 0), who: [...who].map(([id, n]) => ({ name: names.get(id) ?? 'Doctor', n })) }));
+  };
+  const samples = given((c) => c.samples ?? []);
+  const lbl = given((c) => (c.lbl ?? []).map((l) => ({ productId: l.productId, quantity: 1 })));
+  const sampleUnits = samples.reduce((n, s) => n + s.total, 0);
+  const lblCount = lbl.reduce((n, s) => n + s.total, 0);
+  const expenseTotal = expenses.reduce((n, r) => n + ((r.payload as { amountPaise?: number }).amountPaise ?? 0), 0);
   const dcr = activity.data?.dcrs?.find((d) => d.reportDate === today) ?? null;
   const alreadySent = useReportSent(today);
 
@@ -174,49 +210,90 @@ export default function SummaryScreen() {
         items={[
           { label: 'Calls', value: count(['DOCTOR_CALL', 'CHEMIST_CALL']), accent: 'blue' },
           { label: 'Follow-ups', value: count(['DOCTOR_FOLLOWUP', 'CHEMIST_FOLLOWUP']), accent: 'teal' },
-          { label: 'Expenses', value: count(['EXPENSE']), accent: 'purple' },
           { label: 'To fix', value: failed.length, accent: failed.length > 0 ? 'red' : 'slate' },
         ]}
       />
 
-      <CardSection icon={sym('checklist', 'checklist')} accent="green" title="Logged today" count={dayRecords.length}>
-        {dayRecords.length === 0 ? (
-          <ThemedText type="small" themeColor="textSecondary">
-            Nothing logged yet. Add calls, followups or expenses from Home.
-          </ThemedText>
-        ) : (
-          dayRecords.map((r) => (
-            <ThemedView key={r.clientId} style={[styles.row, { borderColor: r.status === 'FAILED' ? Accents.red.border : Accents.slate.border }]}>
-              <View style={styles.head}>
-                <ThemedText type="smallBold" style={styles.grow}>{`${KIND_LABEL[r.kind] ?? r.kind} · ${describe(r)}`}</ThemedText>
-                <Pill text={STATUS_TEXT[r.status]} accent={RECORD_ACCENT[r.status]} />
-              </View>
-              {r.status === 'FAILED' && r.errorMessage ? (
-                <ThemedText type="small" themeColor="danger">
-                  {r.errorMessage}
-                </ThemedText>
-              ) : null}
-              {r.status === 'FAILED' && r.errorCode && NOT_ASSIGNED_REFUSALS.has(r.errorCode) ? (
-                <ThemedText type="small" themeColor="textSecondary">
-                  {'Remove this record. If you did visit, ask your manager or Admin.'}
-                </ThemedText>
-              ) : null}
-              {/* Refused for good (its location, or it is no longer yours): nothing was stored, and sending it again won't help — drop it. */}
-              {r.status === 'FAILED' && r.errorCode && REMOVABLE_REFUSALS.has(r.errorCode) ? (
-                <PrimaryButton
-                  label="Remove this record"
-                  variant="text"
-                  onPress={() =>
-                    confirmRemove(r.kind.endsWith('FOLLOWUP') ? 'follow-up' : 'call', () =>
-                      void removeDayRecord(r).catch((err) => setMsg({ tone: 'danger', text: err instanceof Error ? err.message : 'Could not remove it.' })),
-                    )
-                  }
-                />
-              ) : null}
-            </ThemedView>
-          ))
-        )}
-      </CardSection>
+      {/* The day in stacks (2026-11-28): each closed until tapped; one holding a record to fix opens by itself. */}
+      {dayRecords.length + orders.length + services.length + gifts.length === 0 ? (
+        <ThemedText type="small" themeColor="textSecondary">
+          Nothing logged yet. Add calls, followups or expenses from Home.
+        </ThemedText>
+      ) : null}
+      {doctorCalls.length > 0 ? (
+        <CollapsibleSection icon={sym('stethoscope', 'medical_services')} accent="blue" title="Doctor calls" count={doctorCalls.length} summary={doctorCalls.map(describe).join(', ')} alert={notAccepted(doctorCalls)}>
+          {doctorCalls.map((r) => {
+            const c = r.payload as DayCall;
+            const extra = [
+              c.samples?.length ? `Samples: ${c.samples.map((x) => `${productName(x.productId)} × ${x.quantity}`).join(', ')}` : null,
+              c.lbl?.length ? `LBL: ${c.lbl.map((x) => productName(x.productId)).join(', ')}` : null,
+              c.workWith?.length ? `With ${plural(c.workWith.length, 'colleague')}` : null,
+              c.remarks ? `“${c.remarks}”` : null,
+            ];
+            return <RecordRow key={r.clientId} r={r} title={describe(r)} lines={extra} onError={setMsg} />;
+          })}
+        </CollapsibleSection>
+      ) : null}
+      {chemistCalls.length > 0 ? (
+        <CollapsibleSection icon={sym('cross.case', 'local_pharmacy')} accent="teal" title="Chemist calls" count={chemistCalls.length} summary={chemistCalls.map(describe).join(', ')} alert={notAccepted(chemistCalls)}>
+          {chemistCalls.map((r) => (
+            <RecordRow key={r.clientId} r={r} title={describe(r)} lines={[(r.payload as DayCall).remarks ? `“${(r.payload as DayCall).remarks}”` : null]} onError={setMsg} />
+          ))}
+        </CollapsibleSection>
+      ) : null}
+      {followups.length > 0 ? (
+        <CollapsibleSection icon={sym('text.bubble', 'chat')} accent="indigo" title="Follow-ups" count={followups.length} summary={followups.map(describe).join(', ')} alert={notAccepted(followups)}>
+          {followups.map((r) => (
+            <RecordRow key={r.clientId} r={r} title={`${r.kind === 'DOCTOR_FOLLOWUP' ? 'Doctor' : 'Chemist'} · ${describe(r)}`} lines={[(r.payload as DayCall).remarks ? `“${(r.payload as DayCall).remarks}”` : null]} onError={setMsg} />
+          ))}
+        </CollapsibleSection>
+      ) : null}
+      {samples.length > 0 ? (
+        <CollapsibleSection icon={sym('shippingbox', 'inventory_2')} accent="amber" title="Samples given" count={sampleUnits} summary={samples.map((x) => `${productName(x.productId)} × ${x.total}`).join(', ')}>
+          {samples.map((x) => (
+            <Line key={x.productId} title={`${productName(x.productId)} × ${x.total}`} text={x.who.map((w) => `${w.name} ${w.n}`).join(', ')} />
+          ))}
+        </CollapsibleSection>
+      ) : null}
+      {lbl.length > 0 ? (
+        <CollapsibleSection icon={sym('doc.richtext', 'article')} accent="purple" title="LBL given" count={lblCount} summary={lbl.map((x) => productName(x.productId)).join(', ')}>
+          {lbl.map((x) => (
+            <Line key={x.productId} title={`${productName(x.productId)} · ${x.total}`} text={x.who.map((w) => w.name).join(', ')} />
+          ))}
+        </CollapsibleSection>
+      ) : null}
+      {orders.length > 0 ? (
+        <CollapsibleSection icon={sym('cart', 'shopping_cart')} accent="green" title="Orders" count={orders.length} summary={formatRupees(orders.reduce((n, r) => n + (r.payload as DayOrder).lines.reduce((m, l) => m + l.quantity * l.unitPricePaise, 0), 0))} alert={notAccepted(orders)}>
+          {orders.map((r) => {
+            const o = r.payload as DayOrder;
+            const total = o.lines.reduce((m, l) => m + l.quantity * l.unitPricePaise, 0);
+            return <RecordRow key={r.clientId} r={r} title={outletName(o)} lines={[`${plural(o.lines.length, 'item')} · ${formatRupees(total)}`]} onError={setMsg} removable={false} />;
+          })}
+        </CollapsibleSection>
+      ) : null}
+      {services.length > 0 ? (
+        <CollapsibleSection icon={sym('hand.raised', 'volunteer_activism')} accent="indigo" title="Doctor services requested" count={services.length} summary={services.map((r) => names.get((r.payload as DayService).doctorId) ?? 'Doctor').join(', ')} alert={notAccepted(services)}>
+          {services.map((r) => {
+            const v = r.payload as DayService;
+            return <RecordRow key={r.clientId} r={r} title={names.get(v.doctorId) ?? 'Doctor'} lines={[`${SERVICE_TYPE_LABEL[v.serviceType] ?? v.serviceType} · ${formatRupees(v.amountPaise)}`, v.remarks ? `“${v.remarks}”` : null]} onError={setMsg} removable={false} />;
+          })}
+        </CollapsibleSection>
+      ) : null}
+      {gifts.length > 0 ? (
+        <CollapsibleSection icon={sym('gift', 'redeem')} accent="amber" title="Gifts given" count={gifts.length} alert={notAccepted(gifts)}>
+          {gifts.map((r) => {
+            const g = activity.data?.pendingGifts?.find((x) => x.id === (r.payload as { giftId: string }).giftId);
+            return <RecordRow key={r.clientId} r={r} title={g ? `${names.get(g.doctorId) ?? 'Doctor'} · ${g.productName}` : 'Gift'} lines={[]} onError={setMsg} removable={false} />;
+          })}
+        </CollapsibleSection>
+      ) : null}
+      {expenses.length > 0 ? (
+        <CollapsibleSection icon={sym('indianrupeesign', 'currency_rupee')} accent="purple" title="Expenses" count={expenses.length} summary={`Total ${formatRupees(expenseTotal)}`} alert={notAccepted(expenses)}>
+          {expenses.map((r) => (
+            <RecordRow key={r.clientId} r={r} title={describe(r)} lines={[(r.payload as { remarks?: string | null }).remarks ? `“${(r.payload as { remarks?: string | null }).remarks}”` : null]} onError={setMsg} removable={false} />
+          ))}
+        </CollapsibleSection>
+      ) : null}
 
       {failed.length > 0 ? (
         <Notice tone="danger" title="Fix before submitting">
@@ -254,6 +331,57 @@ export default function SummaryScreen() {
 }
 
 const RECORD_ACCENT: Record<OutboxRecord['status'], Accent> = { DRAFT: 'slate', QUEUED: 'amber', SYNCED: 'green', FAILED: 'red' };
+
+/** One record of the day: what it is, where it is in sending, the details, and what to do when the server refused it. */
+function RecordRow({ r, title, lines, onError, removable = true }: { r: OutboxRecord; title: string; lines: (string | null)[]; onError: (m: Msg) => void; removable?: boolean }) {
+  return (
+    <ThemedView style={[styles.row, { borderColor: r.status === 'FAILED' ? Accents.red.border : Accents.slate.border }]}>
+      <View style={styles.head}>
+        <ThemedText type="smallBold" style={styles.grow}>{title}</ThemedText>
+        <Pill text={STATUS_TEXT[r.status]} accent={RECORD_ACCENT[r.status]} />
+      </View>
+      {lines.filter(Boolean).map((l) => (
+        <ThemedText key={l} type="small" themeColor="textSecondary">
+          {l}
+        </ThemedText>
+      ))}
+      {r.status === 'FAILED' && r.errorMessage ? (
+        <ThemedText type="small" themeColor="danger">
+          {r.errorMessage}
+        </ThemedText>
+      ) : null}
+      {r.status === 'FAILED' && r.errorCode && NOT_ASSIGNED_REFUSALS.has(r.errorCode) ? (
+        <ThemedText type="small" themeColor="textSecondary">
+          {'Remove this record. If you did visit, ask your manager or Admin.'}
+        </ThemedText>
+      ) : null}
+      {/* Refused for good (its location, or it is no longer yours): nothing was stored, and sending it again won't help — drop it. */}
+      {removable && r.status === 'FAILED' && r.errorCode && REMOVABLE_REFUSALS.has(r.errorCode) ? (
+        <PrimaryButton
+          label="Remove this record"
+          variant="text"
+          onPress={() =>
+            confirmRemove(r.kind.endsWith('FOLLOWUP') ? 'follow-up' : 'call', () =>
+              void removeDayRecord(r).catch((err) => onError({ tone: 'danger', text: err instanceof Error ? err.message : 'Could not remove it.' })),
+            )
+          }
+        />
+      ) : null}
+    </ThemedView>
+  );
+}
+
+/** A line of a totals stack (samples, LBL): the product and who got it. */
+function Line({ title, text }: { title: string; text: string }) {
+  return (
+    <ThemedView style={[styles.row, { borderColor: Accents.slate.border }]}>
+      <ThemedText type="smallBold">{title}</ThemedText>
+      <ThemedText type="small" themeColor="textSecondary">
+        {text}
+      </ThemedText>
+    </ThemedView>
+  );
+}
 
 const styles = StyleSheet.create({
   row: { gap: Spacing.one, borderWidth: 1, borderRadius: Spacing.two + 2, padding: Spacing.two + 2, backgroundColor: 'transparent' },
