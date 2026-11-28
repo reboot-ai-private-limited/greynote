@@ -11,7 +11,7 @@ import { Notice } from '../../notice';
 import { NumberedRow } from '../../numbered-row';
 import { Skeleton } from '../../skeleton';
 import { ThemedText } from '../../themed-text';
-import { InfoCard } from '../../ui-cards';
+import { InfoCard, Pill } from '../../ui-cards';
 import { DayLines } from './day-lines';
 import { ReopenTourPlan } from './reopen-tour-plan';
 import { tourWordsOn, useTourPlan } from './tour-plan-data';
@@ -26,8 +26,9 @@ export function usePersonDays(userId: string, month: string) {
 export type Person = { name: string; employeeCode: string; designation: string | null };
 
 /**
- * The person's month as day blocks, newest first, each in the same three lines as the page's header (Tour Plan, Daily plan, Daily report). The days are
- * the Tour Plan's and every day that has a Daily Plan or a report. The one Download for the month is on the page, above the tabs.
+ * The person's month as day blocks (Tour Plan, Daily plan, Daily report). Today comes first, marked (2026-11-28: the page's header no
+ * longer repeats the day), then the earlier days newest first, then the days still ahead. The days are the Tour Plan's and every day that
+ * has a Daily Plan or a report. The month's Downloads are on the page, above the tabs.
  */
 export function PlansTab({ userId, month, personName, onOpenReport }: { userId: string; month: string; personName: string; onOpenReport: (date: string) => void }) {
   const online = useOnline();
@@ -36,7 +37,8 @@ export function PlansTab({ userId, month, personName, onOpenReport }: { userId: 
   const tour = useTourPlan(userId, month);
   const data = days.data;
   const byDate = new Map((data?.items ?? []).map((d) => [d.date, d]));
-  const dates = [...new Set([...byDate.keys(), ...(tour.data?.entries ?? []).map((e) => e.planDate)])].sort().reverse();
+  const all = [...new Set([...byDate.keys(), ...(tour.data?.entries ?? []).map((e) => e.planDate)])].sort();
+  const dates = [...all.filter((d) => d === today), ...all.filter((d) => d < today).reverse(), ...all.filter((d) => d > today)];
   const { visible } = useWindowed(dates, `${userId}|${month}`);
   const loading = (days.loading && !data) || (tour.loading && tour.data === undefined);
   return (
@@ -53,6 +55,7 @@ export function PlansTab({ userId, month, personName, onOpenReport }: { userId: 
         return (
           <NumberedRow key={date} n={i + 1}>
             <InfoCard>
+              {date === today ? <Pill text="Today" accent="blue" /> : date > today ? <Pill text="Ahead" accent="slate" /> : null}
               <DayLines
                 date={date}
                 showDate

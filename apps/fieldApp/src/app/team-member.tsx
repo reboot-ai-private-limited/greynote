@@ -1,22 +1,19 @@
 import { FyBanner } from '@/components/fy-banner';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Linking, StyleSheet, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { ChoiceChips } from '@/components/choice-chips';
-import { DayPicker } from '@/components/day-picker';
 import { MonthStepper } from '@/components/month-stepper';
 import { Notice } from '@/components/notice';
 import { PrimaryButton } from '@/components/primary-button';
 import { ScreenShell } from '@/components/screen-shell';
 import { Skeleton } from '@/components/skeleton';
-import { DayLines } from '@/components/team/member/day-lines';
 import { DcrTab } from '@/components/team/member/dcr-tab';
 import { ChemistsTab, DistributorsTab, DoctorsTab, ExpensesTab, GiftsTab, LeaveTab, OrdersTab, SamplesTab } from '@/components/team/member/more-tabs';
 import { PersonDownloads } from '@/components/team/member/person-downloads';
 import { PlansTab } from '@/components/team/member/plans-tab';
 import { SecondaryTab } from '@/components/team/member/secondary-tab';
-import { tourWordsOn, useTourPlan } from '@/components/team/member/tour-plan-data';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar, CardSection, InfoCard, Meter, Pill, SummaryStrip, sym } from '@/components/ui-cards';
 import { Spacing, type Accent } from '@/constants/theme';
@@ -26,7 +23,7 @@ import { getCallPerformance, type CallPerformance } from '@/lib/my-reports';
 import { type DoctorFilter, NOT_IN_TEAM_TEXT, dailyPlanChip, getTeamDay, getTeamMemberSummary, type TeamBoard, type TeamMemberSummary } from '@/lib/team-section';
 import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
-import { addDays, monthOf, prettyMonth } from '@/offline/day';
+import { monthOf, prettyMonth } from '@/offline/day';
 
 type Tab = 'overview' | 'plans' | 'dcr' | 'secondary' | 'doctors' | 'more';
 type More = 'expenses' | 'leave' | 'orders' | 'samples' | 'gifts' | 'chemists' | 'distributors';
@@ -51,7 +48,7 @@ const pct = (v: number | null | undefined) => (v === null || v === undefined ? '
 
 /**
  * One person of your team (docs/mobile/team.md; reworked 2026-11-28). The header says who they are, with Call, Unblock and Late exception, and
- * how a day looks; then the month, their Excel sheets, and six tabs: Overview (four figures, sales, attendance), Plans, DCR (one row a day),
+ * today's chip; then the month and six tabs (their Excel sheets at the end of Overview): Overview (four figures, sales, attendance), Plans, DCR (one row a day),
  * Secondary (by distributor, product detail a tap away), Doctors and More (expenses, leave, orders, samples & LBL, gifts, chemists,
  * distributors). A person outside your downline is refused (403). An older link's `tab` (e.g. `expenses`) lands in More on that list.
  */
@@ -68,14 +65,9 @@ export default function TeamMemberScreen() {
   const [more, setMore] = useState<More>(opensMore ?? 'expenses');
   const [doctorFilter, setDoctorFilter] = useState<DoctorFilter>('ALL');
 
-  // In a past year Team's "today" is that year's last day. The header shows one day: today until it is changed here.
+  // Today's state for the header chip (in a past year Team's "today" is that year's last day); the day itself is in the Plans tab.
   const today = fy.effectiveToday;
-  const [dayPicked, setDayPicked] = useState<{ year: number; date: string } | null>(null);
-  const day = dayPicked && dayPicked.year === fy.year ? dayPicked.date : today;
-  const setDay = (d: string) => setDayPicked({ year: fy.year, date: d });
-  const tomorrow = fy.isPast ? today : addDays(today, 1);
-  const dayRow = useCachedFetch<TeamBoard>(`team-day-one:${fy.year}:${id}:${day}`, () => getTeamDay({ date: day, userId: String(id) }));
-  const tourPlan = useTourPlan(String(id), monthOf(day));
+  const dayRow = useCachedFetch<TeamBoard>(`team-day-one:${fy.year}:${id}:${today}`, () => getTeamDay({ date: today, userId: String(id) }));
   const row = dayRow.data?.items[0] ?? null;
   const list = useCachedFetch<TeamMemberSummary>(`team-member:${id}:${month}`, () => getTeamMemberSummary(String(id), month));
   const data = list.data;
@@ -98,47 +90,32 @@ export default function TeamMemberScreen() {
 
       {data && member ? (
         <>
-          {/* Who they are, what you can do, and how the day looks. */}
+          {/* Who they are and what you can do (2026-11-28): the day itself is in the Plans tab, today first; the chip opens it. */}
           <InfoCard>
             <View style={styles.row}>
-              <Avatar name={member.name} accent={blocked ? 'red' : chip?.accent === 'slate' ? 'blue' : (chip?.accent ?? 'blue')} size={48} />
+              <Avatar name={member.name} accent={blocked ? 'red' : chip?.accent === 'slate' ? 'blue' : (chip?.accent ?? 'blue')} size={56} />
               <View style={styles.grow}>
-                <ThemedText type="smallBold">{`${member.hq?.name ?? 'No HQ'}${member.zone ? ` · ${member.zone.name}` : ''}`}</ThemedText>
+                <ThemedText type="smallBold" style={styles.where}>{`${member.hq?.name ?? 'No HQ'}${member.zone ? ` · ${member.zone.name}` : ''}`}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">{member.depth === 1 ? 'Direct report · you decide' : `${member.depth} levels below · view only`}</ThemedText>
+                {chip ? (
+                  <Pressable accessibilityRole="button" accessibilityLabel={`Today: ${chip.text}. Open their plans`} onPress={() => setTab('plans')} style={styles.chip}>
+                    <Pill text={`Today · ${chip.text.replace('Daily plan ', 'plan ')}`} accent={chip.accent} />
+                  </Pressable>
+                ) : null}
               </View>
-              {chip ? <Pill text={chip.text.replace('Daily plan ', 'Plan ')} accent={chip.accent} /> : null}
             </View>
+            {blocked ? <Notice tone="danger">{`${member.name} missed a daily report and can’t log or submit anything until unblocked.`}</Notice> : null}
             <View style={styles.actions}>
               {member.phone ? <PrimaryButton label={`📞 Call ${member.phone}`} variant="outline" onPress={() => void Linking.openURL(`tel:${member.phone}`)} /> : null}
               {blocked ? <PrimaryButton label="🔓 Unblock" variant="outline" disabled={fy.isPast} onPress={() => router.push({ pathname: '/unblock', params: { userId: String(id) } })} /> : null}
               <PrimaryButton label="⏱ Late exception" variant="outline" disabled={fy.isPast} onPress={() => router.push({ pathname: '/late-grants', params: { userId: String(id) } })} />
             </View>
-            {blocked ? <ThemedText type="small" themeColor="danger">{`${member.name} missed a daily report and can’t log or submit anything until unblocked.`}</ThemedText> : null}
-            <DayPicker value={day} onChange={(d) => setDay(d > tomorrow ? tomorrow : d)} min={fy.firstMonth ? `${fy.firstMonth}-01` : undefined} max={tomorrow} />
-            {row ? (
-              <DayLines
-                date={day}
-                tourWords={tourWordsOn(tourPlan.data, day)}
-                tourStatus={tourPlan.data?.status}
-                plan={row.plan}
-                deadlinePassed={day < today || row.plan?.deadlinePassed === true}
-                doctors={row.doctors}
-                report={row.report}
-                onLeave={row.onLeave}
-                onOpenReport={() => {
-                  setMonth(monthOf(day));
-                  setTab('dcr');
-                }}
-              />
-            ) : (
-              <Skeleton cards={1} lines={3} />
-            )}
           </InfoCard>
 
           <InfoCard>
+            <ThemedText type="smallBold">Month</ThemedText>
             <MonthStepper value={month} onChange={setMonth} min={fy.firstMonth} max={lastMonth} />
           </InfoCard>
-          <PersonDownloads person={{ id: String(id), name: member.name, employeeCode: member.employeeCode, designation: member.designation }} month={month} />
 
           <ChoiceChips
             options={TABS}
@@ -180,6 +157,8 @@ export default function TeamMemberScreen() {
                     {o.attendance.strike ? <Pill text={`${o.attendance.strike} strike`} accent="orange" /> : null}
                   </View>
                 </CardSection>
+                {/* Their Excel sheets (the ones Admin downloads); DCR and Secondary also have their own ⤓ Excel. */}
+                <PersonDownloads person={{ id: String(id), name: member.name, employeeCode: member.employeeCode, designation: member.designation }} month={month} />
               </>
             ) : (
               <Notice tone="info">No figures for this month. This person may have left or not started yet.</Notice>
@@ -210,6 +189,8 @@ export default function TeamMemberScreen() {
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   grow: { flex: 1, gap: 2 },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.three, marginVertical: Spacing.two },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.three, marginTop: Spacing.two },
+  where: { fontSize: 16, lineHeight: 22 },
+  chip: { alignSelf: 'flex-start', marginTop: Spacing.one },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
 });
