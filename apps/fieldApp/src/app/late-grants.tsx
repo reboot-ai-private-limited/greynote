@@ -1,124 +1,165 @@
-import { useFinancialYear } from '@/lib/financial-year';
-import { FyBanner } from '@/components/fy-banner';
-import { useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ChoiceChips } from '@/components/choice-chips';
 import { DateStepper } from '@/components/date-stepper';
+import { FyBanner } from '@/components/fy-banner';
 import { MonthStepper } from '@/components/month-stepper';
 import { Notice } from '@/components/notice';
-import { PillToggle } from '@/components/pill-toggle';
 import { PrimaryButton } from '@/components/primary-button';
 import { ScreenShell } from '@/components/screen-shell';
 import { Skeleton } from '@/components/skeleton';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
-import { Avatar, CardSection, PersonDropdown, Pill, sym } from '@/components/ui-cards';
+import { Avatar, CardSection, InfoCard, PersonDropdown, Pill, sym } from '@/components/ui-cards';
 import { Accents, Spacing, type Accent } from '@/constants/theme';
-import { useResponsive } from '@/hooks/use-responsive';
 import { useTheme } from '@/hooks/use-theme';
 import { ApiError, NetworkError } from '@/lib/api';
+import { useFinancialYear } from '@/lib/financial-year';
 import {
   GRANT_STATUS_LABEL,
   grantExpenseLate,
   grantLateSubmit,
-  listExpenseGrants,
-  listLateGrants,
-  revokeExpenseGrant,
-  revokeLateGrant,
-  type ExpenseGrant,
+  listAnyLateGrants,
+  revokeAnyLateGrant,
+  type AnyLateGrant,
   type ExpensePhase,
   type GrantStatus,
-  type LateGrant,
-  type PlanKind,
   type LateGrantDuration,
+  type PlanKind,
 } from '@/lib/late-grants';
 import { useSessionUser } from '@/lib/session';
 import { useColleagues, useOnline } from '@/offline';
-import { useCachedFetch } from '@/offline/cached-fetch';
 import { formatWhen, monthOf, prettyDay, prettyMonth } from '@/offline/day';
 import { useTeam } from '@/offline/team';
 
 type Kind = PlanKind | 'EXPENSE';
-
 const KINDS: { value: Kind; label: string }[] = [
   { value: 'DAILY_PLAN', label: 'Daily plan' },
   { value: 'MONTHLY_PLAN', label: 'Tour plan' },
   { value: 'EXPENSE', label: 'Expenses' },
 ];
-
-const PHASES: { value: ExpensePhase; label: string }[] = [
-  { value: 'SUBMIT', label: 'Let them send it' },
-  { value: 'APPROVE', label: 'Let it be approved' },
+/** Who does what (2026-11-28): the employee sends late, or you approve late. */
+const PHASES: { value: ExpensePhase; label: string; about: string }[] = [
+  { value: 'SUBMIT', label: 'Let them send it late', about: 'They can send this month’s expenses after the deadline.' },
+  { value: 'APPROVE', label: 'Let me approve it late', about: 'You can approve their sent month after the approval deadline.' },
 ];
-
 /** How long the exception lasts, from the moment it is granted: only these three (decision-log 2026-11-19). */
 const DURATIONS: { value: LateGrantDuration; label: string }[] = [
   { value: '30m', label: '30 minutes' },
   { value: '1h', label: '1 hour' },
   { value: '12h', label: '12 hours' },
 ];
-
 const STATUS_ACCENT: Record<GrantStatus, Accent> = { OPEN: 'green', USED: 'slate', REVOKED: 'red', EXPIRED: 'amber' };
+const PAGE = 10;
 
-const errorText = (err: unknown) =>
-  err instanceof ApiError || err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.';
+const errorText = (err: unknown) => (err instanceof ApiError || err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.');
+
+/** What an exception is for, in words. */
+const whatOf = (g: AnyLateGrant) =>
+  g.kind === 'DAILY_PLAN'
+    ? `Daily plan · ${prettyDay(g.periodKey)}`
+    : g.kind === 'MONTHLY_PLAN'
+      ? `Tour plan · ${prettyMonth(g.periodKey)}`
+      : g.kind === 'EXPENSE_SUBMIT'
+        ? `Expenses · ${prettyMonth(g.periodKey)} · send late`
+        : g.kind === 'EXPENSE_APPROVE'
+          ? `Expenses · ${prettyMonth(g.periodKey)} · approve late`
+          : `${g.kind.replace(/_/g, ' ').toLowerCase()} · ${g.periodKey}`;
+
+/** Exceptions a page at a time ("Show more" adds the next), read again whenever the filter changes or `reload` is called. */
+function useGrantPages(filter: { userId?: string; kinds?: string[]; status?: GrantStatus }) {
+  const online = useOnline();
+  const key = JSON.stringify(filter);
+  const [state, setState] = useState<{ key: string; items: AnyLateGrant[]; total: number; page: number; loading: boolean; error: string | null }>({ key, items: [], total: 0, page: 0, loading: true, error: null });
+  const load = useCallback(
+    async (page: number) => {
+      if (!online) return setState((s) => ({ ...s, loading: false, error: 'Connect to the internet to see the exceptions.' }));
+      setState((s) => ({ ...s, loading: true }));
+      try {
+        const res = await listAnyLateGrants({ ...(JSON.parse(key) as typeof filter), page, pageSize: PAGE });
+        setState((s) => ({ key, items: page === 1 || s.key !== key ? res.items : [...s.items, ...res.items], total: res.total, page, loading: false, error: null }));
+      } catch (err) {
+        setState((s) => ({ ...s, loading: false, error: errorText(err) }));
+      }
+    },
+    [key, online],
+  );
+  useEffect(() => {
+    const t = setTimeout(() => void load(1), 0);
+    return () => clearTimeout(t);
+  }, [load]);
+  const fresh = state.key === key;
+  return { items: fresh ? state.items : [], total: fresh ? state.total : 0, loading: state.loading || !fresh, error: state.error, more: fresh && state.items.length < state.total, loadMore: () => void load(state.page + 1), reload: () => void load(1) };
+}
+
+/** One exception: who (in the team list), what, its status, the reason, who gave it; Revoke while it is unused and yours to revoke. */
+function GrantRow({ g, who, onRevoke, busy, showWho }: { g: AnyLateGrant; who: string; onRevoke: (() => void) | null; busy: boolean; showWho: boolean }) {
+  const theme = useTheme();
+  const open = g.status === 'OPEN';
+  return (
+    <View style={[styles.grant, { backgroundColor: theme.background, borderColor: theme.border }]}>
+      <View style={styles.grantHead}>
+        {showWho ? <Avatar name={who} accent={STATUS_ACCENT[g.status]} size={32} /> : null}
+        <View style={styles.flex}>
+          {showWho ? <ThemedText type="smallBold" numberOfLines={1}>{who}</ThemedText> : null}
+          <ThemedText type={showWho ? 'small' : 'smallBold'} themeColor={showWho ? 'textSecondary' : undefined}>{whatOf(g)}</ThemedText>
+        </View>
+        <Pill text={open ? 'Active' : GRANT_STATUS_LABEL[g.status]} accent={STATUS_ACCENT[g.status]} />
+      </View>
+      {open ? <ThemedText type="small" style={{ color: Accents.green.solid }}>{`Not used yet · until ${formatWhen(g.expiresAt)}`}</ThemedText> : null}
+      <ThemedText type="small" themeColor="textSecondary">{`“${g.reason}” · given ${formatWhen(g.grantedAt)}`}</ThemedText>
+      {onRevoke ? <PrimaryButton label="Revoke" variant="text" disabled={busy} onPress={onRevoke} /> : null}
+    </View>
+  );
+}
 
 /**
- * Late submissions (managers): let one of your team submit one plan after its deadline. Pick the person, the plan (a day or a
- * month) and a reason; the exception is good for a limited time and is used up by the submit. An unused one can be revoked.
- * The server only lets a manager do this while Admin has switched that on, and says so when it is off. Needs a connection.
- * On a tablet the form is on the left and the exceptions on the right.
+ * Late exceptions (2026-11-28), two ways in. From a person's page (`userId`): only that person — the form to allow one (no person picker) and
+ * their own exceptions, newest first, ten at a time. From Team → Reports: your whole team's exceptions with filters, a tap on a person opens
+ * their late exceptions, and "+ New exception" picks someone first. Expenses say who does what: they send late, or you approve late.
+ * The server only lets a manager do this while Admin has switched it on, and says so when it is off. Needs a connection.
  */
 export default function LateGrantsScreen() {
-  const theme = useTheme();
+  const preset = useLocalSearchParams<{ userId?: string }>().userId;
+  return typeof preset === 'string' && preset !== '' ? <PersonLateGrants userId={preset} /> : <TeamLateGrants />;
+}
+
+function PersonLateGrants({ userId }: { userId: string }) {
   const online = useOnline();
-  const { isTablet } = useResponsive();
   const me = useSessionUser();
   const fy = useFinancialYear();
-  // A past year is read-only: nothing can be allowed or revoked, and the day shown is that year's last.
   const today = fy.effectiveToday;
+  const { team } = useTeam();
   const { colleagues } = useColleagues();
-  const { team, loaded: teamLoaded } = useTeam();
-  const grants = useCachedFetch<{ items: LateGrant[]; total: number }>('late-grants', () => listLateGrants());
+  const person = team.find((t) => t.id === userId) ?? null;
+  const name = person?.name ?? colleagues.find((c) => c.id === userId)?.name ?? 'This person';
 
-  const expenseGrants = useCachedFetch<{ items: ExpenseGrant[]; total: number }>('late-expense-grants', () => listExpenseGrants());
+  const [kind, setKind] = useState<Kind>('DAILY_PLAN');
   const [phase, setPhase] = useState<ExpensePhase>('SUBMIT');
   const [duration, setDuration] = useState<LateGrantDuration>('1h');
-
-  // The employees a manager may grant to are their own team; every name we know, for the list below.
-  const names = useMemo(
-    () => new Map([...colleagues.map((c) => [c.id, c.label ?? c.name] as const), ...team.map((t) => [t.id, t.name] as const)]),
-    [colleagues, team],
-  );
-
-  const preset = useLocalSearchParams<{ userId?: string }>().userId;
-  const [userId, setUserId] = useState<string | null>(typeof preset === 'string' && preset !== '' ? preset : null);
-  const [kind, setKind] = useState<Kind>('DAILY_PLAN');
-  const isExpense = kind === 'EXPENSE';
   const [day, setDay] = useState(today);
   const [month, setMonth] = useState(monthOf(today));
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: 'danger' | 'success' | 'warning'; text: string } | null>(null);
+  const grants = useGrantPages({ userId });
 
   async function grant() {
-    if (!userId) return setMsg({ tone: 'warning', text: 'Pick the employee first.' });
     if (!reason.trim()) return setMsg({ tone: 'warning', text: 'Give the reason for the exception.' });
     setBusy(true);
     setMsg(null);
     try {
       if (kind === 'EXPENSE') {
         await grantExpenseLate({ userId, month, phase, reason, duration });
-        setMsg({ tone: 'success', text: phase === 'SUBMIT' ? `${names.get(userId) ?? 'The employee'} can now send that month late.` : 'That month can now be approved late.' });
-        expenseGrants.reload();
+        setMsg({ tone: 'success', text: phase === 'SUBMIT' ? `${name} can now send ${prettyMonth(month)}’s expenses late.` : `You can now approve ${name}’s ${prettyMonth(month)} expenses late.` });
       } else {
         await grantLateSubmit({ userId, kind, planKey: kind === 'DAILY_PLAN' ? day : month, reason, duration });
-        setMsg({ tone: 'success', text: `${names.get(userId) ?? 'The employee'} can now submit that plan late.` });
-        grants.reload();
+        setMsg({ tone: 'success', text: `${name} can now submit that plan late.` });
       }
       setReason('');
+      grants.reload();
     } catch (err) {
       setMsg({ tone: 'danger', text: errorText(err) });
     } finally {
@@ -130,14 +171,9 @@ export default function LateGrantsScreen() {
     setBusy(true);
     setMsg(null);
     try {
-      if (isExpense) {
-        await revokeExpenseGrant(id);
-        expenseGrants.reload();
-      } else {
-        await revokeLateGrant(id);
-        grants.reload();
-      }
+      await revokeAnyLateGrant(id);
       setMsg({ tone: 'success', text: 'The exception was revoked.' });
+      grants.reload();
     } catch (err) {
       setMsg({ tone: 'danger', text: errorText(err) });
     } finally {
@@ -145,135 +181,145 @@ export default function LateGrantsScreen() {
     }
   }
 
-  const source = isExpense ? expenseGrants : grants;
-  // Both kinds look the same in the list: who, what, the status and the reason.
-  const items = (isExpense
-    ? (expenseGrants.data?.items ?? []).map((g) => ({ id: g.id, userId: g.userId, grantedBy: g.grantedBy, reason: g.reason, expiresAt: g.expiresAt, status: g.effectiveStatus, what: `Expenses · ${prettyMonth(g.month)} · ${g.phase === 'SUBMIT' ? 'send late' : 'approve late'}` }))
-    : (grants.data?.items ?? []).map((g) => ({ id: g.id, userId: g.userId, grantedBy: g.grantedBy, reason: g.reason, expiresAt: g.expiresAt, status: g.status, what: g.kind === 'DAILY_PLAN' ? `Daily plan · ${prettyDay(g.planKey)}` : `Tour plan · ${prettyMonth(g.planKey)}` })));
-  const picked = team.find((t) => t.id === userId) ?? null;
+  return (
+    <ScreenShell
+      title="Late exception"
+      subtitle={`For ${name}`}
+      onRefresh={grants.reload}
+      refreshing={false}
+      footer={<PrimaryButton label={`Allow for ${name.split(' ')[0]}`} loading={busy} disabled={!online || fy.isPast} onPress={grant} />}>
+      <FyBanner />
+      {!online ? <Notice tone="info">You’re offline. Connect to the internet to allow or revoke an exception.</Notice> : null}
+      <InfoCard>
+        <View style={styles.grantHead}>
+          <Avatar name={name} accent="blue" size={40} />
+          <View style={styles.flex}>
+            <ThemedText type="smallBold">{name}</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">{[person?.employeeCode, person?.designation].filter(Boolean).join(' · ') || 'Your team'}</ThemedText>
+          </View>
+        </View>
+      </InfoCard>
 
-  const form = (
-    <View style={styles.stack}>
-      <CardSection icon={sym('person.2', 'groups')} accent="blue" title="Employee" count={team.length || undefined}>
-        {team.length === 0 ? (
-          <Notice tone="info">{teamLoaded ? 'You have nobody in your team to allow a late submission for.' : 'Loading your team…'}</Notice>
-        ) : (
-          <PersonDropdown
-            people={team.map((t) => ({ id: t.id, name: t.name, detail: [t.employeeCode, t.designation].filter(Boolean).join(' · ') }))}
-            value={userId}
-            onChange={setUserId}
-            disabled={busy}
-          />
-        )}
-      </CardSection>
-
-      <CardSection icon={sym('calendar', 'event')} accent="amber" title="Plan">
-        <PillToggle options={KINDS} value={kind} onChange={setKind} disabled={busy} />
-        {kind === 'DAILY_PLAN' ? (
-          <DateStepper label="Day" value={day} onChange={setDay} disabled={busy} />
-        ) : (
-          <MonthStepper value={month} onChange={setMonth} />
-        )}
-        {isExpense ? <PillToggle options={PHASES} value={phase} onChange={setPhase} disabled={busy} /> : null}
-        <ThemedText type="small" themeColor="textSecondary" style={styles.label}>
-          Valid for
-        </ThemedText>
+      <CardSection icon={sym('calendar', 'event')} accent="amber" title="What">
+        <ChoiceChips options={KINDS} value={kind} onChange={setKind} disabled={busy} />
+        {kind === 'DAILY_PLAN' ? <DateStepper label="Day" value={day} onChange={setDay} disabled={busy} /> : <MonthStepper value={month} onChange={setMonth} />}
+        {kind === 'EXPENSE' ? (
+          <>
+            <ChoiceChips options={PHASES.map(({ value, label }) => ({ value, label }))} value={phase} onChange={setPhase} disabled={busy} />
+            <ThemedText type="small" themeColor="textSecondary">{PHASES.find((p) => p.value === phase)!.about}</ThemedText>
+          </>
+        ) : null}
+        <ThemedText type="small" themeColor="textSecondary">Valid for</ThemedText>
         <ChoiceChips options={DURATIONS} value={duration} onChange={setDuration} disabled={busy} />
       </CardSection>
-
       <CardSection icon={sym('text.bubble', 'chat')} accent="purple" title="Reason">
-        <TextField
-          label="Why is the exception needed? (required)"
-          value={reason}
-          onChangeText={(t) => {
-            setReason(t);
-            setMsg(null);
-          }}
-          multiline
-          maxLength={1000}
-          editable={!busy}
-        />
+        <TextField label="Why is the exception needed? (required)" value={reason} onChangeText={(t) => { setReason(t); setMsg(null); }} multiline maxLength={1000} editable={!busy} />
       </CardSection>
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
-    </View>
-  );
 
-  const exceptions = (
-    <CardSection icon={sym('checklist', 'assignment_turned_in')} accent="green" title="Exceptions" count={items.length}>
-      {source.stale && source.fetchedAt && source.data ? <Notice tone="info">{`Showing the list from ${formatWhen(source.fetchedAt)}.`}</Notice> : null}
-      {source.error && !source.data ? <Notice tone="danger">{source.error}</Notice> : null}
-      {source.loading && !source.data ? <Skeleton cards={2} lines={3} /> : null}
-      {source.data && items.length === 0 ? <Notice tone="info">No late-submission exceptions yet.</Notice> : null}
-      {items.map((g) => {
-        const who = g.userId === me?.id ? 'You' : (names.get(g.userId) ?? 'Employee');
-        const open = g.status === 'OPEN';
-        return (
-          <View key={g.id} style={[styles.grant, { backgroundColor: theme.background, borderColor: theme.border }]}>
-            <View style={styles.grantHead}>
-              <Avatar name={who} accent={STATUS_ACCENT[g.status]} size={36} />
-              <View style={styles.flex}>
-                <ThemedText type="smallBold" numberOfLines={1}>
-                  {who}
-                </ThemedText>
-                <ThemedText type="small" themeColor="textSecondary" style={styles.small}>
-                  {g.what}
-                </ThemedText>
-              </View>
-              <Pill text={open ? 'Open' : GRANT_STATUS_LABEL[g.status]} accent={STATUS_ACCENT[g.status]} />
-            </View>
-            {open ? (
-              <ThemedText type="small" style={[styles.small, { color: Accents.green.solid }]}>{`Not used yet · expires ${formatWhen(g.expiresAt)}`}</ThemedText>
-            ) : null}
-            <ThemedText type="small" themeColor="textSecondary" style={styles.small}>{`“${g.reason}”`}</ThemedText>
-            {open && g.grantedBy === me?.id ? (
-              <PrimaryButton label="Revoke" variant="text" disabled={busy || !online || fy.isPast} onPress={() => revoke(g.id)} />
-            ) : null}
-          </View>
-        );
-      })}
-    </CardSection>
+      <CardSection icon={sym('clock.arrow.circlepath', 'history')} accent="green" title={`${name.split(' ')[0]}’s exceptions`} count={grants.total || undefined}>
+        {grants.error ? <Notice tone="danger">{grants.error}</Notice> : null}
+        {grants.loading && grants.items.length === 0 ? <Skeleton cards={2} lines={2} /> : null}
+        {!grants.loading && grants.items.length === 0 && !grants.error ? <ThemedText type="small" themeColor="textSecondary">No exceptions yet.</ThemedText> : null}
+        {grants.items.map((g) => (
+          <GrantRow key={g.id} g={g} who={name} showWho={false} busy={busy || !online || fy.isPast} onRevoke={g.status === 'OPEN' && g.grantedBy === me?.id ? () => void revoke(g.id) : null} />
+        ))}
+        {grants.more ? <PrimaryButton label="Show more" variant="text" loading={grants.loading} onPress={grants.loadMore} /> : null}
+      </CardSection>
+    </ScreenShell>
   );
+}
 
-  const footer = (
-    <PrimaryButton
-      label={picked ? `Allow late submission for ${picked.name}` : 'Allow late submission'}
-      loading={busy}
-      disabled={!online || team.length === 0 || fy.isPast}
-      onPress={grant}
-    />
-  );
+type StatusFilter = 'OPEN' | 'ALL';
+type KindFilter = 'ALL' | 'DAILY_PLAN' | 'MONTHLY_PLAN' | 'EXPENSE_SUBMIT' | 'EXPENSE_APPROVE';
+
+function TeamLateGrants() {
+  const online = useOnline();
+  const me = useSessionUser();
+  const fy = useFinancialYear();
+  const { team, loaded } = useTeam();
+  const { colleagues } = useColleagues();
+  const nameOf = (id: string) => (id === me?.id ? 'You' : (team.find((t) => t.id === id)?.name ?? colleagues.find((c) => c.id === id)?.name ?? 'Employee'));
+  const [status, setStatus] = useState<StatusFilter>('OPEN');
+  const [kind, setKind] = useState<KindFilter>('ALL');
+  const [picking, setPicking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ tone: 'danger' | 'success'; text: string } | null>(null);
+  const grants = useGrantPages({ ...(status === 'OPEN' ? { status: 'OPEN' as GrantStatus } : {}), ...(kind !== 'ALL' ? { kinds: [kind] } : {}) });
+
+  async function revoke(id: string) {
+    setBusy(true);
+    setMsg(null);
+    try {
+      await revokeAnyLateGrant(id);
+      setMsg({ tone: 'success', text: 'The exception was revoked.' });
+      grants.reload();
+    } catch (err) {
+      setMsg({ tone: 'danger', text: errorText(err) });
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <ScreenShell
-      title="Late submissions"
-      subtitle="Let someone submit a plan or expenses after the deadline"
-      wide
-      onRefresh={source.reload}
-      refreshing={source.refreshing}
-      footer={footer}>
+      title="Late exceptions"
+      subtitle="Your team’s exceptions to send or approve late"
+      onRefresh={grants.reload}
+      refreshing={false}
+      footer={<PrimaryButton label="+ New exception" disabled={!online || fy.isPast} onPress={() => setPicking(true)} />}>
       <FyBanner />
-      {!online ? <Notice tone="info">You’re offline. Connect to the internet to allow or revoke a late submission.</Notice> : null}
-      {isTablet ? (
-        <View style={styles.columns}>
-          <View style={styles.flex}>{form}</View>
-          <View style={styles.flex}>{exceptions}</View>
-        </View>
-      ) : (
-        <>
-          {form}
-          {exceptions}
-        </>
-      )}
+      {!online ? <Notice tone="info">You’re offline. Connect to the internet to see or change exceptions.</Notice> : null}
+      {picking ? (
+        <CardSection icon={sym('person.2', 'groups')} accent="blue" title="For whom?">
+          {team.length === 0 ? (
+            <Notice tone="info">{loaded ? 'You have nobody in your team.' : 'Loading your team…'}</Notice>
+          ) : (
+            <PersonDropdown
+              people={team.map((t) => ({ id: t.id, name: t.name, detail: [t.employeeCode, t.designation].filter(Boolean).join(' · ') }))}
+              value={null}
+              onChange={(id) => {
+                setPicking(false);
+                router.push({ pathname: '/late-grants', params: { userId: id } });
+              }}
+            />
+          )}
+          <PrimaryButton label="Cancel" variant="text" onPress={() => setPicking(false)} />
+        </CardSection>
+      ) : null}
+      <ChoiceChips options={[{ value: 'OPEN', label: 'Active' }, { value: 'ALL', label: 'All' }]} value={status} onChange={setStatus} />
+      <ChoiceChips
+        options={[
+          { value: 'ALL', label: 'Every kind' },
+          { value: 'DAILY_PLAN', label: 'Daily plan' },
+          { value: 'MONTHLY_PLAN', label: 'Tour plan' },
+          { value: 'EXPENSE_SUBMIT', label: 'Expenses · send' },
+          { value: 'EXPENSE_APPROVE', label: 'Expenses · approve' },
+        ]}
+        value={kind}
+        onChange={setKind}
+      />
+      {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
+      {grants.error ? <Notice tone="danger">{grants.error}</Notice> : null}
+      {grants.loading && grants.items.length === 0 ? <Skeleton cards={3} lines={2} /> : null}
+      {!grants.loading && grants.items.length === 0 && !grants.error ? <Notice tone="info">{status === 'OPEN' ? 'No active exceptions in your team.' : 'No exceptions yet.'}</Notice> : null}
+      {grants.total > 0 ? <ThemedText type="small" themeColor="textSecondary">{`${grants.total} exception${grants.total === 1 ? '' : 's'}`}</ThemedText> : null}
+      <View style={styles.list}>
+        {grants.items.map((g) => (
+          <View key={g.id}>
+            <GrantRow g={g} who={nameOf(g.userId)} showWho busy={busy || !online || fy.isPast} onRevoke={g.status === 'OPEN' && g.grantedBy === me?.id ? () => void revoke(g.id) : null} />
+            {g.userId !== me?.id ? <PrimaryButton label={`${nameOf(g.userId).split(' ')[0]}’s exceptions →`} variant="text" onPress={() => router.push({ pathname: '/late-grants', params: { userId: g.userId } })} /> : null}
+          </View>
+        ))}
+      </View>
+      {grants.more ? <PrimaryButton label="Show more" variant="text" loading={grants.loading} onPress={grants.loadMore} /> : null}
     </ScreenShell>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  stack: { gap: Spacing.three },
-  columns: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three },
-  label: { marginTop: Spacing.one },
+  list: { gap: Spacing.two },
   grant: { borderRadius: Spacing.three, borderWidth: 1, padding: Spacing.three, gap: Spacing.one },
   grantHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  small: { fontSize: 12, lineHeight: 16 },
 });

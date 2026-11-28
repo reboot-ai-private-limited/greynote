@@ -35,14 +35,8 @@ export const GRANT_STATUS_LABEL: Record<GrantStatus, string> = {
 export type LateGrantDuration = '30m' | '1h' | '12h';
 
 /** The grants I made, was given, or my team has — newest first (Admin sees everyone's). */
-export const listLateGrants = (pageSize = 100) =>
-  apiGet<{ items: LateGrant[]; total: number }>(`/planning/late-grants?pageSize=${pageSize}`, { auth: true });
-
 export const grantLateSubmit = (input: { userId: string; kind: PlanKind; planKey: string; reason: string; duration?: LateGrantDuration }) =>
   apiPost<LateGrant>('/planning/late-grants', { ...input, reason: input.reason.trim() }, { auth: true });
-
-/** Withdraws a grant that has not been used — Admin or whoever granted it. */
-export const revokeLateGrant = (id: string) => apiPost<unknown>(`/planning/late-grants/${id}/revoke`, {}, { auth: true });
 
 /* ───────────────────────── late expense months ───────────────────────── */
 
@@ -63,10 +57,34 @@ export type ExpenseGrant = {
 };
 
 /** Exceptions that let one month of expenses be sent (SUBMIT) or approved (APPROVE) late. Admin: all; a manager: their own and their team's. */
-export const listExpenseGrants = (pageSize = 100) =>
-  apiGet<{ items: ExpenseGrant[]; total: number }>(`/field-activity/expense-grants?pageSize=${pageSize}`, { auth: true });
-
 export const grantExpenseLate = (input: { userId: string; month: string; phase: ExpensePhase; reason: string; duration?: LateGrantDuration }) =>
   apiPost<ExpenseGrant>('/field-activity/expense-grants', { ...input, reason: input.reason.trim() }, { auth: true });
 
-export const revokeExpenseGrant = (id: string) => apiPost<unknown>(`/field-activity/expense-grants/${id}/revoke`, {}, { auth: true });
+
+/* ───────────────────────── one list of every kind (2026-11-28) ───────────────────────── */
+
+/** Any late exception, as `GET /late-grants` returns it: plans, expenses and the rest, with the status as it stands now. */
+export type AnyLateGrant = {
+  id: string;
+  userId: string;
+  kind: 'DAILY_PLAN' | 'MONTHLY_PLAN' | 'EXPENSE_SUBMIT' | 'EXPENSE_APPROVE' | string;
+  /** `YYYY-MM-DD` for a day, `YYYY-MM` for a month. */
+  periodKey: string;
+  reason: string;
+  grantedBy: string;
+  grantedAt: string;
+  expiresAt: string;
+  status: GrantStatus;
+};
+
+/** Newest first, a page at a time; a manager reads their own and their team's. `kinds` narrows to some kinds, `status` to one status. */
+export const listAnyLateGrants = (q: { userId?: string; kinds?: string[]; status?: GrantStatus; page: number; pageSize: number }) => {
+  const params = new URLSearchParams({ page: String(q.page), pageSize: String(q.pageSize) });
+  if (q.userId) params.set('userId', q.userId);
+  if (q.status) params.set('status', q.status);
+  if (q.kinds?.length === 1) params.set('kind', q.kinds[0]!);
+  return apiGet<{ items: AnyLateGrant[]; total: number; page: number; totalPages: number }>(`/late-grants?${params.toString()}`, { auth: true });
+};
+
+/** Withdraws any unused exception — Admin or whoever granted it. */
+export const revokeAnyLateGrant = (id: string) => apiPost<unknown>(`/late-grants/${id}/revoke`, {}, { auth: true });
