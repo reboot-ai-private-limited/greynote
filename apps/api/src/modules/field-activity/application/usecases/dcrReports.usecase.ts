@@ -113,6 +113,19 @@ export class ListCalledDoctorsUseCase {
     const reported = mine.filter((d) => isQualifyingDcr(dcrStatus(requests.get(d.id) ?? null))).map((d) => d.id);
     return this.doctorCalls.distinctDoctorIds(reported);
   }
+
+  /** Each Doctor called in the reported days of a range, with the last day called (2026-11-28: carry-over counts only a call after the latest planned day). */
+  async lastCalled(userId: string, range: { from: string; to: string }): Promise<Map<string, string>> {
+    const mine = await this.dcrs.listForUsers([userId], range.from, range.to);
+    const requests = new Map((await this.approvals.listForRecords(DCR_KIND, mine.map((d) => d.id))).map((r) => [r.recordId, r]));
+    const reported = new Map(mine.filter((d) => isQualifyingDcr(dcrStatus(requests.get(d.id) ?? null))).map((d) => [d.id, d.reportDate]));
+    const last = new Map<string, string>();
+    for (const { dcrId, doctorId } of await this.doctorCalls.doctorIdsByDcr([...reported.keys()])) {
+      const day = reported.get(dcrId)!;
+      if ((last.get(doctorId) ?? '') < day) last.set(doctorId, day);
+    }
+    return last;
+  }
 }
 
 /** How many calls each Doctor had in the reported days of a range (both ends inclusive), by any employee: the visit-frequency report's input. */

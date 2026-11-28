@@ -132,6 +132,14 @@ export class MongoDoctorCallAdapter implements DoctorCallRepositoryPort {
   countRouteNotInPlan(range: { from: string; to: string }): Promise<Array<{ dcrId: string; count: number }>> {
     return countFlagged(DoctorCallModel as never, 'routeNotInPlan', range);
   }
+  async doctorIdsByDcr(dcrIds: string[]): Promise<Array<{ dcrId: string; doctorId: string }>> {
+    if (dcrIds.length === 0) return [];
+    const rows = await DoctorCallModel.aggregate<{ _id: { dcrId: unknown; doctorId: unknown } }>([
+      { $match: { dcrId: { $in: dcrIds.map(oid) } } },
+      { $group: { _id: { dcrId: '$dcrId', doctorId: '$doctorId' } } },
+    ]);
+    return rows.map((r) => ({ dcrId: String(r._id.dcrId), doctorId: String(r._id.doctorId) }));
+  }
   async distinctDoctorIds(dcrIds: string[]): Promise<string[]> {
     if (dcrIds.length === 0) return [];
     return (await DoctorCallModel.distinct('doctorId', { dcrId: { $in: dcrIds.map(oid) } })).map(String);

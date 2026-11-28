@@ -95,24 +95,32 @@ export class CarryOver {
     });
   }
 
-  /** Doctors on approved plans in `from`–`to`, mapped to the day first planned, left out once called on or after that day (up to `to`). */
+  /**
+   * Doctors on approved plans in `from`–`to` still owed, each mapped to the day they have been owed since. Only a call AFTER the latest
+   * planned day settles a doctor (2026-11-28): planned 2 Nov, called 27 Nov, planned again 28 Nov and not called → owed since 28 Nov. (It
+   * used to take the first planned day of the window, so any call after it — the 27 Nov one — cleared the doctor for good.) A call on a
+   * planned day settles that day. A carried entry keeps the day it was first planned unless a call came after that day.
+   */
   private async uncalled(userId: string, from: string, to: string, approved?: DailyPlan[]): Promise<Map<string, string>> {
     if (!this.called) throw new Error('Planning: the called-doctors lookup was never bound.');
-    const firstPlanned = new Map<string, string>();
+    const planned = new Map<string, Array<{ day: string; since: string }>>();
     for (const plan of approved ?? (await this.approvedPlans(userId, from, to))) {
       for (const d of plan.doctors) {
-        const original = d.carriedFrom ?? plan.planDate;
-        if (original < from) continue;
-        const known = firstPlanned.get(d.doctorId);
-        if (!known || original < known) firstPlanned.set(d.doctorId, original);
+        const since = d.carriedFrom ?? plan.planDate;
+        if (since < from) continue;
+        planned.set(d.doctorId, [...(planned.get(d.doctorId) ?? []), { day: plan.planDate, since }]);
       }
     }
-    // A call clears a doctor only if it was on or after the day they were first planned. This used to ask once per distinct first-planned
-    // day and clear every doctor called in each answer — the same as one ask from the earliest of those days (2026-11-27), now one read.
-    if (firstPlanned.size === 0) return firstPlanned;
-    const earliest = [...firstPlanned.values()].sort()[0]!;
-    for (const id of await this.called(userId, { from: earliest, to })) firstPlanned.delete(id);
-    return firstPlanned;
+    const owed = new Map<string, string>();
+    if (planned.size === 0) return owed;
+    const earliest = [...planned.values()].flat().map((e) => e.since).sort()[0]!;
+    const lastCall = await this.called(userId, { from: earliest, to });
+    for (const [doctorId, days] of planned) {
+      const last = lastCall.get(doctorId);
+      const open = days.filter((e) => last === undefined || e.day > last).map((e) => (last !== undefined && e.since <= last ? e.day : e.since));
+      if (open.length > 0) owed.set(doctorId, open.sort()[0]!);
+    }
+    return owed;
   }
 
   /** The active doctors assigned to any of `people`, each once, with their route and place. */

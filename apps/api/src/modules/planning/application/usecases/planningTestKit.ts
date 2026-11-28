@@ -483,7 +483,11 @@ export function planningKit(clock: Clock) {
   const carryOver = new CarryOver(dailyPlans, approvals, config, (id) => scope.isManager(id));
   carryOver.bind(
     { listAssignedDoctors: async (userId) => doctors.get(userId) ?? [], getDoctorNames: async (ids) => ids.map((id) => ({ id, name: `Dr ${id}` })) },
-    async (userId, { from, to }) => calls.filter((c) => c.userId === userId && c.date >= from && c.date <= to).map((c) => c.doctorId),
+    async (userId, { from, to }) => {
+      const last = new Map<string, string>();
+      for (const c of calls) if (c.userId === userId && c.date >= from && c.date <= to && (last.get(c.doctorId) ?? '') < c.date) last.set(c.doctorId, c.date);
+      return last;
+    },
   );
   const setDoctors = new SetDailyPlanDoctorsUseCase(dailyPlans, approvals, carryOver, views, scope);
   const teamSuggest = new SuggestFromTeamUseCase(dailyPlans, monthlyPlans, approvals, users, carryOver, scope);

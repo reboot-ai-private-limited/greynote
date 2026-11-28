@@ -260,6 +260,7 @@ export function buildFieldActivityContainer(
       countDoctorCallsByDay: (range) => countDoctorCallsByDay.execute(range),
       callFigures: (range, userIds) => callFigures.execute(range, userIds),
       listCalledDoctorIds: (userId, range) => listCalledDoctors.execute(userId, range),
+      lastDoctorCallDates: (userId, range) => listCalledDoctors.lastCalled(userId, range),
       countDoctorCalls: (range) => countDoctorCalls.execute(range),
       listAcceptedExpenses: (f) => expenses.listAccepted({ from: f.from, to: f.to, ...(f.userId && { userId: f.userId }) }, f.limit ?? 2000),
       getDcrSummary: (userId, range) => dcrSummary.execute(userId, range),

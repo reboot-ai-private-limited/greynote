@@ -37,6 +37,26 @@ describe('doctor list and carry-over', () => {
     expect(await kit.carryOver.pending(MR, '2026-10-07')).toEqual([]);
   });
 
+  it('owes a doctor planned again after their last call — an earlier call does not settle a later plan (2026-11-28)', async () => {
+    await approvedDay('2026-10-01', ['d1', 'd2']);
+    kit.calls.push({ userId: MR, doctorId: 'd1', date: '2026-10-01' }, { userId: MR, doctorId: 'd2', date: '2026-10-01' });
+    await approvedDay('2026-10-05', ['d1', 'd2']);
+    kit.calls.push({ userId: MR, doctorId: 'd2', date: '2026-10-05' });
+    await approvedDay('2026-10-06', ['d1']);
+    // d1: called 1 Oct, planned 5 and 6 Oct, not called since → owed since 5 Oct. d2: called on 5 Oct, its last planned day → settled.
+    expect(await kit.carryOver.pending(MR, '2026-10-07')).toEqual([{ doctorId: 'd1', carriedFrom: '2026-10-05' }]);
+    kit.calls.push({ userId: MR, doctorId: 'd1', date: '2026-10-06' });
+    expect(await kit.carryOver.pending(MR, '2026-10-07')).toEqual([]);
+  });
+
+  it('a call after the last planned day settles the doctor; one before a later plan does not', async () => {
+    await approvedDay('2026-10-02', ['d3']);
+    kit.calls.push({ userId: MR, doctorId: 'd3', date: '2026-10-03' });
+    expect(await kit.carryOver.pending(MR, '2026-10-05')).toEqual([]);
+    await approvedDay('2026-10-05', ['d3']);
+    expect(await kit.carryOver.pending(MR, '2026-10-06')).toEqual([{ doctorId: 'd3', carriedFrom: '2026-10-05' }]);
+  });
+
   it('adds owed doctors to the list and refuses doctors off the day’s routes', async () => {
     await approvedDay('2026-10-05', ['d4']);
     await kit.dailyPlans.save(MR, '2026-10-06', { workingType: 'FIELD_WORK', dayKind: 'NORMAL', workWith: [], routeIds: [ROUTE], remarks: null }, null);

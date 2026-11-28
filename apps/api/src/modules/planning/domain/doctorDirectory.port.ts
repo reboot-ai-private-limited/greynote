@@ -6,5 +6,5 @@ export interface DoctorDirectoryPort {
   getDoctorNames(doctorIds: string[]): Promise<Array<{ id: string; name: string }>>;
 }
 
-/** Planning's narrow view of Field Activity: the Doctors this employee called in the reported days of a range (both ends inclusive). */
-export type CalledDoctorsPort = (userId: string, range: { from: string; to: string }) => Promise<string[]>;
+/** Planning's narrow view of Field Activity: the Doctors this employee called in the reported days of a range (both ends inclusive), each with the last day called. */
+export type CalledDoctorsPort = (userId: string, range: { from: string; to: string }) => Promise<Map<string, string>>;

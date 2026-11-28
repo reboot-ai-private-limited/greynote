@@ -64,6 +64,8 @@ export interface FieldActivityPublicContract {
   callFigures(range: { from: string; to: string }, userIds?: string[]): Promise<CallFigures>;
   /** The Doctors this employee called on in their reported days of a range (both ends inclusive). */
   listCalledDoctorIds(userId: string, range: { from: string; to: string }): Promise<string[]>;
+  /** Doctor id → the last reported day in the range this employee called them. */
+  lastDoctorCallDates(userId: string, range: { from: string; to: string }): Promise<Map<string, string>>;
   /** Calls per Doctor in the reported days of a range (both ends inclusive), by any employee — the visit-frequency report's input. */
   countDoctorCalls(range: { from: string; to: string }): Promise<Array<{ doctorId: string; count: number }>>;
   /** What points at one doctor here, for its deactivate/delete warning: calls ever made on it, gifts not handed over, services not done. */

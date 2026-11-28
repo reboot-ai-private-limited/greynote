@@ -26,6 +26,8 @@ export interface DoctorCallRepositoryPort {
   countRouteNotInPlan(range: { from: string; to: string }): Promise<Array<{ dcrId: string; count: number }>>;
   /** The distinct Doctors called in these daily reports. */
   distinctDoctorIds(dcrIds: string[]): Promise<string[]>;
+  /** Each (report, Doctor) pair with at least one call, once. */
+  doctorIdsByDcr(dcrIds: string[]): Promise<Array<{ dcrId: string; doctorId: string }>>;
   /** How many calls each Doctor had in these daily reports. */
   countByDoctor(dcrIds: string[]): Promise<Array<{ doctorId: string; count: number }>>;
   /** Calls in these DCRs per employee and Doctor (call average and coverage, 2026-11-27). */
