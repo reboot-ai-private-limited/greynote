@@ -32,6 +32,13 @@ describe('reading DCRs', () => {
     expect((await new ListMyDcrsUseCase(kit.dcrs, kit.views).execute('mr1', '2026-10-04', '2026-10-04'))).toEqual([]);
   });
 
+  it('with the record stores, each day carries its doctor calls, chemist calls and follow-ups', async () => {
+    kit.doctorCalls.rows.push({ id: 'c1', dcrId: mine, userId: 'mr1', reportDate: '2026-10-05', doctorId: 'd1' } as never, { id: 'c2', dcrId: mine, userId: 'mr1', reportDate: '2026-10-05', doctorId: 'd2' } as never);
+    kit.followups.rows.push({ id: 'f1', dcrId: mine, userId: 'mr1', reportDate: '2026-10-05' } as never);
+    const list = await new ListMyDcrsUseCase(kit.dcrs, kit.views, { doctorCalls: kit.doctorCalls, chemistCalls: kit.chemistCalls, followups: kit.followups }).execute('mr1', '2026-10-01', '2026-10-31');
+    expect(list.map((d) => [d.reportDate, 'doctorCalls' in d ? [d.doctorCalls, d.chemistCalls, d.followups] : null])).toEqual([['2026-10-05', [2, 0, 1]], ['2026-10-03', [0, 0, 0]]]);
+  });
+
   it('a manager sees their downline’s, read-only, and can narrow to one report — never someone outside their team', async () => {
     const team = new ListTeamDcrsUseCase(kit.dcrs, kit.users, kit.views);
     const asm = { id: 'asm', role: 'FIELD' as const };

@@ -274,7 +274,7 @@ export function buildFieldActivityContainer(
     buildRouter: () =>
       buildFieldActivityRouter(
         makeFieldActivityControllers({
-          listMine: new ListMyDcrsUseCase(dcrs, views),
+          listMine: new ListMyDcrsUseCase(dcrs, views, { doctorCalls, chemistCalls, followups }),
           listAll: new ListAllDcrsUseCase(dcrs, users, views),
           listTeam: new ListTeamDcrsUseCase(dcrs, users, views),
           adminService: new CreateAdminDoctorServiceUseCase(master, services),

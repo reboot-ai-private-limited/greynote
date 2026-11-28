@@ -1,6 +1,7 @@
 import type { RoleName } from '@greynote/contracts';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { DcrRepositoryPort } from '../../domain/dcr.repository.port.js';
+import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, FollowupRepositoryPort } from '../../domain/records.repository.port.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { DcrView, DcrViews } from '../dcrViews.js';
 
@@ -16,15 +17,23 @@ async function assertCanRead(users: UserDirectoryPort, actor: Actor, ownerId: st
   if (!chain.some((m) => m.id === actor.id)) throw AppError.forbidden();
 }
 
-/** The caller's own DCRs in a date range, newest first. */
+/** What the phone's DCR report shows for a day (2026-11-28): the calls and follow-ups on it, counted in three batched reads. */
+export type DcrWithCounts = DcrView & { doctorCalls: number; chemistCalls: number; followups: number };
+
+/** The caller's own DCRs in a date range, newest first, each with its call and follow-up counts when the record stores are given. */
 export class ListMyDcrsUseCase {
   constructor(
     private readonly dcrs: DcrRepositoryPort,
     private readonly views: DcrViews,
+    private readonly records?: { doctorCalls: DoctorCallRepositoryPort; chemistCalls: ChemistCallRepositoryPort; followups: FollowupRepositoryPort },
   ) {}
 
-  async execute(userId: string, from: string, to: string): Promise<DcrView[]> {
-    return this.views.many(await this.dcrs.listForUsers([userId], from, to));
+  async execute(userId: string, from: string, to: string): Promise<Array<DcrView | DcrWithCounts>> {
+    const views = await this.views.many(await this.dcrs.listForUsers([userId], from, to));
+    if (!this.records || views.length === 0) return views;
+    const ids = views.map((v) => v.id);
+    const [doctor, chemist, followups] = await Promise.all([this.records.doctorCalls.countForDcrs(ids), this.records.chemistCalls.countForDcrs(ids), this.records.followups.countForDcrs(ids)]);
+    return views.map((v) => ({ ...v, doctorCalls: doctor.get(v.id) ?? 0, chemistCalls: chemist.get(v.id) ?? 0, followups: followups.get(v.id) ?? 0 }));
   }
 }
 

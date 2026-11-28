@@ -2,6 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
+import { ChoiceChips } from '@/components/choice-chips';
 import { DoctorAvatar } from '@/components/doctor-avatar';
 import { NumberedRow } from '@/components/numbered-row';
 import { Notice } from '@/components/notice';
@@ -17,6 +18,9 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { useDebounced } from '@/hooks/use-debounced';
 import { useOnEndReached } from '@/hooks/use-end-reached';
 import { listAddedDoctors, type AddedDoctor } from '@/lib/added-doctors';
+import { useDayGate } from '@/hooks/use-day-gate';
+import { getMyDcrCoverage, type DcrCoverage } from '@/lib/my-reports';
+import { monthOf } from '@/offline/day';
 import { MANAGER_NOT_ALLOWED, mayAddDoctor } from '@/lib/manager-add-doctors';
 import { usePublicFlags } from '@/lib/public-config';
 import { useOnline, useRecords, type NewDoctorPayload } from '@/offline';
@@ -56,6 +60,11 @@ function MyDoctorsScreen() {
   const added = useCachedFetch<AddedDoctor[]>('doctors-added', listAddedDoctors, records.filter((r) => r.status === 'SYNCED').length);
   const [search, setSearch] = useState('');
   const term = useDebounced(search.trim().toLowerCase(), 300);
+  // "Not called this month" (2026-11-28, moved here from the DCR report): the server's list of your doctors with no call on a sent report.
+  const [filter, setFilter] = useState<'all' | 'notCalled'>('all');
+  const thisMonth = monthOf(useDayGate().today);
+  const coverage = useCachedFetch<DcrCoverage>(`doctors-not-called:${thisMonth}`, () => getMyDcrCoverage(thisMonth));
+  const notCalled = new Set((coverage.data?.notVisited ?? []).map((d) => d.id));
   const [shown, setShown] = useState({ term: '', count: PAGE });
   const count = shown.term === term ? shown.count : PAGE; // a new search starts from the first 20 again
 
@@ -80,7 +89,7 @@ function MyDoctorsScreen() {
 
   // One list: pending first (they need attention), then the rest A to Z.
   const rows: { key: string; pending: boolean; name: string; node: ReactNode }[] = [];
-  for (const r of unsent) {
+  for (const r of filter === 'notCalled' ? [] : unsent) {
     const p = r.payload as NewDoctorPayload;
     if (!matches(term, p.name)) continue;
     const refused = r.errorCode === MANAGER_NOT_ALLOWED;
@@ -111,7 +120,7 @@ function MyDoctorsScreen() {
       ),
     });
   }
-  for (const d of notActive) {
+  for (const d of filter === 'notCalled' ? [] : notActive) {
     if (!matches(term, d.name, d.clinicName, d.specialty)) continue;
     const waiting = d.state === 'SUBMITTED' || d.state === 'MANAGER_APPROVED';
     rows.push({
@@ -141,6 +150,7 @@ function MyDoctorsScreen() {
   }
   for (const d of master.data?.doctors ?? []) {
     if (!matches(term, d.name, d.clinicName, d.specialty, d.phone)) continue;
+    if (filter === 'notCalled' && !notCalled.has(d.id)) continue;
     rows.push({
       key: d.id,
       pending: false,
@@ -157,6 +167,7 @@ function MyDoctorsScreen() {
             </View>
             <Pill text={d.visitFrequency ? `${d.visitFrequency} a month` : 'No target'} accent={d.visitFrequency ? 'green' : 'slate'} />
           </View>
+          {notCalled.has(d.id) ? <ThemedText type="small" themeColor="danger">Not called this month</ThemedText> : null}
           {d.phone ? <PrimaryButton label={d.phone} variant="text" onPress={() => void Linking.openURL(`tel:${d.phone}`)} style={styles.phone} /> : null}
         </InfoCard>
       ),
@@ -185,10 +196,19 @@ function MyDoctorsScreen() {
       </View>
 
       <TextField label="Search by name, clinic, speciality or phone" value={search} onChangeText={setSearch} autoCapitalize="none" autoCorrect={false} />
+      <ChoiceChips
+        options={[
+          { value: 'all', label: 'All' },
+          { value: 'notCalled', label: coverage.data ? `Not called this month · ${coverage.data.notVisited.length}` : 'Not called this month' },
+        ]}
+        value={filter}
+        onChange={setFilter}
+      />
+      {filter === 'notCalled' && !coverage.data ? <Notice tone="info">{online ? 'Loading…' : 'Connect to the internet once to see who you haven’t called this month.'}</Notice> : null}
 
       {loading ? <Skeleton cards={3} lines={2} /> : null}
       {master.loaded && !master.data ? <Notice tone="info">Connect to the internet once so your doctors can load.</Notice> : null}
-      {master.data && rows.length === 0 ? <Notice tone="info">{term ? 'No doctor matches that search.' : 'No doctors are assigned to you yet.'}</Notice> : null}
+      {master.data && rows.length === 0 && (filter === 'all' || coverage.data) ? <Notice tone="info">{term ? 'No doctor matches that search.' : filter === 'notCalled' ? 'You have called every doctor this month.' : 'No doctors are assigned to you yet.'}</Notice> : null}
       {rows.length > 0 ? <ThemedText type="small" themeColor="textSecondary">{`Total ${rows.length} doctors${term ? ' found' : ''}`}</ThemedText> : null}
       {visible.map((r, i) => (
         <NumberedRow key={r.key} n={i + 1}>

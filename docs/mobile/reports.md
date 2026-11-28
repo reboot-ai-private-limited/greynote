@@ -38,3 +38,14 @@ How an employee reads back **their own** daily report (DCR), secondary sales, or
 - Chips (simplified): **Month · DCR · Plans · TA / DA · More**. Plans holds the Tour Plan card and the Daily plan days. Gift & Sales is gone from this page (gifts are under More). **DCR** rows open the full daily report. **Daily plan** lists the month's days; a tap opens **Daily plan in detail** (`daily-plan-detail`): the doctors by name (those carried from an earlier day marked), routes, works with, remarks, status and the approval history. **Tour Plan** is the month's plan and its status. **More** links to Orders, Leave, Gifts, Services, Visit targets and Targets.
 
 > **2026-11-27 — Call average & coverage.** `GET /reports/call-performance?fromMonth=&toMonth=` returns your row (and, for a manager, a row per person below, coverage `scope: 'TEAM'` on yours): field days, doctor and chemist calls, `doctorCallAvg`, `chemistCallAvg`, and `coverage` (`doctors`, `met`, `metFully`, `withFrequency`, `required`, `made`, `missed`, `coveragePct`, `frequencyPct`, `compliancePct`). `GET /reports/call-performance/:userId/missed` lists the doctors never met.
+
+## Reports page reworked, 2026-11-28
+
+- **Top:** "Reports" with a **financial-year dropdown** beside it (a past year is read-only), then the month.
+- **Four tabs: DCR · Plans · Expenses · More.** The Month tab is gone (its cards only linked to other screens).
+  - **DCR:** one row per day (doctor calls, chemist calls, follow-ups, status); a tap opens that day's report. `GET /field-activity/dcr` now adds `doctorCalls`, `chemistCalls`, `followups` to each of your own days.
+  - **Plans:** the Tour Plan (status, reason, its server Excel) and Daily Plans, one row per day; a tap opens the day.
+  - **Expenses** (was TA / DA): TA, DA and other expenses, **one row per date** (TA · DA · Other · Total, paid or not); a tap shows that day's lines. Tiles: Total, Paid, Not paid.
+  - **More:** each item opens its **own view-only report** for the month at `/report/[kind]` (orders, leave, gifts, doctor services, sample & LBL requests, doctor visits, targets, secondary sales), plus the two detailed server sheets (Monthly work, Secondary sales).
+- **Every list has one "Excel" button** that downloads exactly the rows shown. The file is built on the phone (`lib/xlsx.ts`, OOXML zipped with `fflate`), so it needs no endpoint per report and works from a saved copy offline.
+- The call average and "not called this month" left the DCR tab: both are on Doctor visits (Visit targets), and the Doctors list has a **"Not called this month"** filter.
